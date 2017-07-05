@@ -2,9 +2,22 @@
 #include <vector>
 #include <natString.h>
 #include "Token.h"
+#include "TextProvider.h"
+#include "SourceLocation.h"
+
+namespace NatsuLang
+{
+	class Preprocessor;
+}
 
 namespace NatsuLang::Diag
 {
+	enum class DiagID
+	{
+#define DIAG(ID) ID,
+#include "DiagDef.h"
+	};
+
 	class DiagnosticsEngine
 	{
 	public:
@@ -30,12 +43,6 @@ namespace NatsuLang::Diag
 		DiagnosticsEngine();
 		~DiagnosticsEngine();
 
-		nuInt AddArgument(const nString* string);
-		nuInt AddArgument(nInt sInt);
-		nuInt AddArgument(nuInt uInt);
-		nuInt AddArgument(Token::TokenType tokenType);
-		nuInt AddArgument(const Identifier::IdentifierInfo* identifierInfo);
-
 	private:
 		union Argument
 		{
@@ -47,17 +54,64 @@ namespace NatsuLang::Diag
 		};
 
 		std::vector<std::pair<ArgumentType, Argument>> m_Arguments;
+		NatsuLib::natRefPointer<Misc::TextProvider<DiagID>> m_TextProvider;
 
-		nString convertArgumentToString(nuInt index);
+		nString convertArgumentToString(nuInt index) const;
+
+	public:
+		class DiagnosticBuilder
+		{
+		public:
+			constexpr DiagnosticBuilder(DiagnosticsEngine& diags)
+				: m_Diags{ diags }
+			{
+			}
+
+			const DiagnosticBuilder& AddArgument(const nString* string) const;
+			const DiagnosticBuilder& AddArgument(nInt sInt) const;
+			const DiagnosticBuilder& AddArgument(nuInt uInt) const;
+			const DiagnosticBuilder& AddArgument(Token::TokenType tokenType) const;
+			const DiagnosticBuilder& AddArgument(const Identifier::IdentifierInfo* identifierInfo) const;
+
+		private:
+			DiagnosticsEngine& m_Diags;
+		};
+
+		class Diagnostic
+		{
+		public:
+			Diagnostic(const DiagnosticsEngine* diag, nString msg)
+				: m_Diag{ diag }, m_StoredDiagMessage{ std::move(msg) }
+			{
+			}
+
+			const DiagnosticsEngine* GetDiag() const noexcept
+			{
+				return m_Diag;
+			}
+
+			nuInt GetArgCount() const noexcept
+			{
+				return m_Diag->m_Arguments.size();
+			}
+
+			nString GetDiagMessage() const;
+
+		private:
+			const DiagnosticsEngine* const m_Diag;
+			nString m_StoredDiagMessage;
+		};
+
+	public:
+		DiagnosticBuilder Report(DiagID id, SourceLocation sourceLocation = {});
 	};
 
-	class DiagnosticBuilder
+	struct DiagnosticConsumer
+		: NatsuLib::natRefObjImpl<DiagnosticConsumer>
 	{
-	public:
-		DiagnosticBuilder();
-		~DiagnosticBuilder();
-
-	private:
-
+		virtual void BeginSourceFile(const Preprocessor* pp);
+		virtual void EndSourceFile();
+		virtual void Finish();
+		virtual void HandleDiagnostic(DiagnosticsEngine::Level level, DiagnosticsEngine::Diagnostic const& diag) = 0;
 	};
 }

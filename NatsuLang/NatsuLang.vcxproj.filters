@@ -66,6 +66,12 @@
     <ClInclude Include="SourceManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="TextProvider.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DiagDef.h">
+      <Filter>定义文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Lexer.cpp">

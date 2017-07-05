@@ -167,6 +167,7 @@
     <ClInclude Include="Compiler.h" />
     <ClInclude Include="Declaration.h" />
     <ClInclude Include="DeclDef.h" />
+    <ClInclude Include="DiagDef.h" />
     <ClInclude Include="Diagnostic.h" />
     <ClInclude Include="FileManager.h" />
     <ClInclude Include="Identifier.h" />
@@ -176,6 +177,7 @@
     <ClInclude Include="SourceManager.h" />
     <ClInclude Include="Statement.h" />
     <ClInclude Include="StmtDef.h" />
+    <ClInclude Include="TextProvider.h" />
     <ClInclude Include="Token.h" />
     <ClInclude Include="TokenDef.h" />
   </ItemGroup>
