@@ -1,0 +1,42 @@
+#include "FileManager.h"
+
+using namespace NatsuLib;
+using namespace NatsuLang;
+
+FileManager::FileManager()
+	: m_FileLookups{}, m_FileCacheMisses{}
+{
+}
+
+natVFS& FileManager::GetVFS() noexcept
+{
+	return m_VFS;
+}
+
+natRefPointer<IRequest> FileManager::GetFile(nStrView uri, nBool cacheFailure)
+{
+	++m_FileLookups;
+	auto iter = m_CachedFiles.find(uri);
+	if (iter != m_CachedFiles.end())
+	{
+		return iter->second;
+	}
+
+	++m_FileCacheMisses;
+
+	Uri realUri{ uri };
+	auto request = m_VFS.CreateRequest(realUri);
+	if (!request && !cacheFailure)
+	{
+		return nullptr;
+	}
+
+	nBool succeed;
+	tie(iter, succeed) = m_CachedFiles.emplace(realUri, std::move(request));
+	if (!succeed)
+	{
+		nat_Throw(natErrException, NatErr_InternalErr, "Cannot add entry.");
+	}
+
+	return iter->second;
+}
