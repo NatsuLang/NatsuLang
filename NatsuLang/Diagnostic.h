@@ -12,11 +12,7 @@ namespace NatsuLang
 
 namespace NatsuLang::Diag
 {
-	enum class DiagID
-	{
-#define DIAG(ID) ID,
-#include "DiagDef.h"
-	};
+	struct DiagnosticConsumer;
 
 	class DiagnosticsEngine
 	{
@@ -31,32 +27,66 @@ namespace NatsuLang::Diag
 			Fatal
 		};
 
+		enum class DiagID
+		{
+			Invalid,
+#define DIAG(ID, Level, ArgCount) ID,
+#include "DiagDef.h"
+		};
+
 		enum class ArgumentType
 		{
 			String,
+			Char,
 			SInt,
 			UInt,
 			TokenType,
 			IdentifierInfo
 		};
 
-		DiagnosticsEngine();
+		DiagnosticsEngine(NatsuLib::natRefPointer<Misc::TextProvider<DiagID>> idMap, NatsuLib::natRefPointer<DiagnosticConsumer> consumer);
 		~DiagnosticsEngine();
 
+		void Clear() noexcept;
+		nBool EmitDiag();
+
 	private:
-		union Argument
-		{
-			const nString* String;
-			nInt SInt;
-			nuInt UInt;
-			Token::TokenType TokenType;
-			const Identifier::IdentifierInfo* IdentifierInfo;
-		};
+		using Argument = std::variant<nString, nChar, nInt, nuInt, Token::TokenType, NatsuLib::natRefPointer<Identifier::IdentifierInfo>>;
 
 		std::vector<std::pair<ArgumentType, Argument>> m_Arguments;
-		NatsuLib::natRefPointer<Misc::TextProvider<DiagID>> m_TextProvider;
+		NatsuLib::natRefPointer<Misc::TextProvider<DiagID>> m_IDMap;
+		NatsuLib::natRefPointer<DiagnosticConsumer> m_Consumer;
+
+		DiagID m_CurrentID;
+		nuInt m_CurrentRequiredArgs;
+		nString m_CurrentDiagDesc;
+		SourceLocation m_CurrentSourceLocation;
 
 		nString convertArgumentToString(nuInt index) const;
+
+		static constexpr Level getDiagLevel(DiagID id) noexcept
+		{
+			switch (id)
+			{
+#define DIAG(ID, Level, ArgCount) case DiagID::ID: return Level;
+#include "DiagDef.h"
+			default:
+				assert(!"There should never be reached.");
+				return Level::Fatal;
+			}
+		}
+
+		static constexpr nuInt getDiagArgCount(DiagID id) noexcept
+		{
+			switch (id)
+			{
+#define DIAG(ID, Level, ArgCount) case DiagID::ID: return ArgCount;
+#include "DiagDef.h"
+			default:
+				assert(!"There should never be reached.");
+				return 0;
+			}
+		}
 
 	public:
 		class DiagnosticBuilder
@@ -67,11 +97,12 @@ namespace NatsuLang::Diag
 			{
 			}
 
-			const DiagnosticBuilder& AddArgument(const nString* string) const;
+			const DiagnosticBuilder& AddArgument(nString string) const;
+			const DiagnosticBuilder& AddArgument(nChar Char) const;
 			const DiagnosticBuilder& AddArgument(nInt sInt) const;
 			const DiagnosticBuilder& AddArgument(nuInt uInt) const;
 			const DiagnosticBuilder& AddArgument(Token::TokenType tokenType) const;
-			const DiagnosticBuilder& AddArgument(const Identifier::IdentifierInfo* identifierInfo) const;
+			const DiagnosticBuilder& AddArgument(NatsuLib::natRefPointer<Identifier::IdentifierInfo> identifierInfo) const;
 
 		private:
 			DiagnosticsEngine& m_Diags;
@@ -83,6 +114,7 @@ namespace NatsuLang::Diag
 			Diagnostic(const DiagnosticsEngine* diag, nString msg)
 				: m_Diag{ diag }, m_StoredDiagMessage{ std::move(msg) }
 			{
+				assert(diag);
 			}
 
 			const DiagnosticsEngine* GetDiag() const noexcept
@@ -92,7 +124,12 @@ namespace NatsuLang::Diag
 
 			nuInt GetArgCount() const noexcept
 			{
-				return m_Diag->m_Arguments.size();
+				return static_cast<nuInt>(m_Diag->m_Arguments.size());
+			}
+
+			SourceLocation GetSourceLocation() const noexcept
+			{
+				return m_Diag->m_CurrentSourceLocation;
 			}
 
 			nString GetDiagMessage() const;

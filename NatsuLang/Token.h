@@ -37,7 +37,6 @@ namespace NatsuLang::Token
 		void Reset() noexcept
 		{
 			m_Type = TokenType::Unknown;
-			m_Info.reset();
 		}
 
 		TokenType GetType() const noexcept
@@ -50,45 +49,40 @@ namespace NatsuLang::Token
 			m_Type = tokenType;
 		}
 
+		nuInt GetLength() const noexcept;
+
+		void SetLength(nuInt value)
+		{
+			m_Info.emplace<2>(value);
+		}
+
 		NatsuLib::natRefPointer<Identifier::IdentifierInfo> GetIdentifierInfo() noexcept
 		{
-			if (!m_Info.has_value())
-			{
-				return nullptr;
-			}
-
-			auto& info = m_Info.value();
-			return info.index() == 0 ? std::get<0>(info) : nullptr;
+			return m_Info.index() == 0 ? std::get<0>(m_Info) : nullptr;
 		}
 
-		void SetIdentifierInfo(NatsuLib::natRefPointer<Identifier::IdentifierInfo> identifierInfo) noexcept
+		void SetIdentifierInfo(NatsuLib::natRefPointer<Identifier::IdentifierInfo> identifierInfo)
 		{
-			m_Info.emplace(std::in_place_index<0>, std::move(identifierInfo));
+			m_Info.emplace<0>(std::move(identifierInfo));
 		}
 
-		std::optional<NatsuLib::nStrView> GetLiteralContent() noexcept
+		std::optional<nStrView> GetLiteralContent() noexcept
 		{
-			if (!m_Info.has_value())
+			if (m_Info.index() == 1)
 			{
-				return {};
-			}
-
-			auto& info = m_Info.value();
-			if (info.index() == 1)
-			{
-				return std::get<1>(info);
+				return std::get<1>(m_Info);
 			}
 
 			return {};
 		}
 
-		void SetLiteralContent(NatsuLib::nStrView const& str) noexcept
+		void SetLiteralContent(nStrView const& str)
 		{
-			m_Info.emplace(std::in_place_index<1>, str);
+			m_Info.emplace<1>(str);
 		}
 
 	private:
 		TokenType m_Type;
-		std::optional<std::variant<NatsuLib::natRefPointer<NatsuLang::Identifier::IdentifierInfo>, NatsuLib::nStrView>> m_Info;
+		std::variant<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, nStrView, nuInt> m_Info;
 	};
 }

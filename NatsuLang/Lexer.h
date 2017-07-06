@@ -15,7 +15,7 @@ namespace NatsuLang
 		public:
 			explicit Lexer(nStrView buffer, Preprocessor& preprocessor);
 
-			bool Lex(Token::Token& result);
+			nBool Lex(Token::Token& result);
 
 		private:
 			using Iterator = nStrView::const_iterator;
@@ -27,13 +27,14 @@ namespace NatsuLang
 			// 当前处理的指针，指向下一次被处理的字符
 			Iterator m_Current;
 
-			bool skipWhitespace(Token::Token& result, Iterator cur);
-			bool skipLineComment(Token::Token& result, Iterator cur);
-			bool skipBlockComment(Token::Token& result, Iterator cur);
+			nBool skipWhitespace(Token::Token& result, Iterator cur);
+			nBool skipLineComment(Token::Token& result, Iterator cur);
+			nBool skipBlockComment(Token::Token& result, Iterator cur);
 
-			bool lexNumericLiteral(Token::Token& result, Iterator cur);
-			bool lexIdentifier(Token::Token& result, Iterator cur);
-			bool lexCharLiteral(Token::Token& result, Iterator cur);
+			nBool lexNumericLiteral(Token::Token& result, Iterator cur);
+			nBool lexIdentifier(Token::Token& result, Iterator cur);
+			nBool lexCharLiteral(Token::Token& result, Iterator cur);
+			nBool lexStringLiteral(Token::Token& result, Iterator cur);
 		};
 	}
 }

@@ -6,8 +6,8 @@ using namespace NatsuLang::Lex;
 using namespace NatsuLang::Token;
 using namespace NatsuLang::CharInfo;
 
-Lexer::Lexer(nStrView buffer, Preprocessor& preprocessor)
-	: m_Preprocessor{ preprocessor }, m_Buffer{ std::move(buffer) }, m_Current{ m_Buffer.cbegin() }
+Lexer::Lexer(nStrView buffer, NatsuLang::Preprocessor& preprocessor)
+	: m_Preprocessor{ preprocessor }, m_Buffer{ buffer }, m_Current{ m_Buffer.cbegin() }
 {
 	if (m_Buffer.empty())
 	{
@@ -15,7 +15,7 @@ Lexer::Lexer(nStrView buffer, Preprocessor& preprocessor)
 	}
 }
 
-bool Lexer::Lex(Token::Token& result)
+nBool Lexer::Lex(NatsuLang::Token::Token& result)
 {
 NextToken:
 	result.Reset();
@@ -41,6 +41,7 @@ NextToken:
 		{
 		case 0:
 			result.SetType(TokenType::Eof);
+			result.SetLength(0);
 			return true;
 		case '\n':
 		case '\r':
@@ -67,8 +68,284 @@ NextToken:
 		case '_':
 			return lexIdentifier(result, cur);
 		case '\'':
+			return lexCharLiteral(result, cur);
+		case '"':
+			return lexStringLiteral(result, cur);
+		case '?':
+			result.SetType(TokenType::Question);
+			break;
+		case '[':
+			result.SetType(TokenType::LeftSquare);
+			break;
+		case ']':
+			result.SetType(TokenType::RightSquare);
+			break;
+		case '(':
+			result.SetType(TokenType::LeftParen);
+			break;
+		case ')':
+			result.SetType(TokenType::RightParen);
+			break;
+		case '{':
+			result.SetType(TokenType::LeftBrace);
+			break;
+		case '}':
+			result.SetType(TokenType::RightBrace);
+			break;
+		case '.':
+			result.SetType(TokenType::Period);
+			break;
+		case '&':
+		{
+			// TODO: 可能超过文件尾，下同
+			const auto nextChar = *(cur + 1);
+			switch (nextChar)
+			{
+			case '&':
+				result.SetType(TokenType::AmpAmp);
+				++cur;
+				break;
+			case '=':
+				result.SetType(TokenType::AmpEqual);
+				++cur;
+				break;
+			default:
+				result.SetType(TokenType::Amp);
+				break;
+			}
+		}
+			break;
+		case '*':
+		{
+			const auto nextChar = *(cur + 1);
+			if (nextChar == '=')
+			{
+				result.SetType(TokenType::StarEqual);
+				++cur;
+			}
+			else
+			{
+				result.SetType(TokenType::Star);
+			}
+		}
+			break;
+		case '+':
+		{
+			const auto nextChar = *(cur + 1);
+			switch (nextChar)
+			{
+			case '+':
+				result.SetType(TokenType::PlusPlus);
+				++cur;
+				break;
+			case '=':
+				result.SetType(TokenType::PlusEqual);
+				++cur;
+				break;
+			default:
+				result.SetType(TokenType::Plus);
+				break;
+			}
+		}
+			break;
+		case '-':
+		{
+			const auto nextChar = *(cur + 1);
+			switch (nextChar)
+			{
+			case '-':
+				result.SetType(TokenType::MinusMinus);
+				++cur;
+				break;
+			case '=':
+				result.SetType(TokenType::MinusEqual);
+				++cur;
+				break;
+			default:
+				result.SetType(TokenType::Minus);
+				break;
+			}
+		}
+			break;
+		case '~':
+			result.SetType(TokenType::Tilde);
+			break;
+		case '!':
+		{
+			const auto nextChar = *(cur + 1);
+			if (nextChar == '=')
+			{
+				result.SetType(TokenType::ExclaimEqual);
+				++cur;
+			}
+			else
+			{
+				result.SetType(TokenType::Exclaim);
+			}
+		}
+			break;
+		case '/':
+		{
+			const auto nextChar = *(cur + 1);
+			switch (nextChar)
+			{
+			case '/':
+				if (skipLineComment(result, cur + 2))
+				{
+					return true;
+				}
+				goto NextToken;
+			case '*':
+				if (skipBlockComment(result, cur + 2))
+				{
+					return true;
+				}
+				goto NextToken;
+			case '=':
+				result.SetType(TokenType::SlashEqual);
+				++cur;
+				break;
+			default:
+				result.SetType(TokenType::Slash);
+				break;
+			}
+		}
+			break;
+		case '%':
+		{
+			const auto nextChar = *(cur + 1);
+			if (nextChar == '=')
+			{
+				result.SetType(TokenType::PercentEqual);
+				++cur;
+			}
+			else
+			{
+				result.SetType(TokenType::Percent);
+			}
+		}
+			break;
+		case '<':
+		{
+			const auto nextChar = *(cur + 1);
+			switch (nextChar)
+			{
+			case '<':
+				if (*(cur + 2) == '=')
+				{
+					result.SetType(TokenType::LessLessEqual);
+					cur += 2;
+				}
+				else
+				{
+					result.SetType(TokenType::LessLess);
+					++cur;
+				}
+				break;
+			case '=':
+				result.SetType(TokenType::LessEqual);
+				++cur;
+				break;
+			default:
+				result.SetType(TokenType::Less);
+				break;
+			}
+		}
+			break;
+		case '>':
+		{
+			const auto nextChar = *(cur + 1);
+			switch (nextChar)
+			{
+			case '>':
+				if (*(cur + 2) == '=')
+				{
+					result.SetType(TokenType::GreaterGreaterEqual);
+					cur += 2;
+				}
+				else
+				{
+					result.SetType(TokenType::GreaterGreater);
+					++cur;
+				}
+				break;
+			case '=':
+				result.SetType(TokenType::GreaterEqual);
+				++cur;
+				break;
+			default:
+				result.SetType(TokenType::Greater);
+				break;
+			}
+		}
+			break;
+		case '^':
+		{
+			const auto nextChar = *(cur + 1);
+			if (nextChar == '=')
+			{
+				result.SetType(TokenType::CaretEqual);
+				++cur;
+			}
+			else
+			{
+				result.SetType(TokenType::Caret);
+			}
+		}
+			break;
+		case '|':
+		{
+			const auto nextChar = *(cur + 1);
+			switch (nextChar)
+			{
+			case '=':
+				result.SetType(TokenType::PipeEqual);
+				++cur;
+				break;
+			case '|':
+				result.SetType(TokenType::PipePipe);
+				++cur;
+				break;
+			default:
+				result.SetType(TokenType::Pipe);
+				break;
+			}
+		}
+			break;
+		case ':':
+			result.SetType(TokenType::Colon);
+			break;
+		case ';':
+			result.SetType(TokenType::Semi);
+			break;
+		case '=':
+		{
+			const auto nextChar = *(cur + 1);
+			if (nextChar == '=')
+			{
+				result.SetType(TokenType::EqualEqual);
+				++cur;
+			}
+			else
+			{
+				result.SetType(TokenType::Equal);
+			}
+		}
+			break;
+		case ',':
+			result.SetType(TokenType::Comma);
+			break;
+		case '#':
+			result.SetType(TokenType::Hash);
+			break;
+		case '$':
+			result.SetType(TokenType::Dollar);
+			break;
+		case '@':
+			result.SetType(TokenType::At);
 			break;
 		default:
+			result.SetType(TokenType::Unknown);
 			break;
 		}
 	}
@@ -76,13 +353,15 @@ NextToken:
 	{
 		// TODO: ???
 	}
+	
 	cur += charCount;
+	result.SetLength(static_cast<nuInt>(cur - m_Current));
 
 	m_Current = cur;
 	return false;
 }
 
-bool Lexer::skipWhitespace(Token::Token& result, Iterator cur)
+nBool Lexer::skipWhitespace(NatsuLang::Token::Token& result, Iterator cur)
 {
 	const auto end = m_Buffer.end();
 
@@ -97,7 +376,7 @@ bool Lexer::skipWhitespace(Token::Token& result, Iterator cur)
 	return false;
 }
 
-bool Lexer::skipLineComment(Token::Token& result, Iterator cur)
+nBool Lexer::skipLineComment(NatsuLang::Token::Token& result, Iterator cur)
 {
 	const auto end = m_Buffer.end();
 
@@ -110,7 +389,7 @@ bool Lexer::skipLineComment(Token::Token& result, Iterator cur)
 	return false;
 }
 
-bool Lexer::skipBlockComment(Token::Token& result, Iterator cur)
+nBool Lexer::skipBlockComment(NatsuLang::Token::Token& result, Iterator cur)
 {
 	const auto end = m_Buffer.end();
 
@@ -128,10 +407,11 @@ bool Lexer::skipBlockComment(Token::Token& result, Iterator cur)
 	return false;
 }
 
-bool Lexer::lexNumericLiteral(Token::Token& result, Iterator cur)
+nBool Lexer::lexNumericLiteral(NatsuLang::Token::Token& result, Iterator cur)
 {
+	const auto start = cur, end = m_Buffer.end();
 	CharType curChar = *cur, prevChar{};
-	while (IsNumericLiteralBody(curChar))
+	while (cur != end && IsNumericLiteralBody(curChar))
 	{
 		prevChar = curChar;
 		curChar = *cur++;
@@ -144,31 +424,93 @@ bool Lexer::lexNumericLiteral(Token::Token& result, Iterator cur)
 	}
 
 	result.SetType(TokenType::NumericLiteral);
-	result.SetLiteralContent({ m_Current, cur });
+	result.SetLiteralContent({ start, cur });
 	m_Current = cur;
 	return true;
 }
 
-bool Lexer::lexIdentifier(Token::Token& result, Iterator cur)
+nBool Lexer::lexIdentifier(NatsuLang::Token::Token& result, Iterator cur)
 {
-	const auto start = cur;
+	const auto start = cur, end = m_Buffer.end();
 	auto curChar = *cur++;
 
-	while (IsIdentifierBody(curChar))
+	while (cur != end && IsIdentifierBody(curChar))
 	{
 		curChar = *cur++;
 	}
 
 	m_Current = cur;
 
-	auto info = m_Preprocessor.FindIdentifierInfo(nStrView{ start, curChar }, result);
+	auto info = m_Preprocessor.FindIdentifierInfo(nStrView{ start, cur }, result);
 	// 不需要对info进行操作，因为已经在FindIdentifierInfo中处理完毕
 	static_cast<void>(info);
 
 	return true;
 }
 
-bool Lexer::lexCharLiteral(Token::Token& result, Iterator cur)
+nBool Lexer::lexCharLiteral(NatsuLang::Token::Token& result, Iterator cur)
 {
+	const auto start = ++cur, end = m_Buffer.end();
+	const auto count = NatsuLib::StringEncodingTrait<nString::UsingStringType>::GetCharCount(*start);
+	if (count < static_cast<std::size_t>(end - start))
+	{
+		const auto literalEnd = start + count;
 
+		result.SetType(TokenType::CharLiteral);
+		result.SetLiteralContent({ start, literalEnd });
+
+		if (*literalEnd != '\'')
+		{
+			m_Preprocessor.GetDiag().Report(Diag::DiagnosticsEngine::DiagID::ErrMultiCharInLiteral);
+		}
+
+		cur = literalEnd;
+		while (cur != end)
+		{
+			++cur;
+
+			if (*cur == '\'')
+			{
+				++cur;
+				break;
+			}
+		}
+
+		m_Current = cur;
+		return true;
+	}
+	
+	m_Preprocessor.GetDiag().Report(Diag::DiagnosticsEngine::DiagID::ErrUnexpectEOF);
+	m_Current = end;
+	return false;
+}
+
+nBool Lexer::lexStringLiteral(NatsuLang::Token::Token& result, Iterator cur)
+{
+	const auto start = ++cur, end = m_Buffer.end();
+
+	auto prevChar = *cur;
+	while (cur != end)
+	{
+		if (*cur == '"' && prevChar != '\\')
+		{
+			break;
+		}
+
+		++cur;
+	}
+
+	if (cur == end)
+	{
+		m_Preprocessor.GetDiag().Report(Diag::DiagnosticsEngine::DiagID::ErrUnexpectEOF);
+	}
+	else
+	{
+		result.SetType(TokenType::StringLiteral);
+		result.SetLiteralContent({ start, cur });
+		++cur;
+	}
+
+	m_Current = cur;
+	return true;
 }

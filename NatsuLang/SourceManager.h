@@ -6,18 +6,22 @@
 
 namespace NatsuLang
 {
-	class DiagnosticsEngine;
+	namespace Diag
+	{
+		class DiagnosticsEngine;
+	}
+	
 	class FileManager;
 
 	class SourceManager
 	{
 	public:
-		explicit SourceManager(DiagnosticsEngine& diagnosticsEngine, FileManager& fileManager, NatsuLib::StringType encoding = nString::UsingStringType)
+		explicit SourceManager(Diag::DiagnosticsEngine& diagnosticsEngine, FileManager& fileManager, NatsuLib::StringType encoding = nString::UsingStringType)
 			: m_DiagnosticsEngine{ diagnosticsEngine }, m_FileManager { fileManager }, m_Encoding{ encoding }
 		{
 		}
 
-		DiagnosticsEngine& GetDiagnosticsEngine() const noexcept
+		Diag::DiagnosticsEngine& GetDiagnosticsEngine() const noexcept
 		{
 			return m_DiagnosticsEngine;
 		}
@@ -41,7 +45,7 @@ namespace NatsuLang
 		std::pair<nBool, nStrView> GetFileContent(nuInt fileID);
 
 	private:
-		DiagnosticsEngine& m_DiagnosticsEngine;
+		Diag::DiagnosticsEngine& m_DiagnosticsEngine;
 		FileManager& m_FileManager;
 		NatsuLib::StringType m_Encoding;
 		// Key: 文件URI, Value: 文件ID

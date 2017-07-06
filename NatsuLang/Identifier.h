@@ -28,7 +28,7 @@ namespace NatsuLang::Identifier
 		: public NatsuLib::natRefObjImpl<IdentifierTable>
 	{
 	public:
-		NatsuLib::natRefPointer<IdentifierInfo> GetOrAdd(nStrView name, Token::TokenType tokenType = {});
+		NatsuLib::natRefPointer<IdentifierInfo> GetOrAdd(nStrView name, Token::TokenType tokenType = Token::TokenType::Identifier);
 
 		std::unordered_map<nString, NatsuLib::natRefPointer<IdentifierInfo>>::const_iterator begin() const;
 		std::unordered_map<nString, NatsuLib::natRefPointer<IdentifierInfo>>::const_iterator end() const;

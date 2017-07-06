@@ -24,15 +24,14 @@ natRefPointer<IRequest> FileManager::GetFile(nStrView uri, nBool cacheFailure)
 
 	++m_FileCacheMisses;
 
-	Uri realUri{ uri };
-	auto request = m_VFS.CreateRequest(realUri);
+	auto request = m_VFS.CreateRequest(Uri{ uri });
 	if (!request && !cacheFailure)
 	{
 		return nullptr;
 	}
 
 	nBool succeed;
-	tie(iter, succeed) = m_CachedFiles.emplace(realUri, std::move(request));
+	tie(iter, succeed) = m_CachedFiles.emplace(uri, std::move(request));
 	if (!succeed)
 	{
 		nat_Throw(natErrException, NatErr_InternalErr, "Cannot add entry.");
