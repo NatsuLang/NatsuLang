@@ -176,7 +176,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CharInfo.h" />
-    <ClInclude Include="Compiler.h" />
+    <ClInclude Include="ExprDef.h" />
+    <ClInclude Include="Parser.h" />
     <ClInclude Include="Declaration.h" />
     <ClInclude Include="DeclDef.h" />
     <ClInclude Include="DiagDef.h" />
@@ -198,6 +199,7 @@
     <ClCompile Include="FileManager.cpp" />
     <ClCompile Include="Identifier.cpp" />
     <ClCompile Include="Lexer.cpp" />
+    <ClCompile Include="Parser.cpp" />
     <ClCompile Include="Preprocessor.cpp" />
     <ClCompile Include="SourceManager.cpp" />
     <ClCompile Include="Token.cpp" />

@@ -5,7 +5,7 @@
 using namespace NatsuLib;
 using namespace NatsuLang;
 
-Diag::DiagnosticsEngine::DiagnosticsEngine(NatsuLib::natRefPointer<Misc::TextProvider<DiagID>> idMap, NatsuLib::natRefPointer<DiagnosticConsumer> consumer)
+Diag::DiagnosticsEngine::DiagnosticsEngine(natRefPointer<Misc::TextProvider<DiagID>> idMap, natRefPointer<DiagnosticConsumer> consumer)
 	: m_IDMap{ std::move(idMap) }, m_Consumer{ std::move(consumer) }, m_CurrentID{ DiagID::Invalid }, m_CurrentRequiredArgs{}
 {
 }
@@ -24,7 +24,7 @@ void Diag::DiagnosticsEngine::Clear() noexcept
 
 nBool Diag::DiagnosticsEngine::EmitDiag()
 {
-	if (m_Arguments.size() >= m_CurrentRequiredArgs)
+	if (m_CurrentID != DiagID::Invalid && m_Arguments.size() >= m_CurrentRequiredArgs)
 	{
 		m_Consumer->HandleDiagnostic(getDiagLevel(m_CurrentID), Diagnostic{ this, std::move(m_CurrentDiagDesc) });
 		Clear();

@@ -31,7 +31,9 @@ NextToken:
 
 	if (cur == end)
 	{
-		return false;
+		result.SetType(TokenType::Eof);
+		result.SetLength(0);
+		return true;
 	}
 
 	const auto charCount = NatsuLib::StringEncodingTrait<nStrView::UsingStringType>::GetCharCount(*cur);

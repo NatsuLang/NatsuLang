@@ -24,9 +24,6 @@
     <ClInclude Include="Token.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Compiler.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="TokenDef.h">
       <Filter>定义文件</Filter>
     </ClInclude>
@@ -69,6 +66,12 @@
     <ClInclude Include="DiagDef.h">
       <Filter>定义文件</Filter>
     </ClInclude>
+    <ClInclude Include="Parser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ExprDef.h">
+      <Filter>定义文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Lexer.cpp">
@@ -90,6 +93,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Diagnostic.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Parser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

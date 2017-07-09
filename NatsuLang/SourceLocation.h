@@ -1,6 +1,5 @@
 #pragma once
 #include <natType.h>
-#include <optional>
 
 namespace NatsuLang
 {

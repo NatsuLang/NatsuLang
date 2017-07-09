@@ -33,18 +33,24 @@ class OutputDiagConsumer
 	: public natRefObjImpl<OutputDiagConsumer, DiagnosticConsumer>
 {
 public:
+	explicit OutputDiagConsumer(natConsole& console)
+		: m_Console{ console }
+	{
+	}
+
 	void HandleDiagnostic(DiagnosticsEngine::Level /*level*/, DiagnosticsEngine::Diagnostic const& diag) override
 	{
 		m_Console.WriteLineErr(diag.GetDiagMessage());
 	}
 
 private:
-	natConsole m_Console;
+	natConsole& m_Console;
 };
 
 int main()
 {
-	DiagnosticsEngine diag{ make_ref<IDMap>(), make_ref<OutputDiagConsumer>() };
+	natConsole console;
+	DiagnosticsEngine diag{ make_ref<IDMap>(), make_ref<OutputDiagConsumer>(console) };
 	FileManager fileManager{};
 	SourceManager sourceManager{ diag, fileManager };
 	Preprocessor pp{ diag, sourceManager };

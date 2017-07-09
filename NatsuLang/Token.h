@@ -2,6 +2,7 @@
 #include <variant>
 #include <optional>
 #include <natRefObj.h>
+#include "SourceLocation.h"
 
 namespace NatsuLang::Identifier
 {
@@ -22,6 +23,21 @@ namespace NatsuLang::Token
 		return tokenType == TokenType::NumericLiteral || tokenType == TokenType::CharLiteral || tokenType == TokenType::StringLiteral;
 	}
 
+	constexpr bool IsParen(TokenType tokenType) noexcept
+	{
+		return tokenType == TokenType::LeftParen || tokenType == TokenType::RightParen;
+	}
+
+	constexpr bool IsBracket(TokenType tokenType) noexcept
+	{
+		return tokenType == TokenType::LeftSquare || tokenType == TokenType::RightSquare;
+	}
+
+	constexpr bool IsBrace(TokenType tokenType) noexcept
+	{
+		return tokenType == TokenType::LeftBrace || tokenType == TokenType::RightBrace;
+	}
+
 	const char* GetTokenName(TokenType tokenType) noexcept;
 	const char* GetPunctuatorName(TokenType tokenType) noexcept;
 	const char* GetKeywordName(TokenType tokenType) noexcept;
@@ -29,8 +45,8 @@ namespace NatsuLang::Token
 	class Token final
 	{
 	public:
-		constexpr explicit Token(TokenType tokenType = TokenType::Unknown) noexcept
-			: m_Type{ tokenType }
+		constexpr explicit Token(TokenType tokenType = TokenType::Unknown, SourceLocation location = {}) noexcept
+			: m_Type{ tokenType }, m_Location{ location }
 		{
 		}
 
@@ -49,11 +65,26 @@ namespace NatsuLang::Token
 			m_Type = tokenType;
 		}
 
+		nBool Is(TokenType tokenType) const noexcept
+		{
+			return m_Type == tokenType;
+		}
+
 		nuInt GetLength() const noexcept;
 
 		void SetLength(nuInt value)
 		{
 			m_Info.emplace<2>(value);
+		}
+
+		SourceLocation GetLocation() const noexcept
+		{
+			return m_Location;
+		}
+
+		void SetLocation(SourceLocation location) noexcept
+		{
+			m_Location = location;
 		}
 
 		NatsuLib::natRefPointer<Identifier::IdentifierInfo> GetIdentifierInfo() noexcept
@@ -84,5 +115,6 @@ namespace NatsuLang::Token
 	private:
 		TokenType m_Type;
 		std::variant<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, nStrView, nuInt> m_Info;
+		SourceLocation m_Location;
 	};
 }

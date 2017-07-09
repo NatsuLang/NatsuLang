@@ -19,11 +19,11 @@ ABSTRACT_DECL(NAMED(Named, Decl))
 LABEL(Label, NamedDecl)
 #undef LABEL
 
-#ifndef NAMESPACE
-#define NAMESPACE(Type, Base) NAMED(Type, Base)
+#ifndef MODULE
+#define MODULE(Type, Base) NAMED(Type, Base)
 #endif
-NAMESPACE(Namespace, NamedDecl)
-#undef NAMESPACE
+MODULE(Module, NamedDecl)
+#undef MODULE
 
 #ifndef TYPE
 #define TYPE(Type, Base) NAMED(Type, Base)
