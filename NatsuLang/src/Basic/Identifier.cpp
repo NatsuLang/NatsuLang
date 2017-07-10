@@ -12,7 +12,7 @@ namespace
 		switch (token)
 		{
 #define KEYWORD(X) case NatsuLang::Token::TokenType::Kw_ ## X:
-#include "TokenDef.h"
+#include "Basic/TokenDef.h"
 			return true;
 		default:
 			return false;

@@ -1,22 +1,42 @@
 #pragma once
-#include "natMisc.h"
+#include "DeclBase.h"
+
+namespace NatsuLang::Identifier
+{
+	class IdentifierInfo;
+}
 
 namespace NatsuLang::Declaration
 {
-	enum class Type
-	{
-
-	};
-
-	MAKE_ENUM_CLASS_BITMASK_TYPE(Type);
-
-	class Decl
+	class NamedDecl
+		: public Decl
 	{
 	public:
-		Decl();
-		~Decl();
+		NamedDecl(Type type, DeclContext* context, SourceLocation loc, NatsuLib::natRefPointer<Identifier::IdentifierInfo> identifierInfo)
+			: Decl(type, context, loc), m_IdentifierInfo{ std::move(identifierInfo) }
+		{
+		}
+		~NamedDecl();
+
+		NatsuLib::natRefPointer<Identifier::IdentifierInfo> GetIdentifierInfo() const noexcept
+		{
+			return m_IdentifierInfo;
+		}
+
+		void SetIdentifierInfo(NatsuLib::natRefPointer<Identifier::IdentifierInfo> identifierInfo) noexcept
+		{
+			m_IdentifierInfo = std::move(identifierInfo);
+		}
+
+		nStrView GetName() const noexcept;
+
+		nBool HasLinkage() const noexcept
+		{
+			static_cast<void>(this);
+			return true;
+		}
 
 	private:
-
+		NatsuLib::natRefPointer<Identifier::IdentifierInfo> m_IdentifierInfo;
 	};
 }

@@ -10,7 +10,7 @@ namespace
 	{
 #define TOK(X) #X,
 #define KEYWORD(X) #X,
-#include "TokenDef.h"
+#include "Basic/TokenDef.h"
 	};
 }
 
@@ -30,7 +30,7 @@ const char* NatsuLang::Token::GetPunctuatorName(TokenType tokenType) noexcept
 	switch (tokenType)
 	{
 #define PUNCTUATOR(X,Y) case TokenType::X: return Y;
-#include "TokenDef.h"
+#include "Basic/TokenDef.h"
 	default:
 		break;
 	}
@@ -43,7 +43,7 @@ const char* NatsuLang::Token::GetKeywordName(TokenType tokenType) noexcept
 	switch (tokenType)
 	{
 #define KEYWORD(X) case TokenType::Kw_ ## X: return #X;
-#include "TokenDef.h"
+#include "Basic/TokenDef.h"
 	default:
 		break;
 	}

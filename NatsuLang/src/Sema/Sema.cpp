@@ -11,3 +11,8 @@ Sema::Sema(Preprocessor& preprocessor)
 Sema::~Sema()
 {
 }
+
+NatsuLib::natRefPointer<NatsuLang::Declaration::Decl> Sema::OnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path)
+{
+	nat_Throw(NatsuLib::NotImplementedException);
+}
