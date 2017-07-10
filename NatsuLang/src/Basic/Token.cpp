@@ -1,5 +1,5 @@
-#include "Token.h"
-#include "Identifier.h"
+#include "Basic/Token.h"
+#include "Basic/Identifier.h"
 
 using namespace std;
 using namespace NatsuLang::Token;

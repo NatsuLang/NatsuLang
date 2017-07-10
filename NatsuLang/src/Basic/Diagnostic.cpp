@@ -1,6 +1,6 @@
-#include "Diagnostic.h"
-#include "Identifier.h"
-#include "CharInfo.h"
+#include "Basic/Diagnostic.h"
+#include "Basic/Identifier.h"
+#include "Basic/CharInfo.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang;

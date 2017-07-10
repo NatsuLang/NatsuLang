@@ -1,6 +1,6 @@
-#include "Lexer.h"
-#include "CharInfo.h"
-#include "Preprocessor.h"
+#include "Lex/Lexer.h"
+#include "Lex/Preprocessor.h"
+#include "Basic/CharInfo.h"
 
 using namespace NatsuLang::Lex;
 using namespace NatsuLang::Token;

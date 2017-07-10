@@ -1,5 +1,5 @@
-#include "SourceManager.h"
-#include "FileManager.h"
+#include "Basic/SourceManager.h"
+#include "Basic/FileManager.h"
 #include <natEncoding.h>
 
 using namespace NatsuLib;

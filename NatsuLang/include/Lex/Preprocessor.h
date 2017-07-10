@@ -1,7 +1,7 @@
 #pragma once
-#include "Identifier.h"
-#include "Diagnostic.h"
-#include "SourceManager.h"
+#include "Basic/Identifier.h"
+#include "Basic/Diagnostic.h"
+#include "Basic/SourceManager.h"
 #include "Lexer.h"
 
 namespace NatsuLang
@@ -17,6 +17,11 @@ namespace NatsuLang
 		Diag::DiagnosticsEngine& GetDiag() const noexcept
 		{
 			return m_Diag;
+		}
+
+		SourceManager& GetSourceManager() const noexcept
+		{
+			return m_SourceManager;
 		}
 
 		NatsuLib::natRefPointer<Lex::Lexer> GetLexer() const noexcept

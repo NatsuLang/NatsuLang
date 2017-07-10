@@ -1,102 +1,142 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="源文件">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="头文件">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
-    </Filter>
     <Filter Include="资源文件">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="定义文件">
-      <UniqueIdentifier>{f73be916-fe99-43e0-9a95-4860e68089df}</UniqueIdentifier>
+    <Filter Include="Lex">
+      <UniqueIdentifier>{6ea1433d-0ddb-431b-a194-ddfe208e9449}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AST">
+      <UniqueIdentifier>{916c7708-871e-43e8-bf92-8601bb47593b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Basic">
+      <UniqueIdentifier>{6207b5c7-a95d-49ea-aa07-9274413e6bce}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Parse">
+      <UniqueIdentifier>{8cfb71cf-732b-4634-8957-383f4717315e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sema">
+      <UniqueIdentifier>{7026ac9b-a9cb-47dd-a351-476489bff2c7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AST\include">
+      <UniqueIdentifier>{71bf3018-eff1-44c0-90f1-915771c144a9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="AST\src">
+      <UniqueIdentifier>{9e83735f-4097-4707-95d7-c6b2f0e95cc5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Basic\include">
+      <UniqueIdentifier>{347b1680-3534-460f-998d-b96f3206c957}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Basic\src">
+      <UniqueIdentifier>{ee8be505-f2db-45ec-bbba-77485323504a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lex\include">
+      <UniqueIdentifier>{2e43384f-0546-43be-8e48-84f44368554c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lex\src">
+      <UniqueIdentifier>{5276a2ee-898e-4eb9-a3b9-243564a7019f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Parse\include">
+      <UniqueIdentifier>{409e290b-4207-4ed3-b28b-e158fc827b31}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Parse\src">
+      <UniqueIdentifier>{73e00313-8c4d-43db-a24c-e16c633cadc9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sema\include">
+      <UniqueIdentifier>{4532fb91-43f3-4798-81ae-6affd0f9bee9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Sema\src">
+      <UniqueIdentifier>{a69e7898-7421-4490-9057-301f9f5c7033}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Lexer.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="include\AST\Declaration.h">
+      <Filter>AST\include</Filter>
     </ClInclude>
-    <ClInclude Include="Token.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="include\AST\Statement.h">
+      <Filter>AST\include</Filter>
     </ClInclude>
-    <ClInclude Include="TokenDef.h">
-      <Filter>定义文件</Filter>
+    <ClInclude Include="include\Basic\CharInfo.h">
+      <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="SourceLocation.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="include\Basic\DeclDef.h">
+      <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="CharInfo.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="include\Basic\DiagDef.h">
+      <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="Identifier.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="include\Basic\Diagnostic.h">
+      <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="Declaration.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="include\Basic\ExprDef.h">
+      <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="DeclDef.h">
-      <Filter>定义文件</Filter>
+    <ClInclude Include="include\Basic\FileManager.h">
+      <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="Statement.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="include\Basic\Identifier.h">
+      <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="StmtDef.h">
-      <Filter>定义文件</Filter>
+    <ClInclude Include="include\Basic\SourceLocation.h">
+      <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="Preprocessor.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="include\Basic\SourceManager.h">
+      <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="FileManager.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="include\Basic\StmtDef.h">
+      <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="Diagnostic.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="include\Basic\TextProvider.h">
+      <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="SourceManager.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="include\Basic\Token.h">
+      <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="TextProvider.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="include\Basic\TokenDef.h">
+      <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="DiagDef.h">
-      <Filter>定义文件</Filter>
+    <ClInclude Include="include\Lex\Lexer.h">
+      <Filter>Lex\include</Filter>
     </ClInclude>
-    <ClInclude Include="Parser.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="include\Lex\Preprocessor.h">
+      <Filter>Lex\include</Filter>
     </ClInclude>
-    <ClInclude Include="ExprDef.h">
-      <Filter>定义文件</Filter>
+    <ClInclude Include="include\Parse\Parser.h">
+      <Filter>Parse\include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Sema\Sema.h">
+      <Filter>Sema\include</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Lexer.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="src\Basic\Diagnostic.cpp">
+      <Filter>Basic\src</Filter>
     </ClCompile>
-    <ClCompile Include="Token.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="src\Basic\FileManager.cpp">
+      <Filter>Basic\src</Filter>
     </ClCompile>
-    <ClCompile Include="Identifier.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="src\Basic\Identifier.cpp">
+      <Filter>Basic\src</Filter>
     </ClCompile>
-    <ClCompile Include="FileManager.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="src\Basic\SourceManager.cpp">
+      <Filter>Basic\src</Filter>
     </ClCompile>
-    <ClCompile Include="Preprocessor.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="src\Basic\Token.cpp">
+      <Filter>Basic\src</Filter>
     </ClCompile>
-    <ClCompile Include="SourceManager.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="src\Lex\Lexer.cpp">
+      <Filter>Lex\src</Filter>
     </ClCompile>
-    <ClCompile Include="Diagnostic.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="src\Lex\Preprocessor.cpp">
+      <Filter>Lex\src</Filter>
     </ClCompile>
-    <ClCompile Include="Parser.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="src\Parse\Parser.cpp">
+      <Filter>Parse\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Sema\Sema.cpp">
+      <Filter>Sema\src</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

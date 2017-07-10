@@ -1,7 +1,8 @@
-#include <Lexer.h>
-#include <Preprocessor.h>
-#include <Diagnostic.h>
-#include <FileManager.h>
+#include <Lex/Lexer.h>
+#include <Lex/Preprocessor.h>
+#include <Basic/Diagnostic.h>
+#include <Basic/FileManager.h>
+#include <Basic/SourceManager.h>
 #include <natConsole.h>
 
 using namespace NatsuLib;

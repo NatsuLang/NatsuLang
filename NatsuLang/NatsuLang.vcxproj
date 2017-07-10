@@ -93,7 +93,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
@@ -113,7 +113,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
@@ -135,7 +135,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
@@ -159,7 +159,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
@@ -175,34 +175,36 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="CharInfo.h" />
-    <ClInclude Include="ExprDef.h" />
-    <ClInclude Include="Parser.h" />
-    <ClInclude Include="Declaration.h" />
-    <ClInclude Include="DeclDef.h" />
-    <ClInclude Include="DiagDef.h" />
-    <ClInclude Include="Diagnostic.h" />
-    <ClInclude Include="FileManager.h" />
-    <ClInclude Include="Identifier.h" />
-    <ClInclude Include="Lexer.h" />
-    <ClInclude Include="Preprocessor.h" />
-    <ClInclude Include="SourceLocation.h" />
-    <ClInclude Include="SourceManager.h" />
-    <ClInclude Include="Statement.h" />
-    <ClInclude Include="StmtDef.h" />
-    <ClInclude Include="TextProvider.h" />
-    <ClInclude Include="Token.h" />
-    <ClInclude Include="TokenDef.h" />
+    <ClInclude Include="include\AST\Declaration.h" />
+    <ClInclude Include="include\AST\Statement.h" />
+    <ClInclude Include="include\Basic\CharInfo.h" />
+    <ClInclude Include="include\Basic\DeclDef.h" />
+    <ClInclude Include="include\Basic\DiagDef.h" />
+    <ClInclude Include="include\Basic\Diagnostic.h" />
+    <ClInclude Include="include\Basic\ExprDef.h" />
+    <ClInclude Include="include\Basic\FileManager.h" />
+    <ClInclude Include="include\Basic\Identifier.h" />
+    <ClInclude Include="include\Basic\SourceLocation.h" />
+    <ClInclude Include="include\Basic\SourceManager.h" />
+    <ClInclude Include="include\Basic\StmtDef.h" />
+    <ClInclude Include="include\Basic\TextProvider.h" />
+    <ClInclude Include="include\Basic\Token.h" />
+    <ClInclude Include="include\Basic\TokenDef.h" />
+    <ClInclude Include="include\Lex\Lexer.h" />
+    <ClInclude Include="include\Lex\Preprocessor.h" />
+    <ClInclude Include="include\Parse\Parser.h" />
+    <ClInclude Include="include\Sema\Sema.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Diagnostic.cpp" />
-    <ClCompile Include="FileManager.cpp" />
-    <ClCompile Include="Identifier.cpp" />
-    <ClCompile Include="Lexer.cpp" />
-    <ClCompile Include="Parser.cpp" />
-    <ClCompile Include="Preprocessor.cpp" />
-    <ClCompile Include="SourceManager.cpp" />
-    <ClCompile Include="Token.cpp" />
+    <ClCompile Include="src\Basic\Diagnostic.cpp" />
+    <ClCompile Include="src\Basic\FileManager.cpp" />
+    <ClCompile Include="src\Basic\Identifier.cpp" />
+    <ClCompile Include="src\Basic\SourceManager.cpp" />
+    <ClCompile Include="src\Basic\Token.cpp" />
+    <ClCompile Include="src\Lex\Lexer.cpp" />
+    <ClCompile Include="src\Lex\Preprocessor.cpp" />
+    <ClCompile Include="src\Parse\Parser.cpp" />
+    <ClCompile Include="src\Sema\Sema.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

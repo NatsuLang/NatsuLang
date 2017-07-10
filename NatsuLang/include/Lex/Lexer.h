@@ -1,5 +1,5 @@
 #pragma once
-#include "Token.h"
+#include "Basic/Token.h"
 
 namespace NatsuLang
 {
