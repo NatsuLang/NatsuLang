@@ -108,6 +108,9 @@
     <ClInclude Include="include\AST\Statement.h">
       <Filter>AST\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\AST\Expression.h">
+      <Filter>AST\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">

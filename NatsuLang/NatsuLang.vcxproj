@@ -177,6 +177,7 @@
   <ItemGroup>
     <ClInclude Include="include\AST\Declaration.h" />
     <ClInclude Include="include\AST\DeclBase.h" />
+    <ClInclude Include="include\AST\Expression.h" />
     <ClInclude Include="include\AST\Statement.h" />
     <ClInclude Include="include\AST\StmtBase.h" />
     <ClInclude Include="include\Basic\CharInfo.h" />

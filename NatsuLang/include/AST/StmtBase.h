@@ -21,6 +21,9 @@ namespace NatsuLang::Statement
 #include "Basic/StmtDef.h"
 		};
 
+		using StmtPtr = NatsuLib::natRefPointer<Stmt>;
+		using StmtEnumerable = NatsuLib::Linq<StmtPtr>;
+
 		explicit Stmt(Type type, SourceLocation start = {}, SourceLocation end = {}) noexcept
 			: m_Type{ type }, m_Start{ start }, m_End{ end }
 		{
@@ -34,7 +37,7 @@ namespace NatsuLang::Statement
 
 		const char* GetTypeName() const noexcept;
 
-		virtual NatsuLib::Linq<Stmt> GetChildrens();
+		virtual StmtEnumerable GetChildrens();
 
 		virtual SourceLocation GetStartLoc() const noexcept;
 		virtual void SetStartLoc(SourceLocation loc) noexcept;

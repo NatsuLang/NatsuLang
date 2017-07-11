@@ -27,9 +27,9 @@ const char* Stmt::GetTypeName() const noexcept
 	return getStmtTypeName(m_Type);
 }
 
-NatsuLib::Linq<Stmt> Stmt::GetChildrens()
+Stmt::StmtEnumerable Stmt::GetChildrens()
 {
-	return NatsuLib::from_empty<Stmt>();
+	return NatsuLib::from_empty<StmtPtr>();
 }
 
 NatsuLang::SourceLocation Stmt::GetStartLoc() const noexcept
