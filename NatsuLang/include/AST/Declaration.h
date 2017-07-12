@@ -22,6 +22,11 @@ namespace NatsuLang::Expression
 	using ExprPtr = NatsuLib::natRefPointer<Expr>;
 }
 
+namespace NatsuLang::Module
+{
+	class Module;
+}
+
 namespace NatsuLang::Declaration
 {
 	class NamedDecl
@@ -274,6 +279,18 @@ namespace NatsuLang::Declaration
 		Statement::StmtPtr m_Body;
 	};
 
+	class MethodDecl
+		: public FunctionDecl
+	{
+	public:
+		MethodDecl(DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass)
+			: FunctionDecl{ Method, context, startLoc, idLoc, std::move(identifierInfo), std::move(valueType), storageClass }
+		{
+		}
+
+		~MethodDecl();
+	};
+
 	class FieldDecl
 		: public DeclaratorDecl
 	{
@@ -393,5 +410,53 @@ namespace NatsuLang::Declaration
 		}
 
 		~EnumDecl();
+
+		NatsuLib::Linq<NatsuLib::natRefPointer<EnumConstantDecl>> GetEnumerators() const noexcept;
+	};
+
+	class RecordDecl
+		: public TagDecl
+	{
+	public:
+		RecordDecl(DeclType declType, Type::TagType::TagTypeClass tagTypeClass, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, IdPtr identifierInfo)
+			: TagDecl{ declType, tagTypeClass, context, idLoc, std::move(identifierInfo), startLoc }
+		{
+		}
+
+		~RecordDecl();
+
+		NatsuLib::Linq<NatsuLib::natRefPointer<FieldDecl>> GetFields() const noexcept;
+	};
+
+	class ImportDecl
+		: public Decl
+	{
+	public:
+		ImportDecl(DeclContext* context, SourceLocation loc, NatsuLib::natRefPointer<Module::Module> module)
+			: Decl{ Import, context, loc }, m_Module{ std::move(module) }
+		{
+		}
+
+		~ImportDecl();
+
+		NatsuLib::natRefPointer<Module::Module> GetModule() const noexcept
+		{
+			return m_Module;
+		}
+
+	private:
+		NatsuLib::natRefPointer<Module::Module> m_Module;
+	};
+
+	class EmptyDecl
+		: public Decl
+	{
+	public:
+		EmptyDecl(DeclContext* context, SourceLocation loc)
+			: Decl{ Empty, context, loc }
+		{
+		}
+
+		~EmptyDecl();
 	};
 }

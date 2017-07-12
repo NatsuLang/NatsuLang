@@ -1,6 +1,7 @@
 #include "Parse/Parser.h"
 #include "Sema/Sema.h"
 
+using namespace NatsuLib;
 using namespace NatsuLang::Syntax;
 using namespace NatsuLang::Token;
 
@@ -24,7 +25,7 @@ NatsuLang::Diag::DiagnosticsEngine& Parser::GetDiagnosticsEngine() const noexcep
 	return m_DiagnosticsEngine;
 }
 
-nBool Parser::ParseTopLevelDecl(std::unordered_set<NatsuLib::natRefPointer<Declaration::Decl>>& decls)
+nBool Parser::ParseTopLevelDecl(std::unordered_set<natRefPointer<Declaration::Decl>>& decls)
 {
 	if (m_CurrentToken.Is(TokenType::Eof))
 	{
@@ -40,20 +41,22 @@ nBool Parser::ParseTopLevelDecl(std::unordered_set<NatsuLib::natRefPointer<Decla
 	}
 }
 
-std::vector<NatsuLib::natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseModuleImport()
+std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseModuleImport()
 {
 	assert(m_CurrentToken.Is(Token::TokenType::Kw_import));
 	ConsumeToken();
 	auto startLoc = m_PrevTokenLocation;
 
-	std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>> path;
+	std::vector<std::pair<natRefPointer<Identifier::IdentifierInfo>, SourceLocation>> path;
 	if (!ParseModuleName(path))
 	{
 		return {};
 	}
+
+	nat_Throw(NotImplementedException);
 }
 
-nBool Parser::ParseModuleName(std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path)
+nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path)
 {
 	while (true)
 	{

@@ -189,6 +189,7 @@
     <ClInclude Include="include\Basic\Diagnostic.h" />
     <ClInclude Include="include\Basic\FileManager.h" />
     <ClInclude Include="include\Basic\Identifier.h" />
+    <ClInclude Include="include\Basic\Module.h" />
     <ClInclude Include="include\Basic\SourceLocation.h" />
     <ClInclude Include="include\Basic\SourceManager.h" />
     <ClInclude Include="include\Basic\Specifier.h" />
@@ -212,6 +213,7 @@
     <ClCompile Include="src\Basic\Diagnostic.cpp" />
     <ClCompile Include="src\Basic\FileManager.cpp" />
     <ClCompile Include="src\Basic\Identifier.cpp" />
+    <ClCompile Include="src\Basic\Module.cpp" />
     <ClCompile Include="src\Basic\SourceManager.cpp" />
     <ClCompile Include="src\Basic\Token.cpp" />
     <ClCompile Include="src\Lex\Lexer.cpp" />

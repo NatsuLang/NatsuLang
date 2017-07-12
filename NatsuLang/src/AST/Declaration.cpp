@@ -1,6 +1,7 @@
 #include "AST/Declaration.h"
 #include "Basic/Identifier.h"
 
+using namespace NatsuLib;
 using namespace NatsuLang::Declaration;
 
 NamedDecl::~NamedDecl()
@@ -40,14 +41,18 @@ FunctionDecl::~FunctionDecl()
 {
 }
 
-NatsuLib::Linq<NatsuLib::natRefPointer<ParmVarDecl>> FunctionDecl::GetParams() const noexcept
+Linq<natRefPointer<ParmVarDecl>> FunctionDecl::GetParams() const noexcept
 {
 	return from(m_Params);
 }
 
-void FunctionDecl::SetParams(NatsuLib::Linq<NatsuLib::natRefPointer<ParmVarDecl>> value) noexcept
+void FunctionDecl::SetParams(Linq<natRefPointer<ParmVarDecl>> value) noexcept
 {
 	m_Params.assign(value.begin(), value.end());
+}
+
+MethodDecl::~MethodDecl()
+{
 }
 
 FieldDecl::~FieldDecl()
@@ -67,5 +72,43 @@ TagDecl::~TagDecl()
 }
 
 EnumDecl::~EnumDecl()
+{
+}
+
+Linq<natRefPointer<EnumConstantDecl>> EnumDecl::GetEnumerators() const noexcept
+{
+	return from(GetDecls())
+		.where([](natRefPointer<Decl> const& decl)
+		{
+			return decl->GetType() == EnumConstant;
+		})
+		.select([](natRefPointer<Decl> const& decl)
+		{
+			return static_cast<natRefPointer<EnumConstantDecl>>(decl);
+		});
+}
+
+RecordDecl::~RecordDecl()
+{
+}
+
+Linq<natRefPointer<FieldDecl>> RecordDecl::GetFields() const noexcept
+{
+	return from(GetDecls())
+		.where([](natRefPointer<Decl> const& decl)
+	{
+		return decl->GetType() == Field;
+	})
+		.select([](natRefPointer<Decl> const& decl)
+	{
+		return static_cast<natRefPointer<FieldDecl>>(decl);
+	});
+}
+
+ImportDecl::~ImportDecl()
+{
+}
+
+EmptyDecl::~EmptyDecl()
 {
 }

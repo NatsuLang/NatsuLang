@@ -97,6 +97,9 @@ namespace NatsuLang::Syntax
 			}
 		}
 
+		///	@brief	分析顶层声明
+		///	@param	decls	输出分析得到的顶层声明
+		///	@return	是否遇到EOF
 		nBool ParseTopLevelDecl(std::unordered_set<NatsuLib::natRefPointer<Declaration::Decl>>& decls);
 
 		std::vector<NatsuLib::natRefPointer<Declaration::Decl>> ParseModuleImport();

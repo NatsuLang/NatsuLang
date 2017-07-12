@@ -33,126 +33,6 @@ DeclContext* Decl::castToDeclContext(const Decl* decl)
 #define DECL_CONTEXT_BASE(Name) if (type >= First##Name && type <= Last##Name) return static_cast<Name##Decl*>(const_cast<Decl*>(decl));
 #include "Basic/DeclDef.h"
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 		assert(!"Invalid type.");
 		return nullptr;
 	}
@@ -171,126 +51,6 @@ Decl* Decl::castFromDeclContext(const DeclContext* declContext)
 #define DECL(Name, BASE)
 #define DECL_CONTEXT_BASE(Name) if (type >= First##Name && type <= Last##Name) return static_cast<Name##Decl*>(const_cast<DeclContext*>(declContext));
 #include "Basic/DeclDef.h"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 		assert(!"Invalid type.");
 		return nullptr;
@@ -334,7 +94,35 @@ void DeclContext::AddDecl(natRefPointer<Decl> decl)
 
 void DeclContext::RemoveDecl(natRefPointer<Decl> const& decl)
 {
-	// TODO
+	if (decl == m_FirstDecl)
+	{
+		if (decl == m_LastDecl)
+		{
+			m_FirstDecl = m_LastDecl = 0;
+		}
+		else
+		{
+			m_FirstDecl = decl->GetNextDeclInContext();
+		}
+	}
+	else
+	{
+		for (auto d = m_FirstDecl; d; d = d->GetNextDeclInContext())
+		{
+			if (d->GetNextDeclInContext() == decl)
+			{
+				d->SetNextDeclInContext(decl);
+				if (decl == m_LastDecl)
+				{
+					m_LastDecl = d;
+				}
+			}
+		}
+	}
+
+	decl->SetNextDeclInContext(nullptr);
+
+	// TODO: 从查找表中移除被移除的声明
 }
 
 nBool DeclContext::ContainsDecl(natRefPointer<Decl> const& decl)

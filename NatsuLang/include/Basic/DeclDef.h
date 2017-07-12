@@ -12,12 +12,6 @@
 #define LAST_DECL_RANGE(Base, First, Last) DECL_RANGE(Base, First, Last)
 #endif
 
-#ifndef BLOCK
-#define BLOCK(Type, Base) DECL(Type, Base)
-#endif
-BLOCK(Block, Decl)
-#undef BLOCK
-
 #ifndef EMPTY
 #define EMPTY(Type, Base) DECL(Type, Base)
 #endif
@@ -162,7 +156,7 @@ DECL_RANGE(Named, Label, EnumConstant)
 TRANSLATIONUNIT(TranslationUnit, Decl)
 #undef TRANSLATIONUNIT
 
-LAST_DECL_RANGE(Decl, Block, TranslationUnit)
+LAST_DECL_RANGE(Decl, Empty, TranslationUnit)
 
 #undef DECL
 #undef DECL_RANGE
