@@ -5,6 +5,11 @@
 
 namespace NatsuLang::Statement
 {
+	class Stmt;
+
+	using StmtPtr = NatsuLib::natRefPointer<Stmt>;
+	using StmtEnumerable = NatsuLib::Linq<StmtPtr>;
+
 	class Stmt
 		: public NatsuLib::natRefObjImpl<Stmt>
 	{
@@ -20,9 +25,6 @@ namespace NatsuLang::Statement
 #define ABSTRACT_STMT(STMT)
 #include "Basic/StmtDef.h"
 		};
-
-		using StmtPtr = NatsuLib::natRefPointer<Stmt>;
-		using StmtEnumerable = NatsuLib::Linq<StmtPtr>;
 
 		explicit Stmt(Type type, SourceLocation start = {}, SourceLocation end = {}) noexcept
 			: m_Type{ type }, m_Start{ start }, m_End{ end }

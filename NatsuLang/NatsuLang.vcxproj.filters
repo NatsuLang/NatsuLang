@@ -111,6 +111,21 @@
     <ClInclude Include="include\AST\Expression.h">
       <Filter>AST\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\Basic\TypeDef.h">
+      <Filter>Basic\include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Basic\BuiltinTypesDef.h">
+      <Filter>Basic\include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AST\TypeBase.h">
+      <Filter>AST\include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AST\Type.h">
+      <Filter>AST\include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Basic\Specifier.h">
+      <Filter>Basic\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">
@@ -150,6 +165,12 @@
       <Filter>AST\src</Filter>
     </ClCompile>
     <ClCompile Include="src\AST\StmtBase.cpp">
+      <Filter>AST\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AST\Type.cpp">
+      <Filter>AST\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AST\TypeBase.cpp">
       <Filter>AST\src</Filter>
     </ClCompile>
   </ItemGroup>

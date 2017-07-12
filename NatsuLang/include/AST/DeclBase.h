@@ -2,6 +2,7 @@
 #include <natMisc.h>
 #include <natRefObj.h>
 #include "Basic/SourceLocation.h"
+#include "natLinq.h"
 
 namespace NatsuLang::Declaration
 {
@@ -23,8 +24,10 @@ namespace NatsuLang::Declaration
 	class Decl
 		: public NatsuLib::natRefObjImpl<Decl>
 	{
+		friend class DeclContext;
+
 	public:
-		enum class Type
+		enum DeclType
 		{
 #define DECL(Derived, Base) Derived,
 #define ABSTRACT_DECL(Decl)
@@ -38,7 +41,7 @@ namespace NatsuLang::Declaration
 		static DeclContext* castToDeclContext(const Decl* decl);
 		static Decl* castFromDeclContext(const DeclContext* declContext);
 
-		Type GetType() const noexcept
+		DeclType GetType() const noexcept
 		{
 			return m_Type;
 		}
@@ -60,46 +63,71 @@ namespace NatsuLang::Declaration
 			return m_Context;
 		}
 
-		Decl* GetNextDeclInContext() const noexcept
+		NatsuLib::natRefPointer<Decl> GetNextDeclInContext() const noexcept
 		{
 			return m_NextDeclInContext;
 		}
 
 	protected:
-		explicit Decl(Type type, DeclContext* context = nullptr, SourceLocation loc = {}) noexcept
+		explicit Decl(DeclType type, DeclContext* context = nullptr, SourceLocation loc = {}) noexcept
 			: m_NextDeclInContext{ nullptr }, m_Type{ type }, m_Context{ context }, m_Location{ loc }
 		{
 		}
 
-		Decl* m_NextDeclInContext;
+		NatsuLib::natRefPointer<Decl> m_NextDeclInContext;
 
 	private:
-		Type m_Type;
+		DeclType m_Type;
 		DeclContext* m_Context;
 		SourceLocation m_Location;
+
+		void SetNextDeclInContext(NatsuLib::natRefPointer<Decl> value) noexcept;
 	};
+
+	using DeclPtr = NatsuLib::natRefPointer<Decl>;
 
 	class DeclContext
 	{
-	public:
-		~DeclContext() = default;
-
 	protected:
-		constexpr explicit DeclContext(Decl::Type type) noexcept
-			: m_Type{ type }, m_Decls{ nullptr, nullptr }
+		constexpr explicit DeclContext(Decl::DeclType type) noexcept
+			: m_Type{ type }
 		{
 		}
 
+		~DeclContext() = default;
+
 	public:
-		constexpr Decl::Type GetType() const noexcept
+		Decl::DeclType GetType() const noexcept
 		{
 			return m_Type;
 		}
 
 		const char* GetTypeName() const noexcept;
 
+		NatsuLib::Linq<DeclPtr> GetDecls() const;
+
+		void AddDecl(NatsuLib::natRefPointer<Decl> decl);
+		void RemoveDecl(NatsuLib::natRefPointer<Decl> const& decl);
+		nBool ContainsDecl(NatsuLib::natRefPointer<Decl> const& decl);
+
 	private:
-		Decl::Type m_Type;
-		mutable NatsuLib::Range<Decl*> m_Decls;
+		Decl::DeclType m_Type;
+		mutable NatsuLib::natRefPointer<Decl> m_FirstDecl, m_LastDecl;
+
+		class DeclIterator
+		{
+		public:
+			explicit DeclIterator(NatsuLib::natRefPointer<Decl> firstDecl = {});
+
+			NatsuLib::natRefPointer<Decl> operator*() const noexcept;
+			DeclIterator& operator++() & noexcept;
+			nBool operator==(DeclIterator const& other) const noexcept;
+			nBool operator!=(DeclIterator const& other) const noexcept;
+
+		private:
+			NatsuLib::natRefPointer<Decl> m_Current;
+		};
+
+		virtual void OnNewDeclAdded(NatsuLib::natRefPointer<Decl> decl);
 	};
 }

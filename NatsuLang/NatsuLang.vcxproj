@@ -180,6 +180,9 @@
     <ClInclude Include="include\AST\Expression.h" />
     <ClInclude Include="include\AST\Statement.h" />
     <ClInclude Include="include\AST\StmtBase.h" />
+    <ClInclude Include="include\AST\Type.h" />
+    <ClInclude Include="include\AST\TypeBase.h" />
+    <ClInclude Include="include\Basic\BuiltinTypesDef.h" />
     <ClInclude Include="include\Basic\CharInfo.h" />
     <ClInclude Include="include\Basic\DeclDef.h" />
     <ClInclude Include="include\Basic\DiagDef.h" />
@@ -188,10 +191,12 @@
     <ClInclude Include="include\Basic\Identifier.h" />
     <ClInclude Include="include\Basic\SourceLocation.h" />
     <ClInclude Include="include\Basic\SourceManager.h" />
+    <ClInclude Include="include\Basic\Specifier.h" />
     <ClInclude Include="include\Basic\StmtDef.h" />
     <ClInclude Include="include\Basic\TextProvider.h" />
     <ClInclude Include="include\Basic\Token.h" />
     <ClInclude Include="include\Basic\TokenDef.h" />
+    <ClInclude Include="include\Basic\TypeDef.h" />
     <ClInclude Include="include\Lex\Lexer.h" />
     <ClInclude Include="include\Lex\Preprocessor.h" />
     <ClInclude Include="include\Parse\Parser.h" />
@@ -202,6 +207,8 @@
     <ClCompile Include="src\AST\DeclBase.cpp" />
     <ClCompile Include="src\AST\Statement.cpp" />
     <ClCompile Include="src\AST\StmtBase.cpp" />
+    <ClCompile Include="src\AST\Type.cpp" />
+    <ClCompile Include="src\AST\TypeBase.cpp" />
     <ClCompile Include="src\Basic\Diagnostic.cpp" />
     <ClCompile Include="src\Basic\FileManager.cpp" />
     <ClCompile Include="src\Basic\Identifier.cpp" />
