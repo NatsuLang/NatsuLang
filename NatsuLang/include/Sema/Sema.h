@@ -1,7 +1,6 @@
 #pragma once
 #include <natMisc.h>
 #include <natRefObj.h>
-#include <optional>
 #include "Basic/SourceLocation.h"
 #include "Basic/Identifier.h"
 
@@ -17,12 +16,20 @@ namespace NatsuLang
 		class Decl;
 	}
 
+	namespace Type
+	{
+		class Type;
+		using TypePtr = NatsuLib::natRefPointer<Type>;
+	}
+
 	class Preprocessor;
 	class SourceManager;
 }
 
 namespace NatsuLang::Semantic
 {
+	class Scope;
+
 	class Sema
 		: public NatsuLib::nonmovable
 	{
@@ -56,11 +63,20 @@ namespace NatsuLang::Semantic
 			return m_SourceManager;
 		}
 
+		NatsuLib::natRefPointer<Scope> GetCurrentScope() const noexcept
+		{
+			return m_CurrentScope;
+		}
+
 		NatsuLib::natRefPointer<Declaration::Decl> OnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path);
+
+		Type::TypePtr GetTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, NatsuLib::natRefPointer<Scope> scope);
 
 	private:
 		Preprocessor& m_Preprocessor;
 		Diag::DiagnosticsEngine& m_Diag;
 		SourceManager& m_SourceManager;
+
+		NatsuLib::natRefPointer<Scope> m_CurrentScope;
 	};
 }

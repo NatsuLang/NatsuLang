@@ -70,6 +70,19 @@ namespace NatsuLang::Token
 			return m_Type == tokenType;
 		}
 
+		nBool IsAnyOf(std::initializer_list<TokenType> list) const noexcept
+		{
+			for (auto item : list)
+			{
+				if (m_Type == item)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
 		nuInt GetLength() const noexcept;
 
 		void SetLength(nuInt value)

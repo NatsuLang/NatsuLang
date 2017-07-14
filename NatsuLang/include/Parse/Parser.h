@@ -100,10 +100,14 @@ namespace NatsuLang::Syntax
 		///	@brief	分析顶层声明
 		///	@param	decls	输出分析得到的顶层声明
 		///	@return	是否遇到EOF
-		nBool ParseTopLevelDecl(std::unordered_set<NatsuLib::natRefPointer<Declaration::Decl>>& decls);
+		nBool ParseTopLevelDecl(std::vector<NatsuLib::natRefPointer<Declaration::Decl>>& decls);
+		std::vector<NatsuLib::natRefPointer<Declaration::Decl>> ParseExternalDeclaration();
 
 		std::vector<NatsuLib::natRefPointer<Declaration::Decl>> ParseModuleImport();
+		std::vector<NatsuLib::natRefPointer<Declaration::Decl>> ParseModuleDecl();
 		nBool ParseModuleName(std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path);
+
+		std::vector<NatsuLib::natRefPointer<Declaration::Decl>> ParseDeclaration();
 
 		nBool SkipUntil(std::initializer_list<Token::TokenType> list, nBool dontConsume = false);
 

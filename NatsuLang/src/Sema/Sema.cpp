@@ -16,3 +16,8 @@ NatsuLib::natRefPointer<NatsuLang::Declaration::Decl> Sema::OnModuleImport(Sourc
 {
 	nat_Throw(NatsuLib::NotImplementedException);
 }
+
+NatsuLang::Type::TypePtr Sema::GetTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, NatsuLib::natRefPointer<Scope> scope)
+{
+
+}

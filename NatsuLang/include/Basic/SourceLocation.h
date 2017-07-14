@@ -59,4 +59,71 @@ namespace NatsuLang
 
 		return loc1.GetColumnInfo() < loc2.GetColumnInfo();
 	}
+
+	constexpr nBool operator==(SourceLocation const& loc1, SourceLocation const& loc2) noexcept
+	{
+		return loc1.GetFileID() == loc2.GetFileID() && loc1.GetLineInfo() == loc2.GetLineInfo() && loc1.GetColumnInfo() == loc2.GetColumnInfo();
+	}
+
+	constexpr nBool operator!=(SourceLocation const& loc1, SourceLocation const& loc2) noexcept
+	{
+		return !(loc1 == loc2);
+	}
+
+	class SourceRange
+	{
+	public:
+		constexpr SourceRange() noexcept
+			: m_Begin{}, m_End{}
+		{
+		}
+
+		constexpr SourceRange(SourceLocation loc) noexcept
+			: m_Begin{ loc }, m_End{ loc }
+		{
+		}
+
+		constexpr SourceRange(SourceLocation begin, SourceLocation end) noexcept
+			: m_Begin{ begin }, m_End{ end }
+		{
+		}
+
+		constexpr SourceLocation GetBegin() const noexcept
+		{
+			return m_Begin;
+		}
+
+		void SetBegin(SourceLocation loc) noexcept
+		{
+			m_Begin = loc;
+		}
+
+		constexpr SourceLocation GetEnd() const noexcept
+		{
+			return m_End;
+		}
+
+		void SetEnd(SourceLocation loc) noexcept
+		{
+			m_End = loc;
+		}
+
+		constexpr nBool IsValid() const noexcept
+		{
+			return m_Begin.IsValid() && m_End.IsValid();
+		}
+
+	private:
+		SourceLocation m_Begin, m_End;
+	};
+
+	constexpr nBool operator==(SourceRange const& range1, SourceRange const& range2) noexcept
+	{
+		return range1.GetBegin() == range2.GetBegin() && range1.GetEnd() == range2.GetEnd();
+	}
+
+	constexpr nBool operator!=(SourceRange const& range1, SourceRange const& range2) noexcept
+	{
+		return !(range1 == range2);
+	}
 }

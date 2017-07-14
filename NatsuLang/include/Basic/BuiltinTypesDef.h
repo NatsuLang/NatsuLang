@@ -18,13 +18,9 @@
 #define PLACEHOLDER_TYPE(Id, SingletonId, Name) BUILTIN_TYPE(Id, SingletonId, Name)
 #endif
 
-#ifndef SHARED_SINGLETON_TYPE
-#define SHARED_SINGLETON_TYPE(Expansion) Expansion
-#endif
-
 BUILTIN_TYPE(Void, VoidTy, void)
 UNSIGNED_TYPE(Bool, BoolTy, bool)
-SHARED_SINGLETON_TYPE(UNSIGNED_TYPE(Char, CharTy, char))
+UNSIGNED_TYPE(Char, CharTy, char)
 UNSIGNED_TYPE(UShort, UnsignedShortTy, ushort)
 UNSIGNED_TYPE(UInt, UnsignedIntTy, uint)
 UNSIGNED_TYPE(ULong, UnsignedLongTy, ulong)
@@ -49,7 +45,6 @@ LAST_BUILTIN_TYPE(BuiltinFn)
 #undef LAST_BUILTIN_TYPE
 #endif
 
-#undef SHARED_SINGLETON_TYPE
 #undef PLACEHOLDER_TYPE
 #undef FLOATING_TYPE
 #undef SIGNED_TYPE

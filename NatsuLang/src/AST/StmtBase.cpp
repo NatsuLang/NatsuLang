@@ -27,7 +27,7 @@ const char* Stmt::GetTypeName() const noexcept
 	return getStmtTypeName(m_Type);
 }
 
-Stmt::StmtEnumerable Stmt::GetChildrens()
+StmtEnumerable Stmt::GetChildrens()
 {
 	return NatsuLib::from_empty<StmtPtr>();
 }

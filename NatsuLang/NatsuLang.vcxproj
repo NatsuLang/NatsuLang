@@ -201,6 +201,8 @@
     <ClInclude Include="include\Lex\Lexer.h" />
     <ClInclude Include="include\Lex\Preprocessor.h" />
     <ClInclude Include="include\Parse\Parser.h" />
+    <ClInclude Include="include\Sema\Declarator.h" />
+    <ClInclude Include="include\Sema\Scope.h" />
     <ClInclude Include="include\Sema\Sema.h" />
   </ItemGroup>
   <ItemGroup>
@@ -219,6 +221,7 @@
     <ClCompile Include="src\Lex\Lexer.cpp" />
     <ClCompile Include="src\Lex\Preprocessor.cpp" />
     <ClCompile Include="src\Parse\Parser.cpp" />
+    <ClCompile Include="src\Sema\Scope.cpp" />
     <ClCompile Include="src\Sema\Sema.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

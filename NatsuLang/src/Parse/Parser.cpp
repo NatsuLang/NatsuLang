@@ -25,7 +25,7 @@ NatsuLang::Diag::DiagnosticsEngine& Parser::GetDiagnosticsEngine() const noexcep
 	return m_DiagnosticsEngine;
 }
 
-nBool Parser::ParseTopLevelDecl(std::unordered_set<natRefPointer<Declaration::Decl>>& decls)
+nBool Parser::ParseTopLevelDecl(std::vector<natRefPointer<Declaration::Decl>>& decls)
 {
 	if (m_CurrentToken.Is(TokenType::Eof))
 	{
@@ -35,7 +35,38 @@ nBool Parser::ParseTopLevelDecl(std::unordered_set<natRefPointer<Declaration::De
 	switch (m_CurrentToken.GetType())
 	{
 	case TokenType::Kw_import:
+		decls = ParseModuleImport();
+		return false;
+	case TokenType::Kw_module:
+		decls = ParseModuleDecl();
+		return false;
+	case TokenType::Eof:
+		return true;
+	default:
 		break;
+	}
+
+	decls = ParseExternalDeclaration();
+	return false;
+}
+
+std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseExternalDeclaration()
+{
+	switch (m_CurrentToken.GetType())
+	{
+	case TokenType::Semi:
+		// Empty Declaration
+		ConsumeToken();
+		break;
+	case TokenType::RightBrace:
+		m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExtraneousClosingBrace);
+		ConsumeBrace();
+		return {};
+	case TokenType::Eof:
+		m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrUnexpectEOF);
+		return {};
+	case TokenType::Kw_def:
+		return ParseDeclaration();
 	default:
 		break;
 	}
@@ -56,14 +87,19 @@ std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseModuleImpo
 	nat_Throw(NotImplementedException);
 }
 
+std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseModuleDecl()
+{
+	nat_Throw(NotImplementedException);
+}
+
 nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path)
 {
 	while (true)
 	{
 		if (!m_CurrentToken.Is(TokenType::Identifier))
 		{
-			m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrModuleExpectedIdentifier, m_CurrentToken.GetLocation());
-			SkipUntil({ TokenType::Semi });
+			m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
+			// SkipUntil({ TokenType::Semi });
 			return false;
 		}
 
@@ -77,6 +113,35 @@ nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::Id
 
 		ConsumeToken();
 	}
+}
+
+std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseDeclaration()
+{
+	assert(m_CurrentToken.Is(TokenType::Kw_def));
+	ConsumeToken();
+
+	if (!m_CurrentToken.Is(TokenType::Identifier))
+	{
+		m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
+		return {};
+	}
+
+	Token::Token name = m_CurrentToken, type, initializer;
+
+	ConsumeToken();
+
+	if (m_CurrentToken.Is(TokenType::Colon))
+	{
+		ConsumeToken();
+		if (!type.Is(TokenType::Identifier))
+		{
+			m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
+			return {};
+		}
+		type = m_CurrentToken;
+	}
+
+
 }
 
 nBool Parser::SkipUntil(std::initializer_list<Token::TokenType> list, nBool dontConsume)

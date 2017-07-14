@@ -129,6 +129,12 @@
     <ClInclude Include="include\Basic\Module.h">
       <Filter>Basic\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\Sema\Declarator.h">
+      <Filter>Sema\include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Sema\Scope.h">
+      <Filter>Sema\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">
@@ -178,6 +184,9 @@
     </ClCompile>
     <ClCompile Include="src\Basic\Module.cpp">
       <Filter>Basic\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Sema\Scope.cpp">
+      <Filter>Sema\src</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
