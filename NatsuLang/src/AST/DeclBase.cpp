@@ -1,4 +1,5 @@
 #include "AST/DeclBase.h"
+#include "AST/Declaration.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang::Declaration;
@@ -121,13 +122,24 @@ void DeclContext::RemoveDecl(natRefPointer<Decl> const& decl)
 	}
 
 	decl->SetNextDeclInContext(nullptr);
-
-	// TODO: 从查找表中移除被移除的声明
 }
 
 nBool DeclContext::ContainsDecl(natRefPointer<Decl> const& decl)
 {
 	return decl->GetContext() == this && (decl->GetNextDeclInContext() || decl == m_LastDecl);
+}
+
+Linq<natRefPointer<NamedDecl>> DeclContext::Lookup(natRefPointer<Identifier::IdentifierInfo> const& info) const
+{
+	return GetDecls().where([&info] (DeclPtr const& decl)
+	{
+		const auto namedDecl = static_cast<natRefPointer<NamedDecl>>(decl);
+		if (!namedDecl)
+		{
+			return false;
+		}
+		return namedDecl->GetIdentifierInfo() == info;
+	}).select([] (DeclPtr const& decl) { return static_cast<natRefPointer<NamedDecl>>(decl); });
 }
 
 DeclContext::DeclIterator::DeclIterator(natRefPointer<Decl> firstDecl)

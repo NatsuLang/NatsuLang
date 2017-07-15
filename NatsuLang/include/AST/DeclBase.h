@@ -4,22 +4,29 @@
 #include "Basic/SourceLocation.h"
 #include "natLinq.h"
 
+namespace NatsuLang::Identifier
+{
+	class IdentifierInfo;
+}
+
 namespace NatsuLang::Declaration
 {
 	enum class IdentifierNamespace
 	{
-		None	= 0x00,
+		None		= 0x00,
 
-		Label	= 0x01,
-		Tag		= 0x02,
-		Type	= 0x04,
-		Member	= 0x08,
-		Module	= 0x10,
+		Label		= 0x01,
+		Tag			= 0x02,
+		Type		= 0x04,
+		Member		= 0x08,
+		Module		= 0x10,
+		Ordinary	= 0x20,
 	};
 
 	MAKE_ENUM_CLASS_BITMASK_TYPE(IdentifierNamespace);
 
 	class DeclContext;
+	class NamedDecl;
 
 	class Decl
 		: public NatsuLib::natRefObjImpl<Decl>
@@ -103,12 +110,14 @@ namespace NatsuLang::Declaration
 		}
 
 		const char* GetTypeName() const noexcept;
-
+		
 		NatsuLib::Linq<DeclPtr> GetDecls() const;
 
 		void AddDecl(NatsuLib::natRefPointer<Decl> decl);
 		void RemoveDecl(NatsuLib::natRefPointer<Decl> const& decl);
 		nBool ContainsDecl(NatsuLib::natRefPointer<Decl> const& decl);
+
+		NatsuLib::Linq<NatsuLib::natRefPointer<NamedDecl>> Lookup(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& info) const;
 
 	private:
 		Decl::DeclType m_Type;

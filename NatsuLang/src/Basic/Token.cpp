@@ -17,7 +17,7 @@ namespace
 const char* NatsuLang::Token::GetTokenName(TokenType tokenType) noexcept
 {
 	const auto index = static_cast<size_t>(tokenType);
-	if (index < static_cast<size_t>(TokenType::TokenNumber))
+	if (index < static_cast<size_t>(TokenType::TokenCount))
 	{
 		return g_TokenNames[index];
 	}

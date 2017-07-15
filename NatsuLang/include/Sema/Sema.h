@@ -1,8 +1,10 @@
 #pragma once
 #include <natMisc.h>
 #include <natRefObj.h>
+#include <unordered_set>
 #include "Basic/SourceLocation.h"
 #include "Basic/Identifier.h"
+#include "AST/DeclBase.h"
 
 namespace NatsuLang
 {
@@ -11,15 +13,16 @@ namespace NatsuLang
 		class DiagnosticsEngine;
 	}
 
-	namespace Declaration
-	{
-		class Decl;
-	}
-
 	namespace Type
 	{
 		class Type;
 		using TypePtr = NatsuLib::natRefPointer<Type>;
+	}
+
+	namespace Identifier
+	{
+		class IdentifierInfo;
+		using IdPtr = NatsuLib::natRefPointer<IdentifierInfo>;
 	}
 
 	class Preprocessor;
@@ -28,6 +31,7 @@ namespace NatsuLang
 
 namespace NatsuLang::Semantic
 {
+	class LookupResult;
 	class Scope;
 
 	class Sema
@@ -41,6 +45,16 @@ namespace NatsuLang::Semantic
 			ConstantEvaluated,
 			PotentiallyEvaluated,
 			PotentiallyEvaluatedIfUsed
+		};
+
+		enum class LookupNameType
+		{
+			LookupOrdinaryName,
+			LookupTagName,
+			LookupLabel,
+			LookupMemberName,
+			LookupModuleName,
+			LookupAnyName
 		};
 
 		using ModulePathType = std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>;
@@ -70,7 +84,10 @@ namespace NatsuLang::Semantic
 
 		NatsuLib::natRefPointer<Declaration::Decl> OnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path);
 
-		Type::TypePtr GetTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, NatsuLib::natRefPointer<Scope> scope);
+		Type::TypePtr GetTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, NatsuLib::natRefPointer<Scope> scope, Type::TypePtr const& objectType);
+
+		nBool LookupName(LookupResult& result, NatsuLib::natRefPointer<Scope> scope) const;
+		nBool LookupQualifiedName(LookupResult& result, Declaration::DeclContext* context) const;
 
 	private:
 		Preprocessor& m_Preprocessor;
@@ -78,5 +95,85 @@ namespace NatsuLang::Semantic
 		SourceManager& m_SourceManager;
 
 		NatsuLib::natRefPointer<Scope> m_CurrentScope;
+	};
+
+	class LookupResult
+	{
+	public:
+		enum class LookupResultType
+		{
+			NotFound,
+			Found,
+			FoundOverloaded,
+			Ambiguous
+		};
+
+		enum class AmbiguousType
+		{
+			// TODO
+		};
+
+		LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType);
+
+		Identifier::IdPtr GetLookupId() const noexcept
+		{
+			return m_LookupId;
+		}
+
+		Sema::LookupNameType GetLookupType() const noexcept
+		{
+			return m_LookupNameType;
+		}
+
+		NatsuLib::Linq<NatsuLib::natRefPointer<const Declaration::NamedDecl>> GetDecls() const noexcept;
+
+		std::size_t GetDeclSize() const noexcept
+		{
+			return m_Decls.size();
+		}
+
+		nBool IsEmpty() const noexcept
+		{
+			return m_Decls.empty();
+		}
+
+		void AddDecl(NatsuLib::natRefPointer<Declaration::NamedDecl> decl);
+		void AddDecl(NatsuLib::Linq<NatsuLib::natRefPointer<Declaration::NamedDecl>> decls);
+
+		void ResolveResultType() noexcept;
+
+		LookupResultType GetResultType() const noexcept
+		{
+			return m_Result;
+		}
+
+		AmbiguousType GetAmbiguousType() const noexcept
+		{
+			return m_AmbiguousType;
+		}
+
+		Type::TypePtr GetBaseObjectType() const noexcept
+		{
+			return m_BaseObjectType;
+		}
+
+		void SetBaseObjectType(Type::TypePtr value) noexcept
+		{
+			m_BaseObjectType = std::move(value);
+		}
+
+	private:
+		// 查找参数
+		Sema& m_Sema;
+		Identifier::IdPtr m_LookupId;
+		SourceLocation m_LookupLoc;
+		Sema::LookupNameType m_LookupNameType;
+		Declaration::IdentifierNamespace m_IDNS;
+
+		// 查找结果
+		LookupResultType m_Result;
+		AmbiguousType m_AmbiguousType;
+		std::unordered_set<Declaration::DeclPtr> m_Decls;
+		Type::TypePtr m_BaseObjectType;
 	};
 }

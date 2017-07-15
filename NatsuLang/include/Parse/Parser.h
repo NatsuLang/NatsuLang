@@ -4,7 +4,9 @@
 
 namespace NatsuLang::Declaration
 {
+	class Declarator;
 	class Decl;
+	using DeclPtr = NatsuLib::natRefPointer<Decl>;
 }
 
 namespace NatsuLang::Diag
@@ -15,6 +17,12 @@ namespace NatsuLang::Diag
 namespace NatsuLang::Semantic
 {
 	class Sema;
+}
+
+namespace NatsuLang::Type
+{
+	class Type;
+	using TypePtr = NatsuLib::natRefPointer<Type>;
 }
 
 namespace NatsuLang::Syntax
@@ -108,6 +116,10 @@ namespace NatsuLang::Syntax
 		nBool ParseModuleName(std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path);
 
 		std::vector<NatsuLib::natRefPointer<Declaration::Decl>> ParseDeclaration();
+
+		void ParseDeclarator(Declaration::Declarator& decl);
+
+		Type::TypePtr ParseType();
 
 		nBool SkipUntil(std::initializer_list<Token::TokenType> list, nBool dontConsume = false);
 

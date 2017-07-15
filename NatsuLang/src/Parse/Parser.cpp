@@ -1,5 +1,6 @@
 #include "Parse/Parser.h"
 #include "Sema/Sema.h"
+#include "AST/Type.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang::Syntax;
@@ -118,6 +119,7 @@ nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::Id
 std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseDeclaration()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_def));
+	// 吃掉 def
 	ConsumeToken();
 
 	if (!m_CurrentToken.Is(TokenType::Identifier))
@@ -141,7 +143,97 @@ std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseDeclaratio
 		type = m_CurrentToken;
 	}
 
+	
+}
 
+void Parser::ParseDeclarator(Declaration::Declarator& decl)
+{
+
+}
+
+NatsuLang::Type::TypePtr Parser::ParseType()
+{
+	Type::TypePtr result;
+	if (m_CurrentToken.Is(TokenType::Identifier))
+	{
+		// 普通或数组类型
+
+		auto type = m_Sema.GetTypeName(m_CurrentToken.GetIdentifierInfo(), m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nullptr);
+		if (!type)
+		{
+			return nullptr;
+		}
+
+		ConsumeToken();
+
+		// 数组类型
+		if (m_CurrentToken.Is(TokenType::LeftSquare))
+		{
+			result = make_ref<Type::ArrayType>(type, 0);
+		}
+		else
+		{
+
+		}
+	}
+	else if (m_CurrentToken.Is(TokenType::LeftParen))
+	{
+		ConsumeParen();
+
+		// 函数类型或者括号类型
+		std::vector<Type::TypePtr> paramTypes;
+		std::vector<Identifier::IdPtr> paramNames;
+
+		while (true)
+		{
+			paramTypes.emplace_back(ParseType());
+			ConsumeToken();
+			if (m_CurrentToken.Is(TokenType::Identifier))
+			{
+				paramNames.emplace_back(m_CurrentToken.GetIdentifierInfo());
+			}
+
+			ConsumeToken();
+
+			if (m_CurrentToken.Is(TokenType::RightParen))
+			{
+				ConsumeParen();
+				break;
+			}
+
+			if (!m_CurrentToken.Is(TokenType::Comma))
+			{
+				m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+					.AddArgument(TokenType::Comma)
+					.AddArgument(m_CurrentToken.GetType());
+			}
+
+			ConsumeToken();
+		}
+
+		// 读取完函数参数信息，开始读取返回类型
+
+		if (!m_CurrentToken.Is(TokenType::Arrow))
+		{
+			m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+				.AddArgument(TokenType::Arrow)
+				.AddArgument(m_CurrentToken.GetType());
+		}
+
+		ConsumeToken();
+
+		auto retType = ParseType();
+
+		
+	}
+	else if (m_CurrentToken.Is(TokenType::Kw_typeof))
+	{
+		// typeof
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 nBool Parser::SkipUntil(std::initializer_list<Token::TokenType> list, nBool dontConsume)

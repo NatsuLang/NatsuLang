@@ -15,7 +15,7 @@ namespace NatsuLang::Token
 	{
 #define TOK(X) X,
 #include "TokenDef.h"
-		TokenNumber,
+		TokenCount,
 	};
 
 	constexpr bool IsLiteral(TokenType tokenType) noexcept

@@ -163,6 +163,10 @@ NextToken:
 				result.SetType(TokenType::MinusEqual);
 				++cur;
 				break;
+			case '>':
+				result.SetType(TokenType::Arrow);
+				++cur;
+				break;
 			default:
 				result.SetType(TokenType::Minus);
 				break;

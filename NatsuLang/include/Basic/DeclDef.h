@@ -63,6 +63,10 @@ ENUM(Enum, TagDecl)
 RECORD(Record, TagDecl)
 #undef RECORD
 
+DECL_RANGE(Tag, Enum, Record)
+
+#undef TAG
+
 #undef TYPE
 
 #ifndef VALUE
@@ -132,17 +136,17 @@ DECL_RANGE(Var, Var, ParmVar)
 
 #undef VAR
 
-DECL_RANGE(Declarator, Field, ParamVar)
+DECL_RANGE(Declarator, Field, ParmVar)
 
 #undef DECLARATOR
 
 #ifndef ENUMCONSTANT
-#  define ENUMCONSTANT(Type, Base) VALUE(Type, Base)
+#define ENUMCONSTANT(Type, Base) VALUE(Type, Base)
 #endif
 ENUMCONSTANT(EnumConstant, ValueDecl)
 #undef ENUMCONSTANT
 
-DECL_RANGE(Value, Declarator, EnumConstant)
+DECL_RANGE(Value, Field, EnumConstant)
 
 #undef VALUE
 
@@ -151,7 +155,7 @@ DECL_RANGE(Named, Label, EnumConstant)
 #undef NAMED
 
 #ifndef TRANSLATIONUNIT
-#  define TRANSLATIONUNIT(Type, Base) DECL(Type, Base)
+#define TRANSLATIONUNIT(Type, Base) DECL(Type, Base)
 #endif
 TRANSLATIONUNIT(TranslationUnit, Decl)
 #undef TRANSLATIONUNIT

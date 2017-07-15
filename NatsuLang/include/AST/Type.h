@@ -66,7 +66,7 @@ namespace NatsuLang::Type
 		: Type
 	{
 	public:
-		FunctionType(TypePtr resultType, NatsuLib::Linq<TypePtr> params)
+		FunctionType(TypePtr resultType, NatsuLib::Linq<TypePtr> const& params)
 			: Type{ Function }, m_ResultType{ std::move(resultType) }, m_ParameterTypes{ params.begin(), params.end() }
 		{
 		}

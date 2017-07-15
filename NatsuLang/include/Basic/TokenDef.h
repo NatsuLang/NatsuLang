@@ -38,6 +38,7 @@ PUNCTUATOR(PlusEqual,			"+=")
 PUNCTUATOR(Minus,				"-")
 PUNCTUATOR(MinusMinus,			"--")
 PUNCTUATOR(MinusEqual,			"-=")
+PUNCTUATOR(Arrow,				"->")
 PUNCTUATOR(Tilde,				"~")
 PUNCTUATOR(Exclaim,				"!")
 PUNCTUATOR(ExclaimEqual,		"!=")
@@ -89,6 +90,7 @@ KEYWORD(throw)
 KEYWORD(true)
 KEYWORD(false)
 KEYWORD(this)
+KEYWORD(typeof)
 
 #undef KEYWORD
 #undef PUNCTUATOR
