@@ -135,6 +135,9 @@
     <ClInclude Include="include\Sema\Scope.h">
       <Filter>Sema\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\AST\ASTContext.h">
+      <Filter>AST\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">
@@ -187,6 +190,9 @@
     </ClCompile>
     <ClCompile Include="src\Sema\Scope.cpp">
       <Filter>Sema\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AST\ASTContext.cpp">
+      <Filter>AST\src</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

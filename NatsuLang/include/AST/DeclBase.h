@@ -113,30 +113,30 @@ namespace NatsuLang::Declaration
 		
 		NatsuLib::Linq<DeclPtr> GetDecls() const;
 
-		void AddDecl(NatsuLib::natRefPointer<Decl> decl);
-		void RemoveDecl(NatsuLib::natRefPointer<Decl> const& decl);
-		nBool ContainsDecl(NatsuLib::natRefPointer<Decl> const& decl);
+		void AddDecl(DeclPtr decl);
+		void RemoveDecl(DeclPtr const& decl);
+		nBool ContainsDecl(DeclPtr const& decl);
 
 		NatsuLib::Linq<NatsuLib::natRefPointer<NamedDecl>> Lookup(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& info) const;
 
 	private:
 		Decl::DeclType m_Type;
-		mutable NatsuLib::natRefPointer<Decl> m_FirstDecl, m_LastDecl;
+		mutable DeclPtr m_FirstDecl, m_LastDecl;
 
 		class DeclIterator
 		{
 		public:
-			explicit DeclIterator(NatsuLib::natRefPointer<Decl> firstDecl = {});
+			explicit DeclIterator(DeclPtr firstDecl = {});
 
-			NatsuLib::natRefPointer<Decl> operator*() const noexcept;
+			DeclPtr operator*() const noexcept;
 			DeclIterator& operator++() & noexcept;
 			nBool operator==(DeclIterator const& other) const noexcept;
 			nBool operator!=(DeclIterator const& other) const noexcept;
 
 		private:
-			NatsuLib::natRefPointer<Decl> m_Current;
+			DeclPtr m_Current;
 		};
 
-		virtual void OnNewDeclAdded(NatsuLib::natRefPointer<Decl> decl);
+		virtual void OnNewDeclAdded(DeclPtr decl);
 	};
 }

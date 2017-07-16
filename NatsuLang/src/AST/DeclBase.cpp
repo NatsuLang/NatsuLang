@@ -78,7 +78,7 @@ Linq<DeclPtr> DeclContext::GetDecls() const
 	return from(DeclIterator{ m_FirstDecl }, DeclIterator{});
 }
 
-void DeclContext::AddDecl(natRefPointer<Decl> decl)
+void DeclContext::AddDecl(DeclPtr decl)
 {
 	if (m_FirstDecl)
 	{
@@ -93,7 +93,7 @@ void DeclContext::AddDecl(natRefPointer<Decl> decl)
 	OnNewDeclAdded(std::move(decl));
 }
 
-void DeclContext::RemoveDecl(natRefPointer<Decl> const& decl)
+void DeclContext::RemoveDecl(DeclPtr const& decl)
 {
 	if (decl == m_FirstDecl)
 	{
@@ -124,7 +124,7 @@ void DeclContext::RemoveDecl(natRefPointer<Decl> const& decl)
 	decl->SetNextDeclInContext(nullptr);
 }
 
-nBool DeclContext::ContainsDecl(natRefPointer<Decl> const& decl)
+nBool DeclContext::ContainsDecl(DeclPtr const& decl)
 {
 	return decl->GetContext() == this && (decl->GetNextDeclInContext() || decl == m_LastDecl);
 }
@@ -142,12 +142,12 @@ Linq<natRefPointer<NamedDecl>> DeclContext::Lookup(natRefPointer<Identifier::Ide
 	}).select([] (DeclPtr const& decl) { return static_cast<natRefPointer<NamedDecl>>(decl); });
 }
 
-DeclContext::DeclIterator::DeclIterator(natRefPointer<Decl> firstDecl)
+DeclContext::DeclIterator::DeclIterator(DeclPtr firstDecl)
 	: m_Current{ std::move(firstDecl) }
 {
 }
 
-natRefPointer<Decl> DeclContext::DeclIterator::operator*() const noexcept
+DeclPtr DeclContext::DeclIterator::operator*() const noexcept
 {
 	return m_Current;
 }
@@ -172,6 +172,6 @@ nBool DeclContext::DeclIterator::operator!=(DeclIterator const& other) const noe
 	return m_Current != other.m_Current;
 }
 
-void DeclContext::OnNewDeclAdded(natRefPointer<Decl> /*decl*/)
+void DeclContext::OnNewDeclAdded(DeclPtr /*decl*/)
 {
 }

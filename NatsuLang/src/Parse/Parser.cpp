@@ -1,5 +1,6 @@
 #include "Parse/Parser.h"
 #include "Sema/Sema.h"
+#include "Sema/Declarator.h"
 #include "AST/Type.h"
 
 using namespace NatsuLib;
@@ -116,124 +117,178 @@ nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::Id
 	}
 }
 
+// def identifier type initializer
 std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseDeclaration()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_def));
 	// 吃掉 def
 	ConsumeToken();
 
+	
+}
+
+void Parser::ParseDeclarator(Declaration::Declarator& decl)
+{
 	if (!m_CurrentToken.Is(TokenType::Identifier))
 	{
 		m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
 		return {};
 	}
 
-	Token::Token name = m_CurrentToken, type, initializer;
+	ConsumeToken();
+
+	if (!m_CurrentToken.Is(TokenType::Colon))
+	{
+		m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::Colon)
+			.AddArgument(m_CurrentToken.GetType());
+		return {};
+	}
 
 	ConsumeToken();
 
-	if (m_CurrentToken.Is(TokenType::Colon))
+
+	if (m_CurrentToken.Is(TokenType::Equal))
 	{
-		ConsumeToken();
-		if (!type.Is(TokenType::Identifier))
-		{
-			m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
-			return {};
-		}
-		type = m_CurrentToken;
+		// 变量或函数定义
+
+	}
+}
+
+void Parser::ParseType(Declaration::Declarator& decl)
+{
+	const auto token = m_CurrentToken;
+	ConsumeToken();
+
+	if (!token.Is(TokenType::Colon))
+	{
+		// 不显式写出类型，隐含auto
+		return;
 	}
 
-	
-}
-
-void Parser::ParseDeclarator(Declaration::Declarator& decl)
-{
-
-}
-
-NatsuLang::Type::TypePtr Parser::ParseType()
-{
 	Type::TypePtr result;
-	if (m_CurrentToken.Is(TokenType::Identifier))
+
+	const auto tokenType = m_CurrentToken.GetType();
+	switch (tokenType)
+	{
+	case TokenType::Identifier:
 	{
 		// 普通或数组类型
 
 		auto type = m_Sema.GetTypeName(m_CurrentToken.GetIdentifierInfo(), m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nullptr);
 		if (!type)
 		{
-			return nullptr;
+			return;
 		}
 
 		ConsumeToken();
 
-		// 数组类型
-		if (m_CurrentToken.Is(TokenType::LeftSquare))
-		{
-			result = make_ref<Type::ArrayType>(type, 0);
-		}
-		else
-		{
-
-		}
+		break;
 	}
-	else if (m_CurrentToken.Is(TokenType::LeftParen))
+	case TokenType::LeftParen:
 	{
 		ConsumeParen();
 
 		// 函数类型或者括号类型
-		std::vector<Type::TypePtr> paramTypes;
-		std::vector<Identifier::IdPtr> paramNames;
 
-		while (true)
+		break;
+	}
+	case TokenType::RightParen:
+	{
+		ConsumeParen();
+
+		return;
+	}
+	case TokenType::Kw_typeof:
+	{
+		// typeof
+
+		break;
+	}
+	default:
+	{
+		break;
+	}
+	}
+
+	while (m_CurrentToken.Is(TokenType::LeftSquare))
+	{
+		// 数组类型
+
+		
+	}
+
+	return;
+}
+
+void Parser::ParseParenType(Declaration::Declarator& decl)
+{
+	assert(m_CurrentToken.Is(TokenType::LeftParen));
+	// 吃掉左括号
+	ConsumeParen();
+
+	auto innerType = ParseType();
+	if (!innerType)
+	{
+		if (m_CurrentToken.Is(TokenType::Identifier))
 		{
-			paramTypes.emplace_back(ParseType());
-			ConsumeToken();
-			if (m_CurrentToken.Is(TokenType::Identifier))
-			{
-				paramNames.emplace_back(m_CurrentToken.GetIdentifierInfo());
-			}
-
-			ConsumeToken();
-
-			if (m_CurrentToken.Is(TokenType::RightParen))
-			{
-				ConsumeParen();
-				break;
-			}
-
-			if (!m_CurrentToken.Is(TokenType::Comma))
-			{
-				m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-					.AddArgument(TokenType::Comma)
-					.AddArgument(m_CurrentToken.GetType());
-			}
-
-			ConsumeToken();
+			// 函数类型
+			return ParseFunctionType();
 		}
+		
+		m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier);
+	}
 
-		// 读取完函数参数信息，开始读取返回类型
+	return innerType;
+}
 
-		if (!m_CurrentToken.Is(TokenType::Arrow))
+void Parser::ParseFunctionType(Declaration::Declarator& decl)
+{
+	assert(m_CurrentToken.Is(TokenType::Identifier));
+
+	std::vector<Type::TypePtr> paramTypes;
+	std::vector<Identifier::IdPtr> paramNames;
+
+	while (true)
+	{
+		Declaration::Declarator param{ Declaration::Declarator::Context::Prototype };
+		ParseDeclarator(param);
+		ConsumeToken();
+		if (m_CurrentToken.Is(TokenType::Identifier))
 		{
-			m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-				.AddArgument(TokenType::Arrow)
-				.AddArgument(m_CurrentToken.GetType());
+			paramNames.emplace_back(m_CurrentToken.GetIdentifierInfo());
 		}
 
 		ConsumeToken();
 
-		auto retType = ParseType();
+		if (m_CurrentToken.Is(TokenType::RightParen))
+		{
+			ConsumeParen();
+			break;
+		}
 
-		
+		if (!m_CurrentToken.Is(TokenType::Comma))
+		{
+			m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+				.AddArgument(TokenType::Comma)
+				.AddArgument(m_CurrentToken.GetType());
+		}
+
+		ConsumeToken();
 	}
-	else if (m_CurrentToken.Is(TokenType::Kw_typeof))
+
+	// 读取完函数参数信息，开始读取返回类型
+
+	if (!m_CurrentToken.Is(TokenType::Arrow))
 	{
-		// typeof
+		m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::Arrow)
+			.AddArgument(m_CurrentToken.GetType());
 	}
-	else
-	{
-		return nullptr;
-	}
+
+	ConsumeToken();
+
+	auto retType = ParseType();
 }
 
 nBool Parser::SkipUntil(std::initializer_list<Token::TokenType> list, nBool dontConsume)

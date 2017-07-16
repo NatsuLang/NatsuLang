@@ -2,6 +2,12 @@
 #include <unordered_set>
 #include "Lex/Preprocessor.h"
 
+namespace NatsuLang::Identifier
+{
+	class IdentifierInfo;
+	using IdPtr = NatsuLib::natRefPointer<IdentifierInfo>;
+}
+
 namespace NatsuLang::Declaration
 {
 	class Declarator;
@@ -119,7 +125,9 @@ namespace NatsuLang::Syntax
 
 		void ParseDeclarator(Declaration::Declarator& decl);
 
-		Type::TypePtr ParseType();
+		void ParseType(Declaration::Declarator& decl);
+		void ParseParenType(Declaration::Declarator& decl);
+		void ParseFunctionType(Declaration::Declarator& decl);
 
 		nBool SkipUntil(std::initializer_list<Token::TokenType> list, nBool dontConsume = false);
 

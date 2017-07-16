@@ -32,6 +32,9 @@ namespace NatsuLang::Type
 			return m_InnerType;
 		}
 
+		std::size_t GetHashCode() const noexcept override;
+		nBool EqualTo(TypePtr const& other) const noexcept override;
+
 	private:
 		const TypePtr m_InnerType;
 	};
@@ -57,6 +60,9 @@ namespace NatsuLang::Type
 			return m_ArraySize;
 		}
 
+		std::size_t GetHashCode() const noexcept override;
+		nBool EqualTo(TypePtr const& other) const noexcept override;
+
 	private:
 		TypePtr m_ElementType;
 		std::size_t m_ArraySize;
@@ -66,8 +72,8 @@ namespace NatsuLang::Type
 		: Type
 	{
 	public:
-		FunctionType(TypePtr resultType, NatsuLib::Linq<TypePtr> const& params)
-			: Type{ Function }, m_ResultType{ std::move(resultType) }, m_ParameterTypes{ params.begin(), params.end() }
+		FunctionType(NatsuLib::Linq<TypePtr> const& params, TypePtr resultType)
+			: Type{ Function }, m_ParameterTypes{ params.begin(), params.end() }, m_ResultType{ std::move(resultType) }
 		{
 		}
 
@@ -81,9 +87,12 @@ namespace NatsuLang::Type
 		NatsuLib::Linq<TypePtr> GetParameterTypes() const noexcept;
 		std::size_t GetParameterCount() const noexcept;
 
+		std::size_t GetHashCode() const noexcept override;
+		nBool EqualTo(TypePtr const& other) const noexcept override;
+
 	private:
-		TypePtr m_ResultType;
 		std::vector<TypePtr> m_ParameterTypes;
+		TypePtr m_ResultType;
 	};
 
 	class TypeOfType
@@ -106,6 +115,9 @@ namespace NatsuLang::Type
 		{
 			return m_UnderlyingType;
 		}
+
+		std::size_t GetHashCode() const noexcept override;
+		nBool EqualTo(TypePtr const& other) const noexcept override;
 
 	private:
 		NatsuLib::natRefPointer<Expression::Expr> m_Expr;
@@ -135,6 +147,9 @@ namespace NatsuLang::Type
 			return m_Decl;
 		}
 
+		std::size_t GetHashCode() const noexcept override;
+		nBool EqualTo(TypePtr const& other) const noexcept override;
+
 	private:
 		NatsuLib::natRefPointer<Declaration::TagDecl> m_Decl;
 	};
@@ -154,6 +169,8 @@ namespace NatsuLang::Type
 		}
 
 		~RecordType();
+
+		nBool EqualTo(TypePtr const& other) const noexcept override;
 	};
 
 	class EnumType
@@ -166,6 +183,8 @@ namespace NatsuLang::Type
 		}
 
 		~EnumType();
+
+		nBool EqualTo(TypePtr const& other) const noexcept override;
 	};
 
 	class DeducedType
@@ -184,6 +203,9 @@ namespace NatsuLang::Type
 			return m_DeducedAsType;
 		}
 
+		std::size_t GetHashCode() const noexcept override;
+		nBool EqualTo(TypePtr const& other) const noexcept override;
+
 	private:
 		TypePtr m_DeducedAsType;
 	};
@@ -198,6 +220,7 @@ namespace NatsuLang::Type
 		}
 
 		~AutoType();
-	};
 
+		nBool EqualTo(TypePtr const& other) const noexcept override;
+	};
 }

@@ -175,6 +175,7 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="include\AST\ASTContext.h" />
     <ClInclude Include="include\AST\Declaration.h" />
     <ClInclude Include="include\AST\DeclBase.h" />
     <ClInclude Include="include\AST\Expression.h" />
@@ -206,6 +207,7 @@
     <ClInclude Include="include\Sema\Sema.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\AST\ASTContext.cpp" />
     <ClCompile Include="src\AST\Declaration.cpp" />
     <ClCompile Include="src\AST\DeclBase.cpp" />
     <ClCompile Include="src\AST\Statement.cpp" />

@@ -20,7 +20,7 @@ namespace
 	}
 }
 
-IdentifierInfo::IdentifierInfo(nStrView name, NatsuLang::Token::TokenType tokenType) noexcept
+IdentifierInfo::IdentifierInfo(nStrView name, Token::TokenType tokenType) noexcept
 	: m_Name{ name }, m_TokenType{ tokenType }
 {
 }
@@ -40,7 +40,7 @@ NatsuLang::Token::TokenType IdentifierInfo::GetTokenType() const noexcept
 	return m_TokenType;
 }
 
-NatsuLang::Token::TokenType IdentifierInfo::SetTokenType(NatsuLang::Token::TokenType tokenType) noexcept
+NatsuLang::Token::TokenType IdentifierInfo::SetTokenType(Token::TokenType tokenType) noexcept
 {
 	return std::exchange(m_TokenType, tokenType);
 }
@@ -50,7 +50,7 @@ nInt IdentifierInfo::CompareTo(natRefPointer<IdentifierInfo> const& other) const
 	return m_Name.Compare(other->m_Name);
 }
 
-natRefPointer<IdentifierInfo> IdentifierTable::GetOrAdd(nStrView name, NatsuLang::Token::TokenType tokenType)
+natRefPointer<IdentifierInfo> IdentifierTable::GetOrAdd(nStrView name, Token::TokenType tokenType)
 {
 	auto iter = m_Identifiers.find(name);
 	if (iter != m_Identifiers.end())

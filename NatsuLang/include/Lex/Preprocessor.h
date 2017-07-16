@@ -44,5 +44,7 @@ namespace NatsuLang
 		Diag::DiagnosticsEngine& m_Diag;
 		SourceManager& m_SourceManager;
 		NatsuLib::natRefPointer<Lex::Lexer> m_Lexer;
+
+		void init() const;
 	};
 }

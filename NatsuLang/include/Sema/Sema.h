@@ -4,19 +4,19 @@
 #include <unordered_set>
 #include "Basic/SourceLocation.h"
 #include "Basic/Identifier.h"
-#include "AST/DeclBase.h"
+#include "AST/Declaration.h"
+#include "AST/Type.h"
 
 namespace NatsuLang
 {
+	namespace Declaration
+	{
+		class Declarator;
+	}
+
 	namespace Diag
 	{
 		class DiagnosticsEngine;
-	}
-
-	namespace Type
-	{
-		class Type;
-		using TypePtr = NatsuLib::natRefPointer<Type>;
 	}
 
 	namespace Identifier
@@ -88,6 +88,9 @@ namespace NatsuLang::Semantic
 
 		nBool LookupName(LookupResult& result, NatsuLib::natRefPointer<Scope> scope) const;
 		nBool LookupQualifiedName(LookupResult& result, Declaration::DeclContext* context) const;
+
+		NatsuLib::natRefPointer<Declaration::ParmVarDecl> ActOnParamDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
+		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
 
 	private:
 		Preprocessor& m_Preprocessor;

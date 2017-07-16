@@ -1,5 +1,6 @@
 #include "AST/TypeBase.h"
 
+using namespace NatsuLib;
 using namespace NatsuLang::Type;
 
 namespace
@@ -28,4 +29,20 @@ BuiltinType::~BuiltinType()
 const char* BuiltinType::GetName() const noexcept
 {
 	return GetBuiltinTypeName(m_BuiltinClass);
+}
+
+std::size_t BuiltinType::GetHashCode() const noexcept
+{
+	return std::hash<BuiltinClass>{}(m_BuiltinClass);
+}
+
+nBool BuiltinType::EqualTo(TypePtr const& other) const noexcept
+{
+	const auto realOther = static_cast<natRefPointer<BuiltinType>>(other);
+	if (!realOther)
+	{
+		return false;
+	}
+
+	return m_BuiltinClass == realOther->m_BuiltinClass;
 }

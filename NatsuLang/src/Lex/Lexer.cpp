@@ -6,7 +6,7 @@ using namespace NatsuLang::Lex;
 using namespace NatsuLang::Token;
 using namespace NatsuLang::CharInfo;
 
-Lexer::Lexer(nStrView buffer, NatsuLang::Preprocessor& preprocessor)
+Lexer::Lexer(nStrView buffer, Preprocessor& preprocessor)
 	: m_Preprocessor{ preprocessor }, m_Buffer{ buffer }, m_Current{ m_Buffer.cbegin() }
 {
 	if (m_Buffer.empty())
@@ -15,7 +15,7 @@ Lexer::Lexer(nStrView buffer, NatsuLang::Preprocessor& preprocessor)
 	}
 }
 
-nBool Lexer::Lex(NatsuLang::Token::Token& result)
+nBool Lexer::Lex(Token::Token& result)
 {
 NextToken:
 	result.Reset();
@@ -367,7 +367,7 @@ NextToken:
 	return false;
 }
 
-nBool Lexer::skipWhitespace(NatsuLang::Token::Token& result, Iterator cur)
+nBool Lexer::skipWhitespace(Token::Token& result, Iterator cur)
 {
 	const auto end = m_Buffer.end();
 
@@ -382,7 +382,7 @@ nBool Lexer::skipWhitespace(NatsuLang::Token::Token& result, Iterator cur)
 	return false;
 }
 
-nBool Lexer::skipLineComment(NatsuLang::Token::Token& result, Iterator cur)
+nBool Lexer::skipLineComment(Token::Token& result, Iterator cur)
 {
 	const auto end = m_Buffer.end();
 
@@ -395,7 +395,7 @@ nBool Lexer::skipLineComment(NatsuLang::Token::Token& result, Iterator cur)
 	return false;
 }
 
-nBool Lexer::skipBlockComment(NatsuLang::Token::Token& result, Iterator cur)
+nBool Lexer::skipBlockComment(Token::Token& result, Iterator cur)
 {
 	const auto end = m_Buffer.end();
 
@@ -413,7 +413,7 @@ nBool Lexer::skipBlockComment(NatsuLang::Token::Token& result, Iterator cur)
 	return false;
 }
 
-nBool Lexer::lexNumericLiteral(NatsuLang::Token::Token& result, Iterator cur)
+nBool Lexer::lexNumericLiteral(Token::Token& result, Iterator cur)
 {
 	const auto start = cur, end = m_Buffer.end();
 	CharType curChar = *cur, prevChar{};
@@ -435,7 +435,7 @@ nBool Lexer::lexNumericLiteral(NatsuLang::Token::Token& result, Iterator cur)
 	return true;
 }
 
-nBool Lexer::lexIdentifier(NatsuLang::Token::Token& result, Iterator cur)
+nBool Lexer::lexIdentifier(Token::Token& result, Iterator cur)
 {
 	const auto start = cur, end = m_Buffer.end();
 	auto curChar = *cur++;
@@ -454,11 +454,11 @@ nBool Lexer::lexIdentifier(NatsuLang::Token::Token& result, Iterator cur)
 	return true;
 }
 
-nBool Lexer::lexCharLiteral(NatsuLang::Token::Token& result, Iterator cur)
+nBool Lexer::lexCharLiteral(Token::Token& result, Iterator cur)
 {
 	const auto start = ++cur, end = m_Buffer.end();
 	const auto count = NatsuLib::StringEncodingTrait<nString::UsingStringType>::GetCharCount(*start);
-	if (count < static_cast<std::size_t>(end - start))
+	if (count < static_cast<size_t>(end - start))
 	{
 		const auto literalEnd = start + count;
 
@@ -491,7 +491,7 @@ nBool Lexer::lexCharLiteral(NatsuLang::Token::Token& result, Iterator cur)
 	return false;
 }
 
-nBool Lexer::lexStringLiteral(NatsuLang::Token::Token& result, Iterator cur)
+nBool Lexer::lexStringLiteral(Token::Token& result, Iterator cur)
 {
 	const auto start = ++cur, end = m_Buffer.end();
 

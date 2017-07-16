@@ -1,5 +1,6 @@
 #include "Sema/Sema.h"
 #include "Sema/Scope.h"
+#include "Sema/Declarator.h"
 #include "Lex/Preprocessor.h"
 #include "AST/Declaration.h"
 
@@ -156,6 +157,24 @@ nBool Sema::LookupQualifiedName(LookupResult& result, Declaration::DeclContext* 
 
 	result.ResolveResultType();
 	return found;
+}
+
+natRefPointer<NatsuLang::Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
+{
+
+}
+
+natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
+{
+	auto id = decl.GetIdentifier();
+
+	if (!id)
+	{
+		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, decl.GetRange().GetBegin());
+		return nullptr;
+	}
+
+
 }
 
 LookupResult::LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType)
