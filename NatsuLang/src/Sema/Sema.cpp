@@ -3,6 +3,7 @@
 #include "Sema/Declarator.h"
 #include "Lex/Preprocessor.h"
 #include "AST/Declaration.h"
+#include "AST/ASTContext.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang::Semantic;
@@ -32,8 +33,8 @@ namespace
 	}
 }
 
-Sema::Sema(Preprocessor& preprocessor)
-	: m_Preprocessor{ preprocessor }, m_Diag{ preprocessor.GetDiag() }, m_SourceManager{ preprocessor.GetSourceManager() }
+Sema::Sema(Preprocessor& preprocessor, ASTContext& astContext)
+	: m_Preprocessor{ preprocessor }, m_Context{ astContext }, m_Diag{ preprocessor.GetDiag() }, m_SourceManager{ preprocessor.GetSourceManager() }
 {
 }
 
@@ -159,9 +160,14 @@ nBool Sema::LookupQualifiedName(LookupResult& result, Declaration::DeclContext* 
 	return found;
 }
 
-natRefPointer<NatsuLang::Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
+NatsuLang::Type::TypePtr Sema::ActOnTypeName(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
 {
 
+}
+
+natRefPointer<NatsuLang::Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
+{
+	
 }
 
 natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)

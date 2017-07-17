@@ -138,6 +138,9 @@
     <ClInclude Include="include\AST\ASTContext.h">
       <Filter>AST\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\AST\StmtVisitor.h">
+      <Filter>AST\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">
@@ -192,6 +195,9 @@
       <Filter>Sema\src</Filter>
     </ClCompile>
     <ClCompile Include="src\AST\ASTContext.cpp">
+      <Filter>AST\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AST\Expression.cpp">
       <Filter>AST\src</Filter>
     </ClCompile>
   </ItemGroup>

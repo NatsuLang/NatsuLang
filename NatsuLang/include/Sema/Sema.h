@@ -26,6 +26,7 @@ namespace NatsuLang
 	}
 
 	class Preprocessor;
+	class ASTContext;
 	class SourceManager;
 }
 
@@ -59,12 +60,17 @@ namespace NatsuLang::Semantic
 
 		using ModulePathType = std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>;
 
-		explicit Sema(Preprocessor& preprocessor);
+		explicit Sema(Preprocessor& preprocessor, ASTContext& astContext);
 		~Sema();
 
 		Preprocessor& GetPreprocessor() const noexcept
 		{
 			return m_Preprocessor;
+		}
+
+		ASTContext& GetASTContext() const noexcept
+		{
+			return m_Context;
 		}
 
 		Diag::DiagnosticsEngine& GetDiagnosticsEngine() const noexcept
@@ -89,11 +95,13 @@ namespace NatsuLang::Semantic
 		nBool LookupName(LookupResult& result, NatsuLib::natRefPointer<Scope> scope) const;
 		nBool LookupQualifiedName(LookupResult& result, Declaration::DeclContext* context) const;
 
+		Type::TypePtr ActOnTypeName(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
 		NatsuLib::natRefPointer<Declaration::ParmVarDecl> ActOnParamDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
 		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
 
 	private:
 		Preprocessor& m_Preprocessor;
+		ASTContext& m_Context;
 		Diag::DiagnosticsEngine& m_Diag;
 		SourceManager& m_SourceManager;
 

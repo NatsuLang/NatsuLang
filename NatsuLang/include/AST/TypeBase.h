@@ -1,6 +1,11 @@
 #pragma once
 #include <natRefObj.h>
 
+namespace NatsuLang::Token
+{
+	enum class TokenType;
+}
+
 namespace NatsuLang::Type
 {
 #define TYPE(Class, Base) class Class##Type;
@@ -46,6 +51,7 @@ namespace NatsuLang::Type
 	public:
 		enum BuiltinClass
 		{
+			Invalid,
 #define BUILTIN_TYPE(Id, SingletonId, Name) Id,
 #define LAST_BUILTIN_TYPE(Id) LastKind = Id
 #include "Basic/BuiltinTypesDef.h"
@@ -54,6 +60,7 @@ namespace NatsuLang::Type
 		explicit BuiltinType(BuiltinClass builtinClass)
 			: Type{ Builtin }, m_BuiltinClass{ builtinClass }
 		{
+			assert(m_BuiltinClass != Invalid);
 		}
 
 		~BuiltinType();
@@ -67,6 +74,8 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
+
+		static BuiltinClass GetBuiltinClassFromTokenType(Token::TokenType type);
 
 	private:
 		const BuiltinClass m_BuiltinClass;

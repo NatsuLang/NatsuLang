@@ -37,6 +37,8 @@ namespace NatsuLang::Specifier
 
 		Enum,
 		Class,
+		Function,
+		Array,
 		TypeOf,
 		Auto,
 

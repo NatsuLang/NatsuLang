@@ -25,7 +25,7 @@ namespace NatsuLang::Statement
 		using DeclEnumerable = NatsuLib::Linq<DeclPtr>;
 
 		explicit DeclStmt(DeclEnumerable decls = NatsuLib::from_empty<DeclPtr>(), SourceLocation start = {}, SourceLocation end = {})
-			: Stmt{ DeclStmtClass, start, end }, m_Decls{ std::cbegin(decls), std::cend(decls) }
+			: Stmt{ DeclStmtClass, start, end }, m_Decls{ std::begin(decls), std::end(decls) }
 		{
 		}
 
@@ -67,7 +67,7 @@ namespace NatsuLang::Statement
 	{
 	public:
 		explicit CompoundStmt(StmtEnumerable const& stmts = NatsuLib::from_empty<StmtPtr>(), SourceLocation start = {}, SourceLocation end = {})
-			: Stmt{ CompoundStmtClass, start, end }, m_Stmts{ std::cbegin(stmts), std::cend(stmts) }
+			: Stmt{ CompoundStmtClass, start, end }, m_Stmts{ std::begin(stmts), std::end(stmts) }
 		{
 		}
 
@@ -84,7 +84,7 @@ namespace NatsuLang::Statement
 		: public Stmt
 	{
 	public:
-		explicit SwitchCase(Type type, SourceLocation start = {}, SourceLocation end = {})
+		explicit SwitchCase(StmtType type, SourceLocation start = {}, SourceLocation end = {})
 			: Stmt{ type, start, end }
 		{
 		}

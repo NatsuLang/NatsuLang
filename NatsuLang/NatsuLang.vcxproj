@@ -181,6 +181,7 @@
     <ClInclude Include="include\AST\Expression.h" />
     <ClInclude Include="include\AST\Statement.h" />
     <ClInclude Include="include\AST\StmtBase.h" />
+    <ClInclude Include="include\AST\StmtVisitor.h" />
     <ClInclude Include="include\AST\Type.h" />
     <ClInclude Include="include\AST\TypeBase.h" />
     <ClInclude Include="include\Basic\BuiltinTypesDef.h" />
@@ -210,6 +211,7 @@
     <ClCompile Include="src\AST\ASTContext.cpp" />
     <ClCompile Include="src\AST\Declaration.cpp" />
     <ClCompile Include="src\AST\DeclBase.cpp" />
+    <ClCompile Include="src\AST\Expression.cpp" />
     <ClCompile Include="src\AST\Statement.cpp" />
     <ClCompile Include="src\AST\StmtBase.cpp" />
     <ClCompile Include="src\AST\Type.cpp" />

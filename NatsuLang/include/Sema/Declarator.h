@@ -1,7 +1,5 @@
 #pragma once
 #include <natRefObj.h>
-#include <natLinq.h>
-#include <variant>
 #include "Basic/SourceLocation.h"
 
 namespace NatsuLang::Identifier
@@ -16,6 +14,12 @@ namespace NatsuLang::Type
 	using TypePtr = NatsuLib::natRefPointer<Type>;
 }
 
+namespace NatsuLang::Statement
+{
+	class Stmt;
+	using StmtPtr = NatsuLib::natRefPointer<Stmt>;
+}
+
 namespace NatsuLang::Expression
 {
 	class Expr;
@@ -26,109 +30,6 @@ namespace NatsuLang::Declaration
 {
 	class Decl;
 	using DeclPtr = NatsuLib::natRefPointer<Decl>;
-
-	class DeclaratorChunk
-	{
-	public:
-		enum class ChunkType
-		{
-			Array,
-			Function,
-			Paren
-		};
-
-		struct ArrayTypeInfo
-		{
-			Type::TypePtr ElementType;
-			Expression::ExprPtr SizeExpr;
-
-			ArrayTypeInfo(Type::TypePtr elementType, Expression::ExprPtr sizeExpr)
-				: ElementType{ std::move(elementType) }, SizeExpr{ std::move(sizeExpr) }
-			{
-			}
-		};
-
-		struct ParamInfo
-		{
-			Identifier::IdPtr Id;
-			SourceLocation Location;
-			DeclPtr Param;
-		};
-
-		struct FunctionTypeInfo
-		{
-			std::vector<ParamInfo> Params;
-			Type::TypePtr ReturnType;
-
-			FunctionTypeInfo(std::vector<ParamInfo> params, Type::TypePtr returnType)
-				: Params{ move(params) }, ReturnType{ std::move(returnType) }
-			{
-			}
-		};
-
-		struct ParenTypeInfo
-		{
-			constexpr ParenTypeInfo() = default;
-		};
-
-		static constexpr ParenTypeInfo ParenTypeInfoPlaceHolder{};
-
-		DeclaratorChunk(Type::TypePtr elementType, Expression::ExprPtr sizeExpr, SourceLocation begin, SourceLocation end)
-			: m_Location{ begin }, m_EndLocation{ end }, m_Type{ ChunkType::Array }, m_TypeInfo{ std::in_place_index<0>, std::move(elementType), std::move(sizeExpr) }
-		{
-		}
-
-		DeclaratorChunk(std::vector<ParamInfo> params, Type::TypePtr returnType, SourceLocation begin, SourceLocation end)
-			: m_Location{ begin }, m_EndLocation{ end }, m_Type{ ChunkType::Function }, m_TypeInfo{ std::in_place_index<1>, move(params), std::move(returnType) }
-		{
-		}
-
-		DeclaratorChunk(ParenTypeInfo, SourceLocation begin, SourceLocation end)
-			: m_Location{ begin }, m_EndLocation{ end }, m_Type{ ChunkType::Paren }, m_TypeInfo{ std::in_place_index<2> }
-		{
-		}
-
-		ArrayTypeInfo* GetArrayTypeInfo() noexcept
-		{
-			if (m_Type == ChunkType::Array)
-			{
-				return &std::get<0>(m_TypeInfo);
-			}
-
-			return nullptr;
-		}
-
-		FunctionTypeInfo* GetFunctionTypeInfo() noexcept
-		{
-			if (m_Type == ChunkType::Function)
-			{
-				return &std::get<1>(m_TypeInfo);
-			}
-
-			return nullptr;
-		}
-
-		ChunkType GetType() const noexcept
-		{
-			return m_Type;
-		}
-
-		SourceRange GetRange() const noexcept
-		{
-			if (m_EndLocation.IsValid())
-			{
-				return { m_Location, m_EndLocation };
-			}
-
-			return { m_Location, m_Location };
-		}
-
-	private:
-		SourceLocation m_Location, m_EndLocation;
-		ChunkType m_Type{};
-
-		std::variant<ArrayTypeInfo, FunctionTypeInfo, ParenTypeInfo> m_TypeInfo;
-	};
 
 	class Declarator
 	{
@@ -180,53 +81,42 @@ namespace NatsuLang::Declaration
 			m_Context = context;
 		}
 
-		void AddTypeInfo(DeclaratorChunk const& chunk, SourceLocation endLoc)
+		Specifier::TypeSpecifier GetTypeSpecifier() const noexcept
 		{
-			m_TypeInfos.emplace_back(chunk);
-			if (!endLoc.IsValid())
-			{
-				m_Range.SetEnd(endLoc);
-			}
+			return m_TypeSpecifier;
 		}
 
-		void AddTypeInfo(DeclaratorChunk && chunk, SourceLocation endLoc)
+		void SetTypeSpecifier(Specifier::TypeSpecifier value) noexcept
 		{
-			m_TypeInfos.emplace_back(std::move(chunk));
-			if (!endLoc.IsValid())
-			{
-				m_Range.SetEnd(endLoc);
-			}
+			m_TypeSpecifier = value;
 		}
 
-		NatsuLib::Linq<DeclaratorChunk> GetTypeInfos() noexcept
+		Type::TypePtr GetType() const noexcept
 		{
-			return NatsuLib::from(m_TypeInfos);
+			return m_Type;
 		}
 
-		NatsuLib::Linq<const DeclaratorChunk> GetTypeInfos() const noexcept
+		void SetType(Type::TypePtr value) noexcept
 		{
-			return NatsuLib::from(m_TypeInfos);
+			m_Type = std::move(value);
 		}
 
-		std::size_t GetTypeInfoCount() const noexcept
+		Statement::StmtPtr GetInitializer() const noexcept
 		{
-			return m_TypeInfos.size();
+			return m_Initializer;
 		}
 
-		DeclaratorChunk& GetTypeInfo(std::size_t index) noexcept
+		void SetInitializer(Statement::StmtPtr value) noexcept
 		{
-			return m_TypeInfos[index];
-		}
-
-		DeclaratorChunk const& GetTypeInfo(std::size_t index) const noexcept
-		{
-			return m_TypeInfos[index];
+			m_Initializer = std::move(value);
 		}
 
 	private:
-		Identifier::IdPtr m_Identifier;
 		SourceRange m_Range;
 		Context m_Context;
-		std::vector<DeclaratorChunk> m_TypeInfos;
+		Identifier::IdPtr m_Identifier;
+		Specifier::TypeSpecifier m_TypeSpecifier;
+		Type::TypePtr m_Type;
+		Statement::StmtPtr m_Initializer;
 	};
 }

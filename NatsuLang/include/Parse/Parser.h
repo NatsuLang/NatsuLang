@@ -15,6 +15,18 @@ namespace NatsuLang::Declaration
 	using DeclPtr = NatsuLib::natRefPointer<Decl>;
 }
 
+namespace NatsuLang::Statement
+{
+	class Stmt;
+	using StmtPtr = NatsuLib::natRefPointer<Stmt>;
+}
+
+namespace NatsuLang::Expression
+{
+	class Expr;
+	using ExprPtr = NatsuLib::natRefPointer<Expr>;
+}
+
 namespace NatsuLang::Diag
 {
 	class DiagnosticsEngine;
@@ -123,11 +135,18 @@ namespace NatsuLang::Syntax
 
 		std::vector<NatsuLib::natRefPointer<Declaration::Decl>> ParseDeclaration();
 
+		Expression::ExprPtr ParseExpression();
+		Expression::ExprPtr ParseConstantExpression();
+
 		void ParseDeclarator(Declaration::Declarator& decl);
+		void ParseSpecifier(Declaration::Declarator& decl);
 
 		void ParseType(Declaration::Declarator& decl);
 		void ParseParenType(Declaration::Declarator& decl);
 		void ParseFunctionType(Declaration::Declarator& decl);
+		void ParseArrayType(Declaration::Declarator& decl);
+
+		void ParseInitializer(Declaration::Declarator& decl);
 
 		nBool SkipUntil(std::initializer_list<Token::TokenType> list, nBool dontConsume = false);
 

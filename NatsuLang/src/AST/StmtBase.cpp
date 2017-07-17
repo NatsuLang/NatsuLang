@@ -4,7 +4,7 @@ using namespace NatsuLang::Statement;
 
 namespace
 {
-	constexpr const char* getStmtTypeName(Stmt::Type type) noexcept
+	constexpr const char* getStmtTypeName(Stmt::StmtType type) noexcept
 	{
 		switch (type)
 		{

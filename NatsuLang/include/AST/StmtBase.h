@@ -14,7 +14,7 @@ namespace NatsuLang::Statement
 		: public NatsuLib::natRefObjImpl<Stmt>
 	{
 	public:
-		enum Type
+		enum StmtType
 		{
 			None = 0,
 #define STMT(StmtType, Base) StmtType##Class,
@@ -26,13 +26,13 @@ namespace NatsuLang::Statement
 #include "Basic/StmtDef.h"
 		};
 
-		explicit Stmt(Type type, SourceLocation start = {}, SourceLocation end = {}) noexcept
+		explicit Stmt(StmtType type, SourceLocation start = {}, SourceLocation end = {}) noexcept
 			: m_Type{ type }, m_Start{ start }, m_End{ end }
 		{
 		}
 		~Stmt();
 
-		Type GetType() const noexcept
+		StmtType GetType() const noexcept
 		{
 			return m_Type;
 		}
@@ -47,7 +47,7 @@ namespace NatsuLang::Statement
 		virtual void SetEndLoc(SourceLocation loc) noexcept;
 
 	private:
-		Type m_Type;
+		StmtType m_Type;
 		SourceLocation m_Start, m_End;
 	};
 }
