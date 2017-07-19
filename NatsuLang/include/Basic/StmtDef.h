@@ -61,26 +61,11 @@ DOSTMT(DoStmt, Stmt)
 #endif
 ABSTRACT_STMT(EXPR(Expr, Stmt))
 
-#ifndef ABSTRACTCONDITIONALOPERATOR
-#define ABSTRACTCONDITIONALOPERATOR(Type, Base) EXPR(Type, Base)
-#endif
-ABSTRACT_STMT(ABSTRACTCONDITIONALOPERATOR(AbstractConditionalOperator, Expr))
-
-#ifndef BINARYCONDITIONALOPERATOR
-#define BINARYCONDITIONALOPERATOR(Type, Base) ABSTRACTCONDITIONALOPERATOR(Type, Base)
-#endif
-BINARYCONDITIONALOPERATOR(BinaryConditionalOperator, AbstractConditionalOperator)
-#undef BINARYCONDITIONALOPERATOR
-
 #ifndef CONDITIONALOPERATOR
-#define CONDITIONALOPERATOR(Type, Base) ABSTRACTCONDITIONALOPERATOR(Type, Base)
+#define CONDITIONALOPERATOR(Type, Base) EXPR(Type, Base)
 #endif
-CONDITIONALOPERATOR(ConditionalOperator, AbstractConditionalOperator)
+CONDITIONALOPERATOR(ConditionalOperator, Expr)
 #undef CONDITIONALOPERATOR
-
-STMT_RANGE(AbstractConditionalOperator, BinaryConditionalOperator, ConditionalOperator)
-
-#undef ABSTRACTCONDITIONALOPERATOR
 
 #ifndef ARRAYSUBSCRIPTEXPR
 #define ARRAYSUBSCRIPTEXPR(Type, Base) EXPR(Type, Base)
@@ -103,17 +88,11 @@ STMT_RANGE(BinaryOperator, BinaryOperator, CompoundAssignOperator)
 
 #undef BINARYOPERATOR
 
-#ifndef BLOCKEXPR
-#define BLOCKEXPR(Type, Base) EXPR(Type, Base)
+#ifndef BOOLEANLITERAL
+#define BOOLEANLITERAL(Type, Base) EXPR(Type, Base)
 #endif
-BLOCKEXPR(BlockExpr, Expr)
-#undef BLOCKEXPR
-
-#ifndef BOOLLITERALEXPR
-#define BOOLLITERALEXPR(Type, Base) EXPR(Type, Base)
-#endif
-BOOLLITERALEXPR(BoolLiteralExpr, Expr)
-#undef BOOLLITERALEXPR
+BOOLEANLITERAL(BooleanLiteral, Expr)
+#undef BOOLEANLITERAL
 
 #ifndef CONSTRUCTEXPR
 #define CONSTRUCTEXPR(Type, Base) EXPR(Type, Base)
@@ -152,7 +131,7 @@ THROWEXPR(ThrowExpr, Expr)
 #undef THROWEXPR
 
 #ifndef CALLEXPR
-#  define CALLEXPR(Type, Base) EXPR(Type, Base)
+#define CALLEXPR(Type, Base) EXPR(Type, Base)
 #endif
 CALLEXPR(CallExpr, Expr)
 
@@ -165,6 +144,12 @@ MEMBERCALLEXPR(MemberCallExpr, CallExpr)
 STMT_RANGE(CallExpr, CallExpr, MemberCallExpr)
 
 #undef CALLEXPR
+
+#ifndef ARRAYSUBSCRIPTEXPR
+#define ARRAYSUBSCRIPTEXPR(Type, Base) EXPR(Type, Base)
+#endif
+ARRAYSUBSCRIPTEXPR(ArraySubscriptExpr, Expr)
+#undef ARRAYSUBSCRIPTEXPR
 
 #ifndef CASTEXPR
 #define CASTEXPR(Type, Base) EXPR(Type, Base)
@@ -212,7 +197,7 @@ INTEGERLITERAL(IntegerLiteral, Expr)
 #undef INTEGERLITERAL
 
 #ifndef MEMBEREXPR
-#  define MEMBEREXPR(Type, Base) EXPR(Type, Base)
+#define MEMBEREXPR(Type, Base) EXPR(Type, Base)
 #endif
 MEMBEREXPR(MemberExpr, Expr)
 #undef MEMBEREXPR
@@ -273,7 +258,7 @@ UNARYEXPRORTYPETRAITEXPR(UnaryExprOrTypeTraitExpr, Expr)
 UNARYOPERATOR(UnaryOperator, Expr)
 #undef UNARYOPERATOR
 
-STMT_RANGE(Expr, BinaryConditionalOperator, UnaryOperator)
+STMT_RANGE(Expr, ConditionalOperator, UnaryOperator)
 
 #undef EXPR
 

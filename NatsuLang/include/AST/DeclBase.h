@@ -7,6 +7,7 @@
 namespace NatsuLang::Identifier
 {
 	class IdentifierInfo;
+	using IdPtr = NatsuLib::natRefPointer<IdentifierInfo>;
 }
 
 namespace NatsuLang::Declaration

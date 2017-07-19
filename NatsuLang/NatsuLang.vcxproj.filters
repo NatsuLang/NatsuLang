@@ -141,6 +141,12 @@
     <ClInclude Include="include\AST\StmtVisitor.h">
       <Filter>AST\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\AST\OperationTypes.h">
+      <Filter>AST\include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AST\OperationTypesDef.h">
+      <Filter>AST\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">

@@ -112,3 +112,7 @@ ImportDecl::~ImportDecl()
 EmptyDecl::~EmptyDecl()
 {
 }
+
+ConstructorDecl::~ConstructorDecl()
+{
+}

@@ -13,6 +13,8 @@ namespace NatsuLang
 		{
 			
 		}
+
+
 	};
 
 	template <typename RetType>

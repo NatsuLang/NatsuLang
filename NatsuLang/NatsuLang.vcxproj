@@ -179,6 +179,8 @@
     <ClInclude Include="include\AST\Declaration.h" />
     <ClInclude Include="include\AST\DeclBase.h" />
     <ClInclude Include="include\AST\Expression.h" />
+    <ClInclude Include="include\AST\OperationTypes.h" />
+    <ClInclude Include="include\AST\OperationTypesDef.h" />
     <ClInclude Include="include\AST\Statement.h" />
     <ClInclude Include="include\AST\StmtBase.h" />
     <ClInclude Include="include\AST\StmtVisitor.h" />

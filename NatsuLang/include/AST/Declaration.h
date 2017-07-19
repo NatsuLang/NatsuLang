@@ -283,8 +283,8 @@ namespace NatsuLang::Declaration
 		: public FunctionDecl
 	{
 	public:
-		MethodDecl(DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass)
-			: FunctionDecl{ Method, context, startLoc, idLoc, std::move(identifierInfo), std::move(valueType), storageClass }
+		MethodDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass)
+			: FunctionDecl{ declType, context, startLoc, idLoc, std::move(identifierInfo), std::move(valueType), storageClass }
 		{
 		}
 
@@ -458,5 +458,17 @@ namespace NatsuLang::Declaration
 		}
 
 		~EmptyDecl();
+	};
+
+	class ConstructorDecl
+		: public MethodDecl
+	{
+	public:
+		ConstructorDecl(NatsuLib::natRefPointer<RecordDecl> recordDecl, SourceLocation startLoc, IdPtr identifierInfo, Type::TypePtr type)
+			: MethodDecl{ Constructor, static_cast<DeclContext*>(recordDecl.Get()), startLoc, {}, std::move(identifierInfo), std::move(type), Specifier::StorageClass::None }
+		{
+		}
+
+		~ConstructorDecl();
 	};
 }
