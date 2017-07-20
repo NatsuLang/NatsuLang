@@ -183,6 +183,14 @@ natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPo
 
 }
 
+NatsuLang::Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr)
+{
+	if (expr)
+	{
+
+	}
+}
+
 LookupResult::LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType)
 	: m_Sema{ sema }, m_LookupId{ std::move(id) }, m_LookupLoc{ loc }, m_LookupNameType{ lookupNameType }, m_IDNS{ ChooseIDNS(m_LookupNameType) }, m_Result{}, m_AmbiguousType{}
 {

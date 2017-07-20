@@ -13,6 +13,7 @@ namespace NatsuLang::Declaration
 	class Declarator;
 	class Decl;
 	using DeclPtr = NatsuLib::natRefPointer<Decl>;
+	enum class Context;
 }
 
 namespace NatsuLang::Statement
@@ -133,10 +134,12 @@ namespace NatsuLang::Syntax
 		std::vector<NatsuLib::natRefPointer<Declaration::Decl>> ParseModuleDecl();
 		nBool ParseModuleName(std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path);
 
-		std::vector<NatsuLib::natRefPointer<Declaration::Decl>> ParseDeclaration();
+		std::vector<NatsuLib::natRefPointer<Declaration::Decl>> ParseDeclaration(Declaration::Context context);
 
 		Expression::ExprPtr ParseExpression();
 		Expression::ExprPtr ParseConstantExpression();
+		Expression::ExprPtr ParseAssignmentExpression();
+		Expression::ExprPtr ParseThrowExpression();
 
 		void ParseDeclarator(Declaration::Declarator& decl);
 		void ParseSpecifier(Declaration::Declarator& decl);

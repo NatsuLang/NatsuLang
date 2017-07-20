@@ -99,6 +99,8 @@ namespace NatsuLang::Semantic
 		NatsuLib::natRefPointer<Declaration::ParmVarDecl> ActOnParamDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
 		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
 
+		Expression::ExprPtr ActOnThrow(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr);
+
 	private:
 		Preprocessor& m_Preprocessor;
 		ASTContext& m_Context;

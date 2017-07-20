@@ -25,7 +25,7 @@ namespace NatsuLang::CharInfo
 
 	MAKE_ENUM_CLASS_BITMASK_TYPE(CharInfo);
 
-	constexpr const CharInfo CharInfoTable[256]
+	constexpr CharInfo CharInfoTable[256]
 	{
 		// 0 NUL         1 SOH         2 STX         3 ETX
 		// 4 EOT         5 ENQ         6 ACK         7 BEL

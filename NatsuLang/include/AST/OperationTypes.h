@@ -16,6 +16,11 @@ namespace NatsuLang::Expression
 #include "OperationTypesDef.h"
 	};
 
+	constexpr nBool IsBinLogicalOp(BinaryOperationType binOp)
+	{
+		return binOp == BinaryOperationType::LAnd || binOp == BinaryOperationType::LOr;
+	}
+
 	enum class UnaryOperationType
 	{
 		Invalid,

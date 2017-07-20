@@ -122,13 +122,16 @@ nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::Id
 //	simple-declaration
 // simple-declaration:
 //	def declarator [;]
-std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseDeclaration()
+std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseDeclaration(Declaration::Context context)
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_def));
 	// 吃掉 def
 	ConsumeToken();
 
-	
+	Declaration::Declarator decl{ context };
+	ParseDeclarator(decl);
+
+	return { m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), decl) };
 }
 
 NatsuLang::Expression::ExprPtr Parser::ParseExpression()
@@ -143,6 +146,39 @@ NatsuLang::Expression::ExprPtr Parser::ParseConstantExpression()
 	nat_Throw(NotImplementedException);
 }
 
+NatsuLang::Expression::ExprPtr Parser::ParseAssignmentExpression()
+{
+	if (m_CurrentToken.Is(TokenType::Kw_throw))
+	{
+		
+	}
+}
+
+NatsuLang::Expression::ExprPtr Parser::ParseThrowExpression()
+{
+	assert(m_CurrentToken.Is(TokenType::Kw_throw));
+	ConsumeToken();
+	auto throwLocation = m_PrevTokenLocation;
+
+	switch (m_CurrentToken.GetType())
+	{
+	case TokenType::Semi:
+	case TokenType::RightParen:
+	case TokenType::RightSquare:
+	case TokenType::RightBrace:
+	case TokenType::Colon:
+	case TokenType::Comma:
+		return {};
+	default:
+		auto expr = ParseAssignmentExpression();
+		if (!expr)
+		{
+			return nullptr;
+		}
+		break;
+	}
+}
+
 // declarator:
 //	[identifier] [specifier-seq] [initializer] [;]
 void Parser::ParseDeclarator(Declaration::Declarator& decl)
@@ -153,14 +189,14 @@ void Parser::ParseDeclarator(Declaration::Declarator& decl)
 		decl.SetIdentifier(m_CurrentToken.GetIdentifierInfo());
 		ConsumeToken();
 	}
-	else if (context != Declaration::Declarator::Context::Prototype)
+	else if (context != Declaration::Context::Prototype)
 	{
 		m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
 		return;
 	}
 
 	// (: int)也可以？
-	if (m_CurrentToken.Is(TokenType::Colon) || (context == Declaration::Declarator::Context::Prototype && !decl.GetIdentifier()))
+	if (m_CurrentToken.Is(TokenType::Colon) || (context == Declaration::Context::Prototype && !decl.GetIdentifier()))
 	{
 		ParseSpecifier(decl);
 	}
@@ -191,7 +227,7 @@ void Parser::ParseType(Declaration::Declarator& decl)
 	const auto token = m_CurrentToken;
 	ConsumeToken();
 
-	if (!token.Is(TokenType::Colon) && context != Declaration::Declarator::Context::Prototype)
+	if (!token.Is(TokenType::Colon) && context != Declaration::Context::Prototype)
 	{
 		// 在非声明函数原型的上下文中不显式写出类型，视为隐含auto
 		// auto的声明符在指定initializer之后决定实际类型
@@ -259,19 +295,18 @@ void Parser::ParseParenType(Declaration::Declarator& decl)
 	// 吃掉左括号
 	ConsumeParen();
 
-	auto innerType = ParseType();
-	if (!innerType)
+	ParseType(decl);
+	if (!decl.GetType())
 	{
 		if (m_CurrentToken.Is(TokenType::Identifier))
 		{
 			// 函数类型
-			return ParseFunctionType();
+			ParseFunctionType(decl);
+			return;
 		}
 		
 		m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier);
 	}
-
-	return innerType;
 }
 
 void Parser::ParseFunctionType(Declaration::Declarator& decl)
@@ -283,7 +318,7 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 
 	while (true)
 	{
-		Declaration::Declarator param{ Declaration::Declarator::Context::Prototype };
+		Declaration::Declarator param{ Declaration::Context::Prototype };
 		ParseDeclarator(param);
 		ConsumeToken();
 		if (m_CurrentToken.Is(TokenType::Identifier))
@@ -320,7 +355,10 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 
 	ConsumeToken();
 
-	auto retType = ParseType();
+	Declaration::Declarator retType{ Declaration::Context::Prototype };
+	ParseType(retType);
+
+
 }
 
 void Parser::ParseArrayType(Declaration::Declarator& decl)

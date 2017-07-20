@@ -4,6 +4,11 @@
 #include "OperationTypes.h"
 #include <variant>
 
+namespace NatsuLang
+{
+	class ASTContext;
+}
+
 namespace NatsuLang::Expression
 {
 	class Expr
@@ -23,11 +28,19 @@ namespace NatsuLang::Expression
 			m_ExprType = std::move(value);
 		}
 
-		struct EvalStatus
+		ExprPtr IgnoreParens() noexcept;
+
+		struct EvalResult
 		{
 			nBool HasSideEffects;
 			nBool HasUndefinedBehavior;
+			std::variant<nuLong, nDouble> Result;
+
+			nBool GetResultAsSignedInteger(nLong& result) const noexcept;
+			nBool GetResultAsBoolean(nBool& result) const noexcept;
 		};
+
+		nBool Evaluate(EvalResult& result, ASTContext const& context);
 
 	private:
 		Type::TypePtr m_ExprType;

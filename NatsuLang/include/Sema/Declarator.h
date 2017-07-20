@@ -31,23 +31,23 @@ namespace NatsuLang::Declaration
 	class Decl;
 	using DeclPtr = NatsuLib::natRefPointer<Decl>;
 
+	enum class Context
+	{
+		Global,
+		Prototype,
+		TypeName,
+		Member,
+		Block,
+		For,
+		New,
+		Catch,
+	};
+
 	class Declarator
 	{
 	public:
-		enum class Context
-		{
-			File,
-			Prototype,
-			TypeName,
-			Member,
-			Block,
-			For,
-			New,
-			Catch,
-		};
-
 		explicit Declarator(Context context)
-			: m_Context{ context }
+			: m_Context{ context }, m_TypeSpecifier{}
 		{
 		}
 
