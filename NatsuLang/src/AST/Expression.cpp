@@ -53,7 +53,6 @@ namespace
 		{
 		}
 
-
 		nBool VisitCharacterLiteral(natRefPointer<CharacterLiteral> const& expr) override
 		{
 			m_Result.Result.emplace<0>(expr->GetCodePoint());
@@ -65,7 +64,6 @@ namespace
 			m_Result.Result.emplace<0>(expr->GetValue());
 			return true;
 		}
-
 
 		nBool VisitBooleanLiteral(natRefPointer<BooleanLiteral> const& expr) override
 		{
@@ -143,6 +141,7 @@ namespace
 			return true;
 		}
 
+		// TODO: 处理浮点类型的比较操作
 		nBool VisitBinaryOperator(natRefPointer<BinaryOperator> const& expr) override
 		{
 			const auto opcode = expr->GetOpcode();
@@ -180,7 +179,7 @@ namespace
 				return false;
 			}
 
-			nuLong leftValue = std::get<0>(leftResult.Result), rightValue = std::get<0>(rightResult.Result);
+			auto leftValue = std::get<0>(leftResult.Result), rightValue = std::get<0>(rightResult.Result);
 
 			// 无需判断逻辑操作符的情况
 			switch (opcode)
@@ -320,6 +319,129 @@ namespace
 		}
 	};
 
+	class FloatExprEvaluator
+		: public ExprEvaluatorBase
+	{
+	public:
+		FloatExprEvaluator(NatsuLang::ASTContext& context, Expr::EvalResult& result)
+			: ExprEvaluatorBase{ context, result }
+		{
+		}
+
+		nBool VisitFloatingLiteral(natRefPointer<FloatingLiteral> const& expr) override
+		{
+			m_Result.Result.emplace<1>(expr->GetValue());
+			return true;
+		}
+
+		nBool VisitCastExpr(natRefPointer<CastExpr> const& expr) override
+		{
+			const auto operand = expr->GetOperand();
+
+			switch (expr->GetCastType())
+			{
+			case CastType::NoOp:
+			case CastType::FloatingCast:
+				return Visit(operand);
+			case CastType::IntegralToFloating:
+				Expr::EvalResult result;
+				if (!EvaluateInteger(operand, m_Context, result) || result.Result.index() != 0)
+				{
+					return false;
+				}
+
+				m_Result.Result.emplace<1>(static_cast<nDouble>(std::get<0>(result.Result)));
+				return true;
+			case CastType::Invalid:
+			case CastType::IntegralCast:
+			case CastType::IntegralToBoolean:
+			case CastType::FloatingToIntegral:
+			case CastType::FloatingToBoolean:
+			default:
+				return false;
+			}
+		}
+
+		nBool VisitBinaryOperator(natRefPointer<BinaryOperator> const& expr) override
+		{
+			const auto opcode = expr->GetOpcode();
+			auto leftOperand = expr->GetLeftOperand();
+			auto rightOperand = expr->GetRightOperand();
+
+			Expr::EvalResult leftResult, rightResult;
+
+			if (!Evaluate(leftOperand, m_Context, leftResult) || leftResult.Result.index() != 1 ||
+				!Evaluate(rightOperand, m_Context, rightResult) || rightResult.Result.index() != 1)
+			{
+				return false;
+			}
+
+			auto leftValue = std::get<1>(leftResult.Result), rightValue = std::get<1>(rightResult.Result);
+			switch (opcode)
+			{
+			case BinaryOperationType::Mul:
+				m_Result.Result.emplace<1>(leftValue * rightValue);
+				return true;
+			case BinaryOperationType::Div:
+				m_Result.Result.emplace<1>(leftValue / rightValue);
+				return true;
+			case BinaryOperationType::Add:
+				m_Result.Result.emplace<1>(leftValue + rightValue);
+				return true;
+			case BinaryOperationType::Sub:
+				m_Result.Result.emplace<1>(leftValue - rightValue);
+				return true;
+			case BinaryOperationType::Invalid:
+			case BinaryOperationType::Mod:
+			case BinaryOperationType::Shl:
+			case BinaryOperationType::Shr:
+			case BinaryOperationType::LT:
+			case BinaryOperationType::GT:
+			case BinaryOperationType::LE:
+			case BinaryOperationType::GE:
+			case BinaryOperationType::EQ:
+			case BinaryOperationType::NE:
+			case BinaryOperationType::And:
+			case BinaryOperationType::Xor:
+			case BinaryOperationType::Or:
+			case BinaryOperationType::LAnd:
+			case BinaryOperationType::LOr:
+			case BinaryOperationType::Assign:
+			case BinaryOperationType::MulAssign:
+			case BinaryOperationType::DivAssign:
+			case BinaryOperationType::RemAssign:
+			case BinaryOperationType::AddAssign:
+			case BinaryOperationType::SubAssign:
+			case BinaryOperationType::ShlAssign:
+			case BinaryOperationType::ShrAssign:
+			case BinaryOperationType::AndAssign:
+			case BinaryOperationType::XorAssign:
+			case BinaryOperationType::OrAssign:
+			default:
+				return false;
+			}
+		}
+
+		nBool VisitUnaryOperator(natRefPointer<UnaryOperator> const& expr) override
+		{
+			switch (expr->GetOpcode())
+			{
+			case UnaryOperationType::Plus:
+				return EvaluateFloat(expr->GetOperand(), m_Context, m_Result);
+			case UnaryOperationType::Minus:
+				if (!EvaluateFloat(expr->GetOperand(), m_Context, m_Result) || m_Result.Result.index() != 1)
+				{
+					return false;
+				}
+
+				m_Result.Result.emplace<1>(-std::get<1>(m_Result.Result));
+				return true;
+			default:
+				return false;
+			}
+		}
+	};
+
 	nBool Evaluate(natRefPointer<Expr> const& expr, NatsuLang::ASTContext& context, Expr::EvalResult& result)
 	{
 		// TODO
@@ -328,14 +450,12 @@ namespace
 
 	nBool EvaluateInteger(natRefPointer<Expr> const& expr, NatsuLang::ASTContext& context, Expr::EvalResult& result)
 	{
-		// TODO
-		nat_Throw(NotImplementedException);
+		return IntExprEvaluator{ context, result }.Visit(expr);
 	}
 
 	nBool EvaluateFloat(natRefPointer<Expr> const& expr, NatsuLang::ASTContext& context, Expr::EvalResult& result)
 	{
-		// TODO
-		nat_Throw(NotImplementedException);
+		return FloatExprEvaluator{ context, result }.Visit(expr);
 	}
 }
 
@@ -395,9 +515,33 @@ nBool Expr::EvalResult::GetResultAsBoolean(nBool& result) const noexcept
 	return true;
 }
 
-nBool Expr::Evaluate(EvalResult& result, ASTContext const& context)
+nBool Expr::Evaluate(EvalResult& result, ASTContext& context)
 {
+	return ::Evaluate(ForkRef<Expr>(), context, result);
+}
 
+nBool Expr::EvaluateAsInt(nuLong& result, ASTContext& context)
+{
+	EvalResult evalResult;
+	if (!EvaluateInteger(ForkRef<Expr>(), context, evalResult) || evalResult.Result.index() != 0)
+	{
+		return false;
+	}
+
+	result = std::get<0>(evalResult.Result);
+	return true;
+}
+
+nBool Expr::EvaluateAsFloat(nDouble& result, ASTContext& context)
+{
+	EvalResult evalResult;
+	if (!EvaluateFloat(ForkRef<Expr>(), context, evalResult) || evalResult.Result.index() != 1)
+	{
+		return false;
+	}
+
+	result = std::get<1>(evalResult.Result);
+	return true;
 }
 
 DeclRefExpr::~DeclRefExpr()

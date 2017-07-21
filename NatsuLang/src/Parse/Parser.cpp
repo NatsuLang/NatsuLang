@@ -69,7 +69,7 @@ std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseExternalDe
 		m_DiagnosticsEngine.Report(Diag::DiagnosticsEngine::DiagID::ErrUnexpectEOF);
 		return {};
 	case TokenType::Kw_def:
-		return ParseDeclaration();
+		return ParseDeclaration(Declaration::Context::Global);
 	default:
 		break;
 	}

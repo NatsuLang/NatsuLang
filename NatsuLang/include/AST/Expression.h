@@ -40,7 +40,9 @@ namespace NatsuLang::Expression
 			nBool GetResultAsBoolean(nBool& result) const noexcept;
 		};
 
-		nBool Evaluate(EvalResult& result, ASTContext const& context);
+		nBool Evaluate(EvalResult& result, ASTContext& context);
+		nBool EvaluateAsInt(nuLong& result, ASTContext& context);
+		nBool EvaluateAsFloat(nDouble& result, ASTContext& context);
 
 	private:
 		Type::TypePtr m_ExprType;
