@@ -137,9 +137,38 @@ namespace NatsuLang::Syntax
 		std::vector<NatsuLib::natRefPointer<Declaration::Decl>> ParseDeclaration(Declaration::Context context);
 
 		Expression::ExprPtr ParseExpression();
+
+		// cast-expression:
+		//	unary-expression
+		//	cast-expression 'as' type-name
+		// unary-expression:
+		//	postfix-expression
+		//	'++' unary-expression
+		//	'--' unary-expression
+		//	unary-operator cast-expression
+		//	new-expression
+		//	delete-expression
+		// unary-operator: one of
+		//	'+' '-' '!' '~'
+		// primary-expression:
+		//	id-expression
+		//	literal
+		//	this
+		//	'(' expression ')'
+		// id-expression:
+		//	unqualified-id
+		//	qualified-id
+		// unqualified-id:
+		//	identifier
+		// new-expression:
+		//	TODO
+		// delete-expression:
+		//	TODO
+		Expression::ExprPtr ParseCastExpression();
 		Expression::ExprPtr ParseConstantExpression();
 		Expression::ExprPtr ParseAssignmentExpression();
 		Expression::ExprPtr ParseThrowExpression();
+		Expression::ExprPtr ParseParenExpression();
 
 		void ParseDeclarator(Declaration::Declarator& decl);
 		void ParseSpecifier(Declaration::Declarator& decl);

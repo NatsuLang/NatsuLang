@@ -203,6 +203,7 @@
     <ClInclude Include="include\Basic\TokenDef.h" />
     <ClInclude Include="include\Basic\TypeDef.h" />
     <ClInclude Include="include\Lex\Lexer.h" />
+    <ClInclude Include="include\Lex\LiteralParser.h" />
     <ClInclude Include="include\Lex\Preprocessor.h" />
     <ClInclude Include="include\Parse\Parser.h" />
     <ClInclude Include="include\Sema\Declarator.h" />
@@ -225,6 +226,7 @@
     <ClCompile Include="src\Basic\SourceManager.cpp" />
     <ClCompile Include="src\Basic\Token.cpp" />
     <ClCompile Include="src\Lex\Lexer.cpp" />
+    <ClCompile Include="src\Lex\LiteralParser.cpp" />
     <ClCompile Include="src\Lex\Preprocessor.cpp" />
     <ClCompile Include="src\Parse\Parser.cpp" />
     <ClCompile Include="src\Sema\Scope.cpp" />

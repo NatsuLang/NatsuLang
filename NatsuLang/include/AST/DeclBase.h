@@ -76,6 +76,8 @@ namespace NatsuLang::Declaration
 			return m_NextDeclInContext;
 		}
 
+		nBool IsFunction() const noexcept;
+
 	protected:
 		explicit Decl(DeclType type, DeclContext* context = nullptr, SourceLocation loc = {}) noexcept
 			: m_NextDeclInContext{ nullptr }, m_Type{ type }, m_Context{ context }, m_Location{ loc }

@@ -111,6 +111,11 @@ namespace NatsuLang::Declaration
 			m_Initializer = std::move(value);
 		}
 
+		nBool IsValid() const noexcept
+		{
+			return m_Identifier || m_Type || m_Initializer;
+		}
+
 	private:
 		SourceRange m_Range;
 		Context m_Context;

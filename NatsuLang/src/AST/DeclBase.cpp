@@ -63,6 +63,11 @@ const char* Decl::GetTypeName() const noexcept
 	return getTypeName(m_Type);
 }
 
+nBool Decl::IsFunction() const noexcept
+{
+	return m_Type >= FirstFunction && m_Type <= LastFunction;
+}
+
 void Decl::SetNextDeclInContext(natRefPointer<Decl> value) noexcept
 {
 	m_NextDeclInContext = value;

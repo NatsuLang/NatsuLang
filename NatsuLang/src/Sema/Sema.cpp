@@ -4,6 +4,7 @@
 #include "Lex/Preprocessor.h"
 #include "AST/Declaration.h"
 #include "AST/ASTContext.h"
+#include "AST/Expression.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang::Semantic;
@@ -174,13 +175,23 @@ natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPo
 {
 	auto id = decl.GetIdentifier();
 
-	if (!id)
+	if (decl.GetContext() != Declaration::Context::Prototype && !id)
 	{
 		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, decl.GetRange().GetBegin());
 		return nullptr;
 	}
 
 
+}
+
+NatsuLang::Expression::ExprPtr Sema::ActOnNumericLiteral(Token::Token const& token, NatsuLib::natRefPointer<Scope> const& scope)
+{
+
+}
+
+NatsuLang::Expression::ExprPtr Sema::ActOnIntegerLiteral(SourceLocation loc, nuLong value) const
+{
+	return make_ref<Expression::IntegerLiteral>(value, m_Context.GetBuiltinType(Type::BuiltinType::BuiltinClass::Int), loc);
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr)
