@@ -4,6 +4,11 @@
 #include "Type.h"
 #include "Basic/Specifier.h"
 
+namespace NatsuLang
+{
+	class ASTContext;
+}
+
 namespace NatsuLang::Identifier
 {
 	class IdentifierInfo;
@@ -29,6 +34,19 @@ namespace NatsuLang::Module
 
 namespace NatsuLang::Declaration
 {
+	class TranslationUnitDecl
+		: public Decl, public DeclContext
+	{
+	public:
+		explicit TranslationUnitDecl(ASTContext& context);
+		~TranslationUnitDecl();
+
+		ASTContext& GetASTContext() const noexcept;
+
+	private:
+		ASTContext& m_Context;
+	};
+
 	class NamedDecl
 		: public Decl
 	{

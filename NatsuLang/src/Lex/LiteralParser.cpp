@@ -31,7 +31,14 @@ namespace
 }
 
 NumericLiteralParser::NumericLiteralParser(nStrView buffer, SourceLocation loc, Diag::DiagnosticsEngine& diag)
-	: m_Diag{ diag }, m_Buffer{ buffer }, m_Current{ m_Buffer.cbegin() }, m_DigitBegin{ m_Current }, m_SuffixBegin{}, m_SawPeriod{ false }, m_SawSuffix{ false }, m_Radix{ 10 }
+	: m_Diag{ diag },
+	m_Buffer{ buffer },
+	m_Current{ m_Buffer.cbegin() },
+	m_DigitBegin{ m_Current }, m_SuffixBegin{},
+	m_SawPeriod{ false }, m_SawSuffix{ false },
+	m_Radix{ 10 },
+	m_Errored{ false },
+	m_IsFloat{ false }, m_IsUnsigned{ false }, m_IsLong{ false }, m_IsLongLong{ false }
 {
 	if (*m_Current == '0')
 	{
@@ -50,6 +57,12 @@ NumericLiteralParser::NumericLiteralParser(nStrView buffer, SourceLocation loc, 
 	const auto end = m_Buffer.cend();
 	for (; m_Current != end; ++m_Current)
 	{
+		// 错误时跳过所有后缀
+		if (m_Errored)
+		{
+			continue;
+		}
+
 		switch (*m_Current)
 		{
 		case 'f':
@@ -64,10 +77,22 @@ NumericLiteralParser::NumericLiteralParser(nStrView buffer, SourceLocation loc, 
 			break;
 		case 'l':
 		case 'L':
-			m_IsLong = true;
+			if (m_Current + 1 < end && m_Current[1] == m_Current[0])
+			{
+				m_IsLongLong = true;
+				++m_Current;
+			}
+			else
+			{
+				m_IsLong = true;
+			}
+
 			// 长整数或长浮点数
 			break;
 		default:
+			// 错误：无效的后缀
+			// TODO: 记录当前位置以进行错误报告
+			m_Errored = true;
 			break;
 		}
 	}

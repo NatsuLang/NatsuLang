@@ -150,6 +150,9 @@
     <ClInclude Include="include\Lex\LiteralParser.h">
       <Filter>Lex\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\AST\NestedNameSpecifier.h">
+      <Filter>AST\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">
@@ -211,6 +214,9 @@
     </ClCompile>
     <ClCompile Include="src\Lex\LiteralParser.cpp">
       <Filter>Lex\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AST\NestedNameSpecifier.cpp">
+      <Filter>AST\src</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

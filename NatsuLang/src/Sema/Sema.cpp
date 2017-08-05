@@ -2,6 +2,7 @@
 #include "Sema/Scope.h"
 #include "Sema/Declarator.h"
 #include "Lex/Preprocessor.h"
+#include "Lex/LiteralParser.h"
 #include "AST/Declaration.h"
 #include "AST/ASTContext.h"
 #include "AST/Expression.h"
@@ -161,6 +162,17 @@ nBool Sema::LookupQualifiedName(LookupResult& result, Declaration::DeclContext* 
 	return found;
 }
 
+nBool Sema::LookupNestedName(LookupResult& result, natRefPointer<Scope> scope, natRefPointer<NestedNameSpecifier> const& nns)
+{
+	if (nns)
+	{
+		auto dc = nns->GetAsDeclContext(m_Context);
+		return LookupQualifiedName(result, dc);
+	}
+
+	return LookupName(result, scope);
+}
+
 NatsuLang::Type::TypePtr Sema::ActOnTypeName(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
 {
 
@@ -184,14 +196,76 @@ natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPo
 
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnNumericLiteral(Token::Token const& token, NatsuLib::natRefPointer<Scope> const& scope)
+NatsuLang::Expression::ExprPtr Sema::ActOnBooleanLiteral(Token::Token const& token) const
 {
-
+	assert(token.IsAnyOf({ Token::TokenType::Kw_true, Token::TokenType::Kw_false }));
+	return make_ref<Expression::BooleanLiteral>(token.Is(Token::TokenType::Kw_true), m_Context.GetBuiltinType(Type::BuiltinType::Bool), token.GetLocation());
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnIntegerLiteral(SourceLocation loc, nuLong value) const
+NatsuLang::Expression::ExprPtr Sema::ActOnNumericLiteral(Token::Token const& token) const
 {
-	return make_ref<Expression::IntegerLiteral>(value, m_Context.GetBuiltinType(Type::BuiltinType::BuiltinClass::Int), loc);
+	assert(token.Is(Token::TokenType::NumericLiteral));
+
+	Lex::NumericLiteralParser literalParser{ token.GetLiteralContent().value(), token.GetLocation(), m_Diag };
+
+	if (literalParser.Errored())
+	{
+		return nullptr;
+	}
+
+	Expression::ExprPtr result{};
+
+	if (literalParser.IsFloatingLiteral())
+	{
+		Type::BuiltinType::BuiltinClass builtinType;
+		if (literalParser.IsFloat())
+		{
+			builtinType = Type::BuiltinType::Float;
+		}
+		else if (literalParser.IsLong())
+		{
+			builtinType = Type::BuiltinType::LongDouble;
+		}
+		else
+		{
+			builtinType = Type::BuiltinType::Double;
+		}
+
+		auto type = m_Context.GetBuiltinType(builtinType);
+
+		nDouble value;
+		if (literalParser.GetFloatValue(value))
+		{
+			// TODO: 报告溢出
+		}
+
+		return make_ref<Expression::FloatingLiteral>(value, std::move(type), token.GetLocation());
+	}
+
+	// 是整数字面量
+	Type::BuiltinType::BuiltinClass builtinType;
+	if (literalParser.IsLong())
+	{
+		builtinType = literalParser.IsUnsigned() ? Type::BuiltinType::ULong : Type::BuiltinType::Long;
+	}
+	else if (literalParser.IsLongLong())
+	{
+		builtinType = literalParser.IsUnsigned() ? Type::BuiltinType::ULongLong : Type::BuiltinType::LongLong;
+	}
+	else
+	{
+		builtinType = literalParser.IsUnsigned() ? Type::BuiltinType::UInt : Type::BuiltinType::Int;
+	}
+
+	auto type = m_Context.GetBuiltinType(builtinType);
+
+	nuLong value;
+	if (literalParser.GetIntegerValue(value))
+	{
+		// TODO: 报告溢出
+	}
+
+	return make_ref<Expression::IntegerLiteral>(value, std::move(type), token.GetLocation());
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr)
@@ -200,6 +274,11 @@ NatsuLang::Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scop
 	{
 
 	}
+}
+
+NatsuLang::Expression::ExprPtr Sema::ActOnIdExpression(NatsuLib::natRefPointer<Scope> const& scope, Identifier::IdPtr id, nBool hasTraillingLParen)
+{
+
 }
 
 LookupResult::LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType)

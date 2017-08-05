@@ -100,7 +100,7 @@ namespace NatsuLang::Token
 			m_Location = location;
 		}
 
-		NatsuLib::natRefPointer<Identifier::IdentifierInfo> GetIdentifierInfo() noexcept
+		NatsuLib::natRefPointer<Identifier::IdentifierInfo> GetIdentifierInfo() const noexcept
 		{
 			return m_Info.index() == 0 ? std::get<0>(m_Info) : nullptr;
 		}
@@ -110,7 +110,7 @@ namespace NatsuLang::Token
 			m_Info.emplace<0>(std::move(identifierInfo));
 		}
 
-		std::optional<nStrView> GetLiteralContent() noexcept
+		std::optional<nStrView> GetLiteralContent() const noexcept
 		{
 			if (m_Info.index() == 1)
 			{

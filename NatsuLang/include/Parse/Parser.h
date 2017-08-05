@@ -57,7 +57,6 @@ namespace NatsuLang::Syntax
 
 		void ConsumeToken()
 		{
-			m_PrevTokenLocation = m_CurrentToken.GetLocation();
 			m_Preprocessor.Lex(m_CurrentToken);
 		}
 
@@ -188,7 +187,6 @@ namespace NatsuLang::Syntax
 		Semantic::Sema& m_Sema;
 
 		Token::Token m_CurrentToken;
-		SourceLocation m_PrevTokenLocation;
 		nuInt m_ParenCount, m_BracketCount, m_BraceCount;
 	};
 }

@@ -27,6 +27,7 @@ namespace NatsuLang
 
 	class Preprocessor;
 	class ASTContext;
+	class NestedNameSpecifier;
 	class SourceManager;
 }
 
@@ -94,15 +95,18 @@ namespace NatsuLang::Semantic
 
 		nBool LookupName(LookupResult& result, NatsuLib::natRefPointer<Scope> scope) const;
 		nBool LookupQualifiedName(LookupResult& result, Declaration::DeclContext* context) const;
+		nBool LookupNestedName(LookupResult& result, NatsuLib::natRefPointer<Scope> scope, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
 
 		Type::TypePtr ActOnTypeName(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
 		NatsuLib::natRefPointer<Declaration::ParmVarDecl> ActOnParamDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
 		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
 
-		Expression::ExprPtr ActOnNumericLiteral(Token::Token const& token, NatsuLib::natRefPointer<Scope> const& scope);
-		Expression::ExprPtr ActOnIntegerLiteral(SourceLocation loc, nuLong value) const;
+		Expression::ExprPtr ActOnBooleanLiteral(Token::Token const& token) const;
+		Expression::ExprPtr ActOnNumericLiteral(Token::Token const& token) const;
 
 		Expression::ExprPtr ActOnThrow(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr);
+
+		Expression::ExprPtr ActOnIdExpression(NatsuLib::natRefPointer<Scope> const& scope, Identifier::IdPtr id, nBool hasTraillingLParen);
 
 	private:
 		Preprocessor& m_Preprocessor;

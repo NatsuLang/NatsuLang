@@ -79,8 +79,8 @@ std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseExternalDe
 std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseModuleImport()
 {
 	assert(m_CurrentToken.Is(Token::TokenType::Kw_import));
+	auto startLoc = m_CurrentToken.GetLocation();
 	ConsumeToken();
-	auto startLoc = m_PrevTokenLocation;
 
 	std::vector<std::pair<natRefPointer<Identifier::IdentifierInfo>, SourceLocation>> path;
 	if (!ParseModuleName(path))
@@ -149,10 +149,26 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 	switch (tokenType)
 	{
 	case TokenType::LeftParen:
-		result =  ParseParenExpression();
+		result = ParseParenExpression();
 		break;
 	case TokenType::NumericLiteral:
+		result = m_Sema.ActOnNumericLiteral(m_CurrentToken);
+		ConsumeToken();
 		break;
+	case TokenType::Kw_true:
+	case TokenType::Kw_false:
+		result = m_Sema.ActOnBooleanLiteral(m_CurrentToken);
+		ConsumeToken();
+		break;
+	case TokenType::Identifier:
+	{
+		auto id = m_CurrentToken.GetIdentifierInfo();
+		auto idLoc = m_CurrentToken.GetLocation();
+		ConsumeToken();
+
+
+		break;
+	}
 	default:
 		break;
 	}
@@ -177,8 +193,8 @@ NatsuLang::Expression::ExprPtr Parser::ParseAssignmentExpression()
 NatsuLang::Expression::ExprPtr Parser::ParseThrowExpression()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_throw));
+	auto throwLocation = m_CurrentToken.GetLocation();
 	ConsumeToken();
-	auto throwLocation = m_PrevTokenLocation;
 
 	switch (m_CurrentToken.GetType())
 	{

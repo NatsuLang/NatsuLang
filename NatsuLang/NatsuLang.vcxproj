@@ -179,6 +179,7 @@
     <ClInclude Include="include\AST\Declaration.h" />
     <ClInclude Include="include\AST\DeclBase.h" />
     <ClInclude Include="include\AST\Expression.h" />
+    <ClInclude Include="include\AST\NestedNameSpecifier.h" />
     <ClInclude Include="include\AST\OperationTypes.h" />
     <ClInclude Include="include\AST\OperationTypesDef.h" />
     <ClInclude Include="include\AST\Statement.h" />
@@ -215,6 +216,7 @@
     <ClCompile Include="src\AST\Declaration.cpp" />
     <ClCompile Include="src\AST\DeclBase.cpp" />
     <ClCompile Include="src\AST\Expression.cpp" />
+    <ClCompile Include="src\AST\NestedNameSpecifier.cpp" />
     <ClCompile Include="src\AST\Statement.cpp" />
     <ClCompile Include="src\AST\StmtBase.cpp" />
     <ClCompile Include="src\AST\Type.cpp" />

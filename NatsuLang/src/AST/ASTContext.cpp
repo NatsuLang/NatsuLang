@@ -4,6 +4,7 @@ using namespace NatsuLib;
 using namespace NatsuLang;
 
 ASTContext::ASTContext()
+	: m_TUDecl{ make_ref<Declaration::TranslationUnitDecl>(*this) }
 {
 }
 
@@ -11,7 +12,7 @@ ASTContext::~ASTContext()
 {
 }
 
-natRefPointer<Type::BuiltinType>& ASTContext::GetBuiltinType(Type::BuiltinType::BuiltinClass builtinClass)
+natRefPointer<Type::BuiltinType> ASTContext::GetBuiltinType(Type::BuiltinType::BuiltinClass builtinClass)
 {
 	decltype(auto) ptr = m_BuiltinTypeMap[builtinClass];
 	if (!ptr)
@@ -73,4 +74,9 @@ natRefPointer<Type::AutoType> ASTContext::GetAutoType(Type::TypePtr deducedAsTyp
 
 	m_AutoTypes.emplace(ret);
 	return ret;
+}
+
+natRefPointer<Declaration::TranslationUnitDecl> ASTContext::GetTranslationUnit() const noexcept
+{
+	return m_TUDecl;
 }

@@ -4,6 +4,20 @@
 using namespace NatsuLib;
 using namespace NatsuLang::Declaration;
 
+TranslationUnitDecl::TranslationUnitDecl(ASTContext& context)
+	: Decl{ TranslationUnit }, DeclContext{ TranslationUnit }, m_Context{ context }
+{
+}
+
+TranslationUnitDecl::~TranslationUnitDecl()
+{
+}
+
+NatsuLang::ASTContext& TranslationUnitDecl::GetASTContext() const noexcept
+{
+	return m_Context;
+}
+
 NamedDecl::~NamedDecl()
 {
 }
