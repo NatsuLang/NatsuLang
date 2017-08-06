@@ -1,28 +1,52 @@
 #include "Lex/LiteralParser.h"
 #include "Basic/CharInfo.h"
 
+#undef min
+#undef max
+
 using namespace NatsuLib;
 using namespace NatsuLang::Lex;
 
 namespace
 {
-	constexpr nuLong DigitValue(nStrView::CharType ch) noexcept
+	template <typename Target, typename Origin>
+	constexpr nBool InTypeRangeImpl(Origin value, std::true_type) noexcept
 	{
-		assert(NatsuLang::CharInfo::IsAlphanumeric(ch));
+		return value >= static_cast<Origin>(std::numeric_limits<Target>::min()) && value <= static_cast<Origin>(std::numeric_limits<Target>::max());
+	}
 
-		if (NatsuLang::CharInfo::IsDigit(ch))
+	template <typename Target, typename Origin>
+	constexpr nBool InTypeRangeImpl(Origin, std::false_type) noexcept
+	{
+		return true;
+	}
+
+	template <typename Target, typename Origin, std::enable_if_t<std::is_arithmetic_v<Target> && std::is_arithmetic_v<Origin>, nuInt> = 0>
+	constexpr nBool InTypeRange(Origin value) noexcept
+	{
+		return InTypeRangeImpl<Target>(value, std::bool_constant<(sizeof(Target) < sizeof(Origin))>{});
+	}
+
+	constexpr nuInt DigitValue(nuInt ch) noexcept
+	{
+		assert(ch >= static_cast<nuInt>(std::numeric_limits<unsigned char>::min()) && ch <= static_cast<nuInt>(std::numeric_limits<unsigned char>::max()));
+		assert(InTypeRange<unsigned char>(ch));
+		const auto c = static_cast<unsigned char>(ch);
+		assert(NatsuLang::CharInfo::IsAlphanumeric(c));
+
+		if (NatsuLang::CharInfo::IsDigit(c))
 		{
-			return static_cast<nuLong>(ch - nStrView::CharType{ '0' });
+			return static_cast<nuInt>(c - unsigned char{ '0' });
 		}
 
-		if (ch > 'a')
+		if (c > 'a')
 		{
-			return static_cast<nuLong>(ch - nStrView::CharType{ 'a' } + 10);
+			return static_cast<nuInt>(c - unsigned char{ 'a' } + 10);
 		}
 
-		if (ch > 'A')
+		if (c > 'A')
 		{
-			return static_cast<nuLong>(ch - nStrView::CharType{ 'A' } + 10);
+			return static_cast<nuInt>(c - unsigned char{ 'A' } + 10);
 		}
 
 		// 错误，这个字符不是可用的数字字面量字符
@@ -225,3 +249,92 @@ nStrView::iterator NumericLiteralParser::skipBinaryDigits(nStrView::iterator cur
 	return cur;
 }
 
+CharLiteralParser::CharLiteralParser(nStrView buffer, SourceLocation loc, Diag::DiagnosticsEngine& diag)
+	: m_Diag{ diag }, m_Buffer{ buffer }, m_Current{ buffer.cbegin() }, m_Value{}, m_Errored{ false }
+{
+
+}
+
+nuInt CharLiteralParser::escapeChar()
+{
+	assert(*m_Current == '\\');
+
+	const auto end = m_Buffer.cend();
+
+	++m_Current;
+	nuInt chr = *m_Current++;
+	switch (chr)
+	{
+	case '\'':
+	case '\\':
+	case '"':
+	case '?':
+		break;
+	case 'a':
+		// TODO: 参考标准替换为实际数值
+		chr = '\a';
+		break;
+	case 'b':
+		chr = '\b';
+		break;
+	case 'f':
+		chr = '\f';
+		break;
+	case 'n':
+		chr = '\n';
+		break;
+	case 'r':
+		chr = '\r';
+		break;
+	case 't':
+		chr = '\t';
+		break;
+	case 'v':
+		chr = '\v';
+		break;
+	case 'x':
+	{
+		auto overflowed = false;
+		
+		chr = 0;
+		for (; m_Current != end; ++m_Current)
+		{
+			const auto cur = *m_Current;
+			const auto curValue = DigitValue(static_cast<nuInt>(cur));
+			if (chr & 0xF0000000)
+			{
+				overflowed = true;
+			}
+			chr <<= 4;
+			chr |= curValue;
+		}
+		
+		// TODO: 适配具有更多宽度的字符
+		if (chr >> 8)
+		{
+			overflowed = true;
+			chr &= ~0u >> 24; // 32 - 8
+		}
+
+		if (overflowed)
+		{
+			// TODO: 报告溢出
+		}
+
+		break;
+	}
+	case '0': case '1': case '2': case '3': case '4':
+	case '5': case '6': case '7':
+	{
+		--m_Current;
+
+		chr = 0;
+
+		break;
+	}
+	default:
+		break;
+	}
+
+	return chr;
+}

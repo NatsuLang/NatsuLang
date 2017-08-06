@@ -7,6 +7,7 @@
 namespace NatsuLang
 {
 	class ASTContext;
+	class NestedNameSpecifier;
 }
 
 namespace NatsuLang::Expression
@@ -54,14 +55,30 @@ namespace NatsuLang::Expression
 		: public Expr
 	{
 	public:
-		DeclRefExpr(NatsuLib::natRefPointer<Declaration::ValueDecl> valueDecl, SourceLocation loc, Type::TypePtr exprType)
-			: Expr{ DeclRefExprClass, std::move(exprType), loc, loc }, m_ValueDecl{ std::move(valueDecl) }
+		DeclRefExpr(NatsuLib::natRefPointer<NestedNameSpecifier> nns, NatsuLib::natRefPointer<Declaration::ValueDecl> valueDecl, SourceLocation loc, Type::TypePtr exprType)
+			: Expr{ DeclRefExprClass, std::move(exprType), loc, loc }, m_NestedNameSpecifier{ std::move(nns) }, m_ValueDecl{ std::move(valueDecl) }
 		{
 		}
 
 		~DeclRefExpr();
 
+		NatsuLib::natRefPointer<NestedNameSpecifier> GetNestedNameSpecifier() const noexcept
+		{
+			return m_NestedNameSpecifier;
+		}
+
+		NatsuLib::natRefPointer<Declaration::ValueDecl> GetDecl() const noexcept
+		{
+			return m_ValueDecl;
+		}
+
+		void SetDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> value) noexcept
+		{
+			m_ValueDecl = std::move(value);
+		}
+
 	private:
+		NatsuLib::natRefPointer<NestedNameSpecifier> m_NestedNameSpecifier;
 		NatsuLib::natRefPointer<Declaration::ValueDecl> m_ValueDecl;
 	};
 

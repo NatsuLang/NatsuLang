@@ -57,6 +57,7 @@ namespace NatsuLang::Declaration
 			: Decl(type, context, loc), m_IdentifierInfo{ std::move(identifierInfo) }
 		{
 		}
+
 		~NamedDecl();
 
 		IdPtr GetIdentifierInfo() const noexcept

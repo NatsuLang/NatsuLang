@@ -155,6 +155,9 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 		result = m_Sema.ActOnNumericLiteral(m_CurrentToken);
 		ConsumeToken();
 		break;
+	case TokenType::CharLiteral:
+
+		break;
 	case TokenType::Kw_true:
 	case TokenType::Kw_false:
 		result = m_Sema.ActOnBooleanLiteral(m_CurrentToken);
@@ -163,10 +166,8 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 	case TokenType::Identifier:
 	{
 		auto id = m_CurrentToken.GetIdentifierInfo();
-		auto idLoc = m_CurrentToken.GetLocation();
 		ConsumeToken();
-
-
+		result = m_Sema.ActOnIdExpression(m_Sema.GetCurrentScope(), nullptr, id, m_CurrentToken.Is(TokenType::LeftParen));
 		break;
 	}
 	default:

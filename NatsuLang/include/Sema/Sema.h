@@ -103,10 +103,14 @@ namespace NatsuLang::Semantic
 
 		Expression::ExprPtr ActOnBooleanLiteral(Token::Token const& token) const;
 		Expression::ExprPtr ActOnNumericLiteral(Token::Token const& token) const;
+		Expression::ExprPtr ActOnCharLiteral(Token::Token const& token) const;
 
 		Expression::ExprPtr ActOnThrow(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr);
 
-		Expression::ExprPtr ActOnIdExpression(NatsuLib::natRefPointer<Scope> const& scope, Identifier::IdPtr id, nBool hasTraillingLParen);
+		Expression::ExprPtr ActOnIdExpression(NatsuLib::natRefPointer<Scope> const& scope, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen);
+
+		Expression::ExprPtr BuildDeclarationNameExpr(NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, NatsuLib::natRefPointer<Declaration::NamedDecl> decl);
+		Expression::ExprPtr BuildDeclRefExpr(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Type::TypePtr type, Identifier::IdPtr id, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
 
 	private:
 		Preprocessor& m_Preprocessor;
@@ -193,7 +197,7 @@ namespace NatsuLang::Semantic
 		// ²éÕÒ½á¹û
 		LookupResultType m_Result;
 		AmbiguousType m_AmbiguousType;
-		std::unordered_set<Declaration::DeclPtr> m_Decls;
+		std::unordered_set<NatsuLib::natRefPointer<Declaration::NamedDecl>> m_Decls;
 		Type::TypePtr m_BaseObjectType;
 	};
 }

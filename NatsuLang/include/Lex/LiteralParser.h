@@ -68,10 +68,17 @@ namespace NatsuLang::Lex
 	class CharLiteralParser
 	{
 	public:
-		CharLiteralParser();
+		CharLiteralParser(nStrView buffer, SourceLocation loc, Diag::DiagnosticsEngine& diag);
 
 	private:
+		Diag::DiagnosticsEngine& m_Diag;
+		nStrView m_Buffer;
+		nStrView::iterator m_Current;
 
+		nuInt m_Value;
+		nBool m_Errored;
+
+		nuInt escapeChar();
 	};
 
 	class StringLiteralParser

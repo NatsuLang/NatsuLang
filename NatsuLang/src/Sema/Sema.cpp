@@ -268,6 +268,11 @@ NatsuLang::Expression::ExprPtr Sema::ActOnNumericLiteral(Token::Token const& tok
 	return make_ref<Expression::IntegerLiteral>(value, std::move(type), token.GetLocation());
 }
 
+NatsuLang::Expression::ExprPtr Sema::ActOnCharLiteral(Token::Token const& token) const
+{
+
+}
+
 NatsuLang::Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr)
 {
 	if (expr)
@@ -276,9 +281,42 @@ NatsuLang::Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scop
 	}
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnIdExpression(NatsuLib::natRefPointer<Scope> const& scope, Identifier::IdPtr id, nBool hasTraillingLParen)
+NatsuLang::Expression::ExprPtr Sema::ActOnIdExpression(natRefPointer<Scope> const& scope, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen)
 {
+	LookupResult result{ *this, id, {}, LookupNameType::LookupOrdinaryName };
+	if (!LookupNestedName(result, scope, nns) || result.GetResultType() == LookupResult::LookupResultType::Ambiguous)
+	{
+		return nullptr;
+	}
 
+	// TODO: 对以函数调用形式引用的标识符采取特殊的处理
+	static_cast<void>(hasTraillingLParen);
+
+	if (result.GetDeclSize() == 1)
+	{
+		return BuildDeclarationNameExpr(nns, std::move(id), result.GetDecls().first());
+	}
+	
+	// TODO: 只有重载函数可以在此找到多个声明，否则报错
+	nat_Throw(NotImplementedException);
+}
+
+NatsuLang::Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, natRefPointer<Declaration::NamedDecl> decl)
+{
+	auto valueDecl = static_cast<natRefPointer<Declaration::ValueDecl>>(decl);
+	if (!valueDecl)
+	{
+		// 错误，引用的不是值
+		return nullptr;
+	}
+
+	return BuildDeclRefExpr(std::move(valueDecl), valueDecl->GetValueType(), std::move(id), nns);
+}
+
+NatsuLang::Expression::ExprPtr Sema::BuildDeclRefExpr(natRefPointer<Declaration::ValueDecl> decl, Type::TypePtr type, Identifier::IdPtr id, natRefPointer<NestedNameSpecifier> const& nns)
+{
+	static_cast<void>(id);
+	return make_ref<Expression::DeclRefExpr>(nns, std::move(decl), SourceLocation{}, std::move(type));
 }
 
 LookupResult::LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType)
@@ -321,7 +359,7 @@ void LookupResult::ResolveResultType() noexcept
 	}
 
 	// 分析找到多个定义是由于重载还是二义性
-	if (from(m_Decls).all([](Declaration::DeclPtr const& decl)
+	if (from(m_Decls).all([](natRefPointer<Declaration::NamedDecl> const& decl)
 		{
 			return static_cast<natRefPointer<Declaration::FunctionDecl>>(decl);
 		}))
