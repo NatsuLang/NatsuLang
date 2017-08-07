@@ -164,6 +164,7 @@ namespace NatsuLang::Syntax
 		// delete-expression:
 		//	TODO
 		Expression::ExprPtr ParseCastExpression();
+		Expression::ExprPtr ParsePostfixExpressionSuffix(Expression::ExprPtr prefix);
 		Expression::ExprPtr ParseConstantExpression();
 		Expression::ExprPtr ParseAssignmentExpression();
 		Expression::ExprPtr ParseThrowExpression();

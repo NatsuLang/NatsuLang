@@ -70,6 +70,16 @@ namespace NatsuLang::Lex
 	public:
 		CharLiteralParser(nStrView buffer, SourceLocation loc, Diag::DiagnosticsEngine& diag);
 
+		nuInt GetValue() const noexcept
+		{
+			return m_Value;
+		}
+
+		nBool Errored() const noexcept
+		{
+			return m_Errored;
+		}
+
 	private:
 		Diag::DiagnosticsEngine& m_Diag;
 		nStrView m_Buffer;

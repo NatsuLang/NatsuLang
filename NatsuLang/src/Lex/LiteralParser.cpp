@@ -252,7 +252,44 @@ nStrView::iterator NumericLiteralParser::skipBinaryDigits(nStrView::iterator cur
 CharLiteralParser::CharLiteralParser(nStrView buffer, SourceLocation loc, Diag::DiagnosticsEngine& diag)
 	: m_Diag{ diag }, m_Buffer{ buffer }, m_Current{ buffer.cbegin() }, m_Value{}, m_Errored{ false }
 {
-
+	assert(m_Buffer.GetSize() > 2);
+	assert(*m_Current == '\'');
+	++m_Current;
+	assert(buffer.cend()[-1] == '\'');
+	const auto end = std::prev(buffer.cend());
+	if (*m_Current == '\\')
+	{
+		m_Value = escapeChar();
+	}
+	else
+	{
+		const auto charCount = StringEncodingTrait<nString::UsingStringType>::GetCharCount(*m_Current);
+		if (charCount != 1)
+		{
+			m_Errored = true;
+			// TODO: 提示单个char无法容纳该字符值
+		}
+		else
+		{
+			const auto bufferLength = std::distance(m_Current, end);
+			if (charCount < bufferLength)
+			{
+				m_Errored = true;
+				// TODO: 报告多个字符出现在单个字符字面量中
+			}
+			else if (charCount > bufferLength)
+			{
+				m_Errored = true;
+				// TODO: 报告字符未能完整地存储在字符字面量中
+			}
+			else
+			{
+				U32String tmpStr = nStrView{ m_Current, end };
+				assert(tmpStr.size() == 1);
+				m_Value = static_cast<nuInt>(tmpStr[0]);
+			}
+		}
+	}
 }
 
 nuInt CharLiteralParser::escapeChar()
@@ -329,6 +366,20 @@ nuInt CharLiteralParser::escapeChar()
 		--m_Current;
 
 		chr = 0;
+		nuInt charCount = 0;
+		do
+		{
+			chr <<= 3;
+			chr |= DigitValue(*m_Current++);
+			++charCount;
+		} while (m_Current != end && charCount < 3 && *m_Current >= '0' && *m_Current <= '7');
+
+		// TODO: 适配具有更多宽度的字符
+		if (chr >> 8)
+		{
+			chr &= ~0u >> 24; // 32 - 8
+			// TODO: 报告溢出
+		}
 
 		break;
 	}

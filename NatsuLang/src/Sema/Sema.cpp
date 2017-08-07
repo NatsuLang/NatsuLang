@@ -213,8 +213,6 @@ NatsuLang::Expression::ExprPtr Sema::ActOnNumericLiteral(Token::Token const& tok
 		return nullptr;
 	}
 
-	Expression::ExprPtr result{};
-
 	if (literalParser.IsFloatingLiteral())
 	{
 		Type::BuiltinType::BuiltinClass builtinType;
@@ -270,7 +268,16 @@ NatsuLang::Expression::ExprPtr Sema::ActOnNumericLiteral(Token::Token const& tok
 
 NatsuLang::Expression::ExprPtr Sema::ActOnCharLiteral(Token::Token const& token) const
 {
+	assert(token.Is(Token::TokenType::CharLiteral) && token.GetLiteralContent().has_value());
 
+	Lex::CharLiteralParser literalParser{ token.GetLiteralContent().value(), token.GetLocation(), m_Diag };
+
+	if (literalParser.Errored())
+	{
+		return nullptr;
+	}
+
+	return make_ref<Expression::CharacterLiteral>(literalParser.GetValue(), nString::UsingStringType, m_Context.GetBuiltinType(Type::BuiltinType::Char), token.GetLocation());
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr)

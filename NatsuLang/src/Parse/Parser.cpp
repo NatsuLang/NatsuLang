@@ -156,7 +156,11 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 		ConsumeToken();
 		break;
 	case TokenType::CharLiteral:
-
+		result = m_Sema.ActOnCharLiteral(m_CurrentToken);
+		ConsumeToken();
+		break;
+	case TokenType::StringLiteral:
+		// TODO
 		break;
 	case TokenType::Kw_true:
 	case TokenType::Kw_false:
@@ -170,9 +174,30 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 		result = m_Sema.ActOnIdExpression(m_Sema.GetCurrentScope(), nullptr, id, m_CurrentToken.Is(TokenType::LeftParen));
 		break;
 	}
-	default:
+	case TokenType::PlusPlus:
+	case TokenType::MinusMinus:
+	{
+		// TODO
 		break;
 	}
+	case TokenType::Plus:
+	case TokenType::Minus:
+	case TokenType::Exclaim:
+	case TokenType::Tilde:
+		// TODO
+		break;
+	case TokenType::Kw_this:
+		break;
+	default:
+		return nullptr;
+	}
+
+	return ParsePostfixExpressionSuffix(std::move(result));
+}
+
+NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr prefix)
+{
+
 }
 
 NatsuLang::Expression::ExprPtr Parser::ParseConstantExpression()
