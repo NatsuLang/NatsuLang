@@ -164,11 +164,24 @@ namespace NatsuLang::Syntax
 		// delete-expression:
 		//	TODO
 		Expression::ExprPtr ParseCastExpression();
+
+		// postfix-expression:
+		//	primary-expression
+		//	postfix-expression '[' expression ']'
+		//	postfix-expression '(' argument-expression-list[opt] ')'
+		//	postfix-expression '.' identifier
+		//	postfix-expression '++'
+		//	postfix-expression '--'
+		// argument-expression-list:
+		//	argument-expression
+		//	argument-expression-list ',' argument-expression
 		Expression::ExprPtr ParsePostfixExpressionSuffix(Expression::ExprPtr prefix);
 		Expression::ExprPtr ParseConstantExpression();
 		Expression::ExprPtr ParseAssignmentExpression();
 		Expression::ExprPtr ParseThrowExpression();
 		Expression::ExprPtr ParseParenExpression();
+
+		nBool ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs);
 
 		void ParseDeclarator(Declaration::Declarator& decl);
 		void ParseSpecifier(Declaration::Declarator& decl);

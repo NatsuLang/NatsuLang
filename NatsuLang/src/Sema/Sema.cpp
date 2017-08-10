@@ -308,6 +308,31 @@ NatsuLang::Expression::ExprPtr Sema::ActOnIdExpression(natRefPointer<Scope> cons
 	nat_Throw(NotImplementedException);
 }
 
+NatsuLang::Expression::ExprPtr Sema::ActOnArraySubscriptExpression(natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation lloc, Expression::ExprPtr index, SourceLocation rloc)
+{
+	// 屏蔽未使用参数警告，这些参数将会在将来的版本被使用
+	static_cast<void>(scope);
+	static_cast<void>(lloc);
+
+	// TODO: 当前仅支持对内建数组进行此操作
+	auto baseType = static_cast<natRefPointer<Type::ArrayType>>(base->GetExprType());
+	if (!baseType)
+	{
+		// TODO: 报告基础操作数不是内建数组
+		return nullptr;
+	}
+
+	// TODO: 当前仅允许下标为内建整数类型
+	auto indexType = static_cast<natRefPointer<Type::BuiltinType>>(index->GetExprType());
+	if (!indexType || !indexType->IsIntegerType())
+	{
+		// TODO: 报告下标操作数不具有内建整数类型
+		return nullptr;
+	}
+
+	return make_ref<Expression::ArraySubscriptExpr>(base, index, baseType->GetElementType(), rloc);
+}
+
 NatsuLang::Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, natRefPointer<Declaration::NamedDecl> decl)
 {
 	auto valueDecl = static_cast<natRefPointer<Declaration::ValueDecl>>(decl);

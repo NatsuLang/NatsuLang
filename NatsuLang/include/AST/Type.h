@@ -16,6 +16,54 @@ namespace NatsuLang::Expression
 
 namespace NatsuLang::Type
 {
+	class BuiltinType
+		: public Type
+	{
+	public:
+		enum BuiltinClass
+		{
+			Invalid,
+#define BUILTIN_TYPE(Id, SingletonId, Name) Id,
+#define LAST_BUILTIN_TYPE(Id) LastKind = Id
+#include "Basic/BuiltinTypesDef.h"
+		};
+
+		explicit BuiltinType(BuiltinClass builtinClass)
+			: Type{ Builtin }, m_BuiltinClass{ builtinClass }
+		{
+			assert(m_BuiltinClass != Invalid);
+		}
+
+		~BuiltinType();
+
+		BuiltinClass GetBuiltinClass() const noexcept
+		{
+			return m_BuiltinClass;
+		}
+
+		const char* GetName() const noexcept;
+
+		std::size_t GetHashCode() const noexcept override;
+		nBool EqualTo(TypePtr const& other) const noexcept override;
+
+		static BuiltinClass GetBuiltinClassFromTokenType(Token::TokenType type);
+		static nBool IsIntegerBuiltinClass(BuiltinClass builtinClass) noexcept;
+		static nBool IsFloatingBuiltinClass(BuiltinClass builtinClass) noexcept;
+
+		nBool IsIntegerType() const noexcept
+		{
+			return IsIntegerBuiltinClass(m_BuiltinClass);
+		}
+
+		nBool IsFloatingType() const noexcept
+		{
+			return IsFloatingBuiltinClass(m_BuiltinClass);
+		}
+
+	private:
+		const BuiltinClass m_BuiltinClass;
+	};
+
 	class ParenType
 		: public Type
 	{

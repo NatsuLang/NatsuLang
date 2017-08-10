@@ -197,7 +197,48 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 
 NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr prefix)
 {
+	Expression::ExprPtr result;
+	
+	while (true)
+	{
+		switch (m_CurrentToken.GetType())
+		{
+		case TokenType::LeftSquare:
+		{
+			auto lloc = m_CurrentToken.GetLocation();
+			ConsumeBracket();
+			auto index = ParseExpression();
 
+			if (!m_CurrentToken.Is(TokenType::RightSquare))
+			{
+				m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+					.AddArgument(TokenType::RightSquare)
+					.AddArgument(m_CurrentToken.GetType());
+
+				return nullptr;
+			}
+
+			auto rloc = m_CurrentToken.GetLocation();
+			prefix = m_Sema.ActOnArraySubscriptExpression(m_Sema.GetCurrentScope(), std::move(prefix), lloc, std::move(index), rloc);
+			ConsumeBracket();
+
+			break;
+		}
+		case TokenType::LeftParen:
+		{
+
+			break;
+		}
+		case TokenType::Period:
+			break;
+		case TokenType::PlusPlus:
+			break;
+		case TokenType::MinusMinus:
+			break;
+		default:
+			return std::move(prefix);
+		}
+	}
 }
 
 NatsuLang::Expression::ExprPtr Parser::ParseConstantExpression()
@@ -259,6 +300,11 @@ NatsuLang::Expression::ExprPtr Parser::ParseParenExpression()
 	}
 	
 	return ret;
+}
+
+nBool Parser::ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs)
+{
+
 }
 
 // declarator:

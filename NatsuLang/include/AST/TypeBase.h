@@ -45,42 +45,6 @@ namespace NatsuLang::Type
 
 	using TypePtr = NatsuLib::natRefPointer<Type>;
 
-	class BuiltinType
-		: public Type
-	{
-	public:
-		enum BuiltinClass
-		{
-			Invalid,
-#define BUILTIN_TYPE(Id, SingletonId, Name) Id,
-#define LAST_BUILTIN_TYPE(Id) LastKind = Id
-#include "Basic/BuiltinTypesDef.h"
-		};
-
-		explicit BuiltinType(BuiltinClass builtinClass)
-			: Type{ Builtin }, m_BuiltinClass{ builtinClass }
-		{
-			assert(m_BuiltinClass != Invalid);
-		}
-
-		~BuiltinType();
-
-		BuiltinClass GetBuiltinClass() const noexcept
-		{
-			return m_BuiltinClass;
-		}
-
-		const char* GetName() const noexcept;
-
-		std::size_t GetHashCode() const noexcept override;
-		nBool EqualTo(TypePtr const& other) const noexcept override;
-
-		static BuiltinClass GetBuiltinClassFromTokenType(Token::TokenType type);
-
-	private:
-		const BuiltinClass m_BuiltinClass;
-	};
-
 	struct TypeHash
 	{
 		std::size_t operator()(TypePtr const& type) const noexcept
