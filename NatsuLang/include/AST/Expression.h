@@ -380,9 +380,15 @@ namespace NatsuLang::Expression
 	class CallExpr
 		: public Expr
 	{
+	protected:
+		CallExpr(StmtType stmtType, ExprPtr func, NatsuLib::Linq<const ExprPtr> const& args, Type::TypePtr type, SourceLocation loc)
+			: Expr{ stmtType, std::move(type), loc, loc }, m_Function{ std::move(func) }, m_Args{ args.begin(), args.end() }
+		{
+		}
+
 	public:
-		CallExpr(StmtType stmtType, ExprPtr func, NatsuLib::Linq<ExprPtr> const& args, Type::TypePtr type, SourceLocation loc)
-			: Expr{ stmtType, std::move(type), loc, loc }, m_Function{ std::move(func) }
+		CallExpr(ExprPtr func, NatsuLib::Linq<const ExprPtr> const& args, Type::TypePtr type, SourceLocation loc)
+			: Expr{ CallExprClass, std::move(type), loc, loc }, m_Function{ std::move(func) }, m_Args{ args.begin(), args.end() }
 		{
 		}
 
@@ -398,8 +404,8 @@ namespace NatsuLang::Expression
 			m_Function = std::move(value);
 		}
 
-		NatsuLib::Linq<ExprPtr> GetArgs() const noexcept;
-		void SetArgs(NatsuLib::Linq<ExprPtr> const& value);
+		NatsuLib::Linq<const ExprPtr> GetArgs() const noexcept;
+		void SetArgs(NatsuLib::Linq<const ExprPtr> const& value);
 
 		Statement::StmtEnumerable GetChildrens() override;
 

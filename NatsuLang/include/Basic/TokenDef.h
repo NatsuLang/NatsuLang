@@ -92,6 +92,7 @@ KEYWORD(true)
 KEYWORD(false)
 KEYWORD(this)
 KEYWORD(typeof)
+KEYWORD(as)
 
 KEYWORD(bool)
 KEYWORD(char)

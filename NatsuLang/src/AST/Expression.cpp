@@ -613,12 +613,12 @@ CallExpr::~CallExpr()
 {
 }
 
-Linq<NatsuLang::Expression::ExprPtr> CallExpr::GetArgs() const noexcept
+Linq<const NatsuLang::Expression::ExprPtr> CallExpr::GetArgs() const noexcept
 {
 	return from(m_Args);
 }
 
-void CallExpr::SetArgs(Linq<ExprPtr> const& value)
+void CallExpr::SetArgs(Linq<const ExprPtr> const& value)
 {
 	m_Args.assign(value.begin(), value.end());
 }

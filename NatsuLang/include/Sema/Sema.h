@@ -6,9 +6,14 @@
 #include "Basic/Identifier.h"
 #include "AST/Declaration.h"
 #include "AST/Type.h"
+#include "AST/OperationTypes.h"
 
 namespace NatsuLang
 {
+	namespace Expression {
+		enum class UnaryOperationType;
+	}
+
 	namespace Declaration
 	{
 		class Declarator;
@@ -108,10 +113,15 @@ namespace NatsuLang::Semantic
 		Expression::ExprPtr ActOnThrow(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr);
 
 		Expression::ExprPtr ActOnIdExpression(NatsuLib::natRefPointer<Scope> const& scope, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen);
+		Expression::ExprPtr ActOnAsTypeExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr exprToCast, Type::TypePtr type, SourceLocation loc);
 		Expression::ExprPtr ActOnArraySubscriptExpression(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation lloc, Expression::ExprPtr index, SourceLocation rloc);
+		Expression::ExprPtr ActOnCallExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr func, SourceLocation lloc, NatsuLib::Linq<const Expression::ExprPtr> argExprs, SourceLocation rloc);
+		Expression::ExprPtr ActOnPostfixUnaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand);
 
 		Expression::ExprPtr BuildDeclarationNameExpr(NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, NatsuLib::natRefPointer<Declaration::NamedDecl> decl);
 		Expression::ExprPtr BuildDeclRefExpr(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Type::TypePtr type, Identifier::IdPtr id, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
+
+		Expression::ExprPtr CreateBuiltinUnaryOp(SourceLocation opLoc, Expression::UnaryOperationType opCode, Expression::ExprPtr operand);
 
 	private:
 		Preprocessor& m_Preprocessor;
@@ -120,6 +130,8 @@ namespace NatsuLang::Semantic
 		SourceManager& m_SourceManager;
 
 		NatsuLib::natRefPointer<Scope> m_CurrentScope;
+
+		Expression::CastType getCastType(Expression::ExprPtr operand, Type::TypePtr toType);
 	};
 
 	class LookupResult

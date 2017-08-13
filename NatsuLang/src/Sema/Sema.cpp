@@ -12,7 +12,7 @@ using namespace NatsuLang::Semantic;
 
 namespace
 {
-	constexpr NatsuLang::Declaration::IdentifierNamespace ChooseIDNS(Sema::LookupNameType lookupNameType) noexcept
+	constexpr NatsuLang::Declaration::IdentifierNamespace chooseIDNS(Sema::LookupNameType lookupNameType) noexcept
 	{
 		using NatsuLang::Declaration::IdentifierNamespace;
 		switch (lookupNameType)
@@ -32,6 +32,34 @@ namespace
 		default:
 			return IdentifierNamespace::None;
 		}
+	}
+
+	NatsuLang::Type::TypePtr getUnderlyingType(NatsuLang::Type::TypePtr type)
+	{
+		if (!type)
+		{
+			return nullptr;
+		}
+
+		auto deducedType = static_cast<natRefPointer<NatsuLang::Type::DeducedType>>(type);
+		if (deducedType)
+		{
+			return getUnderlyingType(deducedType->GetDeducedAsType());
+		}
+
+		auto typeofType = static_cast<natRefPointer<NatsuLang::Type::TypeOfType>>(type);
+		if (typeofType)
+		{
+			return getUnderlyingType(typeofType->GetUnderlyingType());
+		}
+
+		auto parenType = static_cast<natRefPointer<NatsuLang::Type::ParenType>>(type);
+		if (parenType)
+		{
+			return getUnderlyingType(parenType->GetInnerType());
+		}
+
+		return std::move(type);
 	}
 }
 
@@ -308,9 +336,14 @@ NatsuLang::Expression::ExprPtr Sema::ActOnIdExpression(natRefPointer<Scope> cons
 	nat_Throw(NotImplementedException);
 }
 
+NatsuLang::Expression::ExprPtr Sema::ActOnAsTypeExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr exprToCast, Type::TypePtr type, SourceLocation loc)
+{
+	return make_ref<Expression::AsTypeExpr>(std::move(type), getCastType(exprToCast, type), std::move(exprToCast));
+}
+
 NatsuLang::Expression::ExprPtr Sema::ActOnArraySubscriptExpression(natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation lloc, Expression::ExprPtr index, SourceLocation rloc)
 {
-	// 屏蔽未使用参数警告，这些参数将会在将来的版本被使用
+	// TODO: 屏蔽未使用参数警告，这些参数将会在将来的版本被使用
 	static_cast<void>(scope);
 	static_cast<void>(lloc);
 
@@ -333,6 +366,47 @@ NatsuLang::Expression::ExprPtr Sema::ActOnArraySubscriptExpression(natRefPointer
 	return make_ref<Expression::ArraySubscriptExpr>(base, index, baseType->GetElementType(), rloc);
 }
 
+NatsuLang::Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr func, SourceLocation lloc, Linq<const Expression::ExprPtr> argExprs, SourceLocation rloc)
+{
+	// TODO: 完成重载部分
+
+	if (!func)
+	{
+		return nullptr;
+	}
+
+	auto fn = static_cast<natRefPointer<Expression::DeclRefExpr>>(func->IgnoreParens());
+	if (!fn)
+	{
+		return nullptr;
+	}
+	auto refFn = fn->GetDecl();
+	if (!refFn)
+	{
+		return nullptr;
+	}
+	auto fnType = static_cast<natRefPointer<Type::FunctionType>>(refFn->GetValueType());
+	if (!fnType)
+	{
+		return nullptr;
+	}
+
+	return make_ref<Expression::CallExpr>(refFn, argExprs, fnType->GetResultType(), rloc);
+}
+
+NatsuLang::Expression::ExprPtr Sema::ActOnPostfixUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand)
+{
+	// TODO: 为将来可能的操作符重载保留
+	static_cast<void>(scope);
+
+	assert(tokenType == Token::TokenType::PlusPlus || tokenType == Token::TokenType::MinusMinus);
+	return CreateBuiltinUnaryOp(loc,
+		tokenType == Token::TokenType::PlusPlus ?
+			Expression::UnaryOperationType::PostInc :
+			Expression::UnaryOperationType::PostDec,
+		std::move(operand));
+}
+
 NatsuLang::Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, natRefPointer<Declaration::NamedDecl> decl)
 {
 	auto valueDecl = static_cast<natRefPointer<Declaration::ValueDecl>>(decl);
@@ -351,8 +425,67 @@ NatsuLang::Expression::ExprPtr Sema::BuildDeclRefExpr(natRefPointer<Declaration:
 	return make_ref<Expression::DeclRefExpr>(nns, std::move(decl), SourceLocation{}, std::move(type));
 }
 
+NatsuLang::Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, Expression::UnaryOperationType opCode, Expression::ExprPtr operand)
+{
+	Type::TypePtr resultType;
+
+	switch (opCode)
+	{
+	case Expression::UnaryOperationType::PostInc:
+	case Expression::UnaryOperationType::PostDec:
+	case Expression::UnaryOperationType::PreInc:
+	case Expression::UnaryOperationType::PreDec:
+	case Expression::UnaryOperationType::Plus:
+	case Expression::UnaryOperationType::Minus:
+	case Expression::UnaryOperationType::Not:
+		// TODO: 可能的整数提升？
+		resultType = operand->GetExprType();
+		break;
+	case Expression::UnaryOperationType::LNot:
+		resultType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
+		break;
+	case Expression::UnaryOperationType::Invalid:
+	default:
+		// TODO: 报告错误
+		return nullptr;
+	}
+
+	return make_ref<Expression::UnaryOperator>(std::move(operand), opCode, std::move(resultType), opLoc);
+}
+
+NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr operand, Type::TypePtr toType)
+{
+	toType = getUnderlyingType(toType);
+	auto fromType = getUnderlyingType(operand->GetExprType());
+
+	assert(operand && toType);
+	assert(fromType);
+
+	// TODO
+	if (fromType->GetType() == Type::Type::Builtin)
+	{
+		switch (toType->GetType())
+		{
+		case Type::Type::Builtin:
+			break;
+		case Type::Type::Record:
+			break;
+		case Type::Type::Enum:
+			break;
+		
+		case Type::Type::Auto:
+		case Type::Type::Array:
+		case Type::Type::Function:
+		case Type::Type::TypeOf:
+		case Type::Type::Paren:
+		default:
+			break;
+		}
+	}
+}
+
 LookupResult::LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType)
-	: m_Sema{ sema }, m_LookupId{ std::move(id) }, m_LookupLoc{ loc }, m_LookupNameType{ lookupNameType }, m_IDNS{ ChooseIDNS(m_LookupNameType) }, m_Result{}, m_AmbiguousType{}
+	: m_Sema{ sema }, m_LookupId{ std::move(id) }, m_LookupLoc{ loc }, m_LookupNameType{ lookupNameType }, m_IDNS{ chooseIDNS(m_LookupNameType) }, m_Result{}, m_AmbiguousType{}
 {
 }
 

@@ -192,7 +192,12 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 		return nullptr;
 	}
 
-	return ParsePostfixExpressionSuffix(std::move(result));
+	result = ParsePostfixExpressionSuffix(std::move(result));
+
+	if (m_CurrentToken.Is(TokenType::Kw_as))
+	{
+
+	}
 }
 
 NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr prefix)
@@ -226,14 +231,44 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 		}
 		case TokenType::LeftParen:
 		{
+			if (!prefix)
+			{
+				return nullptr;
+			}
+
+			std::vector<Expression::ExprPtr> argExprs;
+			std::vector<SourceLocation> commaLocs;
+
+			auto lloc = m_CurrentToken.GetLocation();
+			ConsumeParen();
+
+			if (!m_CurrentToken.Is(TokenType::RightParen) && !ParseExpressionList(argExprs, commaLocs))
+			{
+				// TODO: 报告错误
+				return nullptr;
+			}
+
+			if (!m_CurrentToken.Is(TokenType::RightParen))
+			{
+				// TODO: 报告错误
+				return nullptr;
+			}
+
+			ConsumeParen();
+
+			prefix = m_Sema.ActOnCallExpr(m_Sema.GetCurrentScope(), std::move(prefix), lloc, from(argExprs), m_CurrentToken.GetLocation());
 
 			break;
 		}
 		case TokenType::Period:
+		{
+			// TODO
 			break;
+		}
 		case TokenType::PlusPlus:
-			break;
 		case TokenType::MinusMinus:
+			prefix = m_Sema.ActOnPostfixUnaryOp(m_Sema.GetCurrentScope(), m_CurrentToken.GetLocation(), m_CurrentToken.GetType(), std::move(prefix));
+			ConsumeToken();
 			break;
 		default:
 			return std::move(prefix);
@@ -304,7 +339,24 @@ NatsuLang::Expression::ExprPtr Parser::ParseParenExpression()
 
 nBool Parser::ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs)
 {
+	while (true)
+	{
+		auto expr = ParseAssignmentExpression();
+		if (!expr)
+		{
+			SkipUntil({ TokenType::RightParen }, true);
+			return false;
+		}
+		exprs.emplace_back(std::move(expr));
+		if (!m_CurrentToken.Is(TokenType::Comma))
+		{
+			break;
+		}
+		commaLocs.emplace_back(m_CurrentToken.GetLocation());
+		ConsumeToken();
+	}
 
+	return true;
 }
 
 // declarator:
