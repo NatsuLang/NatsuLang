@@ -1,5 +1,5 @@
 #pragma once
-#include <unordered_set>
+#include "AST/OperatorPrecedence.h"
 #include "Lex/Preprocessor.h"
 
 namespace NatsuLang::Identifier
@@ -164,6 +164,9 @@ namespace NatsuLang::Syntax
 		// delete-expression:
 		//	TODO
 		Expression::ExprPtr ParseCastExpression();
+		Expression::ExprPtr ParseAsTypeExpression(Expression::ExprPtr operand);
+
+		Expression::ExprPtr ParseRightOperandOfBinaryExpression(Expression::ExprPtr leftOperand, OperatorPrecedence minPrec = OperatorPrecedence::Assignment);
 
 		// postfix-expression:
 		//	primary-expression

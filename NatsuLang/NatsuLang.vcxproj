@@ -182,6 +182,7 @@
     <ClInclude Include="include\AST\NestedNameSpecifier.h" />
     <ClInclude Include="include\AST\OperationTypes.h" />
     <ClInclude Include="include\AST\OperationTypesDef.h" />
+    <ClInclude Include="include\AST\OperatorPrecedence.h" />
     <ClInclude Include="include\AST\Statement.h" />
     <ClInclude Include="include\AST\StmtBase.h" />
     <ClInclude Include="include\AST\StmtVisitor.h" />

@@ -137,8 +137,7 @@ std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseDeclaratio
 
 NatsuLang::Expression::ExprPtr Parser::ParseExpression()
 {
-	// TODO
-	nat_Throw(NotImplementedException);
+	return ParseRightOperandOfBinaryExpression(ParseAssignmentExpression());
 }
 
 NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
@@ -192,11 +191,83 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 		return nullptr;
 	}
 
-	result = ParsePostfixExpressionSuffix(std::move(result));
+	return ParseAsTypeExpression(ParsePostfixExpressionSuffix(std::move(result)));
+}
 
-	if (m_CurrentToken.Is(TokenType::Kw_as))
+NatsuLang::Expression::ExprPtr Parser::ParseAsTypeExpression(Expression::ExprPtr operand)
+{
+	while (m_CurrentToken.Is(TokenType::Kw_as))
 	{
+		auto asLoc = m_CurrentToken.GetLocation();
 
+		// 吃掉 as
+		ConsumeToken();
+
+		Declaration::Declarator decl{ Declaration::Context::TypeName };
+		ParseDeclarator(decl);
+		if (!decl.IsValid())
+		{
+			// TODO: 报告错误
+			return nullptr;
+		}
+
+		auto type = m_Sema.ActOnTypeName(m_Sema.GetCurrentScope(), decl);
+		if (!type)
+		{
+			// TODO: 报告错误
+			return nullptr;
+		}
+
+		operand = m_Sema.ActOnAsTypeExpr(m_Sema.GetCurrentScope(), std::move(operand), std::move(type), asLoc);
+	}
+
+	return std::move(operand);
+}
+
+NatsuLang::Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expression::ExprPtr leftOperand, OperatorPrecedence minPrec)
+{
+	auto tokenPrec = GetOperatorPrecedence(m_CurrentToken.GetType());
+	SourceLocation colonLoc;
+
+	while (true)
+	{
+		if (tokenPrec < minPrec)
+		{
+			return leftOperand;
+		}
+
+		auto opToken = m_CurrentToken;
+		ConsumeToken();
+
+		Expression::ExprPtr ternaryMiddle;
+		if (tokenPrec == OperatorPrecedence::Conditional)
+		{
+			ternaryMiddle = ParseExpression();
+			if (!ternaryMiddle)
+			{
+				// TODO: 报告错误
+				return nullptr;
+			}
+
+			if (!m_CurrentToken.Is(TokenType::Colon))
+			{
+				// TODO: 报告可能缺失的':'记号
+			}
+		}
+
+		auto rightOperand = tokenPrec <= OperatorPrecedence::Conditional ? ParseAssignmentExpression() : ParseCastExpression();
+		if (!rightOperand)
+		{
+			// TODO: 报告错误
+			return nullptr;
+		}
+
+		auto prevPrec = tokenPrec;
+		tokenPrec = GetOperatorPrecedence(m_CurrentToken.GetType());
+
+		auto isRightAssoc = prevPrec == OperatorPrecedence::Assignment || prevPrec == OperatorPrecedence::Conditional;
+
+		// TODO
 	}
 }
 
@@ -278,8 +349,7 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 
 NatsuLang::Expression::ExprPtr Parser::ParseConstantExpression()
 {
-	// TODO
-	nat_Throw(NotImplementedException);
+	return ParseRightOperandOfBinaryExpression(ParseCastExpression(), OperatorPrecedence::Conditional);
 }
 
 NatsuLang::Expression::ExprPtr Parser::ParseAssignmentExpression()
@@ -289,7 +359,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseAssignmentExpression()
 		return ParseThrowExpression();
 	}
 
-
+	return ParseRightOperandOfBinaryExpression(ParseCastExpression());
 }
 
 NatsuLang::Expression::ExprPtr Parser::ParseThrowExpression()
@@ -306,14 +376,14 @@ NatsuLang::Expression::ExprPtr Parser::ParseThrowExpression()
 	case TokenType::RightBrace:
 	case TokenType::Colon:
 	case TokenType::Comma:
-		return {};
+		return m_Sema.ActOnThrow(m_Sema.GetCurrentScope(), throwLocation, {});
 	default:
 		auto expr = ParseAssignmentExpression();
 		if (!expr)
 		{
 			return nullptr;
 		}
-		break;
+		return m_Sema.ActOnThrow(m_Sema.GetCurrentScope(), throwLocation, std::move(expr));
 	}
 }
 
@@ -569,7 +639,7 @@ void Parser::ParseArrayType(Declaration::Declarator& decl)
 	{
 		ConsumeBracket();
 		auto countExpr = ParseConstantExpression();
-		decl.SetType(m_Sema.GetASTContext().GetArrayType(decl.GetType(), countExpr));
+		decl.SetType(m_Sema.GetASTContext().GetArrayType(decl.GetType(), std::move(countExpr)));
 		if (!m_CurrentToken.Is(TokenType::RightSquare))
 		{
 			m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
@@ -595,8 +665,11 @@ void Parser::ParseInitializer(Declaration::Declarator& decl)
 	{
 		if (decl.GetType()->GetType() != Type::Type::Function)
 		{
-			
+			// TODO: 报告错误
+			return;
 		}
+
+		// TODO: 解析语句块作为函数体
 	}
 }
 

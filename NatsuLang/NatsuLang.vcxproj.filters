@@ -153,6 +153,9 @@
     <ClInclude Include="include\AST\NestedNameSpecifier.h">
       <Filter>AST\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\AST\OperatorPrecedence.h">
+      <Filter>AST\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">
