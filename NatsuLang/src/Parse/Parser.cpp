@@ -267,7 +267,29 @@ NatsuLang::Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expre
 
 		auto isRightAssoc = prevPrec == OperatorPrecedence::Assignment || prevPrec == OperatorPrecedence::Conditional;
 
-		// TODO
+		if (prevPrec < tokenPrec || (prevPrec == tokenPrec && isRightAssoc))
+		{
+			rightOperand = ParseRightOperandOfBinaryExpression(std::move(rightOperand), static_cast<OperatorPrecedence>(static_cast<std::underlying_type_t<OperatorPrecedence>>(prevPrec) + !isRightAssoc));
+			if (!rightOperand)
+			{
+				// TODO: 报告错误
+				return nullptr;
+			}
+
+			tokenPrec = GetOperatorPrecedence(m_CurrentToken.GetType());
+		}
+
+		if (rightOperand)
+		{
+			if (ternaryMiddle)
+			{
+				// TODO: 作为三元操作符（?:）处理
+			}
+			else
+			{
+				// TODO: 作为二元操作符处理
+			}
+		}
 	}
 }
 

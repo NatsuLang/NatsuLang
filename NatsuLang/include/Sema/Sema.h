@@ -10,7 +10,8 @@
 
 namespace NatsuLang
 {
-	namespace Expression {
+	namespace Expression
+	{
 		enum class UnaryOperationType;
 	}
 
