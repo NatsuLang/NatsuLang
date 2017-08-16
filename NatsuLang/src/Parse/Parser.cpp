@@ -170,7 +170,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 	{
 		auto id = m_CurrentToken.GetIdentifierInfo();
 		ConsumeToken();
-		result = m_Sema.ActOnIdExpression(m_Sema.GetCurrentScope(), nullptr, id, m_CurrentToken.Is(TokenType::LeftParen));
+		result = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), nullptr, id, m_CurrentToken.Is(TokenType::LeftParen));
 		break;
 	}
 	case TokenType::PlusPlus:
@@ -208,17 +208,20 @@ NatsuLang::Expression::ExprPtr Parser::ParseAsTypeExpression(Expression::ExprPtr
 		if (!decl.IsValid())
 		{
 			// TODO: 报告错误
-			return nullptr;
+			operand = nullptr;
 		}
 
 		auto type = m_Sema.ActOnTypeName(m_Sema.GetCurrentScope(), decl);
 		if (!type)
 		{
 			// TODO: 报告错误
-			return nullptr;
+			operand = nullptr;
 		}
 
-		operand = m_Sema.ActOnAsTypeExpr(m_Sema.GetCurrentScope(), std::move(operand), std::move(type), asLoc);
+		if (operand)
+		{
+			operand = m_Sema.ActOnAsTypeExpr(m_Sema.GetCurrentScope(), std::move(operand), std::move(type), asLoc);
+		}
 	}
 
 	return std::move(operand);
@@ -246,20 +249,23 @@ NatsuLang::Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expre
 			if (!ternaryMiddle)
 			{
 				// TODO: 报告错误
-				return nullptr;
+				leftOperand = nullptr;
 			}
 
 			if (!m_CurrentToken.Is(TokenType::Colon))
 			{
 				// TODO: 报告可能缺失的':'记号
 			}
+
+			colonLoc = m_CurrentToken.GetLocation();
+			ConsumeToken();
 		}
 
 		auto rightOperand = tokenPrec <= OperatorPrecedence::Conditional ? ParseAssignmentExpression() : ParseCastExpression();
 		if (!rightOperand)
 		{
 			// TODO: 报告错误
-			return nullptr;
+			leftOperand = nullptr;
 		}
 
 		auto prevPrec = tokenPrec;
@@ -269,26 +275,23 @@ NatsuLang::Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expre
 
 		if (prevPrec < tokenPrec || (prevPrec == tokenPrec && isRightAssoc))
 		{
-			rightOperand = ParseRightOperandOfBinaryExpression(std::move(rightOperand), static_cast<OperatorPrecedence>(static_cast<std::underlying_type_t<OperatorPrecedence>>(prevPrec) + !isRightAssoc));
+			rightOperand = ParseRightOperandOfBinaryExpression(std::move(rightOperand),
+				static_cast<OperatorPrecedence>(static_cast<std::underlying_type_t<OperatorPrecedence>>(prevPrec) + !isRightAssoc));
 			if (!rightOperand)
 			{
 				// TODO: 报告错误
-				return nullptr;
+				leftOperand = nullptr;
 			}
 
 			tokenPrec = GetOperatorPrecedence(m_CurrentToken.GetType());
 		}
 
-		if (rightOperand)
+		// TODO: 如果之前的分析发现出错的话条件将不会被满足，由于之前已经报告了错误在此可以不进行报告，但必须继续执行以保证分析完整个表达式
+		if (leftOperand)
 		{
-			if (ternaryMiddle)
-			{
-				// TODO: 作为三元操作符（?:）处理
-			}
-			else
-			{
-				// TODO: 作为二元操作符处理
-			}
+			leftOperand = ternaryMiddle ?
+				m_Sema.ActOnConditionalOp(opToken.GetLocation(), colonLoc, std::move(leftOperand), std::move(ternaryMiddle), std::move(rightOperand)) :
+				m_Sema.ActOnBinaryOp(m_Sema.GetCurrentScope(), opToken.GetLocation(), opToken.GetType(), std::move(leftOperand), std::move(rightOperand));
 		}
 	}
 }
@@ -317,7 +320,7 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 			}
 
 			auto rloc = m_CurrentToken.GetLocation();
-			prefix = m_Sema.ActOnArraySubscriptExpression(m_Sema.GetCurrentScope(), std::move(prefix), lloc, std::move(index), rloc);
+			prefix = m_Sema.ActOnArraySubscriptExpr(m_Sema.GetCurrentScope(), std::move(prefix), lloc, std::move(index), rloc);
 			ConsumeBracket();
 
 			break;

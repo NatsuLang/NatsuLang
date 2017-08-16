@@ -61,6 +61,76 @@ namespace
 
 		return std::move(type);
 	}
+
+	constexpr NatsuLang::Expression::BinaryOperationType getBinaryOperationType(NatsuLang::Token::TokenType tokenType) noexcept
+	{
+		using NatsuLang::Expression::BinaryOperationType;
+
+		switch (tokenType)
+		{
+		case NatsuLang::Token::TokenType::Amp:
+			return BinaryOperationType::And;
+		case NatsuLang::Token::TokenType::AmpAmp:
+			return BinaryOperationType::LAnd;
+		case NatsuLang::Token::TokenType::AmpEqual:
+			return BinaryOperationType::AndAssign;
+		case NatsuLang::Token::TokenType::Star:
+			return BinaryOperationType::Mul;
+		case NatsuLang::Token::TokenType::StarEqual:
+			return BinaryOperationType::MulAssign;
+		case NatsuLang::Token::TokenType::Plus:
+			return BinaryOperationType::Add;
+		case NatsuLang::Token::TokenType::PlusEqual:
+			return BinaryOperationType::AddAssign;
+		case NatsuLang::Token::TokenType::Minus:
+			return BinaryOperationType::Sub;
+		case NatsuLang::Token::TokenType::MinusEqual:
+			return BinaryOperationType::SubAssign;
+		case NatsuLang::Token::TokenType::ExclaimEqual:
+			return BinaryOperationType::NE;
+		case NatsuLang::Token::TokenType::Slash:
+			return BinaryOperationType::Div;
+		case NatsuLang::Token::TokenType::SlashEqual:
+			return BinaryOperationType::DivAssign;
+		case NatsuLang::Token::TokenType::Percent:
+			return BinaryOperationType::Mod;
+		case NatsuLang::Token::TokenType::PercentEqual:
+			return BinaryOperationType::RemAssign;
+		case NatsuLang::Token::TokenType::Less:
+			return BinaryOperationType::LT;
+		case NatsuLang::Token::TokenType::LessLess:
+			return BinaryOperationType::Shl;
+		case NatsuLang::Token::TokenType::LessEqual:
+			return BinaryOperationType::LE;
+		case NatsuLang::Token::TokenType::LessLessEqual:
+			return BinaryOperationType::ShlAssign;
+		case NatsuLang::Token::TokenType::Greater:
+			return BinaryOperationType::GT;
+		case NatsuLang::Token::TokenType::GreaterGreater:
+			return BinaryOperationType::Shr;
+		case NatsuLang::Token::TokenType::GreaterEqual:
+			return BinaryOperationType::GE;
+		case NatsuLang::Token::TokenType::GreaterGreaterEqual:
+			return BinaryOperationType::ShrAssign;
+		case NatsuLang::Token::TokenType::Caret:
+			return BinaryOperationType::Xor;
+		case NatsuLang::Token::TokenType::CaretEqual:
+			return BinaryOperationType::XorAssign;
+		case NatsuLang::Token::TokenType::Pipe:
+			return BinaryOperationType::Or;
+		case NatsuLang::Token::TokenType::PipePipe:
+			return BinaryOperationType::LOr;
+		case NatsuLang::Token::TokenType::PipeEqual:
+			return BinaryOperationType::OrAssign;
+		case NatsuLang::Token::TokenType::Equal:
+			return BinaryOperationType::Assign;
+		case NatsuLang::Token::TokenType::EqualEqual:
+			return BinaryOperationType::EQ;
+		default:
+			assert(!"Invalid TokenType for BinaryOperationType.");
+			return BinaryOperationType::Invalid;
+		}
+	}
 }
 
 Sema::Sema(Preprocessor& preprocessor, ASTContext& astContext)
@@ -316,7 +386,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scop
 	}
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnIdExpression(natRefPointer<Scope> const& scope, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen)
+NatsuLang::Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen)
 {
 	LookupResult result{ *this, id, {}, LookupNameType::LookupOrdinaryName };
 	if (!LookupNestedName(result, scope, nns) || result.GetResultType() == LookupResult::LookupResultType::Ambiguous)
@@ -341,7 +411,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnAsTypeExpr(natRefPointer<Scope> const&
 	return make_ref<Expression::AsTypeExpr>(std::move(type), getCastType(exprToCast, type), std::move(exprToCast));
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnArraySubscriptExpression(natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation lloc, Expression::ExprPtr index, SourceLocation rloc)
+NatsuLang::Expression::ExprPtr Sema::ActOnArraySubscriptExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation lloc, Expression::ExprPtr index, SourceLocation rloc)
 {
 	// TODO: 屏蔽未使用参数警告，这些参数将会在将来的版本被使用
 	static_cast<void>(scope);
@@ -405,6 +475,22 @@ NatsuLang::Expression::ExprPtr Sema::ActOnPostfixUnaryOp(natRefPointer<Scope> co
 			Expression::UnaryOperationType::PostInc :
 			Expression::UnaryOperationType::PostDec,
 		std::move(operand));
+}
+
+NatsuLang::Expression::ExprPtr Sema::ActOnBinaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand)
+{
+	static_cast<void>(scope);
+	return BuildBuiltinBinaryOp(loc, getBinaryOperationType(tokenType), std::move(leftOperand), std::move(rightOperand));
+}
+
+NatsuLang::Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::BinaryOperationType binOpType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand)
+{
+
+}
+
+NatsuLang::Expression::ExprPtr Sema::ActOnConditionalOp(SourceLocation questionLoc, SourceLocation colonLoc, Expression::ExprPtr condExpr, Expression::ExprPtr leftExpr, Expression::ExprPtr rightExpr)
+{
+
 }
 
 NatsuLang::Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, natRefPointer<Declaration::NamedDecl> decl)
