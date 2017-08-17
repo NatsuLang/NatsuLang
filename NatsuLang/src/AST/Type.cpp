@@ -10,7 +10,7 @@ namespace
 	{
 		switch (builtinClass)
 		{
-#define BUILTIN_TYPE(Id, SingletonId, Name) case BuiltinType::BuiltinClass::Id: return #Name;
+#define BUILTIN_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return #Name;
 #include "Basic/BuiltinTypesDef.h"
 		default:
 			assert(!"Invalid BuiltinClass.");
@@ -22,11 +22,12 @@ namespace
 	{
 		switch (builtinClass)
 		{
-#define BUILTIN_TYPE(Id, SingletonId, Name) case BuiltinType::BuiltinClass::Id: return false;
-#define SIGNED_TYPE(Id, SingletonId, Name) case BuiltinType::BuiltinClass::Id: return true;
-#define UNSIGNED_TYPE(Id, SingletonId, Name) case BuiltinType::BuiltinClass::Id: return true;
-#define FLOATING_TYPE(Id, SingletonId, Name) case BuiltinType::BuiltinClass::Id: return false;
-#define PLACEHOLDER_TYPE(Id, SingletonId, Name) case BuiltinType::BuiltinClass::Id: return false;
+#define BUILTIN_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return false;
+#define SIGNED_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return true;
+#define UNSIGNED_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return true;
+#define FLOATING_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return false;
+#define PLACEHOLDER_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return false;
+#include "Basic/BuiltinTypesDef.h"
 		default:
 			assert(!"Invalid BuiltinClass.");
 			return false;
@@ -37,11 +38,12 @@ namespace
 	{
 		switch (builtinClass)
 		{
-#define BUILTIN_TYPE(Id, SingletonId, Name) case BuiltinType::BuiltinClass::Id: return false;
-#define SIGNED_TYPE(Id, SingletonId, Name) case BuiltinType::BuiltinClass::Id: return false;
-#define UNSIGNED_TYPE(Id, SingletonId, Name) case BuiltinType::BuiltinClass::Id: return false;
-#define FLOATING_TYPE(Id, SingletonId, Name) case BuiltinType::BuiltinClass::Id: return true;
-#define PLACEHOLDER_TYPE(Id, SingletonId, Name) case BuiltinType::BuiltinClass::Id: return false;
+#define BUILTIN_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return false;
+#define SIGNED_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return false;
+#define UNSIGNED_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return false;
+#define FLOATING_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return true;
+#define PLACEHOLDER_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return false;
+#include "Basic/BuiltinTypesDef.h"
 		default:
 			assert(!"Invalid BuiltinClass.");
 			return false;

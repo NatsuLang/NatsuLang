@@ -34,6 +34,42 @@ namespace
 		}
 	}
 
+	NatsuLang::Expression::CastType getBuiltinCastType(natRefPointer<NatsuLang::Type::BuiltinType> const& fromType, natRefPointer<NatsuLang::Type::BuiltinType> const& toType) noexcept
+	{
+		using NatsuLang::Expression::CastType;
+		using NatsuLang::Type::BuiltinType;
+
+		if (!fromType || (!fromType->IsIntegerType() && !fromType->IsFloatingType()) ||
+			!toType || (!toType->IsIntegerType() && !toType->IsFloatingType()))
+		{
+			return CastType::Invalid;
+		}
+
+		if (fromType->GetBuiltinClass() == toType->GetBuiltinClass())
+		{
+			return CastType::NoOp;
+		}
+
+		if (fromType->IsIntegerType())
+		{
+			if (toType->IsIntegerType())
+			{
+				return toType->GetBuiltinClass() == BuiltinType::Bool ? CastType::IntegralToBoolean : CastType::IntegralCast;
+			}
+
+			// fromType和toType只能是IntegerType或FloatingType
+			return CastType::IntegralToFloating;
+		}
+
+		// fromType是FloatingType
+		if (toType->IsIntegerType())
+		{
+			return toType->GetBuiltinClass() == BuiltinType::Bool ? CastType::FloatingToBoolean : CastType::FloatingToIntegral;
+		}
+
+		return CastType::FloatingCast;
+	}
+
 	NatsuLang::Type::TypePtr getUnderlyingType(NatsuLang::Type::TypePtr type)
 	{
 		if (!type)
@@ -550,22 +586,31 @@ NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr operand, T
 	// TODO
 	if (fromType->GetType() == Type::Type::Builtin)
 	{
+		auto builtinFromType = static_cast<natRefPointer<Type::BuiltinType>>(fromType);
+
 		switch (toType->GetType())
 		{
 		case Type::Type::Builtin:
-			break;
-		case Type::Type::Record:
-			break;
+			return getBuiltinCastType(fromType, toType);
 		case Type::Type::Enum:
-			break;
-		
+			if (builtinFromType->IsIntegerType())
+			{
+				return Expression::CastType::IntegralCast;
+			}
+			if (builtinFromType->IsFloatingType())
+			{
+				return Expression::CastType::FloatingToIntegral;
+			}
+			return Expression::CastType::Invalid;
+		case Type::Type::Record:
+			// TODO: 添加用户定义转换
 		case Type::Type::Auto:
 		case Type::Type::Array:
 		case Type::Type::Function:
 		case Type::Type::TypeOf:
 		case Type::Type::Paren:
 		default:
-			break;
+			return Expression::CastType::Invalid;
 		}
 	}
 }
