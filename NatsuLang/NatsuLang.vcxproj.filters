@@ -156,6 +156,9 @@
     <ClInclude Include="include\AST\OperatorPrecedence.h">
       <Filter>AST\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\Basic\Config.h">
+      <Filter>Basic\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">

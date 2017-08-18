@@ -190,6 +190,7 @@
     <ClInclude Include="include\AST\TypeBase.h" />
     <ClInclude Include="include\Basic\BuiltinTypesDef.h" />
     <ClInclude Include="include\Basic\CharInfo.h" />
+    <ClInclude Include="include\Basic\Config.h" />
     <ClInclude Include="include\Basic\DeclDef.h" />
     <ClInclude Include="include\Basic\DiagDef.h" />
     <ClInclude Include="include\Basic\Diagnostic.h" />

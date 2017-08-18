@@ -29,7 +29,7 @@ DiagnosticsEngine& Parser::GetDiagnosticsEngine() const noexcept
 	return m_DiagnosticsEngine;
 }
 
-nBool Parser::ParseTopLevelDecl(std::vector<natRefPointer<Declaration::Decl>>& decls)
+nBool Parser::ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls)
 {
 	if (m_CurrentToken.Is(TokenType::Eof))
 	{
@@ -54,7 +54,7 @@ nBool Parser::ParseTopLevelDecl(std::vector<natRefPointer<Declaration::Decl>>& d
 	return false;
 }
 
-std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseExternalDeclaration()
+std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 {
 	switch (m_CurrentToken.GetType())
 	{
@@ -76,7 +76,7 @@ std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseExternalDe
 	}
 }
 
-std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseModuleImport()
+std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseModuleImport()
 {
 	assert(m_CurrentToken.Is(Token::TokenType::Kw_import));
 	auto startLoc = m_CurrentToken.GetLocation();
@@ -91,7 +91,7 @@ std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseModuleImpo
 	nat_Throw(NotImplementedException);
 }
 
-std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseModuleDecl()
+std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseModuleDecl()
 {
 	nat_Throw(NotImplementedException);
 }
@@ -123,7 +123,7 @@ nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::Id
 //	simple-declaration
 // simple-declaration:
 //	def declarator [;]
-std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseDeclaration(Declaration::Context context)
+std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context context)
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_def));
 	// 吃掉 def
@@ -133,6 +133,12 @@ std::vector<natRefPointer<NatsuLang::Declaration::Decl>> Parser::ParseDeclaratio
 	ParseDeclarator(decl);
 
 	return { m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), decl) };
+}
+
+NatsuLang::Statement::StmtPtr Parser::ParseStatement()
+{
+	// TODO
+	nat_Throw(NotImplementedException);
 }
 
 NatsuLang::Expression::ExprPtr Parser::ParseExpression()
@@ -188,7 +194,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 	case TokenType::Kw_this:
 		break;
 	default:
-		return nullptr;
+		return ParseExprError();
 	}
 
 	return ParseAsTypeExpression(ParsePostfixExpressionSuffix(std::move(result)));
@@ -316,7 +322,7 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 					.AddArgument(TokenType::RightSquare)
 					.AddArgument(m_CurrentToken.GetType());
 
-				return nullptr;
+				return ParseExprError();
 			}
 
 			auto rloc = m_CurrentToken.GetLocation();
@@ -329,7 +335,7 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 		{
 			if (!prefix)
 			{
-				return nullptr;
+				return ParseExprError();
 			}
 
 			std::vector<Expression::ExprPtr> argExprs;
@@ -341,13 +347,13 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 			if (!m_CurrentToken.Is(TokenType::RightParen) && !ParseExpressionList(argExprs, commaLocs))
 			{
 				// TODO: 报告错误
-				return nullptr;
+				return ParseExprError();
 			}
 
 			if (!m_CurrentToken.Is(TokenType::RightParen))
 			{
 				// TODO: 报告错误
-				return nullptr;
+				return ParseExprError();
 			}
 
 			ConsumeParen();
@@ -406,7 +412,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseThrowExpression()
 		auto expr = ParseAssignmentExpression();
 		if (!expr)
 		{
-			return nullptr;
+			return ParseExprError();
 		}
 		return m_Sema.ActOnThrow(m_Sema.GetCurrentScope(), throwLocation, std::move(expr));
 	}
