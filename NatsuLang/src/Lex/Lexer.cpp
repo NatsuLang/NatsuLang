@@ -17,6 +17,7 @@ Lexer::Lexer(nStrView buffer, Preprocessor& preprocessor)
 
 nBool Lexer::Lex(Token::Token& result)
 {
+	// TODO: 为token添加位置信息
 NextToken:
 	result.Reset();
 
@@ -456,50 +457,49 @@ nBool Lexer::lexIdentifier(Token::Token& result, Iterator cur)
 
 nBool Lexer::lexCharLiteral(Token::Token& result, Iterator cur)
 {
-	const auto start = ++cur, end = m_Buffer.end();
-	const auto count = NatsuLib::StringEncodingTrait<nString::UsingStringType>::GetCharCount(*start);
-	if (count < static_cast<size_t>(end - start))
+	assert(*cur == '\'');
+
+	const auto start = cur, end = m_Buffer.end();
+
+	auto prevChar = *cur;
+	while (cur != end)
 	{
-		const auto literalEnd = start + count;
-
-		result.SetType(TokenType::CharLiteral);
-		result.SetLiteralContent({ start, literalEnd });
-
-		if (*literalEnd != '\'')
-		{
-			m_Preprocessor.GetDiag().Report(Diag::DiagnosticsEngine::DiagID::ErrMultiCharInLiteral);
-		}
-
-		cur = literalEnd;
-		while (cur != end)
+		if (*cur == '\'' && prevChar != '\\')
 		{
 			++cur;
-
-			if (*cur == '\'')
-			{
-				++cur;
-				break;
-			}
+			break;
 		}
 
-		m_Current = cur;
-		return true;
+		++cur;
 	}
-	
-	m_Preprocessor.GetDiag().Report(Diag::DiagnosticsEngine::DiagID::ErrUnexpectEOF);
-	m_Current = end;
-	return false;
+
+	if (cur == end)
+	{
+		m_Preprocessor.GetDiag().Report(Diag::DiagnosticsEngine::DiagID::ErrUnexpectEOF);
+	}
+	else
+	{
+		result.SetType(TokenType::CharLiteral);
+		result.SetLiteralContent({ start, cur });
+		++cur;
+	}
+
+	m_Current = cur;
+	return true;
 }
 
 nBool Lexer::lexStringLiteral(Token::Token& result, Iterator cur)
 {
-	const auto start = ++cur, end = m_Buffer.end();
+	assert(*cur == '"');
+
+	const auto start = cur, end = m_Buffer.end();
 
 	auto prevChar = *cur;
 	while (cur != end)
 	{
 		if (*cur == '"' && prevChar != '\\')
 		{
+			++cur;
 			break;
 		}
 

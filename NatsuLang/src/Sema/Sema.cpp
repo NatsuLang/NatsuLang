@@ -98,6 +98,30 @@ namespace
 		return std::move(type);
 	}
 
+	constexpr NatsuLang::Expression::UnaryOperationType getUnaryOperationType(NatsuLang::Token::TokenType tokenType) noexcept
+	{
+		using NatsuLang::Expression::UnaryOperationType;
+
+		switch (tokenType)
+		{
+		case NatsuLang::Token::TokenType::Plus:
+			return UnaryOperationType::Plus;
+		case NatsuLang::Token::TokenType::PlusPlus:
+			return UnaryOperationType::PreInc;
+		case NatsuLang::Token::TokenType::Minus:
+			return UnaryOperationType::Minus;
+		case NatsuLang::Token::TokenType::MinusMinus:
+			return UnaryOperationType::PreDec;
+		case NatsuLang::Token::TokenType::Tilde:
+			return UnaryOperationType::Not;
+		case NatsuLang::Token::TokenType::Exclaim:
+			return UnaryOperationType::LNot;
+		default:
+			assert(!"Invalid TokenType for UnaryOperationType.");
+			return UnaryOperationType::Invalid;
+		}
+	}
+
 	constexpr NatsuLang::Expression::BinaryOperationType getBinaryOperationType(NatsuLang::Token::TokenType tokenType) noexcept
 	{
 		using NatsuLang::Expression::BinaryOperationType;
@@ -414,6 +438,22 @@ NatsuLang::Expression::ExprPtr Sema::ActOnCharLiteral(Token::Token const& token)
 	return make_ref<Expression::CharacterLiteral>(literalParser.GetValue(), nString::UsingStringType, m_Context.GetBuiltinType(Type::BuiltinType::Char), token.GetLocation());
 }
 
+NatsuLang::Expression::ExprPtr Sema::ActOnStringLiteral(Token::Token const& token)
+{
+	assert(token.Is(Token::TokenType::StringLiteral) && token.GetLiteralContent().has_value());
+
+	Lex::StringLiteralParser literalParser{ token.GetLiteralContent().value(), token.GetLocation(), m_Diag };
+
+	if (literalParser.Errored())
+	{
+		return nullptr;
+	}
+
+	// TODO: 缓存字符串字面量以便重用
+	auto value = literalParser.GetValue();
+	return make_ref<Expression::StringLiteral>(value, m_Context.GetArrayType(m_Context.GetBuiltinType(Type::BuiltinType::Char), value.GetSize()), token.GetLocation());
+}
+
 NatsuLang::Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr)
 {
 	if (expr)
@@ -439,6 +479,12 @@ NatsuLang::Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& sco
 	}
 	
 	// TODO: 只有重载函数可以在此找到多个声明，否则报错
+	nat_Throw(NotImplementedException);
+}
+
+NatsuLang::Expression::ExprPtr Sema::ActOnThis(SourceLocation loc)
+{
+	// TODO
 	nat_Throw(NotImplementedException);
 }
 
@@ -498,6 +544,13 @@ NatsuLang::Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& s
 	}
 
 	return make_ref<Expression::CallExpr>(refFn, argExprs, fnType->GetResultType(), rloc);
+}
+
+NatsuLang::Expression::ExprPtr Sema::ActOnUnaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand)
+{
+	// TODO: 为将来可能的操作符重载保留
+	static_cast<void>(scope);
+	return CreateBuiltinUnaryOp(loc, getUnaryOperationType(tokenType), std::move(operand));
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnPostfixUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand)

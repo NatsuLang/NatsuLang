@@ -87,16 +87,29 @@ namespace NatsuLang::Lex
 
 		nuInt m_Value;
 		nBool m_Errored;
-
-		nuInt escapeChar();
 	};
 
 	class StringLiteralParser
 	{
 	public:
-		StringLiteralParser();
+		StringLiteralParser(nStrView buffer, SourceLocation loc, Diag::DiagnosticsEngine& diag);
+
+		nStrView GetValue() const noexcept
+		{
+			return m_Value;
+		}
+
+		nBool Errored() const noexcept
+		{
+			return m_Errored;
+		}
 
 	private:
+		Diag::DiagnosticsEngine& m_Diag;
+		nStrView m_Buffer;
+		nStrView::iterator m_Current;
 
+		nString m_Value;
+		nBool m_Errored;
 	};
 }

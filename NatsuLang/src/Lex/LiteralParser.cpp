@@ -52,6 +52,102 @@ namespace
 		// 错误，这个字符不是可用的数字字面量字符
 		return 0;
 	}
+
+	nuInt EscapeChar(nString::const_iterator& cur, nString::const_iterator end, nBool& errored, NatsuLang::SourceLocation loc, NatsuLang::Diag::DiagnosticsEngine& diag) noexcept
+	{
+		assert(*cur == '\\');
+
+		++cur;
+		nuInt chr = *cur++;
+		switch (chr)
+		{
+		case '\'':
+		case '\\':
+		case '"':
+		case '?':
+			break;
+		case 'a':
+			// TODO: 参考标准替换为实际数值
+			chr = '\a';
+			break;
+		case 'b':
+			chr = '\b';
+			break;
+		case 'f':
+			chr = '\f';
+			break;
+		case 'n':
+			chr = '\n';
+			break;
+		case 'r':
+			chr = '\r';
+			break;
+		case 't':
+			chr = '\t';
+			break;
+		case 'v':
+			chr = '\v';
+			break;
+		case 'x':
+		{
+			auto overflowed = false;
+
+			chr = 0;
+			for (; cur != end; ++cur)
+			{
+				const auto curChr = *cur;
+				const auto curValue = DigitValue(static_cast<nuInt>(curChr));
+				if (chr & 0xF0000000)
+				{
+					overflowed = true;
+				}
+				chr <<= 4;
+				chr |= curValue;
+			}
+
+			// TODO: 适配具有更多宽度的字符
+			if (chr >> 8)
+			{
+				overflowed = true;
+				chr &= ~0u >> 24; // 32 - 8
+			}
+
+			if (overflowed)
+			{
+				// TODO: 报告溢出
+			}
+
+			break;
+		}
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7':
+		{
+			--cur;
+
+			chr = 0;
+			nuInt charCount = 0;
+			do
+			{
+				chr <<= 3;
+				chr |= DigitValue(*cur++);
+				++charCount;
+			} while (cur != end && charCount < 3 && *cur >= '0' && *cur <= '7');
+
+			// TODO: 适配具有更多宽度的字符
+			if (chr >> 8)
+			{
+				chr &= ~0u >> 24; // 32 - 8
+								  // TODO: 报告溢出
+			}
+
+			break;
+		}
+		default:
+			break;
+		}
+
+		return chr;
+	}
 }
 
 NumericLiteralParser::NumericLiteralParser(nStrView buffer, SourceLocation loc, Diag::DiagnosticsEngine& diag)
@@ -259,7 +355,7 @@ CharLiteralParser::CharLiteralParser(nStrView buffer, SourceLocation loc, Diag::
 	const auto end = std::prev(buffer.cend());
 	if (*m_Current == '\\')
 	{
-		m_Value = escapeChar();
+		m_Value = EscapeChar(m_Current, m_Buffer.cend(), m_Errored, loc, m_Diag);
 	}
 	else
 	{
@@ -275,7 +371,7 @@ CharLiteralParser::CharLiteralParser(nStrView buffer, SourceLocation loc, Diag::
 			if (charCount < bufferLength)
 			{
 				m_Errored = true;
-				// TODO: 报告多个字符出现在单个字符字面量中
+				m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrMultiCharInLiteral, loc);
 			}
 			else if (charCount > bufferLength)
 			{
@@ -292,100 +388,34 @@ CharLiteralParser::CharLiteralParser(nStrView buffer, SourceLocation loc, Diag::
 	}
 }
 
-nuInt CharLiteralParser::escapeChar()
+StringLiteralParser::StringLiteralParser(nStrView buffer, SourceLocation loc, Diag::DiagnosticsEngine& diag)
+	: m_Diag{ diag }, m_Buffer{ buffer }, m_Current{ buffer.cbegin() }, m_Errored{ false }
 {
-	assert(*m_Current == '\\');
-
-	const auto end = m_Buffer.cend();
-
+	assert(m_Buffer.GetSize() >= 2);
+	assert(*m_Current == '"');
 	++m_Current;
-	nuInt chr = *m_Current++;
-	switch (chr)
+	assert(buffer.cend()[-1] == '"');
+	const auto end = std::prev(buffer.cend());
+
+	m_Value.Reserve(m_Buffer.GetSize() - 2);
+
+	for (; m_Current != end; ++m_Current)
 	{
-	case '\'':
-	case '\\':
-	case '"':
-	case '?':
-		break;
-	case 'a':
-		// TODO: 参考标准替换为实际数值
-		chr = '\a';
-		break;
-	case 'b':
-		chr = '\b';
-		break;
-	case 'f':
-		chr = '\f';
-		break;
-	case 'n':
-		chr = '\n';
-		break;
-	case 'r':
-		chr = '\r';
-		break;
-	case 't':
-		chr = '\t';
-		break;
-	case 'v':
-		chr = '\v';
-		break;
-	case 'x':
-	{
-		auto overflowed = false;
-		
-		chr = 0;
-		for (; m_Current != end; ++m_Current)
+		if (*m_Current != '\\')
 		{
-			const auto cur = *m_Current;
-			const auto curValue = DigitValue(static_cast<nuInt>(cur));
-			if (chr & 0xF0000000)
+			if (*m_Current == '"')
 			{
-				overflowed = true;
+				// TODO: 报告字符串过早结束
+				break;
 			}
-			chr <<= 4;
-			chr |= curValue;
-		}
-		
-		// TODO: 适配具有更多宽度的字符
-		if (chr >> 8)
-		{
-			overflowed = true;
-			chr &= ~0u >> 24; // 32 - 8
-		}
 
-		if (overflowed)
-		{
-			// TODO: 报告溢出
+			m_Value.Append(*m_Current);
 		}
-
-		break;
+		else
+		{
+			auto codePoint = EscapeChar(m_Current, end, m_Errored, loc, m_Diag);
+			// TODO: 适配具有不同宽度的字符串
+			m_Value.Append(static_cast<nString::CharType>(codePoint & std::numeric_limits<nString::CharType>::max()));
+		}
 	}
-	case '0': case '1': case '2': case '3': case '4':
-	case '5': case '6': case '7':
-	{
-		--m_Current;
-
-		chr = 0;
-		nuInt charCount = 0;
-		do
-		{
-			chr <<= 3;
-			chr |= DigitValue(*m_Current++);
-			++charCount;
-		} while (m_Current != end && charCount < 3 && *m_Current >= '0' && *m_Current <= '7');
-
-		// TODO: 适配具有更多宽度的字符
-		if (chr >> 8)
-		{
-			chr &= ~0u >> 24; // 32 - 8
-			// TODO: 报告溢出
-		}
-
-		break;
-	}
-	default:
-		break;
-	}
-
-	return chr;
 }

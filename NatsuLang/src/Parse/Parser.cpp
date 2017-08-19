@@ -165,7 +165,8 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 		ConsumeToken();
 		break;
 	case TokenType::StringLiteral:
-		// TODO
+		result = m_Sema.ActOnStringLiteral(m_CurrentToken);
+		ConsumeToken();
 		break;
 	case TokenType::Kw_true:
 	case TokenType::Kw_false:
@@ -181,18 +182,25 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 	}
 	case TokenType::PlusPlus:
 	case TokenType::MinusMinus:
-	{
-		// TODO
-		break;
-	}
 	case TokenType::Plus:
 	case TokenType::Minus:
 	case TokenType::Exclaim:
 	case TokenType::Tilde:
-		// TODO
+	{
+		auto loc = m_CurrentToken.GetLocation();
+		ConsumeToken();
+		result = ParseCastExpression();
+		if (!result)
+		{
+			// TODO: ±¨¸æ´íÎó
+			result = ParseExprError();
+		}
+
+		result = m_Sema.ActOnUnaryOp(m_Sema.GetCurrentScope(), loc, tokenType, std::move(result));
 		break;
+	}
 	case TokenType::Kw_this:
-		break;
+		return m_Sema.ActOnThis(m_CurrentToken.GetLocation());
 	default:
 		return ParseExprError();
 	}
