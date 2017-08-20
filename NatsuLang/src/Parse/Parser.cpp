@@ -372,7 +372,16 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 		}
 		case TokenType::Period:
 		{
-			// TODO
+			auto periodLoc = m_CurrentToken.GetLocation();
+			ConsumeToken();
+			Identifier::IdPtr unqualifiedId;
+			if (!ParseUnqualifiedId(unqualifiedId))
+			{
+				return ParseExprError();
+			}
+
+
+
 			break;
 		}
 		case TokenType::PlusPlus:
@@ -444,6 +453,18 @@ NatsuLang::Expression::ExprPtr Parser::ParseParenExpression()
 	}
 	
 	return ret;
+}
+
+nBool Parser::ParseUnqualifiedId(Identifier::IdPtr& result)
+{
+	if (!m_CurrentToken.Is(TokenType::Identifier))
+	{
+		return false;
+	}
+
+	result = m_CurrentToken.GetIdentifierInfo();
+	ConsumeToken();
+	return true;
 }
 
 nBool Parser::ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs)

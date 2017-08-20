@@ -3,6 +3,11 @@
 #include "Lex/Preprocessor.h"
 #include "Basic/Config.h"
 
+namespace NatsuLang
+{
+	class NestedNameSpecifier;
+}
+
 namespace NatsuLang::Identifier
 {
 	class IdentifierInfo;
@@ -217,6 +222,10 @@ namespace NatsuLang::Syntax
 		Expression::ExprPtr ParseAssignmentExpression();
 		Expression::ExprPtr ParseThrowExpression();
 		Expression::ExprPtr ParseParenExpression();
+
+		// unqualified-id:
+		//	identifier
+		nBool ParseUnqualifiedId(Identifier::IdPtr& result);
 
 		// argument-expression-list:
 		//	argument-expression

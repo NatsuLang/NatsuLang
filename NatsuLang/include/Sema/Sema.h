@@ -119,6 +119,7 @@ namespace NatsuLang::Semantic
 		Expression::ExprPtr ActOnAsTypeExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr exprToCast, Type::TypePtr type, SourceLocation loc);
 		Expression::ExprPtr ActOnArraySubscriptExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation lloc, Expression::ExprPtr index, SourceLocation rloc);
 		Expression::ExprPtr ActOnCallExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr func, SourceLocation lloc, NatsuLib::Linq<const Expression::ExprPtr> argExprs, SourceLocation rloc);
+		Expression::ExprPtr ActOnMemberAccessExpr(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation periodLoc, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id);
 		Expression::ExprPtr ActOnUnaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand);
 		Expression::ExprPtr ActOnPostfixUnaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand);
 		Expression::ExprPtr ActOnBinaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand);
@@ -128,6 +129,8 @@ namespace NatsuLang::Semantic
 
 		Expression::ExprPtr BuildDeclarationNameExpr(NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, NatsuLib::natRefPointer<Declaration::NamedDecl> decl);
 		Expression::ExprPtr BuildDeclRefExpr(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Type::TypePtr type, Identifier::IdPtr id, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
+		Expression::ExprPtr BuildMemberReferenceExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr baseExpr, SourceLocation opLoc, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, LookupResult& r);
+		Expression::ExprPtr BuildFieldReferenceExpr(Expression::ExprPtr baseExpr, SourceLocation opLoc, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, NatsuLib::natRefPointer<Declaration::FieldDecl> field, Identifier::IdPtr id);
 
 		Expression::ExprPtr CreateBuiltinUnaryOp(SourceLocation opLoc, Expression::UnaryOperationType opCode, Expression::ExprPtr operand);
 
