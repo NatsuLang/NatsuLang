@@ -20,7 +20,7 @@ namespace
 	}
 }
 
-DeclContext* Decl::castToDeclContext(const Decl* decl)
+DeclContext* Decl::CastToDeclContext(const Decl* decl)
 {
 	const auto type = decl->GetType();
 	switch (type)
@@ -39,7 +39,7 @@ DeclContext* Decl::castToDeclContext(const Decl* decl)
 	}
 }
 
-Decl* Decl::castFromDeclContext(const DeclContext* declContext)
+Decl* Decl::CastFromDeclContext(const DeclContext* declContext)
 {
 	const auto type = declContext->GetType();
 	switch (type)

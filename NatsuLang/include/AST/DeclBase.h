@@ -46,8 +46,8 @@ namespace NatsuLang::Declaration
 #include "Basic/DeclDef.h"
 		};
 
-		static DeclContext* castToDeclContext(const Decl* decl);
-		static Decl* castFromDeclContext(const DeclContext* declContext);
+		static DeclContext* CastToDeclContext(const Decl* decl);
+		static Decl* CastFromDeclContext(const DeclContext* declContext);
 
 		DeclType GetType() const noexcept
 		{

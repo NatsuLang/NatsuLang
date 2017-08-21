@@ -207,6 +207,23 @@ Sema::~Sema()
 {
 }
 
+void Sema::PushDeclContext(natRefPointer<Scope> const& scope, Declaration::DeclContext* dc)
+{
+	assert(dc);
+	auto declPtr = Declaration::Decl::CastFromDeclContext(dc)->ForkRef();
+	assert(declPtr->GetContext() == Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()));
+	m_CurrentDeclContext = declPtr;
+	scope->SetEntity(dc);
+}
+
+void Sema::PopDeclContext()
+{
+	assert(m_CurrentDeclContext);
+	const auto parentDc = m_CurrentDeclContext->GetContext();
+	assert(parentDc);
+	m_CurrentDeclContext = Declaration::Decl::CastFromDeclContext(parentDc)->ForkRef();
+}
+
 natRefPointer<NatsuLang::Declaration::Decl> Sema::OnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path)
 {
 	nat_Throw(NatsuLib::NotImplementedException);
@@ -338,7 +355,8 @@ nBool Sema::LookupNestedName(LookupResult& result, natRefPointer<Scope> scope, n
 
 NatsuLang::Type::TypePtr Sema::ActOnTypeName(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
 {
-
+	static_cast<void>(scope);
+	return decl.GetType();
 }
 
 natRefPointer<NatsuLang::Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
@@ -551,9 +569,36 @@ NatsuLang::Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& s
 	return make_ref<Expression::CallExpr>(refFn, argExprs, fnType->GetResultType(), rloc);
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> const& scope, SourceLocation periodLoc, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id)
+NatsuLang::Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation periodLoc, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id)
 {
+	auto baseType = base->GetExprType();
 
+	LookupResult r{ *this, id, {}, LookupNameType::LookupMemberName };
+	const auto record = static_cast<natRefPointer<Type::RecordType>>(baseType);
+	if (record)
+	{
+		const auto recordDecl = record->GetDecl();
+
+		Declaration::DeclContext* dc = recordDecl.Get();
+		if (nns)
+		{
+			dc = nns->GetAsDeclContext(m_Context);
+		}
+
+		// TODO: 对dc的合法性进行检查
+
+		LookupQualifiedName(r, dc);
+
+		if (r.IsEmpty())
+		{
+			// TODO: 找不到这个成员
+		}
+
+		return BuildMemberReferenceExpr(scope, std::move(base), std::move(baseType), periodLoc, nns, r);
+	}
+
+	// TODO: 暂时不支持对RecordType以外的类型进行成员访问操作
+	return nullptr;
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand)
@@ -677,10 +722,10 @@ NatsuLang::Expression::ExprPtr Sema::BuildDeclRefExpr(natRefPointer<Declaration:
 	return make_ref<Expression::DeclRefExpr>(nns, std::move(decl), SourceLocation{}, std::move(type));
 }
 
-NatsuLang::Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr baseExpr, SourceLocation opLoc, natRefPointer<NestedNameSpecifier> const& nns, LookupResult& r)
+NatsuLang::Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr baseExpr, Type::TypePtr baseType, SourceLocation opLoc, natRefPointer<NestedNameSpecifier> const& nns, LookupResult& r)
 {
 	// TODO
-	r.SetBaseObjectType(baseExpr->GetExprType());
+	r.SetBaseObjectType(baseType);
 	nat_Throw(NotImplementedException);
 }
 

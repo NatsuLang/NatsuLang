@@ -10,7 +10,7 @@ using namespace NatsuLang::Token;
 using namespace NatsuLang::Diag;
 
 Parser::Parser(Preprocessor& preprocessor, Semantic::Sema& sema)
-	: m_Preprocessor{ preprocessor }, m_DiagnosticsEngine{ preprocessor.GetDiag() }, m_Sema{ sema }, m_ParenCount{}, m_BracketCount{}, m_BraceCount{}
+	: m_Preprocessor{ preprocessor }, m_Diag{ preprocessor.GetDiag() }, m_Sema{ sema }, m_ParenCount{}, m_BracketCount{}, m_BraceCount{}
 {
 	m_CurrentToken.SetType(TokenType::Eof);
 }
@@ -26,7 +26,7 @@ NatsuLang::Preprocessor& Parser::GetPreprocessor() const noexcept
 
 DiagnosticsEngine& Parser::GetDiagnosticsEngine() const noexcept
 {
-	return m_DiagnosticsEngine;
+	return m_Diag;
 }
 
 nBool Parser::ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls)
@@ -63,11 +63,11 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 		ConsumeToken();
 		break;
 	case TokenType::RightBrace:
-		m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrExtraneousClosingBrace);
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExtraneousClosingBrace);
 		ConsumeBrace();
 		return {};
 	case TokenType::Eof:
-		m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF);
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF);
 		return {};
 	case TokenType::Kw_def:
 		return ParseDeclaration(Declaration::Context::Global);
@@ -102,7 +102,7 @@ nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::Id
 	{
 		if (!m_CurrentToken.Is(TokenType::Identifier))
 		{
-			m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
 			// SkipUntil({ TokenType::Semi });
 			return false;
 		}
@@ -312,8 +312,6 @@ NatsuLang::Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expre
 
 NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr prefix)
 {
-	Expression::ExprPtr result;
-	
 	while (true)
 	{
 		switch (m_CurrentToken.GetType())
@@ -326,7 +324,7 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 
 			if (!m_CurrentToken.Is(TokenType::RightSquare))
 			{
-				m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
 					.AddArgument(TokenType::RightSquare)
 					.AddArgument(m_CurrentToken.GetType());
 
@@ -380,7 +378,7 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 				return ParseExprError();
 			}
 
-
+			prefix = m_Sema.ActOnMemberAccessExpr(m_Sema.GetCurrentScope(), std::move(prefix), periodLoc, nullptr, unqualifiedId);
 
 			break;
 		}
@@ -443,7 +441,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseParenExpression()
 	auto ret = ParseExpression();
 	if (!m_CurrentToken.Is(TokenType::RightParen))
 	{
-		m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
 			.AddArgument(TokenType::RightParen)
 			.AddArgument(m_CurrentToken.GetType());
 	}
@@ -501,7 +499,7 @@ void Parser::ParseDeclarator(Declaration::Declarator& decl)
 	}
 	else if (context != Declaration::Context::Prototype)
 	{
-		m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
 		return;
 	}
 
@@ -576,7 +574,7 @@ void Parser::ParseType(Declaration::Declarator& decl)
 	}
 	case TokenType::Kw_typeof:
 	{
-		// typeof
+		// TODO: typeof
 
 		break;
 	}
@@ -586,7 +584,7 @@ void Parser::ParseType(Declaration::Declarator& decl)
 		if (builtinClass == Type::BuiltinType::Invalid)
 		{
 			// 对于无效类型的处理
-			m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
 				.AddArgument(tokenType);
 			return;
 		}
@@ -615,7 +613,7 @@ void Parser::ParseParenType(Declaration::Declarator& decl)
 			return;
 		}
 		
-		m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrExpectedIdentifier);
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedIdentifier);
 	}
 }
 
@@ -642,12 +640,12 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 		}
 		else
 		{
-			m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrExpectedDeclarator, m_CurrentToken.GetLocation());
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedDeclarator, m_CurrentToken.GetLocation());
 		}
 
 		if (!param.GetType() && !param.GetInitializer())
 		{
-			// 参数的类型和初始化器至少要存在一个
+			// TODO: 报告错误：参数的类型和初始化器至少要存在一个
 		}
 
 		if (m_CurrentToken.Is(TokenType::RightParen))
@@ -658,7 +656,7 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 
 		if (!m_CurrentToken.Is(TokenType::Comma))
 		{
-			m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
 				.AddArgument(TokenType::Comma)
 				.AddArgument(m_CurrentToken.GetType());
 		}
@@ -680,7 +678,7 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 		}
 
 		// 以后会加入元组或匿名类型的支持吗？
-		m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
 			.AddArgument(TokenType::Arrow)
 			.AddArgument(m_CurrentToken.GetType());
 	}
@@ -690,7 +688,7 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 	Declaration::Declarator retType{ Declaration::Context::Prototype };
 	ParseType(retType);
 
-	// 该交给Sema处理了，插入一个function prototype
+	// TODO: 该交给Sema处理了，插入一个function prototype
 }
 
 void Parser::ParseArrayType(Declaration::Declarator& decl)
@@ -702,7 +700,7 @@ void Parser::ParseArrayType(Declaration::Declarator& decl)
 		decl.SetType(m_Sema.GetASTContext().GetArrayType(decl.GetType(), std::move(countExpr)));
 		if (!m_CurrentToken.Is(TokenType::RightSquare))
 		{
-			m_DiagnosticsEngine.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
 				.AddArgument(TokenType::RightSquare)
 				.AddArgument(m_CurrentToken.GetType());
 		}

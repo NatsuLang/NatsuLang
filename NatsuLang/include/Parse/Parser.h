@@ -246,7 +246,7 @@ namespace NatsuLang::Syntax
 
 	private:
 		Preprocessor& m_Preprocessor;
-		Diag::DiagnosticsEngine& m_DiagnosticsEngine;
+		Diag::DiagnosticsEngine& m_Diag;
 		Semantic::Sema& m_Sema;
 
 		Token::Token m_CurrentToken;

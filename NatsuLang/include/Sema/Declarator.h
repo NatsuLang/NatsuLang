@@ -47,7 +47,7 @@ namespace NatsuLang::Declaration
 	{
 	public:
 		explicit Declarator(Context context)
-			: m_Context{ context }, m_TypeSpecifier{}
+			: m_Context{ context }
 		{
 		}
 
@@ -81,16 +81,6 @@ namespace NatsuLang::Declaration
 			m_Context = context;
 		}
 
-		Specifier::TypeSpecifier GetTypeSpecifier() const noexcept
-		{
-			return m_TypeSpecifier;
-		}
-
-		void SetTypeSpecifier(Specifier::TypeSpecifier value) noexcept
-		{
-			m_TypeSpecifier = value;
-		}
-
 		Type::TypePtr GetType() const noexcept
 		{
 			return m_Type;
@@ -120,7 +110,6 @@ namespace NatsuLang::Declaration
 		SourceRange m_Range;
 		Context m_Context;
 		Identifier::IdPtr m_Identifier;
-		Specifier::TypeSpecifier m_TypeSpecifier;
 		Type::TypePtr m_Type;
 		Statement::StmtPtr m_Initializer;
 	};
