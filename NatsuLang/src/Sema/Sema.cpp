@@ -259,6 +259,7 @@ NatsuLang::Type::TypePtr Sema::GetTypeName(natRefPointer<Identifier::IdentifierI
 	{
 	default:
 		assert(!"Invalid result type.");
+		[[fallthrough]];
 	case LookupResult::LookupResultType::NotFound:
 	case LookupResult::LookupResultType::FoundOverloaded:
 	case LookupResult::LookupResultType::Ambiguous:
@@ -327,6 +328,7 @@ nBool Sema::LookupQualifiedName(LookupResult& result, Declaration::DeclContext* 
 		break;
 	default:
 		assert(!"Invalid lookupType");
+		[[fallthrough]];
 	case LookupNameType::LookupOrdinaryName:
 	case LookupNameType::LookupAnyName:
 		break;
@@ -479,6 +481,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnStringLiteral(Token::Token const& toke
 
 NatsuLang::Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr)
 {
+	// TODO
 	if (expr)
 	{
 
@@ -507,8 +510,24 @@ NatsuLang::Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& sco
 
 NatsuLang::Expression::ExprPtr Sema::ActOnThis(SourceLocation loc)
 {
-	// TODO
-	nat_Throw(NotImplementedException);
+	assert(m_CurrentDeclContext);
+	auto dc = Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get());
+	while (dc->GetType() == Declaration::Decl::Enum)
+	{
+		dc = Declaration::Decl::CastFromDeclContext(dc)->GetContext();
+	}
+
+	auto decl = Declaration::Decl::CastFromDeclContext(dc)->ForkRef();
+
+	if (auto methodDecl = static_cast<natRefPointer<Declaration::MethodDecl>>(decl))
+	{
+		auto recordDecl = Declaration::Decl::CastFromDeclContext(methodDecl->GetContext())->ForkRef<Declaration::RecordDecl>();
+		assert(recordDecl);
+		return make_ref<Expression::ThisExpr>(loc, recordDecl->GetTypeForDecl(), false);
+	}
+
+	// TODO: 报告当前上下文不允许使用 this 的错误
+	return nullptr;
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnAsTypeExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr exprToCast, Type::TypePtr type, SourceLocation loc)
@@ -724,9 +743,57 @@ NatsuLang::Expression::ExprPtr Sema::BuildDeclRefExpr(natRefPointer<Declaration:
 
 NatsuLang::Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr baseExpr, Type::TypePtr baseType, SourceLocation opLoc, natRefPointer<NestedNameSpecifier> const& nns, LookupResult& r)
 {
-	// TODO
 	r.SetBaseObjectType(baseType);
-	nat_Throw(NotImplementedException);
+
+	switch (r.GetResultType())
+	{
+	case LookupResult::LookupResultType::Found:
+	{
+		assert(r.GetDeclSize() == 1);
+		auto decl = r.GetDecls().first();
+		const auto type = decl->GetType();
+
+		if (!baseExpr)
+		{
+			// 隐式成员访问
+
+			if (type != Declaration::Decl::Field && type != Declaration::Decl::Method)
+			{
+				// 访问的是静态成员
+				return BuildDeclarationNameExpr(nns, r.GetLookupId(), std::move(decl));
+			}
+
+			baseExpr = make_ref<Expression::ThisExpr>(SourceLocation{}, r.GetBaseObjectType(), true);
+		}
+
+		if (auto field = static_cast<natRefPointer<Declaration::FieldDecl>>(decl))
+		{
+			return BuildFieldReferenceExpr(std::move(baseExpr), opLoc, nns, std::move(field), r.GetLookupId());
+		}
+
+		if (auto var = static_cast<natRefPointer<Declaration::VarDecl>>(decl))
+		{
+			return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(var), r.GetLookupId(), var->GetValueType());
+		}
+
+		if (auto method = static_cast<natRefPointer<Declaration::MethodDecl>>(decl))
+		{
+			return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(method), r.GetLookupId(), method->GetValueType());
+		}
+
+		return nullptr;
+	}
+	case LookupResult::LookupResultType::FoundOverloaded:
+		// TODO: 处理重载的情况
+		nat_Throw(NotImplementedException);
+	default:
+		assert(!"Invalid result type.");
+		[[fall_through]];
+	case LookupResult::LookupResultType::NotFound:
+	case LookupResult::LookupResultType::Ambiguous:
+		// TODO: 报告错误
+		return nullptr;
+	}
 }
 
 NatsuLang::Expression::ExprPtr Sema::BuildFieldReferenceExpr(Expression::ExprPtr baseExpr, SourceLocation opLoc, natRefPointer<NestedNameSpecifier> const& nns, natRefPointer<Declaration::FieldDecl> field, Identifier::IdPtr id)
@@ -792,6 +859,7 @@ NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr operand, T
 			return Expression::CastType::Invalid;
 		case Type::Type::Record:
 			// TODO: 添加用户定义转换
+			return Expression::CastType::Invalid;
 		case Type::Type::Auto:
 		case Type::Type::Array:
 		case Type::Type::Function:

@@ -710,7 +710,7 @@ void Parser::ParseArrayType(Declaration::Declarator& decl)
 
 // initializer:
 //	= expression
-//	{ statement }
+//	compound-statement
 void Parser::ParseInitializer(Declaration::Declarator& decl)
 {
 	if (m_CurrentToken.Is(TokenType::Equal))
@@ -729,6 +729,8 @@ void Parser::ParseInitializer(Declaration::Declarator& decl)
 
 		// TODO: 解析语句块作为函数体
 	}
+
+	// 不是 initializer，返回
 }
 
 nBool Parser::SkipUntil(std::initializer_list<Token::TokenType> list, nBool dontConsume)
