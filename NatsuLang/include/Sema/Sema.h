@@ -137,6 +137,10 @@ namespace NatsuLang::Semantic
 
 		Expression::ExprPtr CreateBuiltinUnaryOp(SourceLocation opLoc, Expression::UnaryOperationType opCode, Expression::ExprPtr operand);
 
+		Type::TypePtr UsualArithmeticConversions(Expression::ExprPtr& leftOperand, Expression::ExprPtr& rightOperand);
+
+		Expression::ExprPtr ImpCastExprToType(Expression::ExprPtr expr, Type::TypePtr type, Expression::CastType castType);
+
 	private:
 		Preprocessor& m_Preprocessor;
 		ASTContext& m_Context;
@@ -148,6 +152,8 @@ namespace NatsuLang::Semantic
 		Declaration::DeclPtr m_CurrentDeclContext;
 
 		Expression::CastType getCastType(Expression::ExprPtr operand, Type::TypePtr toType);
+
+		Type::TypePtr handleFloatConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType);
 	};
 
 	class LookupResult

@@ -654,9 +654,9 @@ NatsuLang::Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Ex
 	switch (binOpType)
 	{
 	case Expression::BinaryOperationType::Invalid:
-		break;
+		// TODO: 报告错误
+		return nullptr;
 	case Expression::BinaryOperationType::Mul:
-		break;
 	case Expression::BinaryOperationType::Div:
 		break;
 	case Expression::BinaryOperationType::Mod:
@@ -788,7 +788,7 @@ NatsuLang::Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scop
 		nat_Throw(NotImplementedException);
 	default:
 		assert(!"Invalid result type.");
-		[[fall_through]];
+		[[fallthrough]];
 	case LookupResult::LookupResultType::NotFound:
 	case LookupResult::LookupResultType::Ambiguous:
 		// TODO: 报告错误
@@ -830,6 +830,46 @@ NatsuLang::Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, 
 	return make_ref<Expression::UnaryOperator>(std::move(operand), opCode, std::move(resultType), opLoc);
 }
 
+NatsuLang::Type::TypePtr Sema::UsualArithmeticConversions(Expression::ExprPtr& leftOperand, Expression::ExprPtr& rightOperand)
+{
+	// TODO: 是否需要对左右操作数进行整数提升？
+
+	auto leftType = static_cast<natRefPointer<Type::BuiltinType>>(leftOperand->GetExprType()), rightType = static_cast<natRefPointer<Type::BuiltinType>>(rightOperand->GetExprType());
+
+	if (leftType == rightType)
+	{
+		return leftType;
+	}
+
+	if (leftType->IsFloatingType() || rightType->IsFloatingType())
+	{
+		return handleFloatConversion(leftOperand, leftType, rightOperand, rightType);
+	}
+
+	// TODO: 完成一般算数转换
+	nat_Throw(NotImplementedException);
+}
+
+NatsuLang::Expression::ExprPtr Sema::ImpCastExprToType(Expression::ExprPtr expr, Type::TypePtr type, Expression::CastType castType)
+{
+	auto exprType = expr->GetExprType();
+	if (exprType == type)
+	{
+		return std::move(expr);
+	}
+
+	if (auto impCastExpr = static_cast<natRefPointer<Expression::ImplicitCastExpr>>(expr))
+	{
+		if (impCastExpr->GetCastType() == castType)
+		{
+			impCastExpr->SetExprType(std::move(type));
+			return std::move(expr);
+		}
+	}
+
+	return make_ref<Expression::ImplicitCastExpr>(std::move(type), castType, std::move(expr));
+}
+
 NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr operand, Type::TypePtr toType)
 {
 	toType = getUnderlyingType(toType);
@@ -869,6 +909,23 @@ NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr operand, T
 			return Expression::CastType::Invalid;
 		}
 	}
+
+	// TODO
+	nat_Throw(NotImplementedException);
+}
+
+NatsuLang::Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType)
+{
+	auto builtInLHSType = static_cast<natRefPointer<Type::BuiltinType>>(leftOperandType), builtinRHSType = static_cast<natRefPointer<Type::BuiltinType>>(rightOperandType);
+
+	if (!builtInLHSType || !builtinRHSType)
+	{
+		// TODO: 报告错误
+		return nullptr;
+	}
+
+	// TODO
+	nat_Throw(NotImplementedException);
 }
 
 LookupResult::LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType)
