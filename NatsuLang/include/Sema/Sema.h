@@ -153,6 +153,7 @@ namespace NatsuLang::Semantic
 
 		Expression::CastType getCastType(Expression::ExprPtr operand, Type::TypePtr toType);
 
+		Type::TypePtr handleIntegerConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType);
 		Type::TypePtr handleFloatConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType);
 	};
 

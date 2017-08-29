@@ -843,11 +843,10 @@ NatsuLang::Type::TypePtr Sema::UsualArithmeticConversions(Expression::ExprPtr& l
 
 	if (leftType->IsFloatingType() || rightType->IsFloatingType())
 	{
-		return handleFloatConversion(leftOperand, leftType, rightOperand, rightType);
+		return handleFloatConversion(leftOperand, std::move(leftType), rightOperand, std::move(rightType));
 	}
 
-	// TODO: 完成一般算数转换
-	nat_Throw(NotImplementedException);
+	return handleIntegerConversion(leftOperand, std::move(leftType), rightOperand, std::move(rightType));
 }
 
 NatsuLang::Expression::ExprPtr Sema::ImpCastExprToType(Expression::ExprPtr expr, Type::TypePtr type, Expression::CastType castType)
@@ -914,18 +913,101 @@ NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr operand, T
 	nat_Throw(NotImplementedException);
 }
 
-NatsuLang::Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType)
+NatsuLang::Type::TypePtr Sema::handleIntegerConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType)
 {
-	auto builtInLHSType = static_cast<natRefPointer<Type::BuiltinType>>(leftOperandType), builtinRHSType = static_cast<natRefPointer<Type::BuiltinType>>(rightOperandType);
+	auto builtinLHSType = static_cast<natRefPointer<Type::BuiltinType>>(leftOperandType), builtinRHSType = static_cast<natRefPointer<Type::BuiltinType>>(rightOperandType);
 
-	if (!builtInLHSType || !builtinRHSType)
+	if (!builtinLHSType || !builtinRHSType)
 	{
 		// TODO: 报告错误
 		return nullptr;
 	}
 
-	// TODO
-	nat_Throw(NotImplementedException);
+	if (builtinLHSType == builtinRHSType)
+	{
+		// 无需转换
+		return std::move(leftOperandType);
+	}
+
+	nInt compareResult;
+	if (!builtinLHSType->CompareRankTo(builtinRHSType, compareResult))
+	{
+		// TODO: 报告错误
+		return nullptr;
+	}
+
+	if (!compareResult)
+	{
+		// 已经进行了相等性比较，只可能是其一为有符号，而另一为无符号
+		if (builtinLHSType->IsSigned())
+		{
+			leftOperand = ImpCastExprToType(std::move(leftOperand), rightOperandType, Expression::CastType::IntegralCast);
+			return std::move(rightOperandType);
+		}
+
+		rightOperand = ImpCastExprToType(std::move(rightOperand), leftOperandType, Expression::CastType::IntegralCast);
+		return std::move(leftOperandType);
+	}
+
+	if (compareResult > 0)
+	{
+		rightOperand = ImpCastExprToType(std::move(rightOperand), leftOperandType, Expression::CastType::IntegralCast);
+		return std::move(leftOperandType);
+	}
+
+	leftOperand = ImpCastExprToType(std::move(leftOperand), rightOperandType, Expression::CastType::IntegralCast);
+	return std::move(rightOperandType);
+}
+
+NatsuLang::Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType)
+{
+	auto builtinLHSType = static_cast<natRefPointer<Type::BuiltinType>>(leftOperandType), builtinRHSType = static_cast<natRefPointer<Type::BuiltinType>>(rightOperandType);
+
+	if (!builtinLHSType || !builtinRHSType)
+	{
+		// TODO: 报告错误
+		return nullptr;
+	}
+
+	const auto lhsFloat = builtinLHSType->IsFloatingType(), rhsFloat = builtinRHSType->IsFloatingType();
+
+	if (lhsFloat && rhsFloat)
+	{
+		nInt compareResult;
+		if (!builtinLHSType->CompareRankTo(builtinRHSType, compareResult))
+		{
+			// TODO: 报告错误
+			return nullptr;
+		}
+
+		if (!compareResult)
+		{
+			// 无需转换
+			return builtinLHSType;
+		}
+
+		natRefPointer<Type::BuiltinType>* needToConvert;
+		Type::BuiltinType::BuiltinClass convertToType;
+
+		if (compareResult > 0)
+		{
+			rightOperand = ImpCastExprToType(std::move(rightOperand), leftOperandType, Expression::CastType::FloatingCast);
+			return std::move(leftOperandType);
+		}
+
+		leftOperand = ImpCastExprToType(std::move(leftOperand), rightOperandType, Expression::CastType::FloatingCast);
+		return std::move(rightOperandType);
+	}
+
+	if (lhsFloat)
+	{
+		rightOperand = ImpCastExprToType(std::move(rightOperand), leftOperandType, Expression::CastType::IntegralToFloating);
+		return std::move(leftOperandType);
+	}
+
+	assert(rhsFloat);
+	leftOperand = ImpCastExprToType(std::move(leftOperand), rightOperandType, Expression::CastType::IntegralToFloating);
+	return std::move(rightOperandType);
 }
 
 LookupResult::LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType)

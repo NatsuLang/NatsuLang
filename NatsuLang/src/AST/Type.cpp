@@ -34,6 +34,22 @@ namespace
 		}
 	}
 
+	constexpr nBool IsBuiltinTypeSigned(BuiltinType::BuiltinClass builtinClass) noexcept
+	{
+		switch (builtinClass)
+		{
+#define BUILTIN_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return false;
+#define SIGNED_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return true;
+#define UNSIGNED_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return false;
+#define FLOATING_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return false;
+#define PLACEHOLDER_TYPE(Id, Name) case BuiltinType::BuiltinClass::Id: return false;
+#include "Basic/BuiltinTypesDef.h"
+		default:
+			assert(!"Invalid BuiltinClass.");
+			return false;
+		}
+	}
+
 	constexpr nBool IsBuiltinTypeFloating(BuiltinType::BuiltinClass builtinClass) noexcept
 	{
 		switch (builtinClass)
@@ -47,6 +63,44 @@ namespace
 		default:
 			assert(!"Invalid BuiltinClass.");
 			return false;
+		}
+	}
+
+	constexpr BuiltinType::BuiltinClass MakeBuiltinTypeUnsigned(BuiltinType::BuiltinClass builtinClass) noexcept
+	{
+		switch (builtinClass)
+		{
+		case BuiltinType::Short:
+			return BuiltinType::UShort;
+		case BuiltinType::Int:
+			return BuiltinType::UInt;
+		case BuiltinType::Long:
+			return BuiltinType::ULong;
+		case BuiltinType::LongLong:
+			return BuiltinType::ULongLong;
+		case BuiltinType::Int128:
+			return BuiltinType::UInt128;
+		default:
+			return builtinClass;
+		}
+	}
+
+	constexpr BuiltinType::BuiltinClass MakeBuiltinTypeSigned(BuiltinType::BuiltinClass builtinClass) noexcept
+	{
+		switch (builtinClass)
+		{
+		case BuiltinType::UShort:
+			return BuiltinType::Short;
+		case BuiltinType::UInt:
+			return BuiltinType::Int;
+		case BuiltinType::ULong:
+			return BuiltinType::Long;
+		case BuiltinType::ULongLong:
+			return BuiltinType::LongLong;
+		case BuiltinType::UInt128:
+			return BuiltinType::Int128;
+		default:
+			return builtinClass;
 		}
 	}
 }
@@ -117,6 +171,48 @@ nBool BuiltinType::IsIntegerBuiltinClass(BuiltinClass builtinClass) noexcept
 nBool BuiltinType::IsFloatingBuiltinClass(BuiltinClass builtinClass) noexcept
 {
 	return IsBuiltinTypeFloating(builtinClass);
+}
+
+nBool BuiltinType::IsSignedBuiltinClass(BuiltinClass builtinClass) noexcept
+{
+	return IsBuiltinTypeSigned(builtinClass);
+}
+
+BuiltinType::BuiltinClass BuiltinType::MakeSignedBuiltinClass(BuiltinClass builtinClass) noexcept
+{
+	return MakeBuiltinTypeSigned(builtinClass);
+}
+
+BuiltinType::BuiltinClass BuiltinType::MakeUnsignedBuiltinClass(BuiltinClass builtinClass) noexcept
+{
+	return MakeBuiltinTypeUnsigned(builtinClass);
+}
+
+nBool BuiltinType::CompareRankTo(natRefPointer<BuiltinType> const& other, nInt& result) const noexcept
+{
+	if (IsFloatingType())
+	{
+		if (!other->IsFloatingType())
+		{
+			return false;
+		}
+
+		result = m_BuiltinClass - other->GetBuiltinClass();
+		return true;
+	}
+
+	if (IsIntegerType())
+	{
+		if (!other->IsIntegerType())
+		{
+			return false;
+		}
+
+		result = MakeBuiltinTypeSigned(m_BuiltinClass) - MakeBuiltinTypeSigned(other->GetBuiltinClass());
+		return true;
+	}
+	
+	return false;
 }
 
 ParenType::~ParenType()

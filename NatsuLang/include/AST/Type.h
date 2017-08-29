@@ -23,7 +23,7 @@ namespace NatsuLang::Type
 		enum BuiltinClass
 		{
 			Invalid,
-#define BUILTIN_TYPE(Id, SingletonId, Name) Id,
+#define BUILTIN_TYPE(Id, Name) Id,
 #define LAST_BUILTIN_TYPE(Id) LastKind = Id
 #include "Basic/BuiltinTypesDef.h"
 		};
@@ -49,6 +49,9 @@ namespace NatsuLang::Type
 		static BuiltinClass GetBuiltinClassFromTokenType(Token::TokenType type);
 		static nBool IsIntegerBuiltinClass(BuiltinClass builtinClass) noexcept;
 		static nBool IsFloatingBuiltinClass(BuiltinClass builtinClass) noexcept;
+		static nBool IsSignedBuiltinClass(BuiltinClass builtinClass) noexcept;
+		static BuiltinClass MakeSignedBuiltinClass(BuiltinClass builtinClass) noexcept;
+		static BuiltinClass MakeUnsignedBuiltinClass(BuiltinClass builtinClass) noexcept;
 
 		nBool IsIntegerType() const noexcept
 		{
@@ -59,6 +62,17 @@ namespace NatsuLang::Type
 		{
 			return IsFloatingBuiltinClass(m_BuiltinClass);
 		}
+
+		nBool IsSigned() const noexcept
+		{
+			return IsSignedBuiltinClass(m_BuiltinClass);
+		}
+
+		///	@brief	比较两个 BuiltinType 的等级
+		///	@param	other	要比较的 BuiltinType
+		///	@param	result	比较结果，若等级大于要比较的 BuiltinType 则大于0，若小于则小于0，若等于则等于0，具体值无特殊意义
+		///	@return	比较是否有意义
+		nBool CompareRankTo(NatsuLib::natRefPointer<BuiltinType> const& other, nInt& result) const noexcept;
 
 	private:
 		const BuiltinClass m_BuiltinClass;
