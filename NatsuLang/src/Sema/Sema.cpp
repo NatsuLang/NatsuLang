@@ -654,67 +654,43 @@ NatsuLang::Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Ex
 	switch (binOpType)
 	{
 	case Expression::BinaryOperationType::Invalid:
+	default:
 		// TODO: ±¨¸æ´íÎó
 		return nullptr;
 	case Expression::BinaryOperationType::Mul:
 	case Expression::BinaryOperationType::Div:
-		break;
 	case Expression::BinaryOperationType::Mod:
-		break;
 	case Expression::BinaryOperationType::Add:
-		break;
 	case Expression::BinaryOperationType::Sub:
-		break;
 	case Expression::BinaryOperationType::Shl:
-		break;
 	case Expression::BinaryOperationType::Shr:
-		break;
 	case Expression::BinaryOperationType::LT:
-		break;
 	case Expression::BinaryOperationType::GT:
-		break;
 	case Expression::BinaryOperationType::LE:
-		break;
 	case Expression::BinaryOperationType::GE:
-		break;
 	case Expression::BinaryOperationType::EQ:
-		break;
 	case Expression::BinaryOperationType::NE:
-		break;
 	case Expression::BinaryOperationType::And:
-		break;
 	case Expression::BinaryOperationType::Xor:
-		break;
 	case Expression::BinaryOperationType::Or:
-		break;
 	case Expression::BinaryOperationType::LAnd:
-		break;
 	case Expression::BinaryOperationType::LOr:
-		break;
+		resultType = UsualArithmeticConversions(leftOperand, rightOperand);
+		return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType, std::move(resultType), loc);
 	case Expression::BinaryOperationType::Assign:
-		break;
 	case Expression::BinaryOperationType::MulAssign:
-		break;
 	case Expression::BinaryOperationType::DivAssign:
-		break;
 	case Expression::BinaryOperationType::RemAssign:
-		break;
 	case Expression::BinaryOperationType::AddAssign:
-		break;
 	case Expression::BinaryOperationType::SubAssign:
-		break;
 	case Expression::BinaryOperationType::ShlAssign:
-		break;
 	case Expression::BinaryOperationType::ShrAssign:
-		break;
 	case Expression::BinaryOperationType::AndAssign:
-		break;
 	case Expression::BinaryOperationType::XorAssign:
-		break;
 	case Expression::BinaryOperationType::OrAssign:
-		break;
-	default:
-		break;
+		resultType = leftOperand->GetExprType();
+		// TODO
+		nat_Throw(NotImplementedException);
 	}
 }
 

@@ -444,8 +444,29 @@ namespace
 
 	nBool Evaluate(natRefPointer<Expr> const& expr, NatsuLang::ASTContext& context, Expr::EvalResult& result)
 	{
-		// TODO
-		nat_Throw(NotImplementedException);
+		const auto type = expr->GetExprType();
+
+		if (const auto builtinType = static_cast<natRefPointer<NatsuLang::Type::BuiltinType>>(type))
+		{
+			if (builtinType->IsIntegerType())
+			{
+				return EvaluateInteger(expr, context, result);
+			}
+
+			if (builtinType->IsFloatingType())
+			{
+				return EvaluateFloat(expr, context, result);
+			}
+
+			return false;
+		}
+
+		if (type->GetType() == NatsuLang::Type::Type::Enum)
+		{
+			return EvaluateInteger(expr, context, result);
+		}
+
+		return false;
 	}
 
 	nBool EvaluateInteger(natRefPointer<Expr> const& expr, NatsuLang::ASTContext& context, Expr::EvalResult& result)
