@@ -595,37 +595,12 @@ namespace NatsuLang::Expression
 		: public BinaryOperator
 	{
 	public:
-		CompoundAssignOperator(ExprPtr leftOperand, ExprPtr rightOperand, BinaryOperationType opcode, Type::TypePtr type, SourceLocation loc,
-			Type::TypePtr leftOperandType, Type::TypePtr compoundType)
-			: BinaryOperator{ std::move(leftOperand), std::move(rightOperand), opcode, std::move(type), loc },
-			m_LeftOperandType{ std::move(leftOperandType) }, m_CompoundType{ std::move(compoundType) }
+		CompoundAssignOperator(ExprPtr leftOperand, ExprPtr rightOperand, BinaryOperationType opcode, Type::TypePtr type, SourceLocation loc)
+			: BinaryOperator{ std::move(leftOperand), std::move(rightOperand), opcode, std::move(type), loc }
 		{
 		}
 
 		~CompoundAssignOperator();
-
-		Type::TypePtr GetLeftOperandType() const noexcept
-		{
-			return m_LeftOperandType;
-		}
-
-		void SetLeftOperandType(Type::TypePtr value) noexcept
-		{
-			m_LeftOperandType = std::move(value);
-		}
-
-		Type::TypePtr GetCompoundType() const noexcept
-		{
-			return m_CompoundType;
-		}
-
-		void SetCompoundType(Type::TypePtr value) noexcept
-		{
-			m_CompoundType = std::move(value);
-		}
-
-	private:
-		Type::TypePtr m_LeftOperandType, m_CompoundType;
 	};
 
 	class ConditionalOperator

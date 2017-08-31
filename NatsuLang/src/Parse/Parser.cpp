@@ -137,6 +137,40 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseDeclaration(Declaratio
 
 NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 {
+	Statement::StmtPtr result;
+	const auto tokenType = m_CurrentToken.GetType();
+
+	// TODO: 完成根据 tokenType 判断语句类型的过程
+	switch (tokenType)
+	{
+	case TokenType::Identifier:
+		nat_Throw(NotImplementedException);
+	case TokenType::LeftBrace:
+		break;
+	case TokenType::Semi:
+		break;
+	case TokenType::Kw_if:
+		break;
+	case TokenType::Kw_while:
+		break;
+	case TokenType::Kw_for:
+		break;
+	case TokenType::Kw_goto:
+		break;
+	case TokenType::Kw_continue:
+		break;
+	case TokenType::Kw_break:
+		break;
+	case TokenType::Kw_return:
+		break;
+	case TokenType::Kw_try:
+		break;
+	case TokenType::Kw_catch:
+		break;
+	default:
+		break;
+	}
+
 	// TODO
 	nat_Throw(NotImplementedException);
 }
@@ -177,7 +211,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 	{
 		auto id = m_CurrentToken.GetIdentifierInfo();
 		ConsumeToken();
-		result = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), nullptr, id, m_CurrentToken.Is(TokenType::LeftParen));
+		result = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), nullptr, std::move(id), m_CurrentToken.Is(TokenType::LeftParen));
 		break;
 	}
 	case TokenType::PlusPlus:
@@ -187,7 +221,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 	case TokenType::Exclaim:
 	case TokenType::Tilde:
 	{
-		auto loc = m_CurrentToken.GetLocation();
+		const auto loc = m_CurrentToken.GetLocation();
 		ConsumeToken();
 		result = ParseCastExpression();
 		if (!result)
@@ -689,6 +723,7 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 	ParseType(retType);
 
 	// TODO: 该交给Sema处理了，插入一个function prototype
+	nat_Throw(NotImplementedException);
 }
 
 void Parser::ParseArrayType(Declaration::Declarator& decl)

@@ -486,6 +486,8 @@ NatsuLang::Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scop
 	{
 
 	}
+
+	nat_Throw(NotImplementedException);
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen)
@@ -517,9 +519,9 @@ NatsuLang::Expression::ExprPtr Sema::ActOnThis(SourceLocation loc)
 		dc = Declaration::Decl::CastFromDeclContext(dc)->GetContext();
 	}
 
-	auto decl = Declaration::Decl::CastFromDeclContext(dc)->ForkRef();
+	const auto decl = Declaration::Decl::CastFromDeclContext(dc)->ForkRef();
 
-	if (auto methodDecl = static_cast<natRefPointer<Declaration::MethodDecl>>(decl))
+	if (const auto methodDecl = static_cast<natRefPointer<Declaration::MethodDecl>>(decl))
 	{
 		auto recordDecl = Declaration::Decl::CastFromDeclContext(methodDecl->GetContext())->ForkRef<Declaration::RecordDecl>();
 		assert(recordDecl);
@@ -550,7 +552,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnArraySubscriptExpr(natRefPointer<Scope
 	}
 
 	// TODO: 当前仅允许下标为内建整数类型
-	auto indexType = static_cast<natRefPointer<Type::BuiltinType>>(index->GetExprType());
+	const auto indexType = static_cast<natRefPointer<Type::BuiltinType>>(index->GetExprType());
 	if (!indexType || !indexType->IsIntegerType())
 	{
 		// TODO: 报告下标操作数不具有内建整数类型
@@ -648,9 +650,6 @@ NatsuLang::Expression::ExprPtr Sema::ActOnBinaryOp(natRefPointer<Scope> const& s
 
 NatsuLang::Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::BinaryOperationType binOpType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand)
 {
-	Type::TypePtr resultType;
-
-	// TODO: 完成从 binOpType 获得 resultType 的部分
 	switch (binOpType)
 	{
 	case Expression::BinaryOperationType::Invalid:
@@ -675,8 +674,10 @@ NatsuLang::Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Ex
 	case Expression::BinaryOperationType::Or:
 	case Expression::BinaryOperationType::LAnd:
 	case Expression::BinaryOperationType::LOr:
-		resultType = UsualArithmeticConversions(leftOperand, rightOperand);
+	{
+		auto resultType = UsualArithmeticConversions(leftOperand, rightOperand);
 		return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType, std::move(resultType), loc);
+	}
 	case Expression::BinaryOperationType::Assign:
 	case Expression::BinaryOperationType::MulAssign:
 	case Expression::BinaryOperationType::DivAssign:
@@ -688,9 +689,22 @@ NatsuLang::Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Ex
 	case Expression::BinaryOperationType::AndAssign:
 	case Expression::BinaryOperationType::XorAssign:
 	case Expression::BinaryOperationType::OrAssign:
-		resultType = leftOperand->GetExprType();
-		// TODO
-		nat_Throw(NotImplementedException);
+		const auto builtinLHSType = static_cast<natRefPointer<Type::BuiltinType>>(leftOperand->GetExprType()),
+			builtinRHSType = static_cast<natRefPointer<Type::BuiltinType>>(rightOperand->GetExprType());
+
+		Expression::CastType castType;
+		if (builtinLHSType->IsIntegerType())
+		{
+			castType = builtinRHSType->IsIntegerType() ?
+				Expression::CastType::IntegralCast : Expression::CastType::FloatingToIntegral;
+		}
+		else
+		{
+			castType = builtinRHSType->IsIntegerType() ?
+				Expression::CastType::IntegralToFloating : Expression::CastType::FloatingCast;
+		}
+
+		return make_ref<Expression::CompoundAssignOperator>(std::move(leftOperand), ImpCastExprToType(std::move(rightOperand), rightOperand->GetExprType(), castType), binOpType, leftOperand->GetExprType(), loc);
 	}
 }
 
@@ -827,7 +841,7 @@ NatsuLang::Type::TypePtr Sema::UsualArithmeticConversions(Expression::ExprPtr& l
 
 NatsuLang::Expression::ExprPtr Sema::ImpCastExprToType(Expression::ExprPtr expr, Type::TypePtr type, Expression::CastType castType)
 {
-	auto exprType = expr->GetExprType();
+	const auto exprType = expr->GetExprType();
 	if (exprType == type)
 	{
 		return std::move(expr);
@@ -856,7 +870,7 @@ NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr operand, T
 	// TODO
 	if (fromType->GetType() == Type::Type::Builtin)
 	{
-		auto builtinFromType = static_cast<natRefPointer<Type::BuiltinType>>(fromType);
+		const auto builtinFromType = static_cast<natRefPointer<Type::BuiltinType>>(fromType);
 
 		switch (toType->GetType())
 		{
@@ -891,7 +905,7 @@ NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr operand, T
 
 NatsuLang::Type::TypePtr Sema::handleIntegerConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType)
 {
-	auto builtinLHSType = static_cast<natRefPointer<Type::BuiltinType>>(leftOperandType), builtinRHSType = static_cast<natRefPointer<Type::BuiltinType>>(rightOperandType);
+	const auto builtinLHSType = static_cast<natRefPointer<Type::BuiltinType>>(leftOperandType), builtinRHSType = static_cast<natRefPointer<Type::BuiltinType>>(rightOperandType);
 
 	if (!builtinLHSType || !builtinRHSType)
 	{
