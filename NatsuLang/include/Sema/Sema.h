@@ -98,6 +98,8 @@ namespace NatsuLang::Semantic
 		void PushDeclContext(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclContext* dc);
 		void PopDeclContext();
 
+		void PushOnScopeChains(NatsuLib::natRefPointer<Declaration::NamedDecl> decl, NatsuLib::natRefPointer<Scope> const& scope, nBool addToContext);
+
 		NatsuLib::natRefPointer<Declaration::Decl> OnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path);
 
 		Type::TypePtr GetTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, NatsuLib::natRefPointer<Scope> scope, Type::TypePtr const& objectType);
@@ -106,9 +108,15 @@ namespace NatsuLang::Semantic
 		nBool LookupQualifiedName(LookupResult& result, Declaration::DeclContext* context) const;
 		nBool LookupNestedName(LookupResult& result, NatsuLib::natRefPointer<Scope> scope, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
 
+		NatsuLib::natRefPointer<Declaration::LabelDecl> LookupOrCreateLabel(Identifier::IdPtr id, SourceLocation loc);
+
 		Type::TypePtr ActOnTypeName(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
 		NatsuLib::natRefPointer<Declaration::ParmVarDecl> ActOnParamDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
 		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
+
+		Statement::StmtPtr ActOnNullStmt(SourceLocation loc = {});
+		Statement::StmtPtr ActOnDeclStmt(std::vector<Declaration::DeclPtr> decls, SourceLocation start, SourceLocation end);
+		Statement::StmtPtr ActOnLabelStmt(SourceLocation labelLoc, NatsuLib::natRefPointer<Declaration::LabelDecl> labelDecl, SourceLocation colonLoc, Statement::StmtPtr subStmt);
 
 		Expression::ExprPtr ActOnBooleanLiteral(Token::Token const& token) const;
 		Expression::ExprPtr ActOnNumericLiteral(Token::Token const& token) const;

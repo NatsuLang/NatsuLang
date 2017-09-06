@@ -224,6 +224,18 @@ void Sema::PopDeclContext()
 	m_CurrentDeclContext = Declaration::Decl::CastFromDeclContext(parentDc)->ForkRef();
 }
 
+void Sema::PushOnScopeChains(natRefPointer<Declaration::NamedDecl> decl, natRefPointer<Scope> const& scope, nBool addToContext)
+{
+	// 处理覆盖声明的情况
+
+	if (addToContext)
+	{
+		Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get())->AddDecl(decl);
+	}
+
+	scope->AddDecl(decl);
+}
+
 natRefPointer<NatsuLang::Declaration::Decl> Sema::OnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path)
 {
 	nat_Throw(NatsuLib::NotImplementedException);
@@ -348,11 +360,41 @@ nBool Sema::LookupNestedName(LookupResult& result, natRefPointer<Scope> scope, n
 {
 	if (nns)
 	{
-		auto dc = nns->GetAsDeclContext(m_Context);
+		const auto dc = nns->GetAsDeclContext(m_Context);
 		return LookupQualifiedName(result, dc);
 	}
 
 	return LookupName(result, scope);
+}
+
+natRefPointer<NatsuLang::Declaration::LabelDecl> Sema::LookupOrCreateLabel(Identifier::IdPtr id, SourceLocation loc)
+{
+	LookupResult r{ *this, std::move(id), loc, LookupNameType::LookupLabel };
+
+	if (!LookupName(r, m_CurrentScope) || r.GetDeclSize() != 1)
+	{
+		// TODO: 找不到这个声明或者找到多于1个声明，报告错误
+		return nullptr;
+	}
+
+	auto labelDecl = r.GetDecls().first();
+
+	const auto curContext = Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get());
+
+	if (labelDecl && labelDecl->GetContext() != curContext)
+	{
+		// TODO: 找到了但是不是当前域下的声明，报告错误
+		return nullptr;
+	}
+
+	if (!labelDecl)
+	{
+		labelDecl = make_ref<Declaration::LabelDecl>(curContext, loc, r.GetLookupId());
+		auto s = m_CurrentScope->GetFunctionParent().Lock();
+		PushOnScopeChains(labelDecl, s, true);
+	}
+
+	return labelDecl;
 }
 
 NatsuLang::Type::TypePtr Sema::ActOnTypeName(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
@@ -363,7 +405,8 @@ NatsuLang::Type::TypePtr Sema::ActOnTypeName(natRefPointer<Scope> const& scope, 
 
 natRefPointer<NatsuLang::Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
 {
-	
+	// TODO
+	nat_Throw(NotImplementedException);
 }
 
 natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
@@ -376,7 +419,36 @@ natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPo
 		return nullptr;
 	}
 
+	// TODO
+	nat_Throw(NotImplementedException);
+}
 
+NatsuLang::Statement::StmtPtr Sema::ActOnNullStmt(SourceLocation loc)
+{
+	return make_ref<Statement::NullStmt>(loc);
+}
+
+NatsuLang::Statement::StmtPtr Sema::ActOnDeclStmt(std::vector<Declaration::DeclPtr> decls, SourceLocation start,
+	SourceLocation end)
+{
+	return make_ref<Statement::DeclStmt>(move(decls), start, end);
+}
+
+NatsuLang::Statement::StmtPtr Sema::ActOnLabelStmt(SourceLocation labelLoc, natRefPointer<Declaration::LabelDecl> labelDecl,
+	SourceLocation colonLoc, Statement::StmtPtr subStmt)
+{
+	static_cast<void>(colonLoc);
+
+	if (labelDecl->GetStmt())
+	{
+		// TODO: 报告标签重定义错误
+		return subStmt;
+	}
+
+	auto labelStmt = make_ref<Statement::LabelStmt>(labelLoc, std::move(labelDecl), std::move(subStmt));
+	labelDecl->SetStmt(labelStmt);
+
+	return labelStmt;
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnBooleanLiteral(Token::Token const& token) const

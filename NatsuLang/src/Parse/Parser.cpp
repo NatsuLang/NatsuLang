@@ -70,7 +70,8 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF);
 		return {};
 	case TokenType::Kw_def:
-		return ParseDeclaration(Declaration::Context::Global);
+		SourceLocation declEnd;
+		return ParseDeclaration(Declaration::Context::Global, declEnd);
 	default:
 		break;
 	}
@@ -123,7 +124,7 @@ nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::Id
 //	simple-declaration
 // simple-declaration:
 //	def declarator [;]
-std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context context)
+std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context context, NatsuLang::SourceLocation& declEnd)
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_def));
 	// ³Ôµô def
@@ -144,11 +145,30 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 	switch (tokenType)
 	{
 	case TokenType::Identifier:
-		nat_Throw(NotImplementedException);
+	{
+		auto id = m_CurrentToken.GetIdentifierInfo();
+		const auto loc = m_CurrentToken.GetLocation();
+
+		ConsumeToken();
+
+		if (m_CurrentToken.Is(TokenType::Colon))
+		{
+			return ParseLabeledStatement(std::move(id), loc);
+		}
+
+		return ParseStmtError();
+	}
 	case TokenType::LeftBrace:
 		break;
 	case TokenType::Semi:
 		break;
+	case TokenType::Kw_def:
+	{
+		const auto declBegin = m_CurrentToken.GetLocation();
+		SourceLocation declEnd;
+		auto decls = ParseDeclaration(Declaration::Context::Block, declEnd);
+		return m_Sema.ActOnDeclStmt(move(decls), declBegin, declEnd);
+	}
 	case TokenType::Kw_if:
 		break;
 	case TokenType::Kw_while:
@@ -173,6 +193,23 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 
 	// TODO
 	nat_Throw(NotImplementedException);
+}
+
+NatsuLang::Statement::StmtPtr Parser::ParseLabeledStatement(Identifier::IdPtr labelId, SourceLocation labelLoc)
+{
+	assert(m_CurrentToken.Is(TokenType::Colon));
+
+	const auto colonLoc = m_CurrentToken.GetLocation();
+
+	auto stmt = ParseStatement();
+	if (!stmt)
+	{
+		stmt = m_Sema.ActOnNullStmt(colonLoc);
+	}
+
+	auto labelDecl = m_Sema.LookupOrCreateLabel(std::move(labelId), labelLoc);
+
+	return m_Sema.ActOnLabelStmt(labelLoc, std::move(labelDecl), colonLoc, std::move(stmt));
 }
 
 NatsuLang::Expression::ExprPtr Parser::ParseExpression()

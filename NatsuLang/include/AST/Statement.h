@@ -1,7 +1,6 @@
 #pragma once
 #include "StmtBase.h"
 #include "DeclBase.h"
-#include <natContainer.h>
 
 namespace NatsuLang::Declaration
 {
@@ -23,6 +22,11 @@ namespace NatsuLang::Statement
 	public:
 		using DeclPtr = NatsuLib::natRefPointer<Declaration::Decl>;
 		using DeclEnumerable = NatsuLib::Linq<DeclPtr>;
+
+		explicit DeclStmt(std::vector<DeclPtr> decls, SourceLocation start = {}, SourceLocation end = {})
+			: Stmt{ DeclStmtClass, start, end }, m_Decls{ move(decls) }
+		{
+		}
 
 		explicit DeclStmt(DeclEnumerable decls = NatsuLib::from_empty<DeclPtr>(), SourceLocation start = {}, SourceLocation end = {})
 			: Stmt{ DeclStmtClass, start, end }, m_Decls{ std::begin(decls), std::end(decls) }
