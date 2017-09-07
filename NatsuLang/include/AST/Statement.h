@@ -10,12 +10,11 @@ namespace NatsuLang::Declaration
 namespace NatsuLang::Expression
 {
 	class Expr;
+	using ExprPtr = NatsuLib::natRefPointer<Expr>;
 }
 
 namespace NatsuLang::Statement
 {
-	using ExprPtr = NatsuLib::natRefPointer<Expression::Expr>;
-
 	class DeclStmt
 		: public Stmt
 	{
@@ -70,6 +69,11 @@ namespace NatsuLang::Statement
 		: public Stmt
 	{
 	public:
+		explicit CompoundStmt(std::vector<StmtPtr> stmts, SourceLocation start = {}, SourceLocation end = {})
+			: Stmt{ CompoundStmtClass, start, end }, m_Stmts{ std::move(stmts) }
+		{
+		}
+
 		explicit CompoundStmt(StmtEnumerable const& stmts = NatsuLib::from_empty<StmtPtr>(), SourceLocation start = {}, SourceLocation end = {})
 			: Stmt{ CompoundStmtClass, start, end }, m_Stmts{ std::begin(stmts), std::end(stmts) }
 		{
@@ -114,7 +118,7 @@ namespace NatsuLang::Statement
 		: public Stmt
 	{
 	public:
-		explicit SwitchStmt(ExprPtr cond)
+		explicit SwitchStmt(Expression::ExprPtr cond)
 			: Stmt{ SwitchStmtClass }, m_Cond{ std::move(cond) }
 		{
 		}
@@ -152,7 +156,7 @@ namespace NatsuLang::Statement
 		StmtEnumerable GetChildrens() override;
 
 	private:
-		ExprPtr m_Cond;
+		Expression::ExprPtr m_Cond;
 		StmtPtr m_Body;
 		NatsuLib::natRefPointer<SwitchCase> m_FirstSwitchCase;
 	};
@@ -161,19 +165,19 @@ namespace NatsuLang::Statement
 		: public SwitchCase
 	{
 	public:
-		CaseStmt(ExprPtr expr, SourceLocation start, SourceLocation end)
+		CaseStmt(Expression::ExprPtr expr, SourceLocation start, SourceLocation end)
 			: SwitchCase{ CaseStmtClass, start, end }, m_Expr{ std::move(expr) }
 		{
 		}
 
 		~CaseStmt();
 
-		ExprPtr GetExpr() const noexcept
+		Expression::ExprPtr GetExpr() const noexcept
 		{
 			return m_Expr;
 		}
 
-		void SetExpr(ExprPtr expr) noexcept
+		void SetExpr(Expression::ExprPtr expr) noexcept
 		{
 			m_Expr = std::move(expr);
 		}
@@ -189,7 +193,7 @@ namespace NatsuLang::Statement
 		}
 
 	private:
-		ExprPtr m_Expr;
+		Expression::ExprPtr m_Expr;
 		StmtPtr m_SubStmt;
 	};
 
@@ -254,7 +258,7 @@ namespace NatsuLang::Statement
 		: public Stmt
 	{
 	public:
-		IfStmt(SourceLocation ifLoc, ExprPtr condExpr, StmtPtr thenStmt, SourceLocation elseLoc = {}, StmtPtr elseStmt = {})
+		IfStmt(SourceLocation ifLoc, Expression::ExprPtr condExpr, StmtPtr thenStmt, SourceLocation elseLoc = {}, StmtPtr elseStmt = {})
 			: Stmt{ IfStmtClass, ifLoc, (elseStmt ? elseStmt : thenStmt)->GetEndLoc() },
 			m_Cond{ std::move(condExpr) },
 			m_ElseLocation{ elseLoc },
@@ -265,12 +269,12 @@ namespace NatsuLang::Statement
 
 		~IfStmt();
 
-		ExprPtr GetCond() const noexcept
+		Expression::ExprPtr GetCond() const noexcept
 		{
 			return m_Cond;
 		}
 
-		void SetCond(ExprPtr value) noexcept
+		void SetCond(Expression::ExprPtr value) noexcept
 		{
 			m_Cond = std::move(value);
 		}
@@ -299,7 +303,7 @@ namespace NatsuLang::Statement
 		StmtEnumerable GetChildrens() override;
 
 	private:
-		ExprPtr m_Cond;
+		Expression::ExprPtr m_Cond;
 		SourceLocation m_ElseLocation;
 		StmtPtr m_Then, m_Else;
 	};
@@ -308,19 +312,19 @@ namespace NatsuLang::Statement
 		: public Stmt
 	{
 	public:
-		WhileStmt(SourceLocation loc, ExprPtr cond, StmtPtr body)
+		WhileStmt(SourceLocation loc, Expression::ExprPtr cond, StmtPtr body)
 			: Stmt{ WhileStmtClass, loc, body->GetEndLoc() }, m_Cond{ std::move(cond) }, m_Body{ std::move(body) }
 		{
 		}
 
 		~WhileStmt();
 
-		ExprPtr GetCond() const noexcept
+		Expression::ExprPtr GetCond() const noexcept
 		{
 			return m_Cond;
 		}
 
-		void SetCond(ExprPtr value) noexcept
+		void SetCond(Expression::ExprPtr value) noexcept
 		{
 			m_Cond = std::move(value);
 		}
@@ -339,7 +343,7 @@ namespace NatsuLang::Statement
 		StmtEnumerable GetChildrens() override;
 
 	private:
-		ExprPtr m_Cond;
+		Expression::ExprPtr m_Cond;
 		StmtPtr m_Body;
 	};
 
@@ -347,19 +351,19 @@ namespace NatsuLang::Statement
 		: public Stmt
 	{
 	public:
-		DoStmt(StmtPtr body, ExprPtr cond, SourceLocation doLoc, SourceLocation whileLoc, SourceLocation endLoc)
+		DoStmt(StmtPtr body, Expression::ExprPtr cond, SourceLocation doLoc, SourceLocation whileLoc, SourceLocation endLoc)
 			: Stmt{ DoStmtClass, doLoc, endLoc }, m_Body{ std::move(body) }, m_Cond{ std::move(cond) }, m_WhileLoc{ whileLoc }
 		{
 		}
 
 		~DoStmt();
 
-		ExprPtr GetCond() const noexcept
+		Expression::ExprPtr GetCond() const noexcept
 		{
 			return m_Cond;
 		}
 
-		void SetCond(ExprPtr value) noexcept
+		void SetCond(Expression::ExprPtr value) noexcept
 		{
 			m_Cond = std::move(value);
 		}
@@ -388,7 +392,7 @@ namespace NatsuLang::Statement
 
 	private:
 		StmtPtr m_Body;
-		ExprPtr m_Cond;
+		Expression::ExprPtr m_Cond;
 		SourceLocation m_WhileLoc;
 	};
 
@@ -396,7 +400,7 @@ namespace NatsuLang::Statement
 		: public Stmt
 	{
 	public:
-		ForStmt(StmtPtr init, ExprPtr cond, ExprPtr inc, StmtPtr body, SourceLocation forLoc, SourceLocation lpLoc, SourceLocation rpLoc)
+		ForStmt(StmtPtr init, Expression::ExprPtr cond, Expression::ExprPtr inc, StmtPtr body, SourceLocation forLoc, SourceLocation lpLoc, SourceLocation rpLoc)
 			: Stmt{ ForStmtClass, forLoc, body->GetEndLoc() },
 			m_Init{ std::move(init) },
 			m_Cond{ std::move(cond) },
@@ -419,22 +423,22 @@ namespace NatsuLang::Statement
 			m_Init = std::move(value);
 		}
 
-		ExprPtr GetCond() const noexcept
+		Expression::ExprPtr GetCond() const noexcept
 		{
 			return m_Cond;
 		}
 
-		void SetCond(ExprPtr value) noexcept
+		void SetCond(Expression::ExprPtr value) noexcept
 		{
 			m_Cond = std::move(value);
 		}
 
-		ExprPtr GetInc() const noexcept
+		Expression::ExprPtr GetInc() const noexcept
 		{
 			return m_Inc;
 		}
 
-		void SetInc(ExprPtr value) noexcept
+		void SetInc(Expression::ExprPtr value) noexcept
 		{
 			m_Inc = std::move(value);
 		}
@@ -474,8 +478,8 @@ namespace NatsuLang::Statement
 
 	private:
 		StmtPtr m_Init;
-		ExprPtr m_Cond;
-		ExprPtr m_Inc;
+		Expression::ExprPtr m_Cond;
+		Expression::ExprPtr m_Inc;
 		StmtPtr m_Body;
 		SourceLocation m_LParenLoc, m_RParenLoc;
 	};
@@ -533,19 +537,19 @@ namespace NatsuLang::Statement
 		: public Stmt
 	{
 	public:
-		ReturnStmt(SourceLocation loc, ExprPtr retExpr);
+		ReturnStmt(SourceLocation loc, Expression::ExprPtr retExpr);
 		~ReturnStmt();
 
-		ExprPtr GetReturnExpr() const noexcept
+		Expression::ExprPtr GetReturnExpr() const noexcept
 		{
 			return m_RetExpr;
 		}
 
-		void SetReturnExpr(ExprPtr value) noexcept;
+		void SetReturnExpr(Expression::ExprPtr value) noexcept;
 
 		StmtEnumerable GetChildrens() override;
 
 	private:
-		ExprPtr m_RetExpr;
+		Expression::ExprPtr m_RetExpr;
 	};
 }

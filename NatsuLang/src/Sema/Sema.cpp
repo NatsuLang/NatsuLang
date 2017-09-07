@@ -199,7 +199,8 @@ namespace
 }
 
 Sema::Sema(Preprocessor& preprocessor, ASTContext& astContext)
-	: m_Preprocessor{ preprocessor }, m_Context{ astContext }, m_Diag{ preprocessor.GetDiag() }, m_SourceManager{ preprocessor.GetSourceManager() }
+	: m_Preprocessor{ preprocessor }, m_Context{ astContext }, m_Diag{ preprocessor.GetDiag() },
+	  m_SourceManager{ preprocessor.GetSourceManager() }
 {
 }
 
@@ -222,6 +223,18 @@ void Sema::PopDeclContext()
 	const auto parentDc = m_CurrentDeclContext->GetContext();
 	assert(parentDc);
 	m_CurrentDeclContext = Declaration::Decl::CastFromDeclContext(parentDc)->ForkRef();
+}
+
+void Sema::PushScope(ScopeFlags flags)
+{
+	m_CurrentScope = make_ref<Scope>(m_CurrentScope->ForkWeakRef(), flags);
+}
+
+void Sema::PopScope()
+{
+	assert(m_CurrentScope);
+
+	m_CurrentScope = m_CurrentScope->GetParent().Lock();
 }
 
 void Sema::PushOnScopeChains(natRefPointer<Declaration::NamedDecl> decl, natRefPointer<Scope> const& scope, nBool addToContext)
@@ -449,6 +462,18 @@ NatsuLang::Statement::StmtPtr Sema::ActOnLabelStmt(SourceLocation labelLoc, natR
 	labelDecl->SetStmt(labelStmt);
 
 	return labelStmt;
+}
+
+NatsuLang::Statement::StmtPtr Sema::ActOnCompoundStmt(std::vector<Statement::StmtPtr> stmtVec, SourceLocation begin,
+	SourceLocation end)
+{
+	return make_ref<Statement::CompoundStmt>(move(stmtVec), begin, end);
+}
+
+NatsuLang::Statement::StmtPtr Sema::ActOnIfStmt(SourceLocation ifLoc, Expression::ExprPtr condExpr,
+	Statement::StmtPtr thenStmt, SourceLocation elseLoc, Statement::StmtPtr elseStmt)
+{
+	return make_ref<Statement::IfStmt>(ifLoc, std::move(condExpr), std::move(thenStmt), elseLoc, std::move(elseStmt));
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnBooleanLiteral(Token::Token const& token) const

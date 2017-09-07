@@ -39,6 +39,7 @@ namespace NatsuLang
 
 namespace NatsuLang::Semantic
 {
+	enum class ScopeFlags : unsigned short;
 	class LookupResult;
 	class Scope;
 
@@ -98,6 +99,9 @@ namespace NatsuLang::Semantic
 		void PushDeclContext(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclContext* dc);
 		void PopDeclContext();
 
+		void PushScope(ScopeFlags flags);
+		void PopScope();
+
 		void PushOnScopeChains(NatsuLib::natRefPointer<Declaration::NamedDecl> decl, NatsuLib::natRefPointer<Scope> const& scope, nBool addToContext);
 
 		NatsuLib::natRefPointer<Declaration::Decl> OnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path);
@@ -117,6 +121,8 @@ namespace NatsuLang::Semantic
 		Statement::StmtPtr ActOnNullStmt(SourceLocation loc = {});
 		Statement::StmtPtr ActOnDeclStmt(std::vector<Declaration::DeclPtr> decls, SourceLocation start, SourceLocation end);
 		Statement::StmtPtr ActOnLabelStmt(SourceLocation labelLoc, NatsuLib::natRefPointer<Declaration::LabelDecl> labelDecl, SourceLocation colonLoc, Statement::StmtPtr subStmt);
+		Statement::StmtPtr ActOnCompoundStmt(std::vector<Statement::StmtPtr> stmtVec, SourceLocation begin, SourceLocation end);
+		Statement::StmtPtr ActOnIfStmt(SourceLocation ifLoc, Expression::ExprPtr condExpr, Statement::StmtPtr thenStmt, SourceLocation elseLoc, Statement::StmtPtr elseStmt);
 
 		Expression::ExprPtr ActOnBooleanLiteral(Token::Token const& token) const;
 		Expression::ExprPtr ActOnNumericLiteral(Token::Token const& token) const;
@@ -155,7 +161,13 @@ namespace NatsuLang::Semantic
 		Diag::DiagnosticsEngine& m_Diag;
 		SourceManager& m_SourceManager;
 
+		enum
+		{
+			ScopeCacheSize = 16,
+		};
+
 		NatsuLib::natRefPointer<Scope> m_CurrentScope;
+
 		// m_CurrentDeclContext必须为nullptr或者可以转换到DeclContext*，不保存DeclContext*是为了保留对Decl的强引用
 		Declaration::DeclPtr m_CurrentDeclContext;
 

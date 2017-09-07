@@ -13,7 +13,7 @@ namespace NatsuLang::Declaration
 
 namespace NatsuLang::Semantic
 {
-	enum class ScopeFlags
+	enum class ScopeFlags : nuShort
 	{
 		None						= 0x0000,
 
@@ -28,7 +28,8 @@ namespace NatsuLang::Semantic
 		FunctionDeclarationScope	= 0x0100,
 		SwitchScope					= 0x0200,
 		TryScope					= 0x0400,
-		EnumScope					= 0x0800
+		EnumScope					= 0x0800,
+		CompoundStmtScope			= 0x1000
 	};
 
 	MAKE_ENUM_CLASS_BITMASK_TYPE(ScopeFlags);
@@ -97,6 +98,11 @@ namespace NatsuLang::Semantic
 		NatsuLib::Linq<const Declaration::DeclPtr> GetDecls() const noexcept
 		{
 			return from(m_Decls);
+		}
+
+		std::size_t GetDeclCount() const noexcept
+		{
+			return m_Decls.size();
 		}
 
 		Declaration::DeclContext* GetEntity() const noexcept

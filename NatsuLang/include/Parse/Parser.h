@@ -41,6 +41,7 @@ namespace NatsuLang::Diag
 
 namespace NatsuLang::Semantic
 {
+	enum class ScopeFlags : nuShort;
 	class Sema;
 }
 
@@ -177,6 +178,9 @@ namespace NatsuLang::Syntax
 
 		Statement::StmtPtr ParseStatement();
 		Statement::StmtPtr ParseLabeledStatement(Identifier::IdPtr labelId, SourceLocation labelLoc);
+		Statement::StmtPtr ParseCompoundStatement();
+		Statement::StmtPtr ParseCompoundStatement(Semantic::ScopeFlags flags);
+		Statement::StmtPtr ParseIfStatement();
 
 		Expression::ExprPtr ParseExpression();
 
@@ -252,5 +256,18 @@ namespace NatsuLang::Syntax
 
 		Token::Token m_CurrentToken;
 		nuInt m_ParenCount, m_BracketCount, m_BraceCount;
+
+		class ParseScope
+			: NatsuLib::nonmovable
+		{
+		public:
+			ParseScope(Parser* self, Semantic::ScopeFlags flags);
+			~ParseScope();
+
+			void ExplicitExit();
+
+		private:
+			Parser* m_Self;
+		};
 	};
 }
