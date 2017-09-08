@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <natMisc.h>
 #include <natRefObj.h>
 #include <unordered_set>
@@ -102,11 +102,17 @@ namespace NatsuLang::Semantic
 		void PushScope(ScopeFlags flags);
 		void PopScope();
 
-		void PushOnScopeChains(NatsuLib::natRefPointer<Declaration::NamedDecl> decl, NatsuLib::natRefPointer<Scope> const& scope, nBool addToContext);
+		void PushOnScopeChains(NatsuLib::natRefPointer<Declaration::NamedDecl> decl, NatsuLib::natRefPointer<Scope> const& scope, nBool addToContext = true);
 
 		NatsuLib::natRefPointer<Declaration::Decl> OnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path);
 
 		Type::TypePtr GetTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, NatsuLib::natRefPointer<Scope> scope, Type::TypePtr const& objectType);
+
+		Type::TypePtr BuildFunctionType(Type::TypePtr retType, NatsuLib::Linq<const Type::TypePtr> const& paramType);
+
+		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& declarator);
+		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclPtr decl);
+		Declaration::DeclPtr ActOnFinishFunctionBody(Declaration::DeclPtr decl, Statement::StmtPtr body);
 
 		nBool LookupName(LookupResult& result, NatsuLib::natRefPointer<Scope> scope) const;
 		nBool LookupQualifiedName(LookupResult& result, Declaration::DeclContext* context) const;
@@ -123,6 +129,11 @@ namespace NatsuLang::Semantic
 		Statement::StmtPtr ActOnLabelStmt(SourceLocation labelLoc, NatsuLib::natRefPointer<Declaration::LabelDecl> labelDecl, SourceLocation colonLoc, Statement::StmtPtr subStmt);
 		Statement::StmtPtr ActOnCompoundStmt(std::vector<Statement::StmtPtr> stmtVec, SourceLocation begin, SourceLocation end);
 		Statement::StmtPtr ActOnIfStmt(SourceLocation ifLoc, Expression::ExprPtr condExpr, Statement::StmtPtr thenStmt, SourceLocation elseLoc, Statement::StmtPtr elseStmt);
+		Statement::StmtPtr ActOnWhileStmt(SourceLocation loc, Expression::ExprPtr cond, Statement::StmtPtr body);
+
+		Statement::StmtPtr ActOnContinueStatement(SourceLocation loc, NatsuLib::natRefPointer<Scope> const& scope);
+		Statement::StmtPtr ActOnBreakStatement(SourceLocation loc, NatsuLib::natRefPointer<Scope> const& scope);
+		Statement::StmtPtr ActOnReturnStmt(SourceLocation loc, Expression::ExprPtr returnedExpr, NatsuLib::natRefPointer<Scope> const& scope);
 
 		Expression::ExprPtr ActOnBooleanLiteral(Token::Token const& token) const;
 		Expression::ExprPtr ActOnNumericLiteral(Token::Token const& token) const;
@@ -141,7 +152,7 @@ namespace NatsuLang::Semantic
 		Expression::ExprPtr ActOnPostfixUnaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand);
 		Expression::ExprPtr ActOnBinaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand);
 		Expression::ExprPtr BuildBuiltinBinaryOp(SourceLocation loc, Expression::BinaryOperationType binOpType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand);
-		// Ìõ¼ş²Ù×÷·û²»¿ÉÖØÔØËùÒÔ²»ĞèÒªscopeĞÅÏ¢
+		// æ¡ä»¶æ“ä½œç¬¦ä¸å¯é‡è½½æ‰€ä»¥ä¸éœ€è¦scopeä¿¡æ¯
 		Expression::ExprPtr ActOnConditionalOp(SourceLocation questionLoc, SourceLocation colonLoc, Expression::ExprPtr condExpr, Expression::ExprPtr leftExpr, Expression::ExprPtr rightExpr);
 
 		Expression::ExprPtr BuildDeclarationNameExpr(NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, NatsuLib::natRefPointer<Declaration::NamedDecl> decl);
@@ -168,7 +179,7 @@ namespace NatsuLang::Semantic
 
 		NatsuLib::natRefPointer<Scope> m_CurrentScope;
 
-		// m_CurrentDeclContext±ØĞëÎªnullptr»òÕß¿ÉÒÔ×ª»»µ½DeclContext*£¬²»±£´æDeclContext*ÊÇÎªÁË±£Áô¶ÔDeclµÄÇ¿ÒıÓÃ
+		// m_CurrentDeclContextå¿…é¡»ä¸ºnullptræˆ–è€…å¯ä»¥è½¬æ¢åˆ°DeclContext*ï¼Œä¸ä¿å­˜DeclContext*æ˜¯ä¸ºäº†ä¿ç•™å¯¹Declçš„å¼ºå¼•ç”¨
 		Declaration::DeclPtr m_CurrentDeclContext;
 
 		Expression::CastType getCastType(Expression::ExprPtr operand, Type::TypePtr toType);
@@ -243,14 +254,14 @@ namespace NatsuLang::Semantic
 		}
 
 	private:
-		// ²éÕÒ²ÎÊı
+		// æŸ¥æ‰¾å‚æ•°
 		Sema& m_Sema;
 		Identifier::IdPtr m_LookupId;
 		SourceLocation m_LookupLoc;
 		Sema::LookupNameType m_LookupNameType;
 		Declaration::IdentifierNamespace m_IDNS;
 
-		// ²éÕÒ½á¹û
+		// æŸ¥æ‰¾ç»“æœ
 		LookupResultType m_Result;
 		AmbiguousType m_AmbiguousType;
 		std::unordered_set<NatsuLib::natRefPointer<Declaration::NamedDecl>> m_Decls;

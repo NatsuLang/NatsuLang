@@ -1,4 +1,4 @@
-#include "Sema/Sema.h"
+ï»¿#include "Sema/Sema.h"
 #include "Sema/Scope.h"
 #include "Sema/Declarator.h"
 #include "Lex/Preprocessor.h"
@@ -57,11 +57,11 @@ namespace
 				return toType->GetBuiltinClass() == BuiltinType::Bool ? CastType::IntegralToBoolean : CastType::IntegralCast;
 			}
 
-			// fromTypeºÍtoTypeÖ»ÄÜÊÇIntegerType»òFloatingType
+			// fromTypeå’ŒtoTypeåªèƒ½æ˜¯IntegerTypeæˆ–FloatingType
 			return CastType::IntegralToFloating;
 		}
 
-		// fromTypeÊÇFloatingType
+		// fromTypeæ˜¯FloatingType
 		if (toType->IsIntegerType())
 		{
 			return toType->GetBuiltinClass() == BuiltinType::Bool ? CastType::FloatingToBoolean : CastType::FloatingToIntegral;
@@ -239,7 +239,7 @@ void Sema::PopScope()
 
 void Sema::PushOnScopeChains(natRefPointer<Declaration::NamedDecl> decl, natRefPointer<Scope> const& scope, nBool addToContext)
 {
-	// ´¦Àí¸²¸ÇÉùÃ÷µÄÇé¿ö
+	// å¤„ç†è¦†ç›–å£°æ˜çš„æƒ…å†µ
 
 	if (addToContext)
 	{
@@ -300,6 +300,73 @@ NatsuLang::Type::TypePtr Sema::GetTypeName(natRefPointer<Identifier::IdentifierI
 		return nullptr;
 	}
 	}
+}
+
+NatsuLang::Type::TypePtr Sema::BuildFunctionType(Type::TypePtr retType, Linq<const Type::TypePtr> const& paramType)
+{
+	return m_Context.GetFunctionType(from(paramType), std::move(retType));
+}
+
+NatsuLang::Declaration::DeclPtr Sema::ActOnStartOfFunctionDef(natRefPointer<Scope> const& scope, Declaration::Declarator const& declarator)
+{
+	const auto parentScope = scope->GetParent().Lock();
+	auto decl = HandleDeclarator(parentScope, declarator);
+	return ActOnStartOfFunctionDef(scope, std::move(decl));
+}
+
+NatsuLang::Declaration::DeclPtr Sema::ActOnStartOfFunctionDef(natRefPointer<Scope> const& scope, Declaration::DeclPtr decl)
+{
+	if (!decl)
+	{
+		return nullptr;
+	}
+
+	auto funcDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(decl);
+	if (!funcDecl)
+	{
+		return nullptr;
+	}
+
+	if (scope)
+	{
+		PushDeclContext(scope, funcDecl.Get());
+
+		for (auto& d : funcDecl->GetDecls().select([](Declaration::DeclPtr const& td)
+			{
+				return static_cast<natRefPointer<Declaration::NamedDecl>>(td);
+			}).where([](auto&& arg) -> nBool { return arg; }))
+		{
+			if (d->GetIdentifierInfo())
+			{
+				PushOnScopeChains(d, scope, false);
+			}
+		}
+
+		for (auto&& param : funcDecl->GetParams())
+		{
+			if (param)
+			{
+				PushOnScopeChains(param, scope, true);
+			}
+		}
+	}
+
+	return std::move(decl);
+}
+
+NatsuLang::Declaration::DeclPtr Sema::ActOnFinishFunctionBody(Declaration::DeclPtr decl, Statement::StmtPtr body)
+{
+	auto fd = static_cast<natRefPointer<Declaration::FunctionDecl>>(decl);
+	if (!fd)
+	{
+		return nullptr;
+	}
+
+	fd->SetBody(std::move(body));
+
+	PopDeclContext();
+	
+	return std::move(decl);
 }
 
 nBool Sema::LookupName(LookupResult& result, natRefPointer<Scope> scope) const
@@ -386,7 +453,7 @@ natRefPointer<NatsuLang::Declaration::LabelDecl> Sema::LookupOrCreateLabel(Ident
 
 	if (!LookupName(r, m_CurrentScope) || r.GetDeclSize() != 1)
 	{
-		// TODO: ÕÒ²»µ½Õâ¸öÉùÃ÷»òÕßÕÒµ½¶àÓÚ1¸öÉùÃ÷£¬±¨¸æ´íÎó
+		// TODO: æ‰¾ä¸åˆ°è¿™ä¸ªå£°æ˜æˆ–è€…æ‰¾åˆ°å¤šäº1ä¸ªå£°æ˜ï¼ŒæŠ¥å‘Šé”™è¯¯
 		return nullptr;
 	}
 
@@ -396,7 +463,7 @@ natRefPointer<NatsuLang::Declaration::LabelDecl> Sema::LookupOrCreateLabel(Ident
 
 	if (labelDecl && labelDecl->GetContext() != curContext)
 	{
-		// TODO: ÕÒµ½ÁËµ«ÊÇ²»ÊÇµ±Ç°ÓòÏÂµÄÉùÃ÷£¬±¨¸æ´íÎó
+		// TODO: æ‰¾åˆ°äº†ä½†æ˜¯ä¸æ˜¯å½“å‰åŸŸä¸‹çš„å£°æ˜ï¼ŒæŠ¥å‘Šé”™è¯¯
 		return nullptr;
 	}
 
@@ -454,7 +521,7 @@ NatsuLang::Statement::StmtPtr Sema::ActOnLabelStmt(SourceLocation labelLoc, natR
 
 	if (labelDecl->GetStmt())
 	{
-		// TODO: ±¨¸æ±êÇ©ÖØ¶¨Òå´íÎó
+		// TODO: æŠ¥å‘Šæ ‡ç­¾é‡å®šä¹‰é”™è¯¯
 		return subStmt;
 	}
 
@@ -474,6 +541,71 @@ NatsuLang::Statement::StmtPtr Sema::ActOnIfStmt(SourceLocation ifLoc, Expression
 	Statement::StmtPtr thenStmt, SourceLocation elseLoc, Statement::StmtPtr elseStmt)
 {
 	return make_ref<Statement::IfStmt>(ifLoc, std::move(condExpr), std::move(thenStmt), elseLoc, std::move(elseStmt));
+}
+
+NatsuLang::Statement::StmtPtr Sema::ActOnWhileStmt(SourceLocation loc, Expression::ExprPtr cond,
+	Statement::StmtPtr body)
+{
+	return make_ref<Statement::WhileStmt>(loc, std::move(cond), std::move(body));
+}
+
+NatsuLang::Statement::StmtPtr Sema::ActOnContinueStatement(SourceLocation loc, natRefPointer<Scope> const& scope)
+{
+	if (!scope->GetContinueParent())
+	{
+		// TODO: æŠ¥å‘Šé”™è¯¯ï¼šå½“å‰ä½œç”¨åŸŸä¸å¯ continue
+		return nullptr;
+	}
+
+	return make_ref<Statement::ContinueStmt>(loc);
+}
+
+NatsuLang::Statement::StmtPtr Sema::ActOnBreakStatement(SourceLocation loc, natRefPointer<Scope> const& scope)
+{
+	if (!scope->GetBreakParent())
+	{
+		// TODO: æŠ¥å‘Šé”™è¯¯ï¼šå½“å‰ä½œç”¨åŸŸä¸å¯ break
+		return nullptr;
+	}
+
+	return make_ref<Statement::BreakStmt>(loc);
+}
+
+NatsuLang::Statement::StmtPtr Sema::ActOnReturnStmt(SourceLocation loc, Expression::ExprPtr returnedExpr, natRefPointer<Scope> const& scope)
+{
+	if (const auto curFunc = scope->GetFunctionParent().Lock())
+	{
+		const auto entity = Declaration::Decl::CastFromDeclContext(curFunc->GetEntity())->ForkRef<Declaration::FunctionDecl>();
+		if (!entity)
+		{
+			return nullptr;
+		}
+
+		const auto funcType = static_cast<natRefPointer<Type::FunctionType>>(entity->GetValueType());
+		if (!funcType)
+		{
+			return nullptr;
+		}
+
+		const auto retType = funcType->GetResultType();
+		const auto retTypeClass = retType->GetType();
+		if (retTypeClass == Type::Type::Auto)
+		{
+			// TODO: è·å¾—çœŸå®è¿”å›ç±»å‹
+		}
+
+		if (retTypeClass == Type::Type::Builtin &&
+			static_cast<natRefPointer<Type::BuiltinType>>(retType)->GetBuiltinClass() == Type::BuiltinType::Void &&
+			returnedExpr)
+		{
+			returnedExpr = ImpCastExprToType(std::move(returnedExpr), m_Context.GetBuiltinType(Type::BuiltinType::Void), Expression::CastType::ToVoid);
+		}
+
+		return make_ref<Statement::ReturnStmt>(loc, std::move(returnedExpr));
+	}
+
+	// TODO: æŠ¥å‘Šé”™è¯¯ï¼šåªèƒ½åœ¨å‡½æ•°åŸŸå†…è¿”å›
+	return nullptr;
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnBooleanLiteral(Token::Token const& token) const
@@ -514,13 +646,13 @@ NatsuLang::Expression::ExprPtr Sema::ActOnNumericLiteral(Token::Token const& tok
 		nDouble value;
 		if (literalParser.GetFloatValue(value))
 		{
-			// TODO: ±¨¸æÒç³ö
+			// TODO: æŠ¥å‘Šæº¢å‡º
 		}
 
 		return make_ref<Expression::FloatingLiteral>(value, std::move(type), token.GetLocation());
 	}
 
-	// ÊÇÕûÊı×ÖÃæÁ¿
+	// æ˜¯æ•´æ•°å­—é¢é‡
 	Type::BuiltinType::BuiltinClass builtinType;
 	if (literalParser.IsLong())
 	{
@@ -540,7 +672,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnNumericLiteral(Token::Token const& tok
 	nuLong value;
 	if (literalParser.GetIntegerValue(value))
 	{
-		// TODO: ±¨¸æÒç³ö
+		// TODO: æŠ¥å‘Šæº¢å‡º
 	}
 
 	return make_ref<Expression::IntegerLiteral>(value, std::move(type), token.GetLocation());
@@ -571,7 +703,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnStringLiteral(Token::Token const& toke
 		return nullptr;
 	}
 
-	// TODO: »º´æ×Ö·û´®×ÖÃæÁ¿ÒÔ±ãÖØÓÃ
+	// TODO: ç¼“å­˜å­—ç¬¦ä¸²å­—é¢é‡ä»¥ä¾¿é‡ç”¨
 	auto value = literalParser.GetValue();
 	return make_ref<Expression::StringLiteral>(value, m_Context.GetArrayType(m_Context.GetBuiltinType(Type::BuiltinType::Char), value.GetSize()), token.GetLocation());
 }
@@ -595,7 +727,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& sco
 		return nullptr;
 	}
 
-	// TODO: ¶ÔÒÔº¯Êıµ÷ÓÃĞÎÊ½ÒıÓÃµÄ±êÊ¶·û²ÉÈ¡ÌØÊâµÄ´¦Àí
+	// TODO: å¯¹ä»¥å‡½æ•°è°ƒç”¨å½¢å¼å¼•ç”¨çš„æ ‡è¯†ç¬¦é‡‡å–ç‰¹æ®Šçš„å¤„ç†
 	static_cast<void>(hasTraillingLParen);
 
 	if (result.GetDeclSize() == 1)
@@ -603,7 +735,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& sco
 		return BuildDeclarationNameExpr(nns, std::move(id), result.GetDecls().first());
 	}
 	
-	// TODO: Ö»ÓĞÖØÔØº¯Êı¿ÉÒÔÔÚ´ËÕÒµ½¶à¸öÉùÃ÷£¬·ñÔò±¨´í
+	// TODO: åªæœ‰é‡è½½å‡½æ•°å¯ä»¥åœ¨æ­¤æ‰¾åˆ°å¤šä¸ªå£°æ˜ï¼Œå¦åˆ™æŠ¥é”™
 	nat_Throw(NotImplementedException);
 }
 
@@ -625,7 +757,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnThis(SourceLocation loc)
 		return make_ref<Expression::ThisExpr>(loc, recordDecl->GetTypeForDecl(), false);
 	}
 
-	// TODO: ±¨¸æµ±Ç°ÉÏÏÂÎÄ²»ÔÊĞíÊ¹ÓÃ this µÄ´íÎó
+	// TODO: æŠ¥å‘Šå½“å‰ä¸Šä¸‹æ–‡ä¸å…è®¸ä½¿ç”¨ this çš„é”™è¯¯
 	return nullptr;
 }
 
@@ -636,23 +768,23 @@ NatsuLang::Expression::ExprPtr Sema::ActOnAsTypeExpr(natRefPointer<Scope> const&
 
 NatsuLang::Expression::ExprPtr Sema::ActOnArraySubscriptExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation lloc, Expression::ExprPtr index, SourceLocation rloc)
 {
-	// TODO: ÆÁ±ÎÎ´Ê¹ÓÃ²ÎÊı¾¯¸æ£¬ÕâĞ©²ÎÊı½«»áÔÚ½«À´µÄ°æ±¾±»Ê¹ÓÃ
+	// TODO: å±è”½æœªä½¿ç”¨å‚æ•°è­¦å‘Šï¼Œè¿™äº›å‚æ•°å°†ä¼šåœ¨å°†æ¥çš„ç‰ˆæœ¬è¢«ä½¿ç”¨
 	static_cast<void>(scope);
 	static_cast<void>(lloc);
 
-	// TODO: µ±Ç°½öÖ§³Ö¶ÔÄÚ½¨Êı×é½øĞĞ´Ë²Ù×÷
+	// TODO: å½“å‰ä»…æ”¯æŒå¯¹å†…å»ºæ•°ç»„è¿›è¡Œæ­¤æ“ä½œ
 	auto baseType = static_cast<natRefPointer<Type::ArrayType>>(base->GetExprType());
 	if (!baseType)
 	{
-		// TODO: ±¨¸æ»ù´¡²Ù×÷Êı²»ÊÇÄÚ½¨Êı×é
+		// TODO: æŠ¥å‘ŠåŸºç¡€æ“ä½œæ•°ä¸æ˜¯å†…å»ºæ•°ç»„
 		return nullptr;
 	}
 
-	// TODO: µ±Ç°½öÔÊĞíÏÂ±êÎªÄÚ½¨ÕûÊıÀàĞÍ
+	// TODO: å½“å‰ä»…å…è®¸ä¸‹æ ‡ä¸ºå†…å»ºæ•´æ•°ç±»å‹
 	const auto indexType = static_cast<natRefPointer<Type::BuiltinType>>(index->GetExprType());
 	if (!indexType || !indexType->IsIntegerType())
 	{
-		// TODO: ±¨¸æÏÂ±ê²Ù×÷Êı²»¾ßÓĞÄÚ½¨ÕûÊıÀàĞÍ
+		// TODO: æŠ¥å‘Šä¸‹æ ‡æ“ä½œæ•°ä¸å…·æœ‰å†…å»ºæ•´æ•°ç±»å‹
 		return nullptr;
 	}
 
@@ -661,7 +793,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnArraySubscriptExpr(natRefPointer<Scope
 
 NatsuLang::Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr func, SourceLocation lloc, Linq<const Expression::ExprPtr> argExprs, SourceLocation rloc)
 {
-	// TODO: Íê³ÉÖØÔØ²¿·Ö
+	// TODO: å®Œæˆé‡è½½éƒ¨åˆ†
 
 	if (!func)
 	{
@@ -703,32 +835,32 @@ NatsuLang::Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> 
 			dc = nns->GetAsDeclContext(m_Context);
 		}
 
-		// TODO: ¶ÔdcµÄºÏ·¨ĞÔ½øĞĞ¼ì²é
+		// TODO: å¯¹dcçš„åˆæ³•æ€§è¿›è¡Œæ£€æŸ¥
 
 		LookupQualifiedName(r, dc);
 
 		if (r.IsEmpty())
 		{
-			// TODO: ÕÒ²»µ½Õâ¸ö³ÉÔ±
+			// TODO: æ‰¾ä¸åˆ°è¿™ä¸ªæˆå‘˜
 		}
 
 		return BuildMemberReferenceExpr(scope, std::move(base), std::move(baseType), periodLoc, nns, r);
 	}
 
-	// TODO: ÔİÊ±²»Ö§³Ö¶ÔRecordTypeÒÔÍâµÄÀàĞÍ½øĞĞ³ÉÔ±·ÃÎÊ²Ù×÷
+	// TODO: æš‚æ—¶ä¸æ”¯æŒå¯¹RecordTypeä»¥å¤–çš„ç±»å‹è¿›è¡Œæˆå‘˜è®¿é—®æ“ä½œ
 	return nullptr;
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand)
 {
-	// TODO: Îª½«À´¿ÉÄÜµÄ²Ù×÷·ûÖØÔØ±£Áô
+	// TODO: ä¸ºå°†æ¥å¯èƒ½çš„æ“ä½œç¬¦é‡è½½ä¿ç•™
 	static_cast<void>(scope);
 	return CreateBuiltinUnaryOp(loc, getUnaryOperationType(tokenType), std::move(operand));
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnPostfixUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand)
 {
-	// TODO: Îª½«À´¿ÉÄÜµÄ²Ù×÷·ûÖØÔØ±£Áô
+	// TODO: ä¸ºå°†æ¥å¯èƒ½çš„æ“ä½œç¬¦é‡è½½ä¿ç•™
 	static_cast<void>(scope);
 
 	assert(tokenType == Token::TokenType::PlusPlus || tokenType == Token::TokenType::MinusMinus);
@@ -751,7 +883,7 @@ NatsuLang::Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Ex
 	{
 	case Expression::BinaryOperationType::Invalid:
 	default:
-		// TODO: ±¨¸æ´íÎó
+		// TODO: æŠ¥å‘Šé”™è¯¯
 		return nullptr;
 	case Expression::BinaryOperationType::Mul:
 	case Expression::BinaryOperationType::Div:
@@ -815,7 +947,7 @@ NatsuLang::Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<Nest
 	auto valueDecl = static_cast<natRefPointer<Declaration::ValueDecl>>(decl);
 	if (!valueDecl)
 	{
-		// ´íÎó£¬ÒıÓÃµÄ²»ÊÇÖµ
+		// é”™è¯¯ï¼Œå¼•ç”¨çš„ä¸æ˜¯å€¼
 		return nullptr;
 	}
 
@@ -842,11 +974,11 @@ NatsuLang::Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scop
 
 		if (!baseExpr)
 		{
-			// ÒşÊ½³ÉÔ±·ÃÎÊ
+			// éšå¼æˆå‘˜è®¿é—®
 
 			if (type != Declaration::Decl::Field && type != Declaration::Decl::Method)
 			{
-				// ·ÃÎÊµÄÊÇ¾²Ì¬³ÉÔ±
+				// è®¿é—®çš„æ˜¯é™æ€æˆå‘˜
 				return BuildDeclarationNameExpr(nns, r.GetLookupId(), std::move(decl));
 			}
 
@@ -871,14 +1003,14 @@ NatsuLang::Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scop
 		return nullptr;
 	}
 	case LookupResult::LookupResultType::FoundOverloaded:
-		// TODO: ´¦ÀíÖØÔØµÄÇé¿ö
+		// TODO: å¤„ç†é‡è½½çš„æƒ…å†µ
 		nat_Throw(NotImplementedException);
 	default:
 		assert(!"Invalid result type.");
 		[[fallthrough]];
 	case LookupResult::LookupResultType::NotFound:
 	case LookupResult::LookupResultType::Ambiguous:
-		// TODO: ±¨¸æ´íÎó
+		// TODO: æŠ¥å‘Šé”™è¯¯
 		return nullptr;
 	}
 }
@@ -902,7 +1034,7 @@ NatsuLang::Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, 
 	case Expression::UnaryOperationType::Plus:
 	case Expression::UnaryOperationType::Minus:
 	case Expression::UnaryOperationType::Not:
-		// TODO: ¿ÉÄÜµÄÕûÊıÌáÉı£¿
+		// TODO: å¯èƒ½çš„æ•´æ•°æå‡ï¼Ÿ
 		resultType = operand->GetExprType();
 		break;
 	case Expression::UnaryOperationType::LNot:
@@ -910,7 +1042,7 @@ NatsuLang::Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, 
 		break;
 	case Expression::UnaryOperationType::Invalid:
 	default:
-		// TODO: ±¨¸æ´íÎó
+		// TODO: æŠ¥å‘Šé”™è¯¯
 		return nullptr;
 	}
 
@@ -919,7 +1051,7 @@ NatsuLang::Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, 
 
 NatsuLang::Type::TypePtr Sema::UsualArithmeticConversions(Expression::ExprPtr& leftOperand, Expression::ExprPtr& rightOperand)
 {
-	// TODO: ÊÇ·ñĞèÒª¶Ô×óÓÒ²Ù×÷Êı½øĞĞÕûÊıÌáÉı£¿
+	// TODO: æ˜¯å¦éœ€è¦å¯¹å·¦å³æ“ä½œæ•°è¿›è¡Œæ•´æ•°æå‡ï¼Ÿ
 
 	auto leftType = static_cast<natRefPointer<Type::BuiltinType>>(leftOperand->GetExprType()), rightType = static_cast<natRefPointer<Type::BuiltinType>>(rightOperand->GetExprType());
 
@@ -984,7 +1116,7 @@ NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr operand, T
 			}
 			return Expression::CastType::Invalid;
 		case Type::Type::Record:
-			// TODO: Ìí¼ÓÓÃ»§¶¨Òå×ª»»
+			// TODO: æ·»åŠ ç”¨æˆ·å®šä¹‰è½¬æ¢
 			return Expression::CastType::Invalid;
 		case Type::Type::Auto:
 		case Type::Type::Array:
@@ -1006,26 +1138,26 @@ NatsuLang::Type::TypePtr Sema::handleIntegerConversion(Expression::ExprPtr& left
 
 	if (!builtinLHSType || !builtinRHSType)
 	{
-		// TODO: ±¨¸æ´íÎó
+		// TODO: æŠ¥å‘Šé”™è¯¯
 		return nullptr;
 	}
 
 	if (builtinLHSType == builtinRHSType)
 	{
-		// ÎŞĞè×ª»»
+		// æ— éœ€è½¬æ¢
 		return std::move(leftOperandType);
 	}
 
 	nInt compareResult;
 	if (!builtinLHSType->CompareRankTo(builtinRHSType, compareResult))
 	{
-		// TODO: ±¨¸æ´íÎó
+		// TODO: æŠ¥å‘Šé”™è¯¯
 		return nullptr;
 	}
 
 	if (!compareResult)
 	{
-		// ÒÑ¾­½øĞĞÁËÏàµÈĞÔ±È½Ï£¬Ö»¿ÉÄÜÊÇÆäÒ»ÎªÓĞ·ûºÅ£¬¶øÁíÒ»ÎªÎŞ·ûºÅ
+		// å·²ç»è¿›è¡Œäº†ç›¸ç­‰æ€§æ¯”è¾ƒï¼Œåªå¯èƒ½æ˜¯å…¶ä¸€ä¸ºæœ‰ç¬¦å·ï¼Œè€Œå¦ä¸€ä¸ºæ— ç¬¦å·
 		if (builtinLHSType->IsSigned())
 		{
 			leftOperand = ImpCastExprToType(std::move(leftOperand), rightOperandType, Expression::CastType::IntegralCast);
@@ -1052,7 +1184,7 @@ NatsuLang::Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOp
 
 	if (!builtinLHSType || !builtinRHSType)
 	{
-		// TODO: ±¨¸æ´íÎó
+		// TODO: æŠ¥å‘Šé”™è¯¯
 		return nullptr;
 	}
 
@@ -1063,13 +1195,13 @@ NatsuLang::Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOp
 		nInt compareResult;
 		if (!builtinLHSType->CompareRankTo(builtinRHSType, compareResult))
 		{
-			// TODO: ±¨¸æ´íÎó
+			// TODO: æŠ¥å‘Šé”™è¯¯
 			return nullptr;
 		}
 
 		if (!compareResult)
 		{
-			// ÎŞĞè×ª»»
+			// æ— éœ€è½¬æ¢
 			return builtinLHSType;
 		}
 
@@ -1130,13 +1262,13 @@ void LookupResult::ResolveResultType() noexcept
 		return;
 	}
 
-	// ÈôÒÑ¾­ÈÏ¶¨Îª¶şÒåĞÔÔò²»ĞèÒª½øÒ»²½ĞŞ¸Ä
+	// è‹¥å·²ç»è®¤å®šä¸ºäºŒä¹‰æ€§åˆ™ä¸éœ€è¦è¿›ä¸€æ­¥ä¿®æ”¹
 	if (m_Result == LookupResultType::Ambiguous)
 	{
 		return;
 	}
 
-	// ·ÖÎöÕÒµ½¶à¸ö¶¨ÒåÊÇÓÉÓÚÖØÔØ»¹ÊÇ¶şÒåĞÔ
+	// åˆ†ææ‰¾åˆ°å¤šä¸ªå®šä¹‰æ˜¯ç”±äºé‡è½½è¿˜æ˜¯äºŒä¹‰æ€§
 	if (from(m_Decls).all([](natRefPointer<Declaration::NamedDecl> const& decl)
 		{
 			return static_cast<natRefPointer<Declaration::FunctionDecl>>(decl);
@@ -1146,7 +1278,7 @@ void LookupResult::ResolveResultType() noexcept
 	}
 	else
 	{
-		// TODO: ²»ÑÏ½÷£¬ĞèÒª½øÒ»²½·ÖÎö
+		// TODO: ä¸ä¸¥è°¨ï¼Œéœ€è¦è¿›ä¸€æ­¥åˆ†æ
 		m_Result = LookupResultType::Ambiguous;
 	}
 }

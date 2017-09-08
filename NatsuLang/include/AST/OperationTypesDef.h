@@ -19,6 +19,7 @@ CAST_OPERATION(FloatingToBoolean)
 CAST_OPERATION(FloatingCast)
 CAST_OPERATION(Dynamic)
 CAST_OPERATION(UserDefinedConversion)
+CAST_OPERATION(ToVoid)
 
 BINARY_OPERATION(Mul, "*")
 BINARY_OPERATION(Div, "/")

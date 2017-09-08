@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "AST/OperatorPrecedence.h"
 #include "Lex/Preprocessor.h"
 #include "Basic/Config.h"
@@ -57,6 +57,19 @@ namespace NatsuLang::Syntax
 
 	class Parser
 	{
+		class ParseScope
+			: NatsuLib::nonmovable
+		{
+		public:
+			ParseScope(Parser* self, Semantic::ScopeFlags flags);
+			~ParseScope();
+
+			void ExplicitExit();
+
+		private:
+			Parser* m_Self;
+		};
+
 	public:
 		Parser(Preprocessor& preprocessor, Semantic::Sema& sema);
 		~Parser();
@@ -164,9 +177,9 @@ namespace NatsuLang::Syntax
 		}
 #endif
 
-		///	@brief	·ÖÎö¶¥²ãÉùÃ÷
-		///	@param	decls	Êä³ö·ÖÎöµÃµ½µÄ¶¥²ãÉùÃ÷
-		///	@return	ÊÇ·ñÓöµ½EOF
+		///	@brief	åˆ†æé¡¶å±‚å£°æ˜
+		///	@param	decls	è¾“å‡ºåˆ†æå¾—åˆ°çš„é¡¶å±‚å£°æ˜
+		///	@return	æ˜¯å¦é‡åˆ°EOF
 		nBool ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls);
 		std::vector<Declaration::DeclPtr> ParseExternalDeclaration();
 
@@ -176,11 +189,18 @@ namespace NatsuLang::Syntax
 
 		std::vector<Declaration::DeclPtr> ParseDeclaration(Declaration::Context context, SourceLocation& declEnd);
 
+		Declaration::DeclPtr ParseFunctionBody(Declaration::DeclPtr decl, ParseScope& scope);
+
 		Statement::StmtPtr ParseStatement();
 		Statement::StmtPtr ParseLabeledStatement(Identifier::IdPtr labelId, SourceLocation labelLoc);
 		Statement::StmtPtr ParseCompoundStatement();
 		Statement::StmtPtr ParseCompoundStatement(Semantic::ScopeFlags flags);
 		Statement::StmtPtr ParseIfStatement();
+		Statement::StmtPtr ParseWhileStatement();
+
+		Statement::StmtPtr ParseContinueStatement();
+		Statement::StmtPtr ParseBreakStatement();
+		Statement::StmtPtr ParseReturnStatement();
 
 		Expression::ExprPtr ParseExpression();
 
@@ -256,18 +276,5 @@ namespace NatsuLang::Syntax
 
 		Token::Token m_CurrentToken;
 		nuInt m_ParenCount, m_BracketCount, m_BraceCount;
-
-		class ParseScope
-			: NatsuLib::nonmovable
-		{
-		public:
-			ParseScope(Parser* self, Semantic::ScopeFlags flags);
-			~ParseScope();
-
-			void ExplicitExit();
-
-		private:
-			Parser* m_Self;
-		};
 	};
 }

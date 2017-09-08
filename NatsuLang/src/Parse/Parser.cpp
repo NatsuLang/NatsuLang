@@ -1,4 +1,4 @@
-#include "Parse/Parser.h"
+ï»¿#include "Parse/Parser.h"
 #include "Sema/Sema.h"
 #include "Sema/Scope.h"
 #include "Sema/Declarator.h"
@@ -74,7 +74,7 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 		SourceLocation declEnd;
 		return ParseDeclaration(Declaration::Context::Global, declEnd);
 	default:
-		// TODO: ±¨¸æ´íÎó
+		// TODO: æŠ¥å‘Šé”™è¯¯
 		return {};
 	}
 }
@@ -129,7 +129,7 @@ nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::Id
 std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context context, NatsuLang::SourceLocation& declEnd)
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_def));
-	// ³Ôµô def
+	// åƒæ‰ def
 	ConsumeToken();
 
 	Declaration::Declarator decl{ context };
@@ -138,12 +138,28 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseDeclaration(Declaratio
 	return { m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), decl) };
 }
 
+NatsuLang::Declaration::DeclPtr Parser::ParseFunctionBody(Declaration::DeclPtr decl, ParseScope& scope)
+{
+	assert(m_CurrentToken.Is(TokenType::LeftBrace));
+
+	const auto loc = m_CurrentToken.GetLocation();
+
+	auto body{ ParseCompoundStatement() };
+	if (!body)
+	{
+		return ParseDeclError();
+	}
+
+	scope.ExplicitExit();
+	return m_Sema.ActOnFinishFunctionBody(std::move(decl), std::move(body));
+}
+
 NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 {
 	Statement::StmtPtr result;
 	const auto tokenType = m_CurrentToken.GetType();
 
-	// TODO: Íê³É¸ù¾İ tokenType ÅĞ¶ÏÓï¾äÀàĞÍµÄ¹ı³Ì
+	// TODO: å®Œæˆæ ¹æ® tokenType åˆ¤æ–­è¯­å¥ç±»å‹çš„è¿‡ç¨‹
 	switch (tokenType)
 	{
 	case TokenType::Identifier:
@@ -178,7 +194,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 	case TokenType::Kw_if:
 		return ParseIfStatement();
 	case TokenType::Kw_while:
-		break;
+		return ParseWhileStatement();
 	case TokenType::Kw_for:
 		break;
 	case TokenType::Kw_goto:
@@ -209,8 +225,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseLabeledStatement(Identifier::IdPtr la
 
 	ConsumeToken();
 
-	auto stmt = ParseStatement();
-	if (!stmt)
+	if (auto stmt = ParseStatement(); !stmt)
 	{
 		stmt = m_Sema.ActOnNullStmt(colonLoc);
 	}
@@ -238,8 +253,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseCompoundStatement(Semantic::ScopeFlag
 
 	while (!m_CurrentToken.IsAnyOf({ TokenType::RightBrace, TokenType::Eof }))
 	{
-		auto stmt = ParseStatement();
-		if (stmt)
+		if (auto stmt = ParseStatement())
 		{
 			stmtVec.emplace_back(std::move(stmt));
 		}
@@ -262,9 +276,13 @@ NatsuLang::Statement::StmtPtr Parser::ParseIfStatement()
 		return ParseStmtError();
 	}
 
-	ParseScope ifScope{ this, Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::ControlScope };
+	ParseScope ifScope{ this, Semantic::ScopeFlags::ControlScope };
 
 	auto cond = ParseParenExpression();
+	if (!cond)
+	{
+		return ParseStmtError();
+	}
 
 	const auto thenLoc = m_CurrentToken.GetLocation();
 	Statement::StmtPtr thenStmt, elseStmt;
@@ -280,11 +298,6 @@ NatsuLang::Statement::StmtPtr Parser::ParseIfStatement()
 	{
 		elseLoc = m_CurrentToken.GetLocation();
 
-		if (trailingElseLoc)
-		{
-			*trailingElseLoc = elseLoc;
-		}
-
 		ConsumeToken();
 
 		elseStmtLoc = m_CurrentToken.GetLocation();
@@ -292,6 +305,8 @@ NatsuLang::Statement::StmtPtr Parser::ParseIfStatement()
 		ParseScope thenScope{ this, Semantic::ScopeFlags::DeclarableScope };
 		elseStmt = ParseStatement();
 	}
+
+	ifScope.ExplicitExit();
 
 	if (!thenStmt && !elseStmt)
 	{
@@ -309,6 +324,75 @@ NatsuLang::Statement::StmtPtr Parser::ParseIfStatement()
 	}
 
 	return m_Sema.ActOnIfStmt(ifLoc, std::move(cond), std::move(thenStmt), elseLoc, std::move(elseStmt));
+}
+
+NatsuLang::Statement::StmtPtr Parser::ParseWhileStatement()
+{
+	assert(m_CurrentToken.Is(TokenType::Kw_while));
+	const auto whileLoc = m_CurrentToken.GetLocation();
+	ConsumeToken();
+
+	if (!m_CurrentToken.Is(TokenType::LeftParen))
+	{
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::LeftParen)
+			.AddArgument(m_CurrentToken.GetType());
+		return ParseStmtError();
+	}
+
+	ParseScope whileScope{ this, Semantic::ScopeFlags::BreakableScope | Semantic::ScopeFlags::ContinuableScope };
+
+	auto cond = ParseParenExpression();
+	if (!cond)
+	{
+		return ParseStmtError();
+	}
+
+	Statement::StmtPtr body;
+	{
+		ParseScope innerScope{ this, Semantic::ScopeFlags::DeclarableScope };
+		body = ParseStatement();
+	}
+	
+	whileScope.ExplicitExit();
+
+	if (!body)
+	{
+		return ParseStmtError();
+	}
+
+	return m_Sema.ActOnWhileStmt(whileLoc, std::move(cond), std::move(body));
+}
+
+NatsuLang::Statement::StmtPtr Parser::ParseContinueStatement()
+{
+	assert(m_CurrentToken.Is(TokenType::Kw_continue));
+	const auto loc = m_CurrentToken.GetLocation();
+	ConsumeToken();
+	return m_Sema.ActOnContinueStatement(loc, m_Sema.GetCurrentScope());
+}
+
+NatsuLang::Statement::StmtPtr Parser::ParseBreakStatement()
+{
+	assert(m_CurrentToken.Is(TokenType::Kw_break));
+	const auto loc = m_CurrentToken.GetLocation();
+	ConsumeToken();
+	return m_Sema.ActOnBreakStatement(loc, m_Sema.GetCurrentScope());
+}
+
+NatsuLang::Statement::StmtPtr Parser::ParseReturnStatement()
+{
+	assert(m_CurrentToken.Is(TokenType::Kw_return));
+	const auto loc = m_CurrentToken.GetLocation();
+	ConsumeToken();
+
+	Expression::ExprPtr returnedExpr;
+	if (!m_CurrentToken.Is(TokenType::Semi))
+	{
+		returnedExpr = ParseExpression();
+	}
+
+	return m_Sema.ActOnReturnStmt(loc, std::move(returnedExpr), m_Sema.GetCurrentScope());
 }
 
 NatsuLang::Expression::ExprPtr Parser::ParseExpression()
@@ -362,7 +446,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 		result = ParseCastExpression();
 		if (!result)
 		{
-			// TODO: ±¨¸æ´íÎó
+			// TODO: æŠ¥å‘Šé”™è¯¯
 			result = ParseExprError();
 		}
 
@@ -382,23 +466,23 @@ NatsuLang::Expression::ExprPtr Parser::ParseAsTypeExpression(Expression::ExprPtr
 {
 	while (m_CurrentToken.Is(TokenType::Kw_as))
 	{
-		auto asLoc = m_CurrentToken.GetLocation();
+		const auto asLoc = m_CurrentToken.GetLocation();
 
-		// ³Ôµô as
+		// åƒæ‰ as
 		ConsumeToken();
 
 		Declaration::Declarator decl{ Declaration::Context::TypeName };
 		ParseDeclarator(decl);
 		if (!decl.IsValid())
 		{
-			// TODO: ±¨¸æ´íÎó
+			// TODO: æŠ¥å‘Šé”™è¯¯
 			operand = nullptr;
 		}
 
 		auto type = m_Sema.ActOnTypeName(m_Sema.GetCurrentScope(), decl);
 		if (!type)
 		{
-			// TODO: ±¨¸æ´íÎó
+			// TODO: æŠ¥å‘Šé”™è¯¯
 			operand = nullptr;
 		}
 
@@ -432,13 +516,13 @@ NatsuLang::Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expre
 			ternaryMiddle = ParseExpression();
 			if (!ternaryMiddle)
 			{
-				// TODO: ±¨¸æ´íÎó
+				// TODO: æŠ¥å‘Šé”™è¯¯
 				leftOperand = nullptr;
 			}
 
 			if (!m_CurrentToken.Is(TokenType::Colon))
 			{
-				// TODO: ±¨¸æ¿ÉÄÜÈ±Ê§µÄ':'¼ÇºÅ
+				// TODO: æŠ¥å‘Šå¯èƒ½ç¼ºå¤±çš„':'è®°å·
 			}
 
 			colonLoc = m_CurrentToken.GetLocation();
@@ -448,14 +532,14 @@ NatsuLang::Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expre
 		auto rightOperand = tokenPrec <= OperatorPrecedence::Conditional ? ParseAssignmentExpression() : ParseCastExpression();
 		if (!rightOperand)
 		{
-			// TODO: ±¨¸æ´íÎó
+			// TODO: æŠ¥å‘Šé”™è¯¯
 			leftOperand = nullptr;
 		}
 
 		auto prevPrec = tokenPrec;
 		tokenPrec = GetOperatorPrecedence(m_CurrentToken.GetType());
 
-		auto isRightAssoc = prevPrec == OperatorPrecedence::Assignment || prevPrec == OperatorPrecedence::Conditional;
+		const auto isRightAssoc = prevPrec == OperatorPrecedence::Assignment || prevPrec == OperatorPrecedence::Conditional;
 
 		if (prevPrec < tokenPrec || (prevPrec == tokenPrec && isRightAssoc))
 		{
@@ -463,14 +547,14 @@ NatsuLang::Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expre
 				static_cast<OperatorPrecedence>(static_cast<std::underlying_type_t<OperatorPrecedence>>(prevPrec) + !isRightAssoc));
 			if (!rightOperand)
 			{
-				// TODO: ±¨¸æ´íÎó
+				// TODO: æŠ¥å‘Šé”™è¯¯
 				leftOperand = nullptr;
 			}
 
 			tokenPrec = GetOperatorPrecedence(m_CurrentToken.GetType());
 		}
 
-		// TODO: Èç¹ûÖ®Ç°µÄ·ÖÎö·¢ÏÖ³ö´íµÄ»°Ìõ¼ş½«²»»á±»Âú×ã£¬ÓÉÓÚÖ®Ç°ÒÑ¾­±¨¸æÁË´íÎóÔÚ´Ë¿ÉÒÔ²»½øĞĞ±¨¸æ£¬µ«±ØĞë¼ÌĞøÖ´ĞĞÒÔ±£Ö¤·ÖÎöÍêÕû¸ö±í´ïÊ½
+		// TODO: å¦‚æœä¹‹å‰çš„åˆ†æå‘ç°å‡ºé”™çš„è¯æ¡ä»¶å°†ä¸ä¼šè¢«æ»¡è¶³ï¼Œç”±äºä¹‹å‰å·²ç»æŠ¥å‘Šäº†é”™è¯¯åœ¨æ­¤å¯ä»¥ä¸è¿›è¡ŒæŠ¥å‘Šï¼Œä½†å¿…é¡»ç»§ç»­æ‰§è¡Œä»¥ä¿è¯åˆ†æå®Œæ•´ä¸ªè¡¨è¾¾å¼
 		if (leftOperand)
 		{
 			leftOperand = ternaryMiddle ?
@@ -488,7 +572,7 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 		{
 		case TokenType::LeftSquare:
 		{
-			auto lloc = m_CurrentToken.GetLocation();
+			const auto lloc = m_CurrentToken.GetLocation();
 			ConsumeBracket();
 			auto index = ParseExpression();
 
@@ -501,7 +585,7 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 				return ParseExprError();
 			}
 
-			auto rloc = m_CurrentToken.GetLocation();
+			const auto rloc = m_CurrentToken.GetLocation();
 			prefix = m_Sema.ActOnArraySubscriptExpr(m_Sema.GetCurrentScope(), std::move(prefix), lloc, std::move(index), rloc);
 			ConsumeBracket();
 
@@ -517,18 +601,18 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 			std::vector<Expression::ExprPtr> argExprs;
 			std::vector<SourceLocation> commaLocs;
 
-			auto lloc = m_CurrentToken.GetLocation();
+			const auto lloc = m_CurrentToken.GetLocation();
 			ConsumeParen();
 
 			if (!m_CurrentToken.Is(TokenType::RightParen) && !ParseExpressionList(argExprs, commaLocs))
 			{
-				// TODO: ±¨¸æ´íÎó
+				// TODO: æŠ¥å‘Šé”™è¯¯
 				return ParseExprError();
 			}
 
 			if (!m_CurrentToken.Is(TokenType::RightParen))
 			{
-				// TODO: ±¨¸æ´íÎó
+				// TODO: æŠ¥å‘Šé”™è¯¯
 				return ParseExprError();
 			}
 
@@ -540,7 +624,7 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 		}
 		case TokenType::Period:
 		{
-			auto periodLoc = m_CurrentToken.GetLocation();
+			const auto periodLoc = m_CurrentToken.GetLocation();
 			ConsumeToken();
 			Identifier::IdPtr unqualifiedId;
 			if (!ParseUnqualifiedId(unqualifiedId))
@@ -673,13 +757,13 @@ void Parser::ParseDeclarator(Declaration::Declarator& decl)
 		return;
 	}
 
-	// (: int)Ò²¿ÉÒÔ£¿
+	// (: int)ä¹Ÿå¯ä»¥ï¼Ÿ
 	if (m_CurrentToken.Is(TokenType::Colon) || (context == Declaration::Context::Prototype && !decl.GetIdentifier()))
 	{
 		ParseSpecifier(decl);
 	}
 
-	// ÉùÃ÷º¯ÊıÔ­ĞÍÊ±Ò²¿ÉÒÔÖ¸¶¨initializer£¿
+	// å£°æ˜å‡½æ•°åŸå‹æ—¶ä¹Ÿå¯ä»¥æŒ‡å®šinitializerï¼Ÿ
 	if (m_CurrentToken.IsAnyOf({ TokenType::Equal, TokenType::LeftBrace }))
 	{
 		ParseInitializer(decl);
@@ -707,8 +791,8 @@ void Parser::ParseType(Declaration::Declarator& decl)
 
 	if (!token.Is(TokenType::Colon) && context != Declaration::Context::Prototype)
 	{
-		// ÔÚ·ÇÉùÃ÷º¯ÊıÔ­ĞÍµÄÉÏÏÂÎÄÖĞ²»ÏÔÊ½Ğ´³öÀàĞÍ£¬ÊÓÎªÒşº¬auto
-		// autoµÄÉùÃ÷·ûÔÚÖ¸¶¨initializerÖ®ºó¾ö¶¨Êµ¼ÊÀàĞÍ
+		// åœ¨éå£°æ˜å‡½æ•°åŸå‹çš„ä¸Šä¸‹æ–‡ä¸­ä¸æ˜¾å¼å†™å‡ºç±»å‹ï¼Œè§†ä¸ºéšå«auto
+		// autoçš„å£°æ˜ç¬¦åœ¨æŒ‡å®šinitializerä¹‹åå†³å®šå®é™…ç±»å‹
 		return;
 	}
 
@@ -717,7 +801,7 @@ void Parser::ParseType(Declaration::Declarator& decl)
 	{
 	case TokenType::Identifier:
 	{
-		// ÆÕÍ¨»òÊı×éÀàĞÍ
+		// æ™®é€šæˆ–æ•°ç»„ç±»å‹
 
 		auto type = m_Sema.GetTypeName(m_CurrentToken.GetIdentifierInfo(), m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nullptr);
 		if (!type)
@@ -725,19 +809,22 @@ void Parser::ParseType(Declaration::Declarator& decl)
 			return;
 		}
 
+		decl.SetType(std::move(type));
+
 		ConsumeToken();
 
 		break;
 	}
 	case TokenType::LeftParen:
 	{
-		// º¯ÊıÀàĞÍ»òÕßÀ¨ºÅÀàĞÍ
+		// å‡½æ•°ç±»å‹æˆ–è€…æ‹¬å·ç±»å‹
 		ParseFunctionType(decl);
 
 		break;
 	}
 	case TokenType::RightParen:
 	{
+		assert(!"Wrong token");
 		ConsumeParen();
 
 		return;
@@ -753,7 +840,7 @@ void Parser::ParseType(Declaration::Declarator& decl)
 		const auto builtinClass = Type::BuiltinType::GetBuiltinClassFromTokenType(tokenType);
 		if (builtinClass == Type::BuiltinType::Invalid)
 		{
-			// ¶ÔÓÚÎŞĞ§ÀàĞÍµÄ´¦Àí
+			// å¯¹äºæ— æ•ˆç±»å‹çš„å¤„ç†
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
 				.AddArgument(tokenType);
 			return;
@@ -763,14 +850,14 @@ void Parser::ParseType(Declaration::Declarator& decl)
 	}
 	}
 
-	// ¼´Ê¹ÀàĞÍ²»ÊÇÊı×é³¢ÊÔParseÒ²²»»á´íÎó
+	// å³ä½¿ç±»å‹ä¸æ˜¯æ•°ç»„å°è¯•Parseä¹Ÿä¸ä¼šé”™è¯¯
 	ParseArrayType(decl);
 }
 
 void Parser::ParseParenType(Declaration::Declarator& decl)
 {
 	assert(m_CurrentToken.Is(TokenType::LeftParen));
-	// ³Ôµô×óÀ¨ºÅ
+	// åƒæ‰å·¦æ‹¬å·
 	ConsumeParen();
 
 	ParseType(decl);
@@ -778,7 +865,7 @@ void Parser::ParseParenType(Declaration::Declarator& decl)
 	{
 		if (m_CurrentToken.Is(TokenType::Identifier))
 		{
-			// º¯ÊıÀàĞÍ
+			// å‡½æ•°ç±»å‹
 			ParseFunctionType(decl);
 			return;
 		}
@@ -815,7 +902,7 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 
 		if (!param.GetType() && !param.GetInitializer())
 		{
-			// TODO: ±¨¸æ´íÎó£º²ÎÊıµÄÀàĞÍºÍ³õÊ¼»¯Æ÷ÖÁÉÙÒª´æÔÚÒ»¸ö
+			// TODO: æŠ¥å‘Šé”™è¯¯ï¼šå‚æ•°çš„ç±»å‹å’Œåˆå§‹åŒ–å™¨è‡³å°‘è¦å­˜åœ¨ä¸€ä¸ª
 		}
 
 		if (m_CurrentToken.Is(TokenType::RightParen))
@@ -835,19 +922,19 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 		ConsumeToken();
 	}
 
-	// ¶ÁÈ¡Íêº¯Êı²ÎÊıĞÅÏ¢£¬¿ªÊ¼¶ÁÈ¡·µ»ØÀàĞÍ
+	// è¯»å–å®Œå‡½æ•°å‚æ•°ä¿¡æ¯ï¼Œå¼€å§‹è¯»å–è¿”å›ç±»å‹
 
-	// Èç¹û²»ÊÇ->ÇÒÖ»ÓĞÒ»¸öÎŞÃû³Æ²ÎÊıËµÃ÷ÊÇÆÕÍ¨µÄÀ¨ºÅÀàĞÍ
+	// å¦‚æœä¸æ˜¯->ä¸”åªæœ‰ä¸€ä¸ªæ— åç§°å‚æ•°è¯´æ˜æ˜¯æ™®é€šçš„æ‹¬å·ç±»å‹
 	if (!m_CurrentToken.Is(TokenType::Arrow))
 	{
 		if (mayBeParenType)
 		{
-			// ÊÇÀ¨ºÅÀàĞÍ£¬µ«ÊÇÎÒÃÇÒÑ¾­°ÑToken´¦ÀíÍê±ÏÁË¡£¡£¡£
+			// æ˜¯æ‹¬å·ç±»å‹ï¼Œä½†æ˜¯æˆ‘ä»¬å·²ç»æŠŠTokenå¤„ç†å®Œæ¯•äº†ã€‚ã€‚ã€‚
 			decl = std::move(paramDecls[0]);
 			return;
 		}
 
-		// ÒÔºó»á¼ÓÈëÔª×é»òÄäÃûÀàĞÍµÄÖ§³ÖÂğ£¿
+		// ä»¥åä¼šåŠ å…¥å…ƒç»„æˆ–åŒ¿åç±»å‹çš„æ”¯æŒå—ï¼Ÿ
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
 			.AddArgument(TokenType::Arrow)
 			.AddArgument(m_CurrentToken.GetType());
@@ -858,8 +945,10 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 	Declaration::Declarator retType{ Declaration::Context::Prototype };
 	ParseType(retType);
 
-	// TODO: ¸Ã½»¸øSema´¦ÀíÁË£¬²åÈëÒ»¸öfunction prototype
-	nat_Throw(NotImplementedException);
+	decl.SetType(m_Sema.BuildFunctionType(retType.GetType(), from(paramDecls).select([](Declaration::Declarator const& paramDecl) -> Type::TypePtr const&
+	{
+		return paramDecl.GetType();
+	})));
 }
 
 void Parser::ParseArrayType(Declaration::Declarator& decl)
@@ -894,19 +983,21 @@ void Parser::ParseInitializer(Declaration::Declarator& decl)
 	{
 		if (decl.GetType()->GetType() != Type::Type::Function)
 		{
-			// TODO: ±¨¸æ´íÎó
+			// TODO: æŠ¥å‘Šé”™è¯¯
 			return;
 		}
 
-		// TODO: ½âÎöÓï¾ä¿é×÷Îªº¯ÊıÌå
+		ParseScope bodyScope{ this, Semantic::ScopeFlags::FunctionScope | Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::CompoundStmtScope };
+		auto funcDecl = m_Sema.ActOnStartOfFunctionDef(m_Sema.GetCurrentScope(), decl);
+		decl.SetInitializer(ParseFunctionBody(std::move(funcDecl), bodyScope));
 	}
 
-	// ²»ÊÇ initializer£¬·µ»Ø
+	// ä¸æ˜¯ initializerï¼Œè¿”å›
 }
 
 nBool Parser::SkipUntil(std::initializer_list<Token::TokenType> list, nBool dontConsume)
 {
-	// ÌØÀı£¬Èç¹ûµ÷ÓÃÕßÖ»ÊÇÏëÌøµ½ÎÄ¼ş½áÎ²£¬ÎÒÃÇ²»ĞèÒªÔÙÁíÍâÅĞ¶ÏÆäËûĞÅÏ¢
+	// ç‰¹ä¾‹ï¼Œå¦‚æœè°ƒç”¨è€…åªæ˜¯æƒ³è·³åˆ°æ–‡ä»¶ç»“å°¾ï¼Œæˆ‘ä»¬ä¸éœ€è¦å†å¦å¤–åˆ¤æ–­å…¶ä»–ä¿¡æ¯
 	if (list.size() == 1 && *list.begin() == TokenType::Eof)
 	{
 		while (!m_CurrentToken.Is(TokenType::Eof))
