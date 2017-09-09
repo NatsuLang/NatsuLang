@@ -1,8 +1,8 @@
 #pragma once
 #include <natMisc.h>
 #include <natRefObj.h>
+#include <natLinq.h>
 #include "Basic/SourceLocation.h"
-#include "natLinq.h"
 
 namespace NatsuLang::Identifier
 {
@@ -134,6 +134,12 @@ namespace NatsuLang::Declaration
 		class DeclIterator
 		{
 		public:
+			typedef std::forward_iterator_tag iterator_category;
+			typedef DeclPtr value_type;
+			typedef std::ptrdiff_t difference_type;
+			typedef std::add_lvalue_reference_t<value_type> reference;
+			typedef std::add_pointer_t<value_type> pointer;
+
 			explicit DeclIterator(DeclPtr firstDecl = {});
 
 			DeclPtr operator*() const noexcept;

@@ -12,7 +12,7 @@ namespace NatsuLang
 		Preprocessor(Diag::DiagnosticsEngine& diag, SourceManager& sourceManager);
 		~Preprocessor();
 
-		NatsuLib::natRefPointer<Identifier::IdentifierInfo> FindIdentifierInfo(nStrView identifierName, Token::Token& token) const;
+		NatsuLib::natRefPointer<Identifier::IdentifierInfo> FindIdentifierInfo(nStrView identifierName, Lex::Token& token) const;
 
 		Diag::DiagnosticsEngine& GetDiag() const noexcept
 		{
@@ -34,7 +34,7 @@ namespace NatsuLang
 			m_Lexer = std::move(lexer);
 		}
 
-		nBool Lex(Token::Token& result) const
+		nBool Lex(Lex::Token& result) const
 		{
 			return m_Lexer->Lex(result);
 		}

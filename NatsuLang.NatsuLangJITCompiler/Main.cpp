@@ -1,8 +1,12 @@
+#include <AST/ASTContext.h>
+#include <AST/ASTConsumer.h>
+#include <AST/Expression.h>
 #include <Lex/Lexer.h>
 #include <Lex/Preprocessor.h>
 #include <Basic/Diagnostic.h>
 #include <Basic/FileManager.h>
 #include <Basic/SourceManager.h>
+#include <Parse/Parser.h>
 #include <natConsole.h>
 
 using namespace NatsuLib;
@@ -48,6 +52,34 @@ private:
 	natConsole& m_Console;
 };
 
+class TestConsumer
+	: public natRefObjImpl<TestConsumer, ASTConsumer>
+{
+public:
+	void Initialize(ASTContext& context) override
+	{
+		static_cast<void>(context);
+	}
+
+	void HandleTranslationUnit(ASTContext& context) override
+	{
+		static_cast<void>(context);
+	}
+
+	nBool HandleTopLevelDecl(Linq<const Declaration::DeclPtr> const& decls) override
+	{
+		static_cast<void>(decls);
+		return true;
+	}
+};
+
+constexpr char TestCode[] = u8R"(
+def main : (arg : int) -> int
+{
+	return 1;
+}
+)";
+
 int main()
 {
 	natConsole console;
@@ -55,10 +87,10 @@ int main()
 	FileManager fileManager{};
 	SourceManager sourceManager{ diag, fileManager };
 	Preprocessor pp{ diag, sourceManager };
-	Lexer lexer{ "abc", pp };
-
-	Token::Token token;
-	lexer.Lex(token);
+	pp.SetLexer(make_ref<Lexer>(TestCode, pp));
+	ASTContext context;
+	
+	ParseAST(pp, context, make_ref<TestConsumer>());
 
 	system("pause");
 }

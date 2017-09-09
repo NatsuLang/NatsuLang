@@ -1,10 +1,14 @@
-#include "AST/Expression.h"
+ï»¿#include "AST/Expression.h"
+#include "AST/Statement.h"
 #include "AST/StmtVisitor.h"
+#include "AST/NestedNameSpecifier.h"
+#include "Basic/Identifier.h"
 
 #undef max
 #undef min
 
 using namespace NatsuLib;
+using namespace NatsuLang;
 using namespace NatsuLang::Statement;
 using namespace NatsuLang::Expression;
 
@@ -28,11 +32,6 @@ namespace
 			return false;
 		}
 
-		nBool VisitExpr(natRefPointer<Expr> const&) override
-		{
-			return false;
-		}
-
 		nBool VisitParenExpr(natRefPointer<ParenExpr> const& expr) override
 		{
 			return Visit(expr->GetInnerExpr());
@@ -43,7 +42,7 @@ namespace
 		Expr::EvalResult& m_Result;
 	};
 
-	// TODO: Î´¶Ô²»Í¬Î»ÊıµÄÕûÊıÀàĞÍ½øĞĞÌØ±ğ´¦Àí£¬¿ÉÄÜÔÚÒç³öºó»áµÃµ½ÒâÁÏ²»µ½µÄÖµ
+	// TODO: æœªå¯¹ä¸åŒä½æ•°çš„æ•´æ•°ç±»å‹è¿›è¡Œç‰¹åˆ«å¤„ç†ï¼Œå¯èƒ½åœ¨æº¢å‡ºåä¼šå¾—åˆ°æ„æ–™ä¸åˆ°çš„å€¼
 	class IntExprEvaluator
 		: public ExprEvaluatorBase
 	{
@@ -121,7 +120,7 @@ namespace
 			}
 		}
 
-		// µ±´Ë²Ù×÷ÊıÎŞ·¨¾ö¶¨Õû¸ö±í´ïÊ½µÄÖµµÄÊ±ºò·µ»Øtrue
+		// å½“æ­¤æ“ä½œæ•°æ— æ³•å†³å®šæ•´ä¸ªè¡¨è¾¾å¼çš„å€¼çš„æ—¶å€™è¿”å›true
 		static nBool VisitLogicalBinaryOperatorOperand(Expr::EvalResult& result, natRefPointer<BinaryOperator> const& expr)
 		{
 			const auto opcode = expr->GetOpcode();
@@ -141,7 +140,7 @@ namespace
 			return true;
 		}
 
-		// TODO: ´¦Àí¸¡µãÀàĞÍµÄ±È½Ï²Ù×÷
+		// TODO: å¤„ç†æµ®ç‚¹ç±»å‹çš„æ¯”è¾ƒæ“ä½œ
 		nBool VisitBinaryOperator(natRefPointer<BinaryOperator> const& expr) override
 		{
 			const auto opcode = expr->GetOpcode();
@@ -155,7 +154,7 @@ namespace
 				return false;
 			}
 
-			// Èç¹ûÊÇÂß¼­²Ù×÷·û£¬ÅĞ¶ÏÊÇ·ñ¿ÉÒÔ¶ÌÂ·ÇóÖµ
+			// å¦‚æœæ˜¯é€»è¾‘æ“ä½œç¬¦ï¼Œåˆ¤æ–­æ˜¯å¦å¯ä»¥çŸ­è·¯æ±‚å€¼
 			if (IsBinLogicalOp(opcode))
 			{
 				nBool value;
@@ -168,7 +167,7 @@ namespace
 				return false;
 			}
 
-			// ÓÒ²Ù×÷ÊıĞèÒªÇóÖµ£¬ÒòÎªÈç¹ûÒÑ¾­½øĞĞÁËÇóÖµ²Ù×÷Ôò²»»áµ½´ï´Ë´¦
+			// å³æ“ä½œæ•°éœ€è¦æ±‚å€¼ï¼Œå› ä¸ºå¦‚æœå·²ç»è¿›è¡Œäº†æ±‚å€¼æ“ä½œåˆ™ä¸ä¼šåˆ°è¾¾æ­¤å¤„
 			if (!Evaluate(rightOperand, m_Context, rightResult))
 			{
 				return false;
@@ -181,7 +180,7 @@ namespace
 
 			auto leftValue = std::get<0>(leftResult.Result), rightValue = std::get<0>(rightResult.Result);
 
-			// ÎŞĞèÅĞ¶ÏÂß¼­²Ù×÷·ûµÄÇé¿ö
+			// æ— éœ€åˆ¤æ–­é€»è¾‘æ“ä½œç¬¦çš„æƒ…å†µ
 			switch (opcode)
 			{
 			case BinaryOperationType::Mul:
@@ -208,7 +207,7 @@ namespace
 				m_Result.Result.emplace<0>(leftValue % rightValue);
 				return true;
 			case BinaryOperationType::Shl:
-				// Òç³ö
+				// æº¢å‡º
 				if (rightValue >= sizeof(nuLong) * 8)
 				{
 					return false;
@@ -256,7 +255,7 @@ namespace
 			case BinaryOperationType::AndAssign:
 			case BinaryOperationType::XorAssign:
 			case BinaryOperationType::OrAssign:
-				// ²»ÄÜ³£Á¿ÕÛµş
+				// ä¸èƒ½å¸¸é‡æŠ˜å 
 			case BinaryOperationType::Invalid:
 			default:
 				return false;
@@ -280,7 +279,7 @@ namespace
 					return false;
 				}
 
-				m_Result.Result.emplace<0>(-std::get<0>(m_Result.Result));
+				m_Result.Result.emplace<0>(std::numeric_limits<nuLong>::max() - std::get<0>(m_Result.Result));
 				return true;
 			case UnaryOperationType::Not:
 				if (!Visit(expr->GetOperand()))
@@ -344,6 +343,7 @@ namespace
 			case CastType::FloatingCast:
 				return Visit(operand);
 			case CastType::IntegralToFloating:
+			{
 				Expr::EvalResult result;
 				if (!EvaluateInteger(operand, m_Context, result) || result.Result.index() != 0)
 				{
@@ -352,6 +352,7 @@ namespace
 
 				m_Result.Result.emplace<1>(static_cast<nDouble>(std::get<0>(result.Result)));
 				return true;
+			}
 			case CastType::Invalid:
 			case CastType::IntegralCast:
 			case CastType::IntegralToBoolean:
@@ -492,7 +493,7 @@ Expr::~Expr()
 NatsuLang::Expression::ExprPtr Expr::IgnoreParens() noexcept
 {
 	auto ret = ForkRef<Expr>();
-	// ¿ÉÄÜµÄËÀÑ­»·
+	// å¯èƒ½çš„æ­»å¾ªç¯
 	while (true)
 	{
 		if (auto parenExpr = static_cast<natRefPointer<ParenExpr>>(ret))
@@ -738,12 +739,12 @@ ConstructExpr::~ConstructExpr()
 {
 }
 
-Linq<NatsuLang::Expression::ExprPtr> ConstructExpr::GetArgs() const noexcept
+Linq<const NatsuLang::Expression::ExprPtr> ConstructExpr::GetArgs() const noexcept
 {
 	return from(m_Args);
 }
 
-void ConstructExpr::SetArgs(Linq<ExprPtr> const& value)
+void ConstructExpr::SetArgs(Linq<const ExprPtr> const& value)
 {
 	m_Args.assign(value.begin(), value.end());
 }
@@ -757,12 +758,12 @@ NewExpr::~NewExpr()
 {
 }
 
-Linq<NatsuLang::Expression::ExprPtr> NewExpr::GetArgs() const noexcept
+Linq<const NatsuLang::Expression::ExprPtr> NewExpr::GetArgs() const noexcept
 {
 	return from(m_Args);
 }
 
-void NewExpr::SetArgs(Linq<ExprPtr> const& value)
+void NewExpr::SetArgs(Linq<const ExprPtr> const& value)
 {
 	m_Args.assign(value.begin(), value.end());
 }

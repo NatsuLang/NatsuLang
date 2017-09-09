@@ -1,5 +1,6 @@
 #include "AST/StmtBase.h"
 
+using namespace NatsuLang;
 using namespace NatsuLang::Statement;
 
 namespace
@@ -9,7 +10,7 @@ namespace
 		switch (type)
 		{
 #define ABSTRACT_STMT(STMT)
-#define STMT(CLASS, PARENT) case Stmt::CLASS: return #CLASS;
+#define STMT(CLASS, PARENT) case Stmt::CLASS##Class: return #CLASS;
 #include "Basic/StmtDef.h"
 		default:
 			assert(!"Invalid type.");

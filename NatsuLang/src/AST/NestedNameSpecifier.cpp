@@ -1,5 +1,7 @@
-#include "AST/NestedNameSpecifier.h"
+ï»¿#include "AST/NestedNameSpecifier.h"
 #include "AST/ASTContext.h"
+#include "AST/Expression.h"
+#include "Basic/Identifier.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang;
@@ -47,16 +49,13 @@ Declaration::DeclContext* NestedNameSpecifier::GetAsDeclContext(ASTContext const
 	case SpecifierType::Type:
 	{
 		auto ret = static_cast<natRefPointer<Type::TagType>>(GetAsType());
-		if (!ret)
-		{
-			nat_Throw(natErrException, NatErr_IllegalState, "The type is not a tag.");
-		}
+		assert(ret);
 		return ret->GetDecl().Get();
 	}
 	case SpecifierType::Global:
 		return context.GetTranslationUnit().Get();
 	case SpecifierType::Outer:
-		// TODO: Íê³É»ñµÃÍâ²ãÃû³ÆµÄDeclContext
+		// TODO: å®Œæˆè·å¾—å¤–å±‚åç§°çš„DeclContext
 	case SpecifierType::Identifier:
 	default: 
 		return nullptr;

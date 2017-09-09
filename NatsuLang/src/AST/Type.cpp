@@ -1,7 +1,11 @@
 #include "AST/Type.h"
+#include "AST/Expression.h"
 #include "Basic/Token.h"
+#include "Basic/Identifier.h"
+#include "AST/NestedNameSpecifier.h"
 
 using namespace NatsuLib;
+using namespace NatsuLang;
 using namespace NatsuLang::Type;
 
 namespace
@@ -130,33 +134,33 @@ nBool BuiltinType::EqualTo(TypePtr const& other) const noexcept
 	return m_BuiltinClass == realOther->m_BuiltinClass;
 }
 
-BuiltinType::BuiltinClass BuiltinType::GetBuiltinClassFromTokenType(Token::TokenType type) noexcept
+BuiltinType::BuiltinClass BuiltinType::GetBuiltinClassFromTokenType(Lex::TokenType type) noexcept
 {
 	switch (type)
 	{
-	case Token::TokenType::Kw_bool:
+	case Lex::TokenType::Kw_bool:
 		return Bool;
-	case Token::TokenType::Kw_char:
+	case Lex::TokenType::Kw_char:
 		return Char;
-	case Token::TokenType::Kw_ushort:
+	case Lex::TokenType::Kw_ushort:
 		return UShort;
-	case Token::TokenType::Kw_uint:
+	case Lex::TokenType::Kw_uint:
 		return UInt;
-	case Token::TokenType::Kw_ulong:
+	case Lex::TokenType::Kw_ulong:
 		return ULong;
-	case Token::TokenType::Kw_ulonglong:
+	case Lex::TokenType::Kw_ulonglong:
 		return ULongLong;
-	case Token::TokenType::Kw_uint128:
+	case Lex::TokenType::Kw_uint128:
 		return UInt128;
-	case Token::TokenType::Kw_short:
+	case Lex::TokenType::Kw_short:
 		return Short;
-	case Token::TokenType::Kw_int:
+	case Lex::TokenType::Kw_int:
 		return Int;
-	case Token::TokenType::Kw_long:
+	case Lex::TokenType::Kw_long:
 		return Long;
-	case Token::TokenType::Kw_longlong:
+	case Lex::TokenType::Kw_longlong:
 		return LongLong;
-	case Token::TokenType::Kw_int128:
+	case Lex::TokenType::Kw_int128:
 		return Int128;
 	default:
 		return Invalid;
@@ -259,7 +263,7 @@ FunctionType::~FunctionType()
 {
 }
 
-Linq<TypePtr> FunctionType::GetParameterTypes() const noexcept
+Linq<const TypePtr> FunctionType::GetParameterTypes() const noexcept
 {
 	return from(m_ParameterTypes);
 }

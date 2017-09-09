@@ -20,51 +20,51 @@ namespace NatsuLang
 		Multiplicative,
 	};
 
-	constexpr OperatorPrecedence GetOperatorPrecedence(Token::TokenType tokenType)
+	constexpr OperatorPrecedence GetOperatorPrecedence(Lex::TokenType tokenType)
 	{
 		switch (tokenType)
 		{
-		case Token::TokenType::AmpEqual:
-		case Token::TokenType::PlusEqual:
-		case Token::TokenType::MinusEqual:
-		case Token::TokenType::SlashEqual:
-		case Token::TokenType::StarEqual:
-		case Token::TokenType::PercentEqual:
-		case Token::TokenType::LessLessEqual:
-		case Token::TokenType::GreaterGreaterEqual:
-		case Token::TokenType::CaretEqual:
-		case Token::TokenType::PipeEqual:
-		case Token::TokenType::Equal:
+		case Lex::TokenType::AmpEqual:
+		case Lex::TokenType::PlusEqual:
+		case Lex::TokenType::MinusEqual:
+		case Lex::TokenType::SlashEqual:
+		case Lex::TokenType::StarEqual:
+		case Lex::TokenType::PercentEqual:
+		case Lex::TokenType::LessLessEqual:
+		case Lex::TokenType::GreaterGreaterEqual:
+		case Lex::TokenType::CaretEqual:
+		case Lex::TokenType::PipeEqual:
+		case Lex::TokenType::Equal:
 			return OperatorPrecedence::Assignment;
-		case Token::TokenType::Amp:
+		case Lex::TokenType::Amp:
 			return OperatorPrecedence::And;
-		case Token::TokenType::AmpAmp:
+		case Lex::TokenType::AmpAmp:
 			return OperatorPrecedence::LogicalAnd;
-		case Token::TokenType::Star:
-		case Token::TokenType::Slash:
-		case Token::TokenType::Percent:
+		case Lex::TokenType::Star:
+		case Lex::TokenType::Slash:
+		case Lex::TokenType::Percent:
 			return OperatorPrecedence::Multiplicative;
-		case Token::TokenType::Plus:
-		case Token::TokenType::Minus:
+		case Lex::TokenType::Plus:
+		case Lex::TokenType::Minus:
 			return OperatorPrecedence::Additive;
-		case Token::TokenType::ExclaimEqual:
-		case Token::TokenType::EqualEqual:
+		case Lex::TokenType::ExclaimEqual:
+		case Lex::TokenType::EqualEqual:
 			return OperatorPrecedence::Equality;
-		case Token::TokenType::Less:
-		case Token::TokenType::Greater:
-		case Token::TokenType::LessEqual:
-		case Token::TokenType::GreaterEqual:
+		case Lex::TokenType::Less:
+		case Lex::TokenType::Greater:
+		case Lex::TokenType::LessEqual:
+		case Lex::TokenType::GreaterEqual:
 			return OperatorPrecedence::Relational;
-		case Token::TokenType::LessLess:
-		case Token::TokenType::GreaterGreater:
+		case Lex::TokenType::LessLess:
+		case Lex::TokenType::GreaterGreater:
 			return OperatorPrecedence::Shift;
-		case Token::TokenType::Caret:
+		case Lex::TokenType::Caret:
 			return OperatorPrecedence::ExclusiveOr;
-		case Token::TokenType::Pipe:
+		case Lex::TokenType::Pipe:
 			return OperatorPrecedence::InclusiveOr;
-		case Token::TokenType::PipePipe:
+		case Lex::TokenType::PipePipe:
 			return OperatorPrecedence::LogicalOr;
-		case Token::TokenType::Question:
+		case Lex::TokenType::Question:
 			return OperatorPrecedence::Conditional;
 		default:
 			return OperatorPrecedence::Unknown;

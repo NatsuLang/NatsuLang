@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "Basic/Token.h"
 
 namespace NatsuLang
@@ -15,7 +15,7 @@ namespace NatsuLang
 		public:
 			explicit Lexer(nStrView buffer, Preprocessor& preprocessor);
 
-			nBool Lex(Token::Token& result);
+			nBool Lex(Lex::Token& result);
 
 		private:
 			using Iterator = nStrView::const_iterator;
@@ -24,17 +24,17 @@ namespace NatsuLang
 			Preprocessor& m_Preprocessor;
 
 			nStrView m_Buffer;
-			// µ±Ç°´¦ÀíµÄÖ¸Õë£¬Ö¸ÏòÏÂÒ»´Î±»´¦ÀíµÄ×Ö·û
+			// å½“å‰å¤„ç†çš„æŒ‡é’ˆï¼ŒæŒ‡å‘ä¸‹ä¸€æ¬¡è¢«å¤„ç†çš„å­—ç¬¦
 			Iterator m_Current;
 
-			nBool skipWhitespace(Token::Token& result, Iterator cur);
-			nBool skipLineComment(Token::Token& result, Iterator cur);
-			nBool skipBlockComment(Token::Token& result, Iterator cur);
+			nBool skipWhitespace(Lex::Token& result, Iterator cur);
+			nBool skipLineComment(Lex::Token& result, Iterator cur);
+			nBool skipBlockComment(Lex::Token& result, Iterator cur);
 
-			nBool lexNumericLiteral(Token::Token& result, Iterator cur);
-			nBool lexIdentifier(Token::Token& result, Iterator cur);
-			nBool lexCharLiteral(Token::Token& result, Iterator cur);
-			nBool lexStringLiteral(Token::Token& result, Iterator cur);
+			nBool lexNumericLiteral(Lex::Token& result, Iterator cur);
+			nBool lexIdentifier(Lex::Token& result, Iterator cur);
+			nBool lexCharLiteral(Lex::Token& result, Iterator cur);
+			nBool lexStringLiteral(Lex::Token& result, Iterator cur);
 		};
 	}
 }

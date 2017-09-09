@@ -106,11 +106,11 @@ CONSTRUCTEXPR(ConstructExpr, Expr)
 DELETEEXPR(DeleteExpr, Expr)
 #undef DELETEEXPR
 
-#ifndef INHERITEDCTORINITEXPR
+/*#ifndef INHERITEDCTORINITEXPR
 #define INHERITEDCTORINITEXPR(Type, Base) EXPR(Type, Base)
 #endif
 INHERITEDCTORINITEXPR(InheritedCtorInitExpr, Expr)
-#undef INHERITEDCTORINITEXPR
+#undef INHERITEDCTORINITEXPR*/
 
 #ifndef NEWEXPR
 #define NEWEXPR(Type, Base) EXPR(Type, Base)
@@ -144,12 +144,6 @@ MEMBERCALLEXPR(MemberCallExpr, CallExpr)
 STMT_RANGE(CallExpr, CallExpr, MemberCallExpr)
 
 #undef CALLEXPR
-
-#ifndef ARRAYSUBSCRIPTEXPR
-#define ARRAYSUBSCRIPTEXPR(Type, Base) EXPR(Type, Base)
-#endif
-ARRAYSUBSCRIPTEXPR(ArraySubscriptExpr, Expr)
-#undef ARRAYSUBSCRIPTEXPR
 
 #ifndef CASTEXPR
 #define CASTEXPR(Type, Base) EXPR(Type, Base)
@@ -202,7 +196,7 @@ INTEGERLITERAL(IntegerLiteral, Expr)
 MEMBEREXPR(MemberExpr, Expr)
 #undef MEMBEREXPR
 
-#ifndef OVERLOADEXPR
+/*#ifndef OVERLOADEXPR
 #define OVERLOADEXPR(Type, Base) EXPR(Type, Base)
 #endif
 ABSTRACT_STMT(OVERLOADEXPR(OverloadExpr, Expr))
@@ -220,7 +214,7 @@ UNRESOLVEDMEMBEREXPR(UnresolvedMemberExpr, OverloadExpr)
 
 STMT_RANGE(OverloadExpr, UnresolvedLookupExpr, UnresolvedMemberExpr)
 
-#undef OVERLOADEXPR
+#undef OVERLOADEXPR*/
 
 #ifndef PARENEXPR
 #define PARENEXPR(Type, Base) EXPR(Type, Base)
@@ -228,11 +222,11 @@ STMT_RANGE(OverloadExpr, UnresolvedLookupExpr, UnresolvedMemberExpr)
 PARENEXPR(ParenExpr, Expr)
 #undef PARENEXPR
 
-#ifndef PARENLISTEXPR
+/*#ifndef PARENLISTEXPR
 #define PARENLISTEXPR(Type, Base) EXPR(Type, Base)
 #endif
 PARENLISTEXPR(ParenListExpr, Expr)
-#undef PARENLISTEXPR
+#undef PARENLISTEXPR*/
 
 #ifndef STMTEXPR
 #define STMTEXPR(Type, Base) EXPR(Type, Base)

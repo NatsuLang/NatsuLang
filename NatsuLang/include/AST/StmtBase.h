@@ -8,7 +8,7 @@ namespace NatsuLang::Statement
 	class Stmt;
 
 	using StmtPtr = NatsuLib::natRefPointer<Stmt>;
-	using StmtEnumerable = NatsuLib::Linq<StmtPtr>;
+	using StmtEnumerable = NatsuLib::Linq<const StmtPtr>;
 
 	class Stmt
 		: public NatsuLib::natRefObjImpl<Stmt>
@@ -18,11 +18,11 @@ namespace NatsuLang::Statement
 		{
 			None = 0,
 #define STMT(StmtType, Base) StmtType##Class,
-#define STMT_RANGE(Base, FIRST, LAST) \
-		First##Base##Constant = FIRST##Class, Last##Base##Constant = LAST##Class,
-#define LAST_STMT_RANGE(Base, FIRST, LAST) \
-		First##Base##Constant = FIRST##Class, Last##Base##Constant = LAST##Class
-#define ABSTRACT_STMT(STMT)
+#define STMT_RANGE(Base, First, Last) \
+		First##Base##Constant = First##Class, Last##Base##Constant = Last##Class,
+#define LAST_STMT_RANGE(Base, First, Last) \
+		First##Base##Constant = First##Class, Last##Base##Constant = Last##Class
+#define ABSTRACT_STMT(Stmt)
 #include "Basic/StmtDef.h"
 		};
 

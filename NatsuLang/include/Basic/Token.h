@@ -9,7 +9,7 @@ namespace NatsuLang::Identifier
 	class IdentifierInfo;
 }
 
-namespace NatsuLang::Token
+namespace NatsuLang::Lex
 {
 	enum class TokenType
 	{

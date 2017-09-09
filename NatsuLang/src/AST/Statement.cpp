@@ -1,10 +1,13 @@
 #include "AST/Statement.h"
 #include "AST/Declaration.h"
 #include "AST/Expression.h"
+#include "AST/NestedNameSpecifier.h"
 #include "Basic/Identifier.h"
 
 using namespace NatsuLib;
+using namespace NatsuLang;
 using namespace NatsuLang::Statement;
+using namespace NatsuLang::Expression;
 
 DeclStmt::~DeclStmt()
 {
@@ -50,7 +53,7 @@ SwitchStmt::~SwitchStmt()
 
 StmtEnumerable SwitchStmt::GetChildrens()
 {
-	return from_values({ static_cast<StmtPtr>(m_Cond), m_Body });
+	return from_values(std::vector<StmtPtr>{ static_cast<StmtPtr>(m_Cond), m_Body });
 }
 
 CaseStmt::~CaseStmt()
@@ -72,7 +75,7 @@ nStrView LabelStmt::GetName() const noexcept
 
 StmtEnumerable LabelStmt::GetChildrens()
 {
-	return from_values({ m_SubStmt });
+	return from_values(std::vector<StmtPtr>{ m_SubStmt });
 }
 
 IfStmt::~IfStmt()
@@ -81,7 +84,7 @@ IfStmt::~IfStmt()
 
 StmtEnumerable IfStmt::GetChildrens()
 {
-	return from_values({ static_cast<StmtPtr>(m_Cond), m_Then, m_Else });
+	return from_values(std::vector<StmtPtr>{ static_cast<StmtPtr>(m_Cond), m_Then, m_Else });
 }
 
 WhileStmt::~WhileStmt()
@@ -90,7 +93,7 @@ WhileStmt::~WhileStmt()
 
 StmtEnumerable WhileStmt::GetChildrens()
 {
-	return from_values({ static_cast<StmtPtr>(m_Cond), m_Body });
+	return from_values(std::vector<StmtPtr>{ static_cast<StmtPtr>(m_Cond), m_Body });
 }
 
 DoStmt::~DoStmt()
@@ -99,7 +102,7 @@ DoStmt::~DoStmt()
 
 StmtEnumerable DoStmt::GetChildrens()
 {
-	return from_values({ m_Body, static_cast<StmtPtr>(m_Cond) });
+	return from_values(std::vector<StmtPtr>{ m_Body, static_cast<StmtPtr>(m_Cond) });
 }
 
 ForStmt::~ForStmt()
@@ -108,7 +111,7 @@ ForStmt::~ForStmt()
 
 StmtEnumerable ForStmt::GetChildrens()
 {
-	return from_values({ m_Init, static_cast<StmtPtr>(m_Cond),  static_cast<StmtPtr>(m_Inc), m_Body });
+	return from_values(std::vector<StmtPtr>{ m_Init, static_cast<StmtPtr>(m_Cond),  static_cast<StmtPtr>(m_Inc), m_Body });
 }
 
 GotoStmt::~GotoStmt()
@@ -142,8 +145,12 @@ StmtEnumerable ReturnStmt::GetChildrens()
 {
 	if (m_RetExpr)
 	{
-		return from_values({ static_cast<StmtPtr>(m_RetExpr) });
+		return from_values(std::vector<StmtPtr>{ static_cast<StmtPtr>(m_RetExpr) });
 	}
 	
 	return Stmt::GetChildrens();
+}
+
+CatchStmt::~CatchStmt()
+{
 }

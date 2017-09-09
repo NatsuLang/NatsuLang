@@ -4,16 +4,20 @@
 #include "Sema/Declarator.h"
 #include "AST/Type.h"
 #include "AST/ASTContext.h"
+#include "AST/ASTConsumer.h"
+#include "AST/Expression.h"
+#include "AST/Declaration.h"
 
 using namespace NatsuLib;
+using namespace NatsuLang;
 using namespace NatsuLang::Syntax;
-using namespace NatsuLang::Token;
+using namespace NatsuLang::Lex;
 using namespace NatsuLang::Diag;
 
 Parser::Parser(Preprocessor& preprocessor, Semantic::Sema& sema)
 	: m_Preprocessor{ preprocessor }, m_Diag{ preprocessor.GetDiag() }, m_Sema{ sema }, m_ParenCount{}, m_BracketCount{}, m_BraceCount{}
 {
-	m_CurrentToken.SetType(TokenType::Eof);
+	ConsumeToken();
 }
 
 Parser::~Parser()
@@ -30,13 +34,40 @@ DiagnosticsEngine& Parser::GetDiagnosticsEngine() const noexcept
 	return m_Diag;
 }
 
+#if PARSER_USE_EXCEPTION
+Expression::ExprPtr Parser::ParseExprError()
+{
+	nat_Throw(ParserException, "An error occured while parsing expression.");
+}
+
+Statement::StmtPtr Parser::ParseStmtError()
+{
+	nat_Throw(ParserException, "An error occured while parsing statement.");
+}
+
+Declaration::DeclPtr Parser::ParseDeclError()
+{
+	nat_Throw(ParserException, "An error occured while parsing declaration.");
+}
+#else
+Expression::ExprPtr Parser::ParseExprError() noexcept
+{
+	return nullptr;
+}
+
+Statement::StmtPtr Parser::ParseStmtError() noexcept
+{
+	return nullptr;
+}
+
+Declaration::DeclPtr Parser::ParseDeclError() noexcept
+{
+	return nullptr;
+}
+#endif
+
 nBool Parser::ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls)
 {
-	if (m_CurrentToken.Is(TokenType::Eof))
-	{
-		ConsumeToken();
-	}
-
 	switch (m_CurrentToken.GetType())
 	{
 	case TokenType::Kw_import:
@@ -71,8 +102,10 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF);
 		return {};
 	case TokenType::Kw_def:
+	{
 		SourceLocation declEnd;
 		return ParseDeclaration(Declaration::Context::Global, declEnd);
+	}
 	default:
 		// TODO: 报告错误
 		return {};
@@ -81,7 +114,7 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 
 std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseModuleImport()
 {
-	assert(m_CurrentToken.Is(Token::TokenType::Kw_import));
+	assert(m_CurrentToken.Is(Lex::TokenType::Kw_import));
 	auto startLoc = m_CurrentToken.GetLocation();
 	ConsumeToken();
 
@@ -232,7 +265,6 @@ NatsuLang::Statement::StmtPtr Parser::ParseLabeledStatement(Identifier::IdPtr la
 	}
 
 	auto labelDecl = m_Sema.LookupOrCreateLabel(std::move(labelId), labelLoc);
-
 	return m_Sema.ActOnLabelStmt(labelLoc, std::move(labelDecl), colonLoc, std::move(stmt));
 }
 
@@ -248,7 +280,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseCompoundStatement(Semantic::ScopeFlag
 	assert(m_CurrentToken.Is(TokenType::LeftBrace));
 	const auto beginLoc = m_CurrentToken.GetLocation();
 	ConsumeBrace();
-	const auto scope = make_scope([this] { ConsumeBrace(); });
+	const auto braceScope = make_scope([this] { ConsumeBrace(); });
 
 	std::vector<Statement::StmtPtr> stmtVec;
 
@@ -946,12 +978,12 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 	Declaration::Declarator retType{ Declaration::Context::Prototype };
 	ParseType(retType);
 
-	decl.SetType(m_Sema.BuildFunctionType(retType.GetType(), from(paramDecls).select([](Declaration::Declarator const& paramDecl) -> Type::TypePtr const&
+	decl.SetType(m_Sema.BuildFunctionType(retType.GetType(), from(paramDecls).select([](Declaration::Declarator const& paramDecl)
 	{
 		return paramDecl.GetType();
 	})));
 
-	decl.SetParams(from(paramDecls).select([this](Declaration::Declarator const& paramDecl)->natRefPointer<Declaration::ParmVarDecl> const&
+	decl.SetParams(from(paramDecls).select([this](Declaration::Declarator const& paramDecl)
 	{
 		return m_Sema.ActOnParamDeclarator(m_Sema.GetCurrentScope(), paramDecl);
 	}));
@@ -1001,7 +1033,7 @@ void Parser::ParseInitializer(Declaration::Declarator& decl)
 	// 不是 initializer，返回
 }
 
-nBool Parser::SkipUntil(std::initializer_list<Token::TokenType> list, nBool dontConsume)
+nBool Parser::SkipUntil(std::initializer_list<NatsuLang::Lex::TokenType> list, nBool dontConsume)
 {
 	// 特例，如果调用者只是想跳到文件结尾，我们不需要再另外判断其他信息
 	if (list.size() == 1 && *list.begin() == TokenType::Eof)
@@ -1058,4 +1090,22 @@ void Parser::ParseScope::ExplicitExit()
 		m_Self->m_Sema.PopScope();
 		m_Self = nullptr;
 	}
+}
+
+void NatsuLang::ParseAST(Preprocessor& pp, ASTContext& astContext, natRefPointer<ASTConsumer> astConsumer)
+{
+	Semantic::Sema sema{ pp, astContext, astConsumer };
+	Parser parser{ pp, sema };
+
+	std::vector<Declaration::DeclPtr> decls;
+
+	for (auto atEof = parser.ParseTopLevelDecl(decls); !atEof; atEof = parser.ParseTopLevelDecl(decls))
+	{
+		if (!astConsumer->HandleTopLevelDecl(from(decls)))
+		{
+			return;
+		}
+	}
+
+	astConsumer->HandleTranslationUnit(astContext);
 }

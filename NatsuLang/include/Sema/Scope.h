@@ -3,13 +3,7 @@
 #include <natRefObj.h>
 #include <natLinq.h>
 #include <unordered_set>
-
-namespace NatsuLang::Declaration
-{
-	class Decl;
-	using DeclPtr = NatsuLib::natRefPointer<Decl>;
-	class DeclContext;
-}
+#include "AST/DeclBase.h"
 
 namespace NatsuLang::Semantic
 {

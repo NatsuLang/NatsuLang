@@ -14,8 +14,20 @@ namespace NatsuLang
 			switch (stmt->GetType())
 			{
 #define STMT(Type, Base) case Statement::Stmt::Type##Class: return Visit##Type(stmt);
+#define ABSTRACT_STMT(Type)
 #include "Basic/StmtDef.h"
 			default:
+				// TODO
+				if (const auto castExpr = static_cast<NatsuLib::natRefPointer<Expression::CastExpr>>(stmt))
+				{
+					return VisitCastExpr(castExpr);
+				}
+
+				if (const auto expr = static_cast<NatsuLib::natRefPointer<Expression::Expr>>(stmt))
+				{
+					return VisitExpr(expr);
+				}
+
 				assert(!"Invalid StmtType.");
 				std::terminate();
 			}

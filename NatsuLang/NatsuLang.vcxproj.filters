@@ -159,6 +159,9 @@
     <ClInclude Include="include\Basic\Config.h">
       <Filter>Basic\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\AST\ASTConsumer.h">
+      <Filter>AST\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">
@@ -222,6 +225,9 @@
       <Filter>Lex\src</Filter>
     </ClCompile>
     <ClCompile Include="src\AST\NestedNameSpecifier.cpp">
+      <Filter>AST\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AST\ASTConsumer.cpp">
       <Filter>AST\src</Filter>
     </ClCompile>
   </ItemGroup>

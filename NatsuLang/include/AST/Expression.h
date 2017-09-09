@@ -775,8 +775,8 @@ namespace NatsuLang::Expression
 			m_ConstructorDecl = std::move(value);
 		}
 
-		NatsuLib::Linq<ExprPtr> GetArgs() const noexcept;
-		void SetArgs(NatsuLib::Linq<ExprPtr> const& value);
+		NatsuLib::Linq<const ExprPtr> GetArgs() const noexcept;
+		void SetArgs(NatsuLib::Linq<const ExprPtr> const& value);
 
 		Statement::StmtEnumerable GetChildrens() override;
 
@@ -789,15 +789,15 @@ namespace NatsuLang::Expression
 		: public Expr
 	{
 	public:
-		NewExpr(NatsuLib::Linq<ExprPtr> const& args, Type::TypePtr type, SourceRange range)
+		NewExpr(NatsuLib::Linq<const ExprPtr> const& args, Type::TypePtr type, SourceRange range)
 			: Expr{ NewExprClass, std::move(type), range.GetBegin(), range.GetEnd() }, m_Args{ args.begin(), args.end() }
 		{
 		}
 
 		~NewExpr();
 
-		NatsuLib::Linq<ExprPtr> GetArgs() const noexcept;
-		void SetArgs(NatsuLib::Linq<ExprPtr> const& value);
+		NatsuLib::Linq<const ExprPtr> GetArgs() const noexcept;
+		void SetArgs(NatsuLib::Linq<const ExprPtr> const& value);
 
 		Statement::StmtEnumerable GetChildrens() override;
 

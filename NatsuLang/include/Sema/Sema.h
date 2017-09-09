@@ -33,18 +33,19 @@ namespace NatsuLang
 
 	class Preprocessor;
 	class ASTContext;
+	struct ASTConsumer;
 	class NestedNameSpecifier;
 	class SourceManager;
 }
 
 namespace NatsuLang::Semantic
 {
-	enum class ScopeFlags : unsigned short;
+	enum class ScopeFlags : nuShort;
 	class LookupResult;
 	class Scope;
 
 	class Sema
-		: public NatsuLib::nonmovable
+		: NatsuLib::nonmovable
 	{
 	public:
 		enum class ExpressionEvaluationContext
@@ -68,7 +69,7 @@ namespace NatsuLang::Semantic
 
 		using ModulePathType = std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>;
 
-		explicit Sema(Preprocessor& preprocessor, ASTContext& astContext);
+		explicit Sema(Preprocessor& preprocessor, ASTContext& astContext, NatsuLib::natRefPointer<ASTConsumer> astConsumer);
 		~Sema();
 
 		Preprocessor& GetPreprocessor() const noexcept
@@ -79,6 +80,11 @@ namespace NatsuLang::Semantic
 		ASTContext& GetASTContext() const noexcept
 		{
 			return m_Context;
+		}
+
+		NatsuLib::natRefPointer<ASTConsumer> const& GetASTConsumer() const noexcept
+		{
+			return m_Consumer;
 		}
 
 		Diag::DiagnosticsEngine& GetDiagnosticsEngine() const noexcept
@@ -104,7 +110,9 @@ namespace NatsuLang::Semantic
 
 		void PushOnScopeChains(NatsuLib::natRefPointer<Declaration::NamedDecl> decl, NatsuLib::natRefPointer<Scope> const& scope, nBool addToContext = true);
 
-		NatsuLib::natRefPointer<Declaration::Decl> OnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path);
+		void ActOnTranslationUnitScope(NatsuLib::natRefPointer<Scope> scope);
+
+		NatsuLib::natRefPointer<Declaration::Decl> ActOnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path);
 
 		Type::TypePtr GetTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, NatsuLib::natRefPointer<Scope> scope, Type::TypePtr const& objectType);
 
@@ -137,10 +145,10 @@ namespace NatsuLang::Semantic
 		Statement::StmtPtr ActOnBreakStatement(SourceLocation loc, NatsuLib::natRefPointer<Scope> const& scope);
 		Statement::StmtPtr ActOnReturnStmt(SourceLocation loc, Expression::ExprPtr returnedExpr, NatsuLib::natRefPointer<Scope> const& scope);
 
-		Expression::ExprPtr ActOnBooleanLiteral(Token::Token const& token) const;
-		Expression::ExprPtr ActOnNumericLiteral(Token::Token const& token) const;
-		Expression::ExprPtr ActOnCharLiteral(Token::Token const& token) const;
-		Expression::ExprPtr ActOnStringLiteral(Token::Token const& token);
+		Expression::ExprPtr ActOnBooleanLiteral(Lex::Token const& token) const;
+		Expression::ExprPtr ActOnNumericLiteral(Lex::Token const& token) const;
+		Expression::ExprPtr ActOnCharLiteral(Lex::Token const& token) const;
+		Expression::ExprPtr ActOnStringLiteral(Lex::Token const& token);
 
 		Expression::ExprPtr ActOnThrow(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr);
 
@@ -150,9 +158,9 @@ namespace NatsuLang::Semantic
 		Expression::ExprPtr ActOnArraySubscriptExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation lloc, Expression::ExprPtr index, SourceLocation rloc);
 		Expression::ExprPtr ActOnCallExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr func, SourceLocation lloc, NatsuLib::Linq<const Expression::ExprPtr> argExprs, SourceLocation rloc);
 		Expression::ExprPtr ActOnMemberAccessExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation periodLoc, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id);
-		Expression::ExprPtr ActOnUnaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand);
-		Expression::ExprPtr ActOnPostfixUnaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand);
-		Expression::ExprPtr ActOnBinaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand);
+		Expression::ExprPtr ActOnUnaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType, Expression::ExprPtr operand);
+		Expression::ExprPtr ActOnPostfixUnaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType, Expression::ExprPtr operand);
+		Expression::ExprPtr ActOnBinaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand);
 		Expression::ExprPtr BuildBuiltinBinaryOp(SourceLocation loc, Expression::BinaryOperationType binOpType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand);
 		// 条件操作符不可重载所以不需要scope信息
 		Expression::ExprPtr ActOnConditionalOp(SourceLocation questionLoc, SourceLocation colonLoc, Expression::ExprPtr condExpr, Expression::ExprPtr leftExpr, Expression::ExprPtr rightExpr);
@@ -171,14 +179,11 @@ namespace NatsuLang::Semantic
 	private:
 		Preprocessor& m_Preprocessor;
 		ASTContext& m_Context;
+		NatsuLib::natRefPointer<ASTConsumer> m_Consumer;
 		Diag::DiagnosticsEngine& m_Diag;
 		SourceManager& m_SourceManager;
 
-		enum
-		{
-			ScopeCacheSize = 16,
-		};
-
+		NatsuLib::natRefPointer<Scope> m_TranslationUnitScope;
 		NatsuLib::natRefPointer<Scope> m_CurrentScope;
 
 		// m_CurrentDeclContext必须为nullptr或者可以转换到DeclContext*，不保存DeclContext*是为了保留对Decl的强引用
@@ -218,7 +223,7 @@ namespace NatsuLang::Semantic
 			return m_LookupNameType;
 		}
 
-		NatsuLib::Linq<NatsuLib::natRefPointer<const Declaration::NamedDecl>> GetDecls() const noexcept;
+		NatsuLib::Linq<const NatsuLib::natRefPointer<Declaration::NamedDecl>> GetDecls() const noexcept;
 
 		std::size_t GetDeclSize() const noexcept
 		{
@@ -231,7 +236,7 @@ namespace NatsuLang::Semantic
 		}
 
 		void AddDecl(NatsuLib::natRefPointer<Declaration::NamedDecl> decl);
-		void AddDecl(NatsuLib::Linq<NatsuLib::natRefPointer<Declaration::NamedDecl>> decls);
+		void AddDecl(NatsuLib::Linq<const NatsuLib::natRefPointer<Declaration::NamedDecl>> decls);
 
 		void ResolveResultType() noexcept;
 

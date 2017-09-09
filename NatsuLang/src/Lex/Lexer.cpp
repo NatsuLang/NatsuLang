@@ -1,9 +1,9 @@
-#include "Lex/Lexer.h"
+ï»¿#include "Lex/Lexer.h"
 #include "Lex/Preprocessor.h"
 #include "Basic/CharInfo.h"
 
+using namespace NatsuLang;
 using namespace NatsuLang::Lex;
-using namespace NatsuLang::Token;
 using namespace NatsuLang::CharInfo;
 
 Lexer::Lexer(nStrView buffer, Preprocessor& preprocessor)
@@ -15,16 +15,16 @@ Lexer::Lexer(nStrView buffer, Preprocessor& preprocessor)
 	}
 }
 
-nBool Lexer::Lex(Token::Token& result)
+nBool Lexer::Lex(Lex::Token& result)
 {
-	// TODO: ÎªtokenÌí¼ÓÎ»ÖÃĞÅÏ¢
+	// TODO: ä¸ºtokenæ·»åŠ ä½ç½®ä¿¡æ¯
 NextToken:
 	result.Reset();
 
 	auto cur = m_Current;
 	const auto end = m_Buffer.end();
 
-	// Ìø¹ı¿Õ°××Ö·û
+	// è·³è¿‡ç©ºç™½å­—ç¬¦
 	while (cur != end && IsWhitespace(*cur))
 	{
 		++cur;
@@ -100,7 +100,7 @@ NextToken:
 			break;
 		case '&':
 		{
-			// TODO: ¿ÉÄÜ³¬¹ıÎÄ¼şÎ²£¬ÏÂÍ¬
+			// TODO: å¯èƒ½è¶…è¿‡æ–‡ä»¶å°¾ï¼Œä¸‹åŒ
 			const auto nextChar = *(cur + 1);
 			switch (nextChar)
 			{
@@ -368,7 +368,7 @@ NextToken:
 	return false;
 }
 
-nBool Lexer::skipWhitespace(Token::Token& result, Iterator cur)
+nBool Lexer::skipWhitespace(Lex::Token& result, Iterator cur)
 {
 	const auto end = m_Buffer.end();
 
@@ -377,13 +377,13 @@ nBool Lexer::skipWhitespace(Token::Token& result, Iterator cur)
 		++cur;
 	}
 
-	// TODO: ¼ÇÂ¼ÁĞĞÅÏ¢
+	// TODO: è®°å½•åˆ—ä¿¡æ¯
 
 	m_Current = cur;
 	return false;
 }
 
-nBool Lexer::skipLineComment(Token::Token& result, Iterator cur)
+nBool Lexer::skipLineComment(Lex::Token& result, Iterator cur)
 {
 	const auto end = m_Buffer.end();
 
@@ -396,7 +396,7 @@ nBool Lexer::skipLineComment(Token::Token& result, Iterator cur)
 	return false;
 }
 
-nBool Lexer::skipBlockComment(Token::Token& result, Iterator cur)
+nBool Lexer::skipBlockComment(Lex::Token& result, Iterator cur)
 {
 	const auto end = m_Buffer.end();
 
@@ -414,7 +414,7 @@ nBool Lexer::skipBlockComment(Token::Token& result, Iterator cur)
 	return false;
 }
 
-nBool Lexer::lexNumericLiteral(Token::Token& result, Iterator cur)
+nBool Lexer::lexNumericLiteral(Lex::Token& result, Iterator cur)
 {
 	const auto start = cur, end = m_Buffer.end();
 	CharType curChar = *cur, prevChar{};
@@ -424,7 +424,7 @@ nBool Lexer::lexNumericLiteral(Token::Token& result, Iterator cur)
 		curChar = *cur++;
 	}
 
-	// ¿ÆÑ§¼ÆÊı·¨£¬ÀıÈç1E+10
+	// ç§‘å­¦è®¡æ•°æ³•ï¼Œä¾‹å¦‚1E+10
 	if ((curChar == '+' || curChar == '-') || (prevChar == 'e' || prevChar == 'E'))
 	{
 		return lexNumericLiteral(result, ++cur);
@@ -436,7 +436,7 @@ nBool Lexer::lexNumericLiteral(Token::Token& result, Iterator cur)
 	return true;
 }
 
-nBool Lexer::lexIdentifier(Token::Token& result, Iterator cur)
+nBool Lexer::lexIdentifier(Lex::Token& result, Iterator cur)
 {
 	const auto start = cur, end = m_Buffer.end();
 	auto curChar = *cur++;
@@ -449,13 +449,13 @@ nBool Lexer::lexIdentifier(Token::Token& result, Iterator cur)
 	m_Current = cur;
 
 	auto info = m_Preprocessor.FindIdentifierInfo(nStrView{ start, cur }, result);
-	// ²»ĞèÒª¶Ôinfo½øĞĞ²Ù×÷£¬ÒòÎªÒÑ¾­ÔÚFindIdentifierInfoÖĞ´¦ÀíÍê±Ï
+	// ä¸éœ€è¦å¯¹infoè¿›è¡Œæ“ä½œï¼Œå› ä¸ºå·²ç»åœ¨FindIdentifierInfoä¸­å¤„ç†å®Œæ¯•
 	static_cast<void>(info);
 
 	return true;
 }
 
-nBool Lexer::lexCharLiteral(Token::Token& result, Iterator cur)
+nBool Lexer::lexCharLiteral(Lex::Token& result, Iterator cur)
 {
 	assert(*cur == '\'');
 
@@ -488,7 +488,7 @@ nBool Lexer::lexCharLiteral(Token::Token& result, Iterator cur)
 	return true;
 }
 
-nBool Lexer::lexStringLiteral(Token::Token& result, Iterator cur)
+nBool Lexer::lexStringLiteral(Lex::Token& result, Iterator cur)
 {
 	assert(*cur == '"');
 

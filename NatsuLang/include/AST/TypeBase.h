@@ -1,7 +1,7 @@
 #pragma once
 #include <natRefObj.h>
 
-namespace NatsuLang::Token
+namespace NatsuLang::Lex
 {
 	enum class TokenType;
 }

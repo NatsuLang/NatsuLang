@@ -51,7 +51,7 @@ namespace NatsuLang::Diag
 		nBool EmitDiag();
 
 	private:
-		using Argument = std::variant<nString, nChar, nInt, nuInt, Token::TokenType, NatsuLib::natRefPointer<Identifier::IdentifierInfo>>;
+		using Argument = std::variant<nString, nChar, nInt, nuInt, Lex::TokenType, NatsuLib::natRefPointer<Identifier::IdentifierInfo>>;
 
 		std::vector<std::pair<ArgumentType, Argument>> m_Arguments;
 		NatsuLib::natRefPointer<Misc::TextProvider<DiagID>> m_IDMap;
@@ -101,7 +101,7 @@ namespace NatsuLang::Diag
 			const DiagnosticBuilder& AddArgument(nChar Char) const;
 			const DiagnosticBuilder& AddArgument(nInt sInt) const;
 			const DiagnosticBuilder& AddArgument(nuInt uInt) const;
-			const DiagnosticBuilder& AddArgument(Token::TokenType tokenType) const;
+			const DiagnosticBuilder& AddArgument(Lex::TokenType tokenType) const;
 			const DiagnosticBuilder& AddArgument(NatsuLib::natRefPointer<Identifier::IdentifierInfo> identifierInfo) const;
 
 		private:

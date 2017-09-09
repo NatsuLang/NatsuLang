@@ -2,7 +2,7 @@
 #include "Basic/Identifier.h"
 
 using namespace std;
-using namespace NatsuLang::Token;
+using namespace NatsuLang::Lex;
 
 namespace
 {
@@ -14,7 +14,7 @@ namespace
 	};
 }
 
-const char* NatsuLang::Token::GetTokenName(TokenType tokenType) noexcept
+const char* NatsuLang::Lex::GetTokenName(TokenType tokenType) noexcept
 {
 	const auto index = static_cast<size_t>(tokenType);
 	if (index < static_cast<size_t>(TokenType::TokenCount))
@@ -25,7 +25,7 @@ const char* NatsuLang::Token::GetTokenName(TokenType tokenType) noexcept
 	return nullptr;
 }
 
-const char* NatsuLang::Token::GetPunctuatorName(TokenType tokenType) noexcept
+const char* NatsuLang::Lex::GetPunctuatorName(TokenType tokenType) noexcept
 {
 	switch (tokenType)
 	{
@@ -38,7 +38,7 @@ const char* NatsuLang::Token::GetPunctuatorName(TokenType tokenType) noexcept
 	return nullptr;
 }
 
-const char* NatsuLang::Token::GetKeywordName(TokenType tokenType) noexcept
+const char* NatsuLang::Lex::GetKeywordName(TokenType tokenType) noexcept
 {
 	switch (tokenType)
 	{

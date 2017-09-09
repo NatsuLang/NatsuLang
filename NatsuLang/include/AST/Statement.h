@@ -5,6 +5,7 @@
 namespace NatsuLang::Declaration
 {
 	class LabelDecl;
+	class VarDecl;
 }
 
 namespace NatsuLang::Expression
@@ -20,7 +21,7 @@ namespace NatsuLang::Statement
 	{
 	public:
 		using DeclPtr = NatsuLib::natRefPointer<Declaration::Decl>;
-		using DeclEnumerable = NatsuLib::Linq<DeclPtr>;
+		using DeclEnumerable = NatsuLib::Linq<const DeclPtr>;
 
 		explicit DeclStmt(std::vector<DeclPtr> decls, SourceLocation start = {}, SourceLocation end = {})
 			: Stmt{ DeclStmtClass, start, end }, m_Decls{ move(decls) }
@@ -551,5 +552,52 @@ namespace NatsuLang::Statement
 
 	private:
 		Expression::ExprPtr m_RetExpr;
+	};
+
+	class TryStmt
+		: public Stmt
+	{
+	public:
+		TryStmt(SourceLocation loc, StmtPtr tryBlock, NatsuLib::Linq<const StmtPtr> const& handlers);
+		~TryStmt();
+
+	private:
+
+	};
+
+	class CatchStmt
+		: public Stmt
+	{
+	public:
+		CatchStmt(SourceLocation loc, NatsuLib::natRefPointer<Declaration::VarDecl> exDecl, StmtPtr handlerBlock)
+			: Stmt{ CatchStmtClass, loc, loc }, m_ExceptionDecl{ std::move(exDecl) }, m_HandlerBlock{ std::move(handlerBlock) }
+		{
+		}
+
+		~CatchStmt();
+
+		NatsuLib::natRefPointer<Declaration::VarDecl> GetExceptionDecl() const noexcept
+		{
+			return m_ExceptionDecl;
+		}
+
+		void SetExceptionDecl(NatsuLib::natRefPointer<Declaration::VarDecl> value) noexcept
+		{
+			m_ExceptionDecl = std::move(value);
+		}
+
+		StmtPtr GetHandlerBlcok() const noexcept
+		{
+			return m_HandlerBlock;
+		}
+
+		void SetHandlerBlock(StmtPtr value) noexcept
+		{
+			m_HandlerBlock = std::move(value);
+		}
+
+	private:
+		NatsuLib::natRefPointer<Declaration::VarDecl> m_ExceptionDecl;
+		StmtPtr m_HandlerBlock;
 	};
 }

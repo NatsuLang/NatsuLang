@@ -85,7 +85,7 @@ namespace NatsuLang::Syntax
 		void ConsumeParen()
 		{
 			assert(IsParen(m_CurrentToken.GetType()));
-			if (m_CurrentToken.Is(Token::TokenType::LeftParen))
+			if (m_CurrentToken.Is(Lex::TokenType::LeftParen))
 			{
 				++m_ParenCount;
 			}
@@ -99,7 +99,7 @@ namespace NatsuLang::Syntax
 		void ConsumeBracket()
 		{
 			assert(IsBracket(m_CurrentToken.GetType()));
-			if (m_CurrentToken.Is(Token::TokenType::LeftSquare))
+			if (m_CurrentToken.Is(Lex::TokenType::LeftSquare))
 			{
 				++m_BracketCount;
 			}
@@ -113,7 +113,7 @@ namespace NatsuLang::Syntax
 		void ConsumeBrace()
 		{
 			assert(IsBrace(m_CurrentToken.GetType()));
-			if (m_CurrentToken.Is(Token::TokenType::LeftBrace))
+			if (m_CurrentToken.Is(Lex::TokenType::LeftBrace))
 			{
 				++m_BraceCount;
 			}
@@ -161,20 +161,9 @@ namespace NatsuLang::Syntax
 			nat_Throw(ParserException, "An error occured while parsing declaration.");
 		}
 #else
-		static Expression::ExprPtr ParseExprError() noexcept
-		{
-			return nullptr;
-		}
-
-		static Statement::StmtPtr ParseStmtError() noexcept
-		{
-			return nullptr;
-		}
-
-		static Declaration::DeclPtr ParseDeclError() noexcept
-		{
-			return nullptr;
-		}
+		static Expression::ExprPtr ParseExprError() noexcept;
+		static Statement::StmtPtr ParseStmtError() noexcept;
+		static Declaration::DeclPtr ParseDeclError() noexcept;
 #endif
 
 		///	@brief	分析顶层声明
@@ -267,14 +256,22 @@ namespace NatsuLang::Syntax
 
 		void ParseInitializer(Declaration::Declarator& decl);
 
-		nBool SkipUntil(std::initializer_list<Token::TokenType> list, nBool dontConsume = false);
+		nBool SkipUntil(std::initializer_list<Lex::TokenType> list, nBool dontConsume = false);
 
 	private:
 		Preprocessor& m_Preprocessor;
 		Diag::DiagnosticsEngine& m_Diag;
 		Semantic::Sema& m_Sema;
 
-		Token::Token m_CurrentToken;
+		Lex::Token m_CurrentToken;
 		nuInt m_ParenCount, m_BracketCount, m_BraceCount;
 	};
+}
+
+namespace NatsuLang
+{
+	class ASTContext;
+	struct ASTConsumer;
+
+	void ParseAST(Preprocessor& pp, ASTContext& astContext, NatsuLib::natRefPointer<ASTConsumer> astConsumer);
 }

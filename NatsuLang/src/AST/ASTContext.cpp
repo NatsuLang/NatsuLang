@@ -1,4 +1,6 @@
-#include "AST/ASTContext.h"
+﻿#include "AST/ASTContext.h"
+#include "AST/Expression.h"
+#include "Basic/Identifier.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang;
@@ -25,7 +27,7 @@ natRefPointer<Type::BuiltinType> ASTContext::GetBuiltinType(Type::BuiltinType::B
 
 natRefPointer<Type::ArrayType> ASTContext::GetArrayType(Type::TypePtr elementType, std::size_t arraySize)
 {
-	// �ܷ�ʡȥ�˴ι��죿
+	// 能否省去此次构造？
 	auto ret = make_ref<Type::ArrayType>(std::move(elementType), arraySize);
 	const auto iter = m_ArrayTypes.find(ret);
 	if (iter != m_ArrayTypes.end())
@@ -37,7 +39,7 @@ natRefPointer<Type::ArrayType> ASTContext::GetArrayType(Type::TypePtr elementTyp
 	return ret;
 }
 
-natRefPointer<Type::FunctionType> ASTContext::GetFunctionType(Linq<Type::TypePtr> const& params, Type::TypePtr retType)
+natRefPointer<Type::FunctionType> ASTContext::GetFunctionType(Linq<const Type::TypePtr> const& params, Type::TypePtr retType)
 {
 	auto ret = make_ref<Type::FunctionType>(params, std::move(retType));
 	const auto iter = m_FunctionTypes.find(ret);

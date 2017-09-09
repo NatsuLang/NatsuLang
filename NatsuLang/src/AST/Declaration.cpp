@@ -1,7 +1,10 @@
 #include "AST/Declaration.h"
+#include "AST/ASTContext.h"
+#include "AST/Expression.h"
 #include "Basic/Identifier.h"
 
 using namespace NatsuLib;
+using namespace NatsuLang;
 using namespace NatsuLang::Declaration;
 
 TranslationUnitDecl::TranslationUnitDecl(ASTContext& context)

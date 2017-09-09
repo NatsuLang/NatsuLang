@@ -1,10 +1,12 @@
-#include "Lex/LiteralParser.h"
+ï»¿#include "Lex/LiteralParser.h"
 #include "Basic/CharInfo.h"
+#include "Basic/Identifier.h"
 
 #undef min
 #undef max
 
 using namespace NatsuLib;
+using namespace NatsuLang;
 using namespace NatsuLang::Lex;
 
 namespace
@@ -49,7 +51,7 @@ namespace
 			return static_cast<nuInt>(c - unsigned char{ 'A' } + 10);
 		}
 
-		// ´íÎó£¬Õâ¸ö×Ö·û²»ÊÇ¿ÉÓÃµÄÊı×Ö×ÖÃæÁ¿×Ö·û
+		// é”™è¯¯ï¼Œè¿™ä¸ªå­—ç¬¦ä¸æ˜¯å¯ç”¨çš„æ•°å­—å­—é¢é‡å­—ç¬¦
 		return 0;
 	}
 
@@ -67,7 +69,7 @@ namespace
 		case '?':
 			break;
 		case 'a':
-			// TODO: ²Î¿¼±ê×¼Ìæ»»ÎªÊµ¼ÊÊıÖµ
+			// TODO: å‚è€ƒæ ‡å‡†æ›¿æ¢ä¸ºå®é™…æ•°å€¼
 			chr = '\a';
 			break;
 		case 'b':
@@ -105,7 +107,7 @@ namespace
 				chr |= curValue;
 			}
 
-			// TODO: ÊÊÅä¾ßÓĞ¸ü¶à¿í¶ÈµÄ×Ö·û
+			// TODO: é€‚é…å…·æœ‰æ›´å¤šå®½åº¦çš„å­—ç¬¦
 			if (chr >> 8)
 			{
 				overflowed = true;
@@ -114,7 +116,7 @@ namespace
 
 			if (overflowed)
 			{
-				// TODO: ±¨¸æÒç³ö
+				// TODO: æŠ¥å‘Šæº¢å‡º
 			}
 
 			break;
@@ -133,11 +135,11 @@ namespace
 				++charCount;
 			} while (cur != end && charCount < 3 && *cur >= '0' && *cur <= '7');
 
-			// TODO: ÊÊÅä¾ßÓĞ¸ü¶à¿í¶ÈµÄ×Ö·û
+			// TODO: é€‚é…å…·æœ‰æ›´å¤šå®½åº¦çš„å­—ç¬¦
 			if (chr >> 8)
 			{
 				chr &= ~0u >> 24; // 32 - 8
-								  // TODO: ±¨¸æÒç³ö
+								  // TODO: æŠ¥å‘Šæº¢å‡º
 			}
 
 			break;
@@ -169,15 +171,15 @@ NumericLiteralParser::NumericLiteralParser(nStrView buffer, SourceLocation loc, 
 		m_Radix = 10;
 		m_Current = skipDigits(m_Current);
 
-		// TODO: Íê³É¶ÁÈ¡Ö¸ÊıÓëĞ¡Êı²¿·Ö
+		// TODO: å®Œæˆè¯»å–æŒ‡æ•°ä¸å°æ•°éƒ¨åˆ†
 	}
 
-	// TODO: ¶ÁÈ¡ºó×º
+	// TODO: è¯»å–åç¼€
 	m_SuffixBegin = m_Current;
 	const auto end = m_Buffer.cend();
 	for (; m_Current != end; ++m_Current)
 	{
-		// ´íÎóÊ±Ìø¹ıËùÓĞºó×º
+		// é”™è¯¯æ—¶è·³è¿‡æ‰€æœ‰åç¼€
 		if (m_Errored)
 		{
 			continue;
@@ -188,12 +190,12 @@ NumericLiteralParser::NumericLiteralParser(nStrView buffer, SourceLocation loc, 
 		case 'f':
 		case 'F':
 			m_IsFloat = true;
-			// ¸¡µãÊı
+			// æµ®ç‚¹æ•°
 			break;
 		case 'u':
 		case 'U':
 			m_IsUnsigned = true;
-			// ÎŞ·ûºÅÊı
+			// æ— ç¬¦å·æ•°
 			break;
 		case 'l':
 		case 'L':
@@ -207,11 +209,11 @@ NumericLiteralParser::NumericLiteralParser(nStrView buffer, SourceLocation loc, 
 				m_IsLong = true;
 			}
 
-			// ³¤ÕûÊı»ò³¤¸¡µãÊı
+			// é•¿æ•´æ•°æˆ–é•¿æµ®ç‚¹æ•°
 			break;
 		default:
-			// ´íÎó£ºÎŞĞ§µÄºó×º
-			// TODO: ¼ÇÂ¼µ±Ç°Î»ÖÃÒÔ½øĞĞ´íÎó±¨¸æ
+			// é”™è¯¯ï¼šæ— æ•ˆçš„åç¼€
+			// TODO: è®°å½•å½“å‰ä½ç½®ä»¥è¿›è¡Œé”™è¯¯æŠ¥å‘Š
 			m_Errored = true;
 			break;
 		}
@@ -225,7 +227,7 @@ nBool NumericLiteralParser::GetIntegerValue(nuLong& result) const noexcept
 		result = result * m_Radix + DigitValue(*i);
 	}
 
-	// TODO: ¼ì²éÊÇ·ñÒç³ö
+	// TODO: æ£€æŸ¥æ˜¯å¦æº¢å‡º
 	return false;
 }
 
@@ -255,7 +257,7 @@ nBool NumericLiteralParser::GetFloatValue(nDouble& result) const noexcept
 		result = partAfterPeriod * pow(m_Radix, periodPos - m_SuffixBegin);
 	}
 	
-	// TODO: ¼ì²éÊÇ·ñÒç³ö
+	// TODO: æ£€æŸ¥æ˜¯å¦æº¢å‡º
 	return false;
 }
 
@@ -279,7 +281,7 @@ void NumericLiteralParser::parseNumberStartingWithZero(SourceLocation loc) noexc
 			m_Current = skipHexDigits(m_Current);
 		}
 
-		// TODO: Ê®Áù½øÖÆµÄ¸¡µãÊı×ÖÃæÁ¿
+		// TODO: åå…­è¿›åˆ¶çš„æµ®ç‚¹æ•°å­—é¢é‡
 
 		return;
 	}
@@ -293,12 +295,12 @@ void NumericLiteralParser::parseNumberStartingWithZero(SourceLocation loc) noexc
 		return;
 	}
 
-	// 0¿ªÍ·ºóÃæÃ»ÓĞ¸úxXbB×Ö·ûµÄÊÓÎª°Ë½øÖÆÊı×ÖÃæÁ¿
+	// 0å¼€å¤´åé¢æ²¡æœ‰è·ŸxXbBå­—ç¬¦çš„è§†ä¸ºå…«è¿›åˆ¶æ•°å­—é¢é‡
 	m_Radix = 8;
 	m_DigitBegin = m_Current;
 	m_Current = skipOctalDigits(m_Current);
 
-	// TODO: °Ë½øÖÆµÄ¸¡µãÊı×ÖÃæÁ¿
+	// TODO: å…«è¿›åˆ¶çš„æµ®ç‚¹æ•°å­—é¢é‡
 }
 
 nStrView::iterator NumericLiteralParser::skipHexDigits(nStrView::iterator cur) const noexcept
@@ -363,11 +365,11 @@ CharLiteralParser::CharLiteralParser(nStrView buffer, SourceLocation loc, Diag::
 		if (charCount != 1)
 		{
 			m_Errored = true;
-			// TODO: ÌáÊ¾µ¥¸öcharÎŞ·¨ÈİÄÉ¸Ã×Ö·ûÖµ
+			// TODO: æç¤ºå•ä¸ªcharæ— æ³•å®¹çº³è¯¥å­—ç¬¦å€¼
 		}
 		else
 		{
-			const auto bufferLength = std::distance(m_Current, end);
+			const auto bufferLength = static_cast<std::size_t>(std::distance(m_Current, end));
 			if (charCount < bufferLength)
 			{
 				m_Errored = true;
@@ -376,7 +378,7 @@ CharLiteralParser::CharLiteralParser(nStrView buffer, SourceLocation loc, Diag::
 			else if (charCount > bufferLength)
 			{
 				m_Errored = true;
-				// TODO: ±¨¸æ×Ö·ûÎ´ÄÜÍêÕûµØ´æ´¢ÔÚ×Ö·û×ÖÃæÁ¿ÖĞ
+				// TODO: æŠ¥å‘Šå­—ç¬¦æœªèƒ½å®Œæ•´åœ°å­˜å‚¨åœ¨å­—ç¬¦å­—é¢é‡ä¸­
 			}
 			else
 			{
@@ -405,7 +407,7 @@ StringLiteralParser::StringLiteralParser(nStrView buffer, SourceLocation loc, Di
 		{
 			if (*m_Current == '"')
 			{
-				// TODO: ±¨¸æ×Ö·û´®¹ıÔç½áÊø
+				// TODO: æŠ¥å‘Šå­—ç¬¦ä¸²è¿‡æ—©ç»“æŸ
 				break;
 			}
 
@@ -414,7 +416,7 @@ StringLiteralParser::StringLiteralParser(nStrView buffer, SourceLocation loc, Di
 		else
 		{
 			auto codePoint = EscapeChar(m_Current, end, m_Errored, loc, m_Diag);
-			// TODO: ÊÊÅä¾ßÓĞ²»Í¬¿í¶ÈµÄ×Ö·û´®
+			// TODO: é€‚é…å…·æœ‰ä¸åŒå®½åº¦çš„å­—ç¬¦ä¸²
 			m_Value.Append(static_cast<nString::CharType>(codePoint & std::numeric_limits<nString::CharType>::max()));
 		}
 	}

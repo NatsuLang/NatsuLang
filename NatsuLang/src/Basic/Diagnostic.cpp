@@ -1,4 +1,4 @@
-#include "Basic/Diagnostic.h"
+ï»¿#include "Basic/Diagnostic.h"
 #include "Basic/Identifier.h"
 #include "Basic/CharInfo.h"
 
@@ -48,7 +48,7 @@ nString Diag::DiagnosticsEngine::convertArgumentToString(nuInt index) const
 	case ArgumentType::UInt:
 		return nStrView{ std::to_string(std::get<3>(arg.second)).data() };
 	case ArgumentType::TokenType:
-		return Token::GetTokenName(std::get<4>(arg.second));
+		return Lex::GetTokenName(std::get<4>(arg.second));
 	case ArgumentType::IdentifierInfo:
 		return std::get<5>(arg.second)->GetName();
 	default:
@@ -80,7 +80,7 @@ const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::Diagn
 	return *this;
 }
 
-const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::DiagnosticBuilder::AddArgument(Token::TokenType tokenType) const
+const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::DiagnosticBuilder::AddArgument(Lex::TokenType tokenType) const
 {
 	m_Diags.m_Arguments.emplace_back(ArgumentType::TokenType, Argument{ std::in_place_index<4>, tokenType });
 	return *this;
@@ -131,13 +131,13 @@ nString Diag::DiagnosticsEngine::Diagnostic::GetDiagMessage() const
 
 Diag::DiagnosticsEngine::DiagnosticBuilder Diag::DiagnosticsEngine::Report(DiagID id, SourceLocation sourceLocation)
 {
-	// Ö®Ç°µÄÕï¶Ï»¹Î´´¦Àí£¿
+	// ä¹‹å‰çš„è¯Šæ–­è¿˜æœªå¤„ç†ï¼Ÿ
 	if (m_CurrentID != DiagID::Invalid)
 	{
 		EmitDiag();
 	}
 
-	// ÎªÁËÇ¿Òì³£°²È«
+	// ä¸ºäº†å¼ºå¼‚å¸¸å®‰å…¨
 	m_CurrentDiagDesc = m_IDMap->GetText(id);
 
 	m_CurrentID = id;

@@ -175,8 +175,6 @@ LAST_DECL_RANGE(Decl, Empty, TranslationUnit)
 #endif
 DECL_CONTEXT_BASE(Function)
 DECL_CONTEXT_BASE(Tag)
-DECL_CONTEXT(Block)
-DECL_CONTEXT(LinkageSpec)
 DECL_CONTEXT(Module)
 DECL_CONTEXT(TranslationUnit)
 #undef DECL_CONTEXT

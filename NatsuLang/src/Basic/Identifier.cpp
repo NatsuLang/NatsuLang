@@ -2,16 +2,17 @@
 #include "Basic/Token.h"
 
 using namespace NatsuLib;
+using namespace NatsuLang;
 using namespace NatsuLang::Identifier;
-using namespace NatsuLang::Token;
+using namespace NatsuLang::Lex;
 
 namespace
 {
-	constexpr bool IsKeyword(NatsuLang::Token::TokenType token) noexcept
+	constexpr bool IsKeyword(NatsuLang::Lex::TokenType token) noexcept
 	{
 		switch (token)
 		{
-#define KEYWORD(X) case NatsuLang::Token::TokenType::Kw_ ## X:
+#define KEYWORD(X) case NatsuLang::Lex::TokenType::Kw_ ## X:
 #include "Basic/TokenDef.h"
 			return true;
 		default:
@@ -20,7 +21,7 @@ namespace
 	}
 }
 
-IdentifierInfo::IdentifierInfo(nStrView name, Token::TokenType tokenType) noexcept
+IdentifierInfo::IdentifierInfo(nStrView name, Lex::TokenType tokenType) noexcept
 	: m_Name{ name }, m_TokenType{ tokenType }
 {
 }
@@ -35,12 +36,12 @@ nBool IdentifierInfo::IsKeyword() const noexcept
 	return ::IsKeyword(m_TokenType);
 }
 
-NatsuLang::Token::TokenType IdentifierInfo::GetTokenType() const noexcept
+NatsuLang::Lex::TokenType IdentifierInfo::GetTokenType() const noexcept
 {
 	return m_TokenType;
 }
 
-NatsuLang::Token::TokenType IdentifierInfo::SetTokenType(Token::TokenType tokenType) noexcept
+NatsuLang::Lex::TokenType IdentifierInfo::SetTokenType(Lex::TokenType tokenType) noexcept
 {
 	return std::exchange(m_TokenType, tokenType);
 }
@@ -50,7 +51,7 @@ nInt IdentifierInfo::CompareTo(natRefPointer<IdentifierInfo> const& other) const
 	return m_Name.Compare(other->m_Name);
 }
 
-natRefPointer<IdentifierInfo> IdentifierTable::GetOrAdd(nStrView name, Token::TokenType tokenType)
+natRefPointer<IdentifierInfo> IdentifierTable::GetOrAdd(nStrView name, Lex::TokenType tokenType)
 {
 	auto iter = m_Identifiers.find(name);
 	if (iter != m_Identifiers.end())

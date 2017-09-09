@@ -3,6 +3,7 @@
 #include "DeclBase.h"
 #include "Type.h"
 #include "Basic/Specifier.h"
+#include "Basic/Module.h"
 
 namespace NatsuLang
 {
@@ -25,11 +26,6 @@ namespace NatsuLang::Expression
 {
 	class Expr;
 	using ExprPtr = NatsuLib::natRefPointer<Expr>;
-}
-
-namespace NatsuLang::Module
-{
-	class Module;
 }
 
 namespace NatsuLang::Declaration

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "TypeBase.h"
 #include <natLinq.h>
 
@@ -46,7 +46,7 @@ namespace NatsuLang::Type
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
 
-		static BuiltinClass GetBuiltinClassFromTokenType(Token::TokenType type);
+		static BuiltinClass GetBuiltinClassFromTokenType(Lex::TokenType type) noexcept;
 		static nBool IsIntegerBuiltinClass(BuiltinClass builtinClass) noexcept;
 		static nBool IsFloatingBuiltinClass(BuiltinClass builtinClass) noexcept;
 		static nBool IsSignedBuiltinClass(BuiltinClass builtinClass) noexcept;
@@ -68,10 +68,10 @@ namespace NatsuLang::Type
 			return IsSignedBuiltinClass(m_BuiltinClass);
 		}
 
-		///	@brief	±È½ÏÁ½¸ö BuiltinType µÄµÈ¼¶
-		///	@param	other	Òª±È½ÏµÄ BuiltinType
-		///	@param	result	±È½Ï½á¹û£¬ÈôµÈ¼¶´óÓÚÒª±È½ÏµÄ BuiltinType Ôò´óÓÚ0£¬ÈôĞ¡ÓÚÔòĞ¡ÓÚ0£¬ÈôµÈÓÚÔòµÈÓÚ0£¬¾ßÌåÖµÎŞÌØÊâÒâÒå
-		///	@return	±È½ÏÊÇ·ñÓĞÒâÒå
+		///	@brief	æ¯”è¾ƒä¸¤ä¸ª BuiltinType çš„ç­‰çº§
+		///	@param	other	è¦æ¯”è¾ƒçš„ BuiltinType
+		///	@param	result	æ¯”è¾ƒç»“æœï¼Œè‹¥ç­‰çº§å¤§äºè¦æ¯”è¾ƒçš„ BuiltinType åˆ™å¤§äº0ï¼Œè‹¥å°äºåˆ™å°äº0ï¼Œè‹¥ç­‰äºåˆ™ç­‰äº0ï¼Œå…·ä½“å€¼æ— ç‰¹æ®Šæ„ä¹‰
+		///	@return	æ¯”è¾ƒæ˜¯å¦æœ‰æ„ä¹‰
 		nBool CompareRankTo(NatsuLib::natRefPointer<BuiltinType> const& other, nInt& result) const noexcept;
 
 	private:
@@ -131,10 +131,10 @@ namespace NatsuLang::Type
 	};
 
 	class FunctionType
-		: Type
+		: public Type
 	{
 	public:
-		FunctionType(NatsuLib::Linq<TypePtr> const& params, TypePtr resultType)
+		FunctionType(NatsuLib::Linq<const TypePtr> const& params, TypePtr resultType)
 			: Type{ Function }, m_ParameterTypes{ params.begin(), params.end() }, m_ResultType{ std::move(resultType) }
 		{
 		}
@@ -146,7 +146,7 @@ namespace NatsuLang::Type
 			return m_ResultType;
 		}
 
-		NatsuLib::Linq<TypePtr> GetParameterTypes() const noexcept;
+		NatsuLib::Linq<const TypePtr> GetParameterTypes() const noexcept;
 		std::size_t GetParameterCount() const noexcept;
 
 		std::size_t GetHashCode() const noexcept override;

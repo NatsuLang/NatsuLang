@@ -4,10 +4,12 @@
 #include "Lex/Preprocessor.h"
 #include "Lex/LiteralParser.h"
 #include "AST/Declaration.h"
+#include "AST/ASTConsumer.h"
 #include "AST/ASTContext.h"
 #include "AST/Expression.h"
 
 using namespace NatsuLib;
+using namespace NatsuLang;
 using namespace NatsuLang::Semantic;
 
 namespace
@@ -77,20 +79,17 @@ namespace
 			return nullptr;
 		}
 
-		auto deducedType = static_cast<natRefPointer<NatsuLang::Type::DeducedType>>(type);
-		if (deducedType)
+		if (const auto deducedType = static_cast<natRefPointer<NatsuLang::Type::DeducedType>>(type))
 		{
 			return getUnderlyingType(deducedType->GetDeducedAsType());
 		}
 
-		auto typeofType = static_cast<natRefPointer<NatsuLang::Type::TypeOfType>>(type);
-		if (typeofType)
+		if (const auto typeofType = static_cast<natRefPointer<NatsuLang::Type::TypeOfType>>(type))
 		{
 			return getUnderlyingType(typeofType->GetUnderlyingType());
 		}
 
-		auto parenType = static_cast<natRefPointer<NatsuLang::Type::ParenType>>(type);
-		if (parenType)
+		if (const auto parenType = static_cast<natRefPointer<NatsuLang::Type::ParenType>>(type))
 		{
 			return getUnderlyingType(parenType->GetInnerType());
 		}
@@ -103,23 +102,23 @@ namespace
 		nat_Throw(NotImplementedException);
 	}
 
-	constexpr NatsuLang::Expression::UnaryOperationType getUnaryOperationType(NatsuLang::Token::TokenType tokenType) noexcept
+	constexpr NatsuLang::Expression::UnaryOperationType getUnaryOperationType(NatsuLang::Lex::TokenType tokenType) noexcept
 	{
 		using NatsuLang::Expression::UnaryOperationType;
 
 		switch (tokenType)
 		{
-		case NatsuLang::Token::TokenType::Plus:
+		case NatsuLang::Lex::TokenType::Plus:
 			return UnaryOperationType::Plus;
-		case NatsuLang::Token::TokenType::PlusPlus:
+		case NatsuLang::Lex::TokenType::PlusPlus:
 			return UnaryOperationType::PreInc;
-		case NatsuLang::Token::TokenType::Minus:
+		case NatsuLang::Lex::TokenType::Minus:
 			return UnaryOperationType::Minus;
-		case NatsuLang::Token::TokenType::MinusMinus:
+		case NatsuLang::Lex::TokenType::MinusMinus:
 			return UnaryOperationType::PreDec;
-		case NatsuLang::Token::TokenType::Tilde:
+		case NatsuLang::Lex::TokenType::Tilde:
 			return UnaryOperationType::Not;
-		case NatsuLang::Token::TokenType::Exclaim:
+		case NatsuLang::Lex::TokenType::Exclaim:
 			return UnaryOperationType::LNot;
 		default:
 			assert(!"Invalid TokenType for UnaryOperationType.");
@@ -127,69 +126,69 @@ namespace
 		}
 	}
 
-	constexpr NatsuLang::Expression::BinaryOperationType getBinaryOperationType(NatsuLang::Token::TokenType tokenType) noexcept
+	constexpr NatsuLang::Expression::BinaryOperationType getBinaryOperationType(NatsuLang::Lex::TokenType tokenType) noexcept
 	{
 		using NatsuLang::Expression::BinaryOperationType;
 
 		switch (tokenType)
 		{
-		case NatsuLang::Token::TokenType::Amp:
+		case NatsuLang::Lex::TokenType::Amp:
 			return BinaryOperationType::And;
-		case NatsuLang::Token::TokenType::AmpAmp:
+		case NatsuLang::Lex::TokenType::AmpAmp:
 			return BinaryOperationType::LAnd;
-		case NatsuLang::Token::TokenType::AmpEqual:
+		case NatsuLang::Lex::TokenType::AmpEqual:
 			return BinaryOperationType::AndAssign;
-		case NatsuLang::Token::TokenType::Star:
+		case NatsuLang::Lex::TokenType::Star:
 			return BinaryOperationType::Mul;
-		case NatsuLang::Token::TokenType::StarEqual:
+		case NatsuLang::Lex::TokenType::StarEqual:
 			return BinaryOperationType::MulAssign;
-		case NatsuLang::Token::TokenType::Plus:
+		case NatsuLang::Lex::TokenType::Plus:
 			return BinaryOperationType::Add;
-		case NatsuLang::Token::TokenType::PlusEqual:
+		case NatsuLang::Lex::TokenType::PlusEqual:
 			return BinaryOperationType::AddAssign;
-		case NatsuLang::Token::TokenType::Minus:
+		case NatsuLang::Lex::TokenType::Minus:
 			return BinaryOperationType::Sub;
-		case NatsuLang::Token::TokenType::MinusEqual:
+		case NatsuLang::Lex::TokenType::MinusEqual:
 			return BinaryOperationType::SubAssign;
-		case NatsuLang::Token::TokenType::ExclaimEqual:
+		case NatsuLang::Lex::TokenType::ExclaimEqual:
 			return BinaryOperationType::NE;
-		case NatsuLang::Token::TokenType::Slash:
+		case NatsuLang::Lex::TokenType::Slash:
 			return BinaryOperationType::Div;
-		case NatsuLang::Token::TokenType::SlashEqual:
+		case NatsuLang::Lex::TokenType::SlashEqual:
 			return BinaryOperationType::DivAssign;
-		case NatsuLang::Token::TokenType::Percent:
+		case NatsuLang::Lex::TokenType::Percent:
 			return BinaryOperationType::Mod;
-		case NatsuLang::Token::TokenType::PercentEqual:
+		case NatsuLang::Lex::TokenType::PercentEqual:
 			return BinaryOperationType::RemAssign;
-		case NatsuLang::Token::TokenType::Less:
+		case NatsuLang::Lex::TokenType::Less:
 			return BinaryOperationType::LT;
-		case NatsuLang::Token::TokenType::LessLess:
+		case NatsuLang::Lex::TokenType::LessLess:
 			return BinaryOperationType::Shl;
-		case NatsuLang::Token::TokenType::LessEqual:
+		case NatsuLang::Lex::TokenType::LessEqual:
 			return BinaryOperationType::LE;
-		case NatsuLang::Token::TokenType::LessLessEqual:
+		case NatsuLang::Lex::TokenType::LessLessEqual:
 			return BinaryOperationType::ShlAssign;
-		case NatsuLang::Token::TokenType::Greater:
+		case NatsuLang::Lex::TokenType::Greater:
 			return BinaryOperationType::GT;
-		case NatsuLang::Token::TokenType::GreaterGreater:
+		case NatsuLang::Lex::TokenType::GreaterGreater:
 			return BinaryOperationType::Shr;
-		case NatsuLang::Token::TokenType::GreaterEqual:
+		case NatsuLang::Lex::TokenType::GreaterEqual:
 			return BinaryOperationType::GE;
-		case NatsuLang::Token::TokenType::GreaterGreaterEqual:
+		case NatsuLang::Lex::TokenType::GreaterGreaterEqual:
 			return BinaryOperationType::ShrAssign;
-		case NatsuLang::Token::TokenType::Caret:
+		case NatsuLang::Lex::TokenType::Caret:
 			return BinaryOperationType::Xor;
-		case NatsuLang::Token::TokenType::CaretEqual:
+		case NatsuLang::Lex::TokenType::CaretEqual:
 			return BinaryOperationType::XorAssign;
-		case NatsuLang::Token::TokenType::Pipe:
+		case NatsuLang::Lex::TokenType::Pipe:
 			return BinaryOperationType::Or;
-		case NatsuLang::Token::TokenType::PipePipe:
+		case NatsuLang::Lex::TokenType::PipePipe:
 			return BinaryOperationType::LOr;
-		case NatsuLang::Token::TokenType::PipeEqual:
+		case NatsuLang::Lex::TokenType::PipeEqual:
 			return BinaryOperationType::OrAssign;
-		case NatsuLang::Token::TokenType::Equal:
+		case NatsuLang::Lex::TokenType::Equal:
 			return BinaryOperationType::Assign;
-		case NatsuLang::Token::TokenType::EqualEqual:
+		case NatsuLang::Lex::TokenType::EqualEqual:
 			return BinaryOperationType::EQ;
 		default:
 			assert(!"Invalid TokenType for BinaryOperationType.");
@@ -198,8 +197,8 @@ namespace
 	}
 }
 
-Sema::Sema(Preprocessor& preprocessor, ASTContext& astContext)
-	: m_Preprocessor{ preprocessor }, m_Context{ astContext }, m_Diag{ preprocessor.GetDiag() },
+Sema::Sema(Preprocessor& preprocessor, ASTContext& astContext, natRefPointer<ASTConsumer> astConsumer)
+	: m_Preprocessor{ preprocessor }, m_Context{ astContext }, m_Consumer{ std::move(astConsumer) }, m_Diag{ preprocessor.GetDiag() },
 	  m_SourceManager{ preprocessor.GetSourceManager() }
 {
 }
@@ -249,7 +248,13 @@ void Sema::PushOnScopeChains(natRefPointer<Declaration::NamedDecl> decl, natRefP
 	scope->AddDecl(decl);
 }
 
-natRefPointer<NatsuLang::Declaration::Decl> Sema::OnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path)
+void Sema::ActOnTranslationUnitScope(natRefPointer<Scope> scope)
+{
+	m_TranslationUnitScope = scope;
+	PushDeclContext(m_TranslationUnitScope, m_Context.GetTranslationUnit().Get());
+}
+
+natRefPointer<NatsuLang::Declaration::Decl> Sema::ActOnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path)
 {
 	nat_Throw(NatsuLib::NotImplementedException);
 }
@@ -469,7 +474,7 @@ natRefPointer<NatsuLang::Declaration::LabelDecl> Sema::LookupOrCreateLabel(Ident
 
 	if (!labelDecl)
 	{
-		labelDecl = make_ref<Declaration::LabelDecl>(curContext, loc, r.GetLookupId());
+		labelDecl = make_ref<Declaration::LabelDecl>(curContext, loc, r.GetLookupId(), nullptr);
 		auto s = m_CurrentScope->GetFunctionParent().Lock();
 		PushOnScopeChains(labelDecl, s, true);
 	}
@@ -509,8 +514,19 @@ natRefPointer<NatsuLang::Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(na
 natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 	natRefPointer<Scope> const& scope, Declaration::Declarator const& decl, Declaration::DeclContext* dc)
 {
-	// TODO
-	nat_Throw(NotImplementedException);
+	auto type = decl.GetType();
+	auto id = decl.GetIdentifier();
+
+	if (!id)
+	{
+		// TODO: 报告错误
+		return nullptr;
+	}
+
+	auto varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl.GetRange().GetBegin(),
+		SourceLocation{}, std::move(id), std::move(type), Specifier::StorageClass::None);
+
+	return varDecl;
 }
 
 natRefPointer<NatsuLang::Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
@@ -695,15 +711,15 @@ NatsuLang::Statement::StmtPtr Sema::ActOnReturnStmt(SourceLocation loc, Expressi
 	return nullptr;
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnBooleanLiteral(Token::Token const& token) const
+NatsuLang::Expression::ExprPtr Sema::ActOnBooleanLiteral(Lex::Token const& token) const
 {
-	assert(token.IsAnyOf({ Token::TokenType::Kw_true, Token::TokenType::Kw_false }));
-	return make_ref<Expression::BooleanLiteral>(token.Is(Token::TokenType::Kw_true), m_Context.GetBuiltinType(Type::BuiltinType::Bool), token.GetLocation());
+	assert(token.IsAnyOf({ Lex::TokenType::Kw_true, Lex::TokenType::Kw_false }));
+	return make_ref<Expression::BooleanLiteral>(token.Is(Lex::TokenType::Kw_true), m_Context.GetBuiltinType(Type::BuiltinType::Bool), token.GetLocation());
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnNumericLiteral(Token::Token const& token) const
+NatsuLang::Expression::ExprPtr Sema::ActOnNumericLiteral(Lex::Token const& token) const
 {
-	assert(token.Is(Token::TokenType::NumericLiteral));
+	assert(token.Is(Lex::TokenType::NumericLiteral));
 
 	Lex::NumericLiteralParser literalParser{ token.GetLiteralContent().value(), token.GetLocation(), m_Diag };
 
@@ -765,9 +781,9 @@ NatsuLang::Expression::ExprPtr Sema::ActOnNumericLiteral(Token::Token const& tok
 	return make_ref<Expression::IntegerLiteral>(value, std::move(type), token.GetLocation());
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnCharLiteral(Token::Token const& token) const
+NatsuLang::Expression::ExprPtr Sema::ActOnCharLiteral(Lex::Token const& token) const
 {
-	assert(token.Is(Token::TokenType::CharLiteral) && token.GetLiteralContent().has_value());
+	assert(token.Is(Lex::TokenType::CharLiteral) && token.GetLiteralContent().has_value());
 
 	Lex::CharLiteralParser literalParser{ token.GetLiteralContent().value(), token.GetLocation(), m_Diag };
 
@@ -779,9 +795,9 @@ NatsuLang::Expression::ExprPtr Sema::ActOnCharLiteral(Token::Token const& token)
 	return make_ref<Expression::CharacterLiteral>(literalParser.GetValue(), nString::UsingStringType, m_Context.GetBuiltinType(Type::BuiltinType::Char), token.GetLocation());
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnStringLiteral(Token::Token const& token)
+NatsuLang::Expression::ExprPtr Sema::ActOnStringLiteral(Lex::Token const& token)
 {
-	assert(token.Is(Token::TokenType::StringLiteral) && token.GetLiteralContent().has_value());
+	assert(token.Is(Lex::TokenType::StringLiteral) && token.GetLiteralContent().has_value());
 
 	Lex::StringLiteralParser literalParser{ token.GetLiteralContent().value(), token.GetLocation(), m_Diag };
 
@@ -938,27 +954,27 @@ NatsuLang::Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> 
 	return nullptr;
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand)
+NatsuLang::Expression::ExprPtr Sema::ActOnUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType, Expression::ExprPtr operand)
 {
 	// TODO: 为将来可能的操作符重载保留
 	static_cast<void>(scope);
 	return CreateBuiltinUnaryOp(loc, getUnaryOperationType(tokenType), std::move(operand));
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnPostfixUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr operand)
+NatsuLang::Expression::ExprPtr Sema::ActOnPostfixUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType, Expression::ExprPtr operand)
 {
 	// TODO: 为将来可能的操作符重载保留
 	static_cast<void>(scope);
 
-	assert(tokenType == Token::TokenType::PlusPlus || tokenType == Token::TokenType::MinusMinus);
+	assert(tokenType == Lex::TokenType::PlusPlus || tokenType == Lex::TokenType::MinusMinus);
 	return CreateBuiltinUnaryOp(loc,
-		tokenType == Token::TokenType::PlusPlus ?
+		tokenType == Lex::TokenType::PlusPlus ?
 			Expression::UnaryOperationType::PostInc :
 			Expression::UnaryOperationType::PostDec,
 		std::move(operand));
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnBinaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Token::TokenType tokenType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand)
+NatsuLang::Expression::ExprPtr Sema::ActOnBinaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand)
 {
 	static_cast<void>(scope);
 	return BuildBuiltinBinaryOp(loc, getBinaryOperationType(tokenType), std::move(leftOperand), std::move(rightOperand));
@@ -1102,10 +1118,11 @@ NatsuLang::Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scop
 	}
 }
 
-NatsuLang::Expression::ExprPtr Sema::BuildFieldReferenceExpr(Expression::ExprPtr baseExpr, SourceLocation opLoc, natRefPointer<NestedNameSpecifier> const& nns, natRefPointer<Declaration::FieldDecl> field, Identifier::IdPtr id)
+NatsuLang::Expression::ExprPtr Sema::BuildFieldReferenceExpr(Expression::ExprPtr baseExpr, SourceLocation opLoc,
+	natRefPointer<NestedNameSpecifier> const& nns, natRefPointer<Declaration::FieldDecl> field, Identifier::IdPtr id)
 {
-	// TODO
-	nat_Throw(NotImplementedException);
+	static_cast<void>(nns);
+	return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(field), std::move(id), field->GetValueType());
 }
 
 NatsuLang::Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, Expression::UnaryOperationType opCode, Expression::ExprPtr operand)
@@ -1292,9 +1309,6 @@ NatsuLang::Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOp
 			return builtinLHSType;
 		}
 
-		natRefPointer<Type::BuiltinType>* needToConvert;
-		Type::BuiltinType::BuiltinClass convertToType;
-
 		if (compareResult > 0)
 		{
 			rightOperand = ImpCastExprToType(std::move(rightOperand), leftOperandType, Expression::CastType::FloatingCast);
@@ -1327,7 +1341,7 @@ void LookupResult::AddDecl(natRefPointer<Declaration::NamedDecl> decl)
 	m_Result = LookupResultType::Found;
 }
 
-void LookupResult::AddDecl(Linq<natRefPointer<Declaration::NamedDecl>> decls)
+void LookupResult::AddDecl(Linq<const natRefPointer<Declaration::NamedDecl>> decls)
 {
 	m_Decls.insert(decls.begin(), decls.begin());
 	m_Result = LookupResultType::Found;
@@ -1370,7 +1384,7 @@ void LookupResult::ResolveResultType() noexcept
 	}
 }
 
-Linq<natRefPointer<const NatsuLang::Declaration::NamedDecl>> LookupResult::GetDecls() const noexcept
+Linq<const natRefPointer<NatsuLang::Declaration::NamedDecl>> LookupResult::GetDecls() const noexcept
 {
 	return from(m_Decls);
 }
