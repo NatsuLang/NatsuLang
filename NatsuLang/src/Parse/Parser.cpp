@@ -225,7 +225,8 @@ NatsuLang::Statement::StmtPtr Parser::ParseLabeledStatement(Identifier::IdPtr la
 
 	ConsumeToken();
 
-	if (auto stmt = ParseStatement(); !stmt)
+	auto stmt = ParseStatement();
+	if (!stmt)
 	{
 		stmt = m_Sema.ActOnNullStmt(colonLoc);
 	}
@@ -949,6 +950,11 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 	{
 		return paramDecl.GetType();
 	})));
+
+	decl.SetParams(from(paramDecls).select([this](Declaration::Declarator const& paramDecl)->natRefPointer<Declaration::ParmVarDecl> const&
+	{
+		return m_Sema.ActOnParamDeclarator(m_Sema.GetCurrentScope(), paramDecl);
+	}));
 }
 
 void Parser::ParseArrayType(Declaration::Declarator& decl)

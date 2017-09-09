@@ -290,8 +290,8 @@ namespace NatsuLang::Declaration
 			m_Body = std::move(value);
 		}
 
-		NatsuLib::Linq<NatsuLib::natRefPointer<ParmVarDecl>> GetParams() const noexcept;
-		void SetParams(NatsuLib::Linq<NatsuLib::natRefPointer<ParmVarDecl>> value) noexcept;
+		NatsuLib::Linq<const NatsuLib::natRefPointer<ParmVarDecl>> GetParams() const noexcept;
+		void SetParams(NatsuLib::Linq<const NatsuLib::natRefPointer<ParmVarDecl>> value) noexcept;
 
 	private:
 		std::vector<NatsuLib::natRefPointer<ParmVarDecl>> m_Params;

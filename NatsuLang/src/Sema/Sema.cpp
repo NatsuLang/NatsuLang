@@ -485,22 +485,109 @@ NatsuLang::Type::TypePtr Sema::ActOnTypeName(natRefPointer<Scope> const& scope, 
 
 natRefPointer<NatsuLang::Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
 {
+	auto id = decl.GetIdentifier();
+	if (id)
+	{
+		LookupResult r{ *this, id, {}, LookupNameType::LookupOrdinaryName };
+		LookupName(r, scope);
+		if (r.GetDeclSize() > 0)
+		{
+			// TODO: 报告存在重名的参数
+		}
+	}
+
+	// 临时放在翻译单元上下文中，在整个函数声明完成后关联到函数
+	auto ret = make_ref<Declaration::ParmVarDecl>(Declaration::Decl::ParmVar,
+		m_Context.GetTranslationUnit().Get(), SourceLocation{}, SourceLocation{},
+		std::move(id), decl.GetType(), Specifier::StorageClass::None, decl.GetInitializer());
+
+	scope->AddDecl(ret);
+
+	return ret;
+}
+
+natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
+	natRefPointer<Scope> const& scope, Declaration::Declarator const& decl, Declaration::DeclContext* dc)
+{
 	// TODO
 	nat_Throw(NotImplementedException);
 }
 
-natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
+natRefPointer<NatsuLang::Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
+	natRefPointer<Scope> const& scope, Declaration::Declarator const& decl, Declaration::DeclContext* dc)
 {
 	auto id = decl.GetIdentifier();
-
-	if (decl.GetContext() != Declaration::Context::Prototype && !id)
+	if (!id)
 	{
-		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, decl.GetRange().GetBegin());
+		// TODO: 报告错误
 		return nullptr;
 	}
 
-	// TODO
-	nat_Throw(NotImplementedException);
+	auto type = static_cast<natRefPointer<Type::FunctionType>>(decl.GetType());
+	if (!type)
+	{
+		// TODO: 报告错误
+		return nullptr;
+	}
+
+	auto funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
+		SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), Specifier::StorageClass::None);
+
+	for (auto const& param : decl.GetParams())
+	{
+		param->SetContext(funcDecl.Get());
+	}
+
+	funcDecl->SetParams(from(decl.GetParams()));
+
+	return funcDecl;
+}
+
+natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> scope, Declaration::Declarator const& decl)
+{
+	const auto id = decl.GetIdentifier();
+
+	if (!id)
+	{
+		if (decl.GetContext() != Declaration::Context::Prototype)
+		{
+			m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, decl.GetRange().GetBegin());
+		}
+
+		return nullptr;
+	}
+
+	while ((scope->GetFlags() & ScopeFlags::DeclarableScope) == ScopeFlags::None)
+	{
+		scope = scope->GetParent().Lock();
+	}
+
+	LookupResult previous{ *this, id, {}, LookupNameType::LookupOrdinaryName };
+
+	LookupName(previous, scope);
+
+	if (previous.GetDeclSize())
+	{
+		// TODO: 处理重载或覆盖的情况
+		return nullptr;
+	}
+
+	const auto dc = Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get());
+	const auto type = decl.GetType();
+	natRefPointer<Declaration::NamedDecl> retDecl;
+
+	if (auto funcType = static_cast<natRefPointer<Type::FunctionType>>(type))
+	{
+		retDecl = ActOnFunctionDeclarator(scope, decl, dc);
+	}
+	else
+	{
+		retDecl = ActOnVariableDeclarator(scope, decl, dc);
+	}
+
+	PushOnScopeChains(retDecl, scope);
+
+	return retDecl;
 }
 
 NatsuLang::Statement::StmtPtr Sema::ActOnNullStmt(SourceLocation loc)

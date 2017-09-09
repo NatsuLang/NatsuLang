@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <natRefObj.h>
 #include "Basic/SourceLocation.h"
 
@@ -101,6 +101,16 @@ namespace NatsuLang::Declaration
 			m_Initializer = std::move(value);
 		}
 
+		std::vector<NatsuLib::natRefPointer<ParmVarDecl>> const& GetParams() const noexcept
+		{
+			return m_Params;
+		}
+
+		void SetParams(NatsuLib::Linq<const NatsuLib::natRefPointer<ParmVarDecl>> params) noexcept
+		{
+			m_Params.assign(params.begin(), params.end());
+		}
+
 		nBool IsValid() const noexcept
 		{
 			return m_Identifier || m_Type || m_Initializer;
@@ -112,5 +122,8 @@ namespace NatsuLang::Declaration
 		Identifier::IdPtr m_Identifier;
 		Type::TypePtr m_Type;
 		Statement::StmtPtr m_Initializer;
+
+		// 如果声明的是一个函数，这个 vector 将会保存参数信息
+		std::vector<NatsuLib::natRefPointer<ParmVarDecl>> m_Params;
 	};
 }

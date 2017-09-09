@@ -71,6 +71,11 @@ namespace NatsuLang::Declaration
 			return m_Context;
 		}
 
+		void SetContext(DeclContext* dc) noexcept
+		{
+			m_Context = dc;
+		}
+
 		NatsuLib::natRefPointer<Decl> GetNextDeclInContext() const noexcept
 		{
 			return m_NextDeclInContext;

@@ -55,12 +55,12 @@ FunctionDecl::~FunctionDecl()
 {
 }
 
-Linq<natRefPointer<ParmVarDecl>> FunctionDecl::GetParams() const noexcept
+Linq<const natRefPointer<ParmVarDecl>> FunctionDecl::GetParams() const noexcept
 {
 	return from(m_Params);
 }
 
-void FunctionDecl::SetParams(Linq<natRefPointer<ParmVarDecl>> value) noexcept
+void FunctionDecl::SetParams(Linq<const natRefPointer<ParmVarDecl>> value) noexcept
 {
 	m_Params.assign(value.begin(), value.end());
 }
