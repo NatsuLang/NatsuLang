@@ -201,6 +201,8 @@ Sema::Sema(Preprocessor& preprocessor, ASTContext& astContext, natRefPointer<AST
 	: m_Preprocessor{ preprocessor }, m_Context{ astContext }, m_Consumer{ std::move(astConsumer) }, m_Diag{ preprocessor.GetDiag() },
 	  m_SourceManager{ preprocessor.GetSourceManager() }
 {
+	PushScope(ScopeFlags::DeclarableScope);
+	ActOnTranslationUnitScope(m_CurrentScope);
 }
 
 Sema::~Sema()
@@ -226,14 +228,14 @@ void Sema::PopDeclContext()
 
 void Sema::PushScope(ScopeFlags flags)
 {
-	m_CurrentScope = make_ref<Scope>(m_CurrentScope->ForkWeakRef(), flags);
+	m_CurrentScope = make_ref<Scope>(m_CurrentScope, flags);
 }
 
 void Sema::PopScope()
 {
 	assert(m_CurrentScope);
 
-	m_CurrentScope = m_CurrentScope->GetParent().Lock();
+	m_CurrentScope = m_CurrentScope->GetParent();
 }
 
 void Sema::PushOnScopeChains(natRefPointer<Declaration::NamedDecl> decl, natRefPointer<Scope> const& scope, nBool addToContext)
@@ -307,14 +309,14 @@ NatsuLang::Type::TypePtr Sema::GetTypeName(natRefPointer<Identifier::IdentifierI
 	}
 }
 
-NatsuLang::Type::TypePtr Sema::BuildFunctionType(Type::TypePtr retType, Linq<const Type::TypePtr> const& paramType)
+NatsuLang::Type::TypePtr Sema::BuildFunctionType(Type::TypePtr retType, Linq<NatsuLib::Valued<Type::TypePtr>> const& paramType)
 {
 	return m_Context.GetFunctionType(from(paramType), std::move(retType));
 }
 
 NatsuLang::Declaration::DeclPtr Sema::ActOnStartOfFunctionDef(natRefPointer<Scope> const& scope, Declaration::Declarator const& declarator)
 {
-	const auto parentScope = scope->GetParent().Lock();
+	const auto parentScope = scope->GetParent();
 	auto decl = HandleDeclarator(parentScope, declarator);
 	return ActOnStartOfFunctionDef(scope, std::move(decl));
 }
@@ -356,7 +358,7 @@ NatsuLang::Declaration::DeclPtr Sema::ActOnStartOfFunctionDef(natRefPointer<Scop
 		}
 	}
 
-	return std::move(decl);
+	return funcDecl;
 }
 
 NatsuLang::Declaration::DeclPtr Sema::ActOnFinishFunctionBody(Declaration::DeclPtr decl, Statement::StmtPtr body)
@@ -371,15 +373,15 @@ NatsuLang::Declaration::DeclPtr Sema::ActOnFinishFunctionBody(Declaration::DeclP
 
 	PopDeclContext();
 	
-	return std::move(decl);
+	return fd;
 }
 
 nBool Sema::LookupName(LookupResult& result, natRefPointer<Scope> scope) const
 {
-	for (; scope; scope = scope->GetParent().Lock())
+	for (; scope; scope = scope->GetParent())
 	{
 		const auto context = scope->GetEntity();
-		if (LookupQualifiedName(result, context))
+		if (context && LookupQualifiedName(result, context))
 		{
 			return true;
 		}
@@ -561,6 +563,11 @@ natRefPointer<NatsuLang::Declaration::FunctionDecl> Sema::ActOnFunctionDeclarato
 
 natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> scope, Declaration::Declarator const& decl)
 {
+	if (auto preparedDecl = decl.GetDecl())
+	{
+		return preparedDecl;
+	}
+
 	const auto id = decl.GetIdentifier();
 
 	if (!id)
@@ -575,7 +582,7 @@ natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPo
 
 	while ((scope->GetFlags() & ScopeFlags::DeclarableScope) == ScopeFlags::None)
 	{
-		scope = scope->GetParent().Lock();
+		scope = scope->GetParent();
 	}
 
 	LookupResult previous{ *this, id, {}, LookupNameType::LookupOrdinaryName };
@@ -894,7 +901,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnArraySubscriptExpr(natRefPointer<Scope
 	return make_ref<Expression::ArraySubscriptExpr>(base, index, baseType->GetElementType(), rloc);
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr func, SourceLocation lloc, Linq<const Expression::ExprPtr> argExprs, SourceLocation rloc)
+NatsuLang::Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr func, SourceLocation lloc, Linq<NatsuLib::Valued<Expression::ExprPtr>> argExprs, SourceLocation rloc)
 {
 	// TODO: 完成重载部分
 
@@ -1341,9 +1348,9 @@ void LookupResult::AddDecl(natRefPointer<Declaration::NamedDecl> decl)
 	m_Result = LookupResultType::Found;
 }
 
-void LookupResult::AddDecl(Linq<const natRefPointer<Declaration::NamedDecl>> decls)
+void LookupResult::AddDecl(Linq<NatsuLib::Valued<natRefPointer<Declaration::NamedDecl>>> decls)
 {
-	m_Decls.insert(decls.begin(), decls.begin());
+	m_Decls.insert(decls.begin(), decls.end());
 	m_Result = LookupResultType::Found;
 }
 
@@ -1384,7 +1391,7 @@ void LookupResult::ResolveResultType() noexcept
 	}
 }
 
-Linq<const natRefPointer<NatsuLang::Declaration::NamedDecl>> LookupResult::GetDecls() const noexcept
+Linq<NatsuLib::Valued<natRefPointer<NatsuLang::Declaration::NamedDecl>>> LookupResult::GetDecls() const noexcept
 {
 	return from(m_Decls);
 }

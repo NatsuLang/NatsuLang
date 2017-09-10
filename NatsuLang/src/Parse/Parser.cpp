@@ -233,11 +233,11 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 	case TokenType::Kw_goto:
 		break;
 	case TokenType::Kw_continue:
-		break;
+		return ParseContinueStatement();
 	case TokenType::Kw_break:
-		break;
+		return ParseBreakStatement();
 	case TokenType::Kw_return:
-		break;
+		return ParseReturnStatement();
 	case TokenType::Kw_try:
 		break;
 	case TokenType::Kw_catch:
@@ -537,7 +537,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expre
 	{
 		if (tokenPrec < minPrec)
 		{
-			return leftOperand;
+			return std::move(leftOperand);
 		}
 
 		auto opToken = m_CurrentToken;
@@ -819,14 +819,19 @@ void Parser::ParseSpecifier(Declaration::Declarator& decl)
 void Parser::ParseType(Declaration::Declarator& decl)
 {
 	const auto context = decl.GetContext();
-	const auto token = m_CurrentToken;
-	ConsumeToken();
 
-	if (!token.Is(TokenType::Colon) && context != Declaration::Context::Prototype)
+	if (!m_CurrentToken.Is(TokenType::Colon))
 	{
-		// 在非声明函数原型的上下文中不显式写出类型，视为隐含auto
-		// auto的声明符在指定initializer之后决定实际类型
-		return;
+		if (context != Declaration::Context::Prototype)
+		{
+			// 在非声明函数原型的上下文中不显式写出类型，视为隐含auto
+			// auto的声明符在指定initializer之后决定实际类型
+			return;
+		}
+	}
+	else
+	{
+		ConsumeToken();
 	}
 
 	const auto tokenType = m_CurrentToken.GetType();
@@ -879,6 +884,7 @@ void Parser::ParseType(Declaration::Declarator& decl)
 			return;
 		}
 		decl.SetType(m_Sema.GetASTContext().GetBuiltinType(builtinClass));
+		ConsumeToken();
 		break;
 	}
 	}
@@ -909,7 +915,8 @@ void Parser::ParseParenType(Declaration::Declarator& decl)
 
 void Parser::ParseFunctionType(Declaration::Declarator& decl)
 {
-	assert(m_CurrentToken.Is(TokenType::Identifier));
+	assert(m_CurrentToken.Is(TokenType::LeftParen));
+	ConsumeParen();
 
 	std::vector<Declaration::Declarator> paramDecls;
 
@@ -978,15 +985,17 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 	Declaration::Declarator retType{ Declaration::Context::Prototype };
 	ParseType(retType);
 
-	decl.SetType(m_Sema.BuildFunctionType(retType.GetType(), from(paramDecls).select([](Declaration::Declarator const& paramDecl)
-	{
-		return paramDecl.GetType();
-	})));
+	decl.SetType(m_Sema.BuildFunctionType(retType.GetType(), from(paramDecls)
+		.select([](Declaration::Declarator const& paramDecl)
+				{
+					return paramDecl.GetType();
+				})));
 
-	decl.SetParams(from(paramDecls).select([this](Declaration::Declarator const& paramDecl)
-	{
-		return m_Sema.ActOnParamDeclarator(m_Sema.GetCurrentScope(), paramDecl);
-	}));
+	decl.SetParams(from(paramDecls)
+		.select([this](Declaration::Declarator const& paramDecl)
+				{
+					return m_Sema.ActOnParamDeclarator(m_Sema.GetCurrentScope(), paramDecl);
+				}));
 }
 
 void Parser::ParseArrayType(Declaration::Declarator& decl)
@@ -1027,7 +1036,7 @@ void Parser::ParseInitializer(Declaration::Declarator& decl)
 
 		ParseScope bodyScope{ this, Semantic::ScopeFlags::FunctionScope | Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::CompoundStmtScope };
 		auto funcDecl = m_Sema.ActOnStartOfFunctionDef(m_Sema.GetCurrentScope(), decl);
-		decl.SetInitializer(ParseFunctionBody(std::move(funcDecl), bodyScope));
+		decl.SetDecl(ParseFunctionBody(std::move(funcDecl), bodyScope));
 	}
 
 	// 不是 initializer，返回

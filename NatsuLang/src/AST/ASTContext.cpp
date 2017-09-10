@@ -39,7 +39,7 @@ natRefPointer<Type::ArrayType> ASTContext::GetArrayType(Type::TypePtr elementTyp
 	return ret;
 }
 
-natRefPointer<Type::FunctionType> ASTContext::GetFunctionType(Linq<const Type::TypePtr> const& params, Type::TypePtr retType)
+natRefPointer<Type::FunctionType> ASTContext::GetFunctionType(Linq<NatsuLib::Valued<Type::TypePtr>> const& params, Type::TypePtr retType)
 {
 	auto ret = make_ref<Type::FunctionType>(params, std::move(retType));
 	const auto iter = m_FunctionTypes.find(ret);

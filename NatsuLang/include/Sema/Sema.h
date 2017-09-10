@@ -116,7 +116,7 @@ namespace NatsuLang::Semantic
 
 		Type::TypePtr GetTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, NatsuLib::natRefPointer<Scope> scope, Type::TypePtr const& objectType);
 
-		Type::TypePtr BuildFunctionType(Type::TypePtr retType, NatsuLib::Linq<const Type::TypePtr> const& paramType);
+		Type::TypePtr BuildFunctionType(Type::TypePtr retType, NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& paramType);
 
 		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& declarator);
 		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclPtr decl);
@@ -156,7 +156,7 @@ namespace NatsuLang::Semantic
 		Expression::ExprPtr ActOnThis(SourceLocation loc);
 		Expression::ExprPtr ActOnAsTypeExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr exprToCast, Type::TypePtr type, SourceLocation loc);
 		Expression::ExprPtr ActOnArraySubscriptExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation lloc, Expression::ExprPtr index, SourceLocation rloc);
-		Expression::ExprPtr ActOnCallExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr func, SourceLocation lloc, NatsuLib::Linq<const Expression::ExprPtr> argExprs, SourceLocation rloc);
+		Expression::ExprPtr ActOnCallExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr func, SourceLocation lloc, NatsuLib::Linq<NatsuLib::Valued<Expression::ExprPtr>> argExprs, SourceLocation rloc);
 		Expression::ExprPtr ActOnMemberAccessExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation periodLoc, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id);
 		Expression::ExprPtr ActOnUnaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType, Expression::ExprPtr operand);
 		Expression::ExprPtr ActOnPostfixUnaryOp(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType, Expression::ExprPtr operand);
@@ -223,7 +223,7 @@ namespace NatsuLang::Semantic
 			return m_LookupNameType;
 		}
 
-		NatsuLib::Linq<const NatsuLib::natRefPointer<Declaration::NamedDecl>> GetDecls() const noexcept;
+		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<Declaration::NamedDecl>>> GetDecls() const noexcept;
 
 		std::size_t GetDeclSize() const noexcept
 		{
@@ -236,7 +236,7 @@ namespace NatsuLang::Semantic
 		}
 
 		void AddDecl(NatsuLib::natRefPointer<Declaration::NamedDecl> decl);
-		void AddDecl(NatsuLib::Linq<const NatsuLib::natRefPointer<Declaration::NamedDecl>> decls);
+		void AddDecl(NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<Declaration::NamedDecl>>> decls);
 
 		void ResolveResultType() noexcept;
 

@@ -222,6 +222,8 @@ NumericLiteralParser::NumericLiteralParser(nStrView buffer, SourceLocation loc, 
 
 nBool NumericLiteralParser::GetIntegerValue(nuLong& result) const noexcept
 {
+	result = 0;
+
 	for (auto i = m_DigitBegin; i != m_SuffixBegin; ++i)
 	{
 		result = result * m_Radix + DigitValue(*i);

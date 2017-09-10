@@ -418,10 +418,20 @@ nBool Lexer::lexNumericLiteral(Lex::Token& result, Iterator cur)
 {
 	const auto start = cur, end = m_Buffer.end();
 	CharType curChar = *cur, prevChar{};
+
+	assert(IsNumericLiteralBody(curChar));
+
 	while (cur != end && IsNumericLiteralBody(curChar))
 	{
 		prevChar = curChar;
-		curChar = *cur++;
+		curChar = *cur;
+
+		if (!IsNumericLiteralBody(curChar))
+		{
+			break;
+		}
+
+		++cur;
 	}
 
 	// 科学计数法，例如1E+10
@@ -441,9 +451,18 @@ nBool Lexer::lexIdentifier(Lex::Token& result, Iterator cur)
 	const auto start = cur, end = m_Buffer.end();
 	auto curChar = *cur++;
 
-	while (cur != end && IsIdentifierBody(curChar))
+	assert(IsIdentifierBody(curChar));
+
+	while (cur != end)
 	{
-		curChar = *cur++;
+		curChar = *cur;
+
+		if (!IsIdentifierBody(curChar))
+		{
+			break;
+		}
+
+		++cur;
 	}
 
 	m_Current = cur;

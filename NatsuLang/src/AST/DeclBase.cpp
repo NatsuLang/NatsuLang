@@ -26,6 +26,11 @@ namespace
 
 DeclContext* Decl::CastToDeclContext(const Decl* decl)
 {
+	if (!decl)
+	{
+		return nullptr;
+	}
+
 	const auto type = decl->GetType();
 	switch (type)
 	{
@@ -45,6 +50,11 @@ DeclContext* Decl::CastToDeclContext(const Decl* decl)
 
 Decl* Decl::CastFromDeclContext(const DeclContext* declContext)
 {
+	if (!declContext)
+	{
+		return nullptr;
+	}
+
 	const auto type = declContext->GetType();
 	switch (type)
 	{
@@ -82,7 +92,7 @@ const char* DeclContext::GetTypeName() const noexcept
 	return getTypeName(m_Type);
 }
 
-Linq<DeclPtr> DeclContext::GetDecls() const
+NatsuLib::Linq<NatsuLib::Valued<DeclPtr>> DeclContext::GetDecls() const
 {
 	return from(DeclIterator{ m_FirstDecl }, DeclIterator{});
 }
@@ -138,7 +148,8 @@ nBool DeclContext::ContainsDecl(DeclPtr const& decl)
 	return decl->GetContext() == this && (decl->GetNextDeclInContext() || decl == m_LastDecl);
 }
 
-Linq<natRefPointer<NamedDecl>> DeclContext::Lookup(natRefPointer<Identifier::IdentifierInfo> const& info) const
+NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<NamedDecl>>> DeclContext::Lookup(
+	natRefPointer<Identifier::IdentifierInfo> const& info) const
 {
 	return GetDecls().where([&info] (DeclPtr const& decl)
 	{

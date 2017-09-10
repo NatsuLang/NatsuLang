@@ -8,7 +8,7 @@ namespace NatsuLang::Statement
 	class Stmt;
 
 	using StmtPtr = NatsuLib::natRefPointer<Stmt>;
-	using StmtEnumerable = NatsuLib::Linq<const StmtPtr>;
+	using StmtEnumerable = NatsuLib::Linq<NatsuLib::Valued<StmtPtr>>;
 
 	class Stmt
 		: public NatsuLib::natRefObjImpl<Stmt>

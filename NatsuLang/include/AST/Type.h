@@ -134,7 +134,7 @@ namespace NatsuLang::Type
 		: public Type
 	{
 	public:
-		FunctionType(NatsuLib::Linq<const TypePtr> const& params, TypePtr resultType)
+		FunctionType(NatsuLib::Linq<NatsuLib::Valued<TypePtr>> const& params, TypePtr resultType)
 			: Type{ Function }, m_ParameterTypes{ params.begin(), params.end() }, m_ResultType{ std::move(resultType) }
 		{
 		}
@@ -146,7 +146,7 @@ namespace NatsuLang::Type
 			return m_ResultType;
 		}
 
-		NatsuLib::Linq<const TypePtr> GetParameterTypes() const noexcept;
+		NatsuLib::Linq<NatsuLib::Valued<TypePtr>> GetParameterTypes() const noexcept;
 		std::size_t GetParameterCount() const noexcept;
 
 		std::size_t GetHashCode() const noexcept override;

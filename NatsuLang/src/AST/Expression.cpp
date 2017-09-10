@@ -635,12 +635,12 @@ CallExpr::~CallExpr()
 {
 }
 
-Linq<const NatsuLang::Expression::ExprPtr> CallExpr::GetArgs() const noexcept
+Linq<NatsuLib::Valued<NatsuLang::Expression::ExprPtr>> CallExpr::GetArgs() const noexcept
 {
 	return from(m_Args);
 }
 
-void CallExpr::SetArgs(Linq<const ExprPtr> const& value)
+void CallExpr::SetArgs(Linq<NatsuLib::Valued<ExprPtr>> const& value)
 {
 	m_Args.assign(value.begin(), value.end());
 }
@@ -739,12 +739,12 @@ ConstructExpr::~ConstructExpr()
 {
 }
 
-Linq<const NatsuLang::Expression::ExprPtr> ConstructExpr::GetArgs() const noexcept
+Linq<NatsuLib::Valued<NatsuLang::Expression::ExprPtr>> ConstructExpr::GetArgs() const noexcept
 {
 	return from(m_Args);
 }
 
-void ConstructExpr::SetArgs(Linq<const ExprPtr> const& value)
+void ConstructExpr::SetArgs(Linq<NatsuLib::Valued<ExprPtr>> const& value)
 {
 	m_Args.assign(value.begin(), value.end());
 }
@@ -758,12 +758,12 @@ NewExpr::~NewExpr()
 {
 }
 
-Linq<const NatsuLang::Expression::ExprPtr> NewExpr::GetArgs() const noexcept
+Linq<NatsuLib::Valued<NatsuLang::Expression::ExprPtr>> NewExpr::GetArgs() const noexcept
 {
 	return from(m_Args);
 }
 
-void NewExpr::SetArgs(Linq<const ExprPtr> const& value)
+void NewExpr::SetArgs(Linq<NatsuLib::Valued<ExprPtr>> const& value)
 {
 	m_Args.assign(value.begin(), value.end());
 }

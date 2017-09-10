@@ -101,12 +101,22 @@ namespace NatsuLang::Declaration
 			m_Initializer = std::move(value);
 		}
 
+		DeclPtr GetDecl() const noexcept
+		{
+			return m_Decl;
+		}
+
+		void SetDecl(DeclPtr value) noexcept
+		{
+			m_Decl = std::move(value);
+		}
+
 		std::vector<NatsuLib::natRefPointer<ParmVarDecl>> const& GetParams() const noexcept
 		{
 			return m_Params;
 		}
 
-		void SetParams(NatsuLib::Linq<const NatsuLib::natRefPointer<ParmVarDecl>> params) noexcept
+		void SetParams(NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ParmVarDecl>>> params) noexcept
 		{
 			m_Params.assign(params.begin(), params.end());
 		}
@@ -122,6 +132,8 @@ namespace NatsuLang::Declaration
 		Identifier::IdPtr m_Identifier;
 		Type::TypePtr m_Type;
 		Statement::StmtPtr m_Initializer;
+
+		DeclPtr m_Decl;
 
 		// 如果声明的是一个函数，这个 vector 将会保存参数信息
 		std::vector<NatsuLib::natRefPointer<ParmVarDecl>> m_Params;

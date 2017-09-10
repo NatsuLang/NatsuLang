@@ -286,8 +286,8 @@ namespace NatsuLang::Declaration
 			m_Body = std::move(value);
 		}
 
-		NatsuLib::Linq<const NatsuLib::natRefPointer<ParmVarDecl>> GetParams() const noexcept;
-		void SetParams(NatsuLib::Linq<const NatsuLib::natRefPointer<ParmVarDecl>> value) noexcept;
+		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ParmVarDecl>>> GetParams() const noexcept;
+		void SetParams(NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ParmVarDecl>>> value) noexcept;
 
 	private:
 		std::vector<NatsuLib::natRefPointer<ParmVarDecl>> m_Params;
@@ -426,7 +426,7 @@ namespace NatsuLang::Declaration
 
 		~EnumDecl();
 
-		NatsuLib::Linq<NatsuLib::natRefPointer<EnumConstantDecl>> GetEnumerators() const noexcept;
+		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<EnumConstantDecl>>> GetEnumerators() const noexcept;
 	};
 
 	class RecordDecl
@@ -440,7 +440,7 @@ namespace NatsuLang::Declaration
 
 		~RecordDecl();
 
-		NatsuLib::Linq<NatsuLib::natRefPointer<FieldDecl>> GetFields() const noexcept;
+		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<FieldDecl>>> GetFields() const noexcept;
 	};
 
 	class ImportDecl

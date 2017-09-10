@@ -118,14 +118,15 @@ namespace NatsuLang::Declaration
 		}
 
 		const char* GetTypeName() const noexcept;
-		
-		NatsuLib::Linq<DeclPtr> GetDecls() const;
+
+		NatsuLib::Linq<NatsuLib::Valued<DeclPtr>> GetDecls() const;
 
 		void AddDecl(DeclPtr decl);
 		void RemoveDecl(DeclPtr const& decl);
 		nBool ContainsDecl(DeclPtr const& decl);
 
-		NatsuLib::Linq<NatsuLib::natRefPointer<NamedDecl>> Lookup(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& info) const;
+		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<NamedDecl>>> Lookup(
+			NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& info) const;
 
 	private:
 		Decl::DeclType m_Type;

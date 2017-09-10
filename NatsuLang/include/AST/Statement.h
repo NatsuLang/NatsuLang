@@ -21,7 +21,7 @@ namespace NatsuLang::Statement
 	{
 	public:
 		using DeclPtr = NatsuLib::natRefPointer<Declaration::Decl>;
-		using DeclEnumerable = NatsuLib::Linq<const DeclPtr>;
+		using DeclEnumerable = NatsuLib::Linq<NatsuLib::Valued<DeclPtr>>;
 
 		explicit DeclStmt(std::vector<DeclPtr> decls, SourceLocation start = {}, SourceLocation end = {})
 			: Stmt{ DeclStmtClass, start, end }, m_Decls{ move(decls) }
@@ -558,7 +558,7 @@ namespace NatsuLang::Statement
 		: public Stmt
 	{
 	public:
-		TryStmt(SourceLocation loc, StmtPtr tryBlock, NatsuLib::Linq<const StmtPtr> const& handlers);
+		TryStmt(SourceLocation loc, StmtPtr tryBlock, NatsuLib::Linq<NatsuLib::Valued<StmtPtr>> const& handlers);
 		~TryStmt();
 
 	private:

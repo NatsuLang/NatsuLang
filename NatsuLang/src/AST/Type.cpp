@@ -263,7 +263,7 @@ FunctionType::~FunctionType()
 {
 }
 
-Linq<const TypePtr> FunctionType::GetParameterTypes() const noexcept
+Linq<NatsuLib::Valued<TypePtr>> FunctionType::GetParameterTypes() const noexcept
 {
 	return from(m_ParameterTypes);
 }

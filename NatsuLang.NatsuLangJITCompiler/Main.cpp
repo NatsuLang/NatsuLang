@@ -66,7 +66,7 @@ public:
 		static_cast<void>(context);
 	}
 
-	nBool HandleTopLevelDecl(Linq<const Declaration::DeclPtr> const& decls) override
+	nBool HandleTopLevelDecl(Linq<Valued<Declaration::DeclPtr>> const& decls) override
 	{
 		static_cast<void>(decls);
 		return true;
@@ -74,9 +74,9 @@ public:
 };
 
 constexpr char TestCode[] = u8R"(
-def main : (arg : int) -> int
+def main : (arg : int = 1) -> int
 {
-	return 1;
+	return 1 + arg;
 }
 )";
 

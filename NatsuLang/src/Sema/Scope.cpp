@@ -2,17 +2,16 @@
 
 using namespace NatsuLang::Semantic;
 
-void Scope::SetFlags(NatsuLib::natWeakRefPointer<Scope> parent, ScopeFlags flags) noexcept
+void Scope::SetFlags(NatsuLib::natRefPointer<Scope> parent, ScopeFlags flags) noexcept
 {
-	const auto strongRefParent = parent.Lock();
-
 	m_Parent = parent;
 	m_Flags = flags;
+	m_Entity = nullptr;
 
-	if (strongRefParent && (flags & ScopeFlags::FunctionScope) == ScopeFlags::None)
+	if (parent && (flags & ScopeFlags::FunctionScope) == ScopeFlags::None)
 	{
-		m_BreakParent = strongRefParent->m_BreakParent;
-		m_ContinueParent = strongRefParent->m_ContinueParent;
+		m_BreakParent = parent->m_BreakParent;
+		m_ContinueParent = parent->m_ContinueParent;
 	}
 	else
 	{
@@ -20,11 +19,11 @@ void Scope::SetFlags(NatsuLib::natWeakRefPointer<Scope> parent, ScopeFlags flags
 		m_ContinueParent.Reset();
 	}
 
-	if (strongRefParent)
+	if (parent)
 	{
-		m_Depth = strongRefParent->m_Depth + 1;
-		m_BlockParent = strongRefParent->m_BlockParent;
-		m_FunctionParent = strongRefParent->m_FunctionParent;
+		m_Depth = parent->m_Depth + 1;
+		m_BlockParent = parent->m_BlockParent;
+		m_FunctionParent = parent->m_FunctionParent;
 	}
 	else
 	{

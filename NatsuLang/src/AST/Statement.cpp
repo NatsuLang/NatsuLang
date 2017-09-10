@@ -127,7 +127,7 @@ BreakStmt::~BreakStmt()
 }
 
 ReturnStmt::ReturnStmt(SourceLocation loc, ExprPtr retExpr)
-	: Stmt{ ReturnStmtClass, loc, retExpr ? retExpr->GetEndLoc() : loc }
+	: Stmt{ ReturnStmtClass, loc, retExpr ? retExpr->GetEndLoc() : loc }, m_RetExpr{ std::move(retExpr) }
 {
 }
 

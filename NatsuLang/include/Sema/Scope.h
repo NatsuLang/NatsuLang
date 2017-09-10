@@ -32,7 +32,7 @@ namespace NatsuLang::Semantic
 		: public NatsuLib::natRefObjImpl<Scope>
 	{
 	public:
-		Scope(NatsuLib::natWeakRefPointer<Scope> parent, ScopeFlags flags)
+		Scope(NatsuLib::natRefPointer<Scope> parent, ScopeFlags flags)
 		{
 			SetFlags(std::move(parent), flags);
 		}
@@ -47,14 +47,14 @@ namespace NatsuLang::Semantic
 			SetFlags(m_Parent, flags);
 		}
 
-		void SetFlags(NatsuLib::natWeakRefPointer<Scope> parent, ScopeFlags flags) noexcept;
+		void SetFlags(NatsuLib::natRefPointer<Scope> parent, ScopeFlags flags) noexcept;
 
 		nuInt GetDepth() const noexcept
 		{
 			return m_Depth;
 		}
 
-		NatsuLib::natWeakRefPointer<Scope> GetParent() const noexcept
+		NatsuLib::natRefPointer<Scope> GetParent() const noexcept
 		{
 			return m_Parent;
 		}
@@ -89,7 +89,7 @@ namespace NatsuLang::Semantic
 			m_Decls.erase(decl);
 		}
 
-		NatsuLib::Linq<const Declaration::DeclPtr> GetDecls() const noexcept
+		NatsuLib::Linq<NatsuLib::Valued<Declaration::DeclPtr>> GetDecls() const noexcept
 		{
 			return from(m_Decls);
 		}
@@ -110,7 +110,7 @@ namespace NatsuLang::Semantic
 		}
 
 	private:
-		NatsuLib::natWeakRefPointer<Scope> m_Parent;
+		NatsuLib::natRefPointer<Scope> m_Parent;
 		ScopeFlags m_Flags;
 		nuInt m_Depth;
 		NatsuLib::natWeakRefPointer<Scope> m_BreakParent, m_ContinueParent, m_BlockParent, m_FunctionParent;
