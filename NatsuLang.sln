@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.14
+VisualStudioVersion = 15.0.26730.12
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NatsuLang", "NatsuLang\NatsuLang.vcxproj", "{5306B493-F4E5-4A93-B487-D6A4A3561019}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -9,12 +9,23 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NatsuLang", "NatsuLang\Nats
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NatsuLib", "NatsuLib\NatsuLib\NatsuLib.vcxproj", "{E4F66019-9964-4B86-B538-E10F66124689}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B} = {0BFBD1A8-5638-4B35-BA03-8DB47F921B9B}
+	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NatsuLang.NatsuLangJITCompiler", "NatsuLang.NatsuLangJITCompiler\NatsuLang.NatsuLangJITCompiler.vcxproj", "{51C69829-4CE5-47B5-85A7-2AC2B2331CC9}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NatsuLang.JITCompiler", "NatsuLang.JITCompiler\NatsuLang.JITCompiler.vcxproj", "{51C69829-4CE5-47B5-85A7-2AC2B2331CC9}"
 	ProjectSection(ProjectDependencies) = postProject
 		{E4F66019-9964-4B86-B538-E10F66124689} = {E4F66019-9964-4B86-B538-E10F66124689}
 		{5306B493-F4E5-4A93-B487-D6A4A3561019} = {5306B493-F4E5-4A93-B487-D6A4A3561019}
 	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Extern", "Extern", "{E7D5F552-9833-40C8-AA8F-1F7EFB036D17}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zlib", "..\NatsuLib\NatsuLib\extern\zlib\zlib.vcxproj", "{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NatsuLang.Tests", "NatsuLang.Tests\NatsuLang.Tests.vcxproj", "{8764FF3A-53E4-40F5-8B92-13FE14178983}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NatsuLang.AOTCompiler", "NatsuLang.AOTCompiler\NatsuLang.AOTCompiler.vcxproj", "{A445A1D7-16CA-4DF7-B925-1C4D1F3EFE9C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -48,8 +59,39 @@ Global
 		{51C69829-4CE5-47B5-85A7-2AC2B2331CC9}.Release|x64.Build.0 = Release|x64
 		{51C69829-4CE5-47B5-85A7-2AC2B2331CC9}.Release|x86.ActiveCfg = Release|Win32
 		{51C69829-4CE5-47B5-85A7-2AC2B2331CC9}.Release|x86.Build.0 = Release|Win32
+		{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B}.Debug|x64.ActiveCfg = Debug|x64
+		{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B}.Debug|x64.Build.0 = Debug|x64
+		{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B}.Debug|x86.ActiveCfg = Debug|Win32
+		{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B}.Debug|x86.Build.0 = Debug|Win32
+		{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B}.Release|x64.ActiveCfg = Release|x64
+		{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B}.Release|x64.Build.0 = Release|x64
+		{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B}.Release|x86.ActiveCfg = Release|Win32
+		{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B}.Release|x86.Build.0 = Release|Win32
+		{8764FF3A-53E4-40F5-8B92-13FE14178983}.Debug|x64.ActiveCfg = Debug|x64
+		{8764FF3A-53E4-40F5-8B92-13FE14178983}.Debug|x64.Build.0 = Debug|x64
+		{8764FF3A-53E4-40F5-8B92-13FE14178983}.Debug|x86.ActiveCfg = Debug|Win32
+		{8764FF3A-53E4-40F5-8B92-13FE14178983}.Debug|x86.Build.0 = Debug|Win32
+		{8764FF3A-53E4-40F5-8B92-13FE14178983}.Release|x64.ActiveCfg = Release|x64
+		{8764FF3A-53E4-40F5-8B92-13FE14178983}.Release|x64.Build.0 = Release|x64
+		{8764FF3A-53E4-40F5-8B92-13FE14178983}.Release|x86.ActiveCfg = Release|Win32
+		{8764FF3A-53E4-40F5-8B92-13FE14178983}.Release|x86.Build.0 = Release|Win32
+		{A445A1D7-16CA-4DF7-B925-1C4D1F3EFE9C}.Debug|x64.ActiveCfg = Debug|x64
+		{A445A1D7-16CA-4DF7-B925-1C4D1F3EFE9C}.Debug|x64.Build.0 = Debug|x64
+		{A445A1D7-16CA-4DF7-B925-1C4D1F3EFE9C}.Debug|x86.ActiveCfg = Debug|Win32
+		{A445A1D7-16CA-4DF7-B925-1C4D1F3EFE9C}.Debug|x86.Build.0 = Debug|Win32
+		{A445A1D7-16CA-4DF7-B925-1C4D1F3EFE9C}.Release|x64.ActiveCfg = Release|x64
+		{A445A1D7-16CA-4DF7-B925-1C4D1F3EFE9C}.Release|x64.Build.0 = Release|x64
+		{A445A1D7-16CA-4DF7-B925-1C4D1F3EFE9C}.Release|x86.ActiveCfg = Release|Win32
+		{A445A1D7-16CA-4DF7-B925-1C4D1F3EFE9C}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{E4F66019-9964-4B86-B538-E10F66124689} = {E7D5F552-9833-40C8-AA8F-1F7EFB036D17}
+		{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B} = {E7D5F552-9833-40C8-AA8F-1F7EFB036D17}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {32121992-6DA4-4CBB-A7A3-A5B8FCDA1514}
 	EndGlobalSection
 EndGlobal

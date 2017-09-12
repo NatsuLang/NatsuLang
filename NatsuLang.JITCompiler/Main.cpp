@@ -34,11 +34,11 @@ public:
 	}
 };
 
-class OutputDiagConsumer
-	: public natRefObjImpl<OutputDiagConsumer, DiagnosticConsumer>
+class JitDiagConsumer
+	: public natRefObjImpl<JitDiagConsumer, DiagnosticConsumer>
 {
 public:
-	explicit OutputDiagConsumer(natConsole& console)
+	explicit JitDiagConsumer(natConsole& console)
 		: m_Console{ console }
 	{
 	}
@@ -52,8 +52,8 @@ private:
 	natConsole& m_Console;
 };
 
-class TestConsumer
-	: public natRefObjImpl<TestConsumer, ASTConsumer>
+class JitAstConsumer
+	: public natRefObjImpl<JitAstConsumer, ASTConsumer>
 {
 public:
 	void Initialize(ASTContext& context) override
@@ -68,13 +68,44 @@ public:
 
 	nBool HandleTopLevelDecl(Linq<Valued<Declaration::DeclPtr>> const& decls) override
 	{
-		static_cast<void>(decls);
+		for (auto&& decl : decls)
+		{
+			if (auto namedDecl = static_cast<natRefPointer<Declaration::NamedDecl>>(decl))
+			{
+				m_NamedDecls.emplace(namedDecl->GetIdentifierInfo()->GetName(), std::move(namedDecl));
+			}
+			else
+			{
+				m_NoNameDecls.emplace(std::move(decl));
+			}
+		}
+
 		return true;
 	}
+
+	natRefPointer<Declaration::NamedDecl> GetNamedDecl(nStrView name) const noexcept
+	{
+		const auto iter = m_NamedDecls.find(name);
+		if (iter != m_NamedDecls.cend())
+		{
+			return iter->second;
+		}
+
+		return nullptr;
+	}
+
+	Linq<Valued<Declaration::DeclPtr>> GetNoNameDecls() const noexcept
+	{
+		return from(m_NoNameDecls);
+	}
+
+private:
+	std::unordered_map<nStrView, natRefPointer<Declaration::NamedDecl>> m_NamedDecls;
+	std::unordered_set<Declaration::DeclPtr> m_NoNameDecls;
 };
 
 constexpr char TestCode[] = u8R"(
-def main : (arg : int = 1) -> int
+def Increase : (arg : int = 1) -> int
 {
 	return 1 + arg;
 }
@@ -82,15 +113,5 @@ def main : (arg : int = 1) -> int
 
 int main()
 {
-	natConsole console;
-	DiagnosticsEngine diag{ make_ref<IDMap>(), make_ref<OutputDiagConsumer>(console) };
-	FileManager fileManager{};
-	SourceManager sourceManager{ diag, fileManager };
-	Preprocessor pp{ diag, sourceManager };
-	pp.SetLexer(make_ref<Lexer>(TestCode, pp));
-	ASTContext context;
-	
-	ParseAST(pp, context, make_ref<TestConsumer>());
 
-	system("pause");
 }

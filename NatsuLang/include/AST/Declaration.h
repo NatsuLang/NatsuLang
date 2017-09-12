@@ -286,6 +286,11 @@ namespace NatsuLang::Declaration
 			m_Body = std::move(value);
 		}
 
+		std::size_t GetParamCount() const noexcept
+		{
+			return m_Params.size();
+		}
+
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ParmVarDecl>>> GetParams() const noexcept;
 		void SetParams(NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ParmVarDecl>>> value) noexcept;
 

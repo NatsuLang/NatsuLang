@@ -58,12 +58,12 @@ FunctionDecl::~FunctionDecl()
 {
 }
 
-Linq<NatsuLib::Valued<natRefPointer<ParmVarDecl>>> FunctionDecl::GetParams() const noexcept
+Linq<Valued<natRefPointer<ParmVarDecl>>> FunctionDecl::GetParams() const noexcept
 {
 	return from(m_Params);
 }
 
-void FunctionDecl::SetParams(Linq<NatsuLib::Valued<natRefPointer<ParmVarDecl>>> value) noexcept
+void FunctionDecl::SetParams(Linq<Valued<natRefPointer<ParmVarDecl>>> value) noexcept
 {
 	m_Params.assign(value.begin(), value.end());
 }
@@ -92,7 +92,7 @@ EnumDecl::~EnumDecl()
 {
 }
 
-NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<EnumConstantDecl>>> EnumDecl::GetEnumerators() const noexcept
+Linq<Valued<natRefPointer<EnumConstantDecl>>> EnumDecl::GetEnumerators() const noexcept
 {
 	return from(GetDecls())
 		.where([](natRefPointer<Decl> const& decl)
@@ -109,7 +109,7 @@ RecordDecl::~RecordDecl()
 {
 }
 
-NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<FieldDecl>>> RecordDecl::GetFields() const noexcept
+Linq<Valued<natRefPointer<FieldDecl>>> RecordDecl::GetFields() const noexcept
 {
 	return from(GetDecls())
 		.where([](natRefPointer<Decl> const& decl)

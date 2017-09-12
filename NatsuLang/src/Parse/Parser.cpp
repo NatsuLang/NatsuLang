@@ -1022,6 +1022,7 @@ void Parser::ParseInitializer(Declaration::Declarator& decl)
 {
 	if (m_CurrentToken.Is(TokenType::Equal))
 	{
+		ConsumeToken();
 		decl.SetInitializer(ParseExpression());
 		return;
 	}

@@ -20,33 +20,33 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{5306B493-F4E5-4A93-B487-D6A4A3561019}</ProjectGuid>
+    <ProjectGuid>{51C69829-4CE5-47B5-85A7-2AC2B2331CC9}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>NatsuLang</RootNamespace>
+    <RootNamespace>NatsuLangJITCompiler</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -70,61 +70,57 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(ProjectDir)bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)obj\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
     <OutDir>$(ProjectDir)bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)obj\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(ProjectDir)bin\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(ProjectDir)obj\$(Platform)\$(Configuration)\</IntDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)obj\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)obj\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <ClCompile>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-    </ClCompile>
-    <Link>
-      <SubSystem>Windows</SubSystem>
-    </Link>
-    <Lib>
-      <AdditionalDependencies>NatsuLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Lib>
-    <Lib>
-      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-    </Lib>
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)NatsuLib\NatsuLib;$(SolutionDir)Extern\llvm\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
+      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\llvm\libs\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <Lib>
-      <AdditionalDependencies>NatsuLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Lib>
-    <Lib>
-      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)NatsuLib\NatsuLib;$(SolutionDir)Extern\llvm\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\llvm\libs\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -134,21 +130,17 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)NatsuLib\NatsuLib;$(SolutionDir)Extern\llvm\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\llvm\libs\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <Lib>
-      <AdditionalDependencies>NatsuLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Lib>
-    <Lib>
-      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -158,87 +150,25 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)NatsuLib\NatsuLib;$(SolutionDir)Extern\llvm\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\llvm\libs\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <Lib>
-      <AdditionalDependencies>NatsuLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Lib>
-    <Lib>
-      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-    </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="include\AST\ASTConsumer.h" />
-    <ClInclude Include="include\AST\ASTContext.h" />
-    <ClInclude Include="include\AST\Declaration.h" />
-    <ClInclude Include="include\AST\DeclBase.h" />
-    <ClInclude Include="include\AST\Expression.h" />
-    <ClInclude Include="include\AST\NestedNameSpecifier.h" />
-    <ClInclude Include="include\AST\OperationTypes.h" />
-    <ClInclude Include="include\AST\OperationTypesDef.h" />
-    <ClInclude Include="include\AST\OperatorPrecedence.h" />
-    <ClInclude Include="include\AST\Statement.h" />
-    <ClInclude Include="include\AST\StmtBase.h" />
-    <ClInclude Include="include\AST\StmtVisitor.h" />
-    <ClInclude Include="include\AST\Type.h" />
-    <ClInclude Include="include\AST\TypeBase.h" />
-    <ClInclude Include="include\Basic\BuiltinTypesDef.h" />
-    <ClInclude Include="include\Basic\CharInfo.h" />
-    <ClInclude Include="include\Basic\Config.h" />
-    <ClInclude Include="include\Basic\DeclDef.h" />
-    <ClInclude Include="include\Basic\DiagDef.h" />
-    <ClInclude Include="include\Basic\Diagnostic.h" />
-    <ClInclude Include="include\Basic\FileManager.h" />
-    <ClInclude Include="include\Basic\Identifier.h" />
-    <ClInclude Include="include\Basic\Module.h" />
-    <ClInclude Include="include\Basic\SourceLocation.h" />
-    <ClInclude Include="include\Basic\SourceManager.h" />
-    <ClInclude Include="include\Basic\Specifier.h" />
-    <ClInclude Include="include\Basic\StmtDef.h" />
-    <ClInclude Include="include\Basic\TextProvider.h" />
-    <ClInclude Include="include\Basic\Token.h" />
-    <ClInclude Include="include\Basic\TokenDef.h" />
-    <ClInclude Include="include\Basic\TypeDef.h" />
-    <ClInclude Include="include\Lex\Lexer.h" />
-    <ClInclude Include="include\Lex\LiteralParser.h" />
-    <ClInclude Include="include\Lex\Preprocessor.h" />
-    <ClInclude Include="include\Parse\Parser.h" />
-    <ClInclude Include="include\Sema\Declarator.h" />
-    <ClInclude Include="include\Sema\Scope.h" />
-    <ClInclude Include="include\Sema\Sema.h" />
+    <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\AST\ASTConsumer.cpp" />
-    <ClCompile Include="src\AST\ASTContext.cpp" />
-    <ClCompile Include="src\AST\Declaration.cpp" />
-    <ClCompile Include="src\AST\DeclBase.cpp" />
-    <ClCompile Include="src\AST\Expression.cpp" />
-    <ClCompile Include="src\AST\NestedNameSpecifier.cpp" />
-    <ClCompile Include="src\AST\Statement.cpp" />
-    <ClCompile Include="src\AST\StmtBase.cpp" />
-    <ClCompile Include="src\AST\Type.cpp" />
-    <ClCompile Include="src\AST\TypeBase.cpp" />
-    <ClCompile Include="src\Basic\Diagnostic.cpp" />
-    <ClCompile Include="src\Basic\FileManager.cpp" />
-    <ClCompile Include="src\Basic\Identifier.cpp" />
-    <ClCompile Include="src\Basic\Module.cpp" />
-    <ClCompile Include="src\Basic\SourceManager.cpp" />
-    <ClCompile Include="src\Basic\Token.cpp" />
-    <ClCompile Include="src\Lex\Lexer.cpp" />
-    <ClCompile Include="src\Lex\LiteralParser.cpp" />
-    <ClCompile Include="src\Lex\Preprocessor.cpp" />
-    <ClCompile Include="src\Parse\Parser.cpp" />
-    <ClCompile Include="src\Sema\Scope.cpp" />
-    <ClCompile Include="src\Sema\Sema.cpp" />
-  </ItemGroup>
-  <ItemGroup>
+    <ProjectReference Include="..\NatsuLang\NatsuLang.vcxproj">
+      <Project>{5306b493-f4e5-4a93-b487-d6a4a3561019}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\NatsuLib\NatsuLib\NatsuLib.vcxproj">
       <Project>{e4f66019-9964-4b86-b538-e10f66124689}</Project>
     </ProjectReference>
