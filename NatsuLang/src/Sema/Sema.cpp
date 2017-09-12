@@ -525,6 +525,20 @@ natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 		return nullptr;
 	}
 
+	if (!type)
+	{
+		// 隐含 auto 或者出现错误
+		const auto initExpr = static_cast<natRefPointer<Expression::Expr>>(decl.GetInitializer());
+		if (!initExpr)
+		{
+			// TODO: 报告错误
+			return nullptr;
+		}
+
+		type = initExpr->GetExprType();
+	}
+
+	// TODO: 处理 initializer
 	auto varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl.GetRange().GetBegin(),
 		SourceLocation{}, std::move(id), std::move(type), Specifier::StorageClass::None);
 
@@ -541,6 +555,7 @@ natRefPointer<NatsuLang::Declaration::FunctionDecl> Sema::ActOnFunctionDeclarato
 		return nullptr;
 	}
 
+	// TODO: 处理自动推断函数返回类型的情况
 	auto type = static_cast<natRefPointer<Type::FunctionType>>(decl.GetType());
 	if (!type)
 	{

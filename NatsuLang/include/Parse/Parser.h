@@ -146,20 +146,9 @@ namespace NatsuLang::Syntax
 		}
 
 #if PARSER_USE_EXCEPTION
-		[[noreturn]] static Expression::ExprPtr ParseExprError()
-		{
-			nat_Throw(ParserException, "An error occured while parsing expression.");
-		}
-
-		[[noreturn]] static Statement::StmtPtr ParseStmtError()
-		{
-			nat_Throw(ParserException, "An error occured while parsing statement.");
-		}
-
-		[[noreturn]] static Declaration::DeclPtr ParseDeclError()
-		{
-			nat_Throw(ParserException, "An error occured while parsing declaration.");
-		}
+		[[noreturn]] static Expression::ExprPtr ParseExprError();
+		[[noreturn]] static Statement::StmtPtr ParseStmtError();
+		[[noreturn]] static Declaration::DeclPtr ParseDeclError();
 #else
 		static Expression::ExprPtr ParseExprError() noexcept;
 		static Statement::StmtPtr ParseStmtError() noexcept;

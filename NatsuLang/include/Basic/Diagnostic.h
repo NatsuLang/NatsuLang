@@ -97,6 +97,8 @@ namespace NatsuLang::Diag
 			{
 			}
 
+			~DiagnosticBuilder();
+
 			const DiagnosticBuilder& AddArgument(nString string) const;
 			const DiagnosticBuilder& AddArgument(nChar Char) const;
 			const DiagnosticBuilder& AddArgument(nInt sInt) const;

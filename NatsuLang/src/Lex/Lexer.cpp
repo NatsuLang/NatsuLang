@@ -451,7 +451,7 @@ nBool Lexer::lexIdentifier(Lex::Token& result, Iterator cur)
 	const auto start = cur, end = m_Buffer.end();
 	auto curChar = *cur++;
 
-	assert(IsIdentifierBody(curChar));
+	assert(IsIdentifierHead(curChar));
 
 	while (cur != end)
 	{
@@ -489,7 +489,7 @@ nBool Lexer::lexCharLiteral(Lex::Token& result, Iterator cur)
 			break;
 		}
 
-		++cur;
+		prevChar = *cur++;
 	}
 
 	if (cur == end)
@@ -522,7 +522,7 @@ nBool Lexer::lexStringLiteral(Lex::Token& result, Iterator cur)
 			break;
 		}
 
-		++cur;
+		prevChar = *cur++;
 	}
 
 	if (cur == end)

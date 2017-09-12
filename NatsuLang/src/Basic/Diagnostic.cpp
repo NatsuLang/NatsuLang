@@ -56,6 +56,11 @@ nString Diag::DiagnosticsEngine::convertArgumentToString(nuInt index) const
 	}
 }
 
+Diag::DiagnosticsEngine::DiagnosticBuilder::~DiagnosticBuilder()
+{
+	m_Diags.EmitDiag();
+}
+
 const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::DiagnosticBuilder::AddArgument(nString string) const
 {
 	m_Diags.m_Arguments.emplace_back(ArgumentType::String, Argument{ std::in_place_index<0>, std::move(string) });
