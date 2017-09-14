@@ -144,8 +144,8 @@ namespace
 		nBool VisitBinaryOperator(natRefPointer<BinaryOperator> const& expr) override
 		{
 			const auto opcode = expr->GetOpcode();
-			auto leftOperand = expr->GetLeftOperand();
-			auto rightOperand = expr->GetRightOperand();
+			const auto leftOperand = expr->GetLeftOperand();
+			const auto rightOperand = expr->GetRightOperand();
 
 			Expr::EvalResult leftResult, rightResult;
 
@@ -366,8 +366,8 @@ namespace
 		nBool VisitBinaryOperator(natRefPointer<BinaryOperator> const& expr) override
 		{
 			const auto opcode = expr->GetOpcode();
-			auto leftOperand = expr->GetLeftOperand();
-			auto rightOperand = expr->GetRightOperand();
+			const auto leftOperand = expr->GetLeftOperand();
+			const auto rightOperand = expr->GetRightOperand();
 
 			Expr::EvalResult leftResult, rightResult;
 
@@ -496,7 +496,7 @@ NatsuLang::Expression::ExprPtr Expr::IgnoreParens() noexcept
 	// 可能的死循环
 	while (true)
 	{
-		if (auto parenExpr = static_cast<natRefPointer<ParenExpr>>(ret))
+		if (const auto parenExpr = static_cast<natRefPointer<ParenExpr>>(ret))
 		{
 			ret = parenExpr->GetInnerExpr();
 		}

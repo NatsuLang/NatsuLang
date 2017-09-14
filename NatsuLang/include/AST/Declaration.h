@@ -208,8 +208,19 @@ namespace NatsuLang::Declaration
 			m_StorageClass = value;
 		}
 
+		Expression::ExprPtr GetInitializer() const noexcept
+		{
+			return m_Initializer;
+		}
+
+		void SetInitializer(Expression::ExprPtr value) noexcept
+		{
+			m_Initializer = std::move(value);
+		}
+
 	private:
 		Specifier::StorageClass m_StorageClass;
+		Expression::ExprPtr m_Initializer;
 	};
 
 	class ImplicitParamDecl
@@ -245,24 +256,12 @@ namespace NatsuLang::Declaration
 	{
 	public:
 		ParmVarDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass, Expression::ExprPtr defValue)
-			: VarDecl{ declType, context, startLoc, idLoc, std::move(identifierInfo), std::move(valueType), storageClass }, m_DefaultValue{ std::move(defValue) }
+			: VarDecl{ declType, context, startLoc, idLoc, std::move(identifierInfo), std::move(valueType), storageClass }
 		{
+			SetInitializer(std::move(defValue));
 		}
 
 		~ParmVarDecl();
-
-		Expression::ExprPtr GetDefaultValue() const noexcept
-		{
-			return m_DefaultValue;
-		}
-
-		void SetDefaultValue(Expression::ExprPtr value) noexcept
-		{
-			m_DefaultValue = std::move(value);
-		}
-
-	private:
-		Expression::ExprPtr m_DefaultValue;
 	};
 
 	class FunctionDecl

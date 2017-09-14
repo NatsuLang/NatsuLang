@@ -10,7 +10,7 @@ def Increase : (arg : int = 1) -> int
 }
 )";
 
-	Diag::DiagnosticsEngine diag{ make_ref<IDMap>(), make_ref<JitDiagConsumer>() };
+	Diag::DiagnosticsEngine diag{ make_ref<IDMap>(), make_ref<TestDiagConsumer>() };
 	FileManager fileManager{};
 	SourceManager sourceManager{ diag, fileManager };
 	Preprocessor pp{ diag, sourceManager };
@@ -45,7 +45,7 @@ def Increase : (arg : int = 1) -> int
 				REQUIRE(argRealType);
 				REQUIRE(argRealType->GetBuiltinClass() == Type::BuiltinType::Int);
 
-				const auto defaultValue = arg->GetDefaultValue();
+				const auto defaultValue = arg->GetInitializer();
 				REQUIRE(defaultValue);
 				nuLong value;
 				REQUIRE(defaultValue->EvaluateAsInt(value, context));
@@ -62,8 +62,17 @@ def Increase : (arg : int = 1) -> int
 
 		SECTION("test body")
 		{
-			const auto body = incFunc->GetBody();
+			const auto body = static_cast<natRefPointer<Statement::CompoundStmt>>(incFunc->GetBody());
 			REQUIRE(body);
+
+			auto content{ body->GetChildrens().Cast<std::vector<Statement::StmtPtr>>() };
+			REQUIRE(!content.empty());
+
+			auto retStmt = static_cast<natRefPointer<Statement::ReturnStmt>>(content[0]);
+			REQUIRE(retStmt);
+
+			auto retValueExpr = retStmt->GetReturnExpr();
+			REQUIRE(retValueExpr);
 		}
 	}
 }

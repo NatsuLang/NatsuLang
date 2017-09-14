@@ -35,8 +35,8 @@ public:
 	}
 };
 
-class JitDiagConsumer
-	: public natRefObjImpl<JitDiagConsumer, Diag::DiagnosticConsumer>
+class TestDiagConsumer
+	: public natRefObjImpl<TestDiagConsumer, Diag::DiagnosticConsumer>
 {
 public:
 	void HandleDiagnostic(Diag::DiagnosticsEngine::Level level, Diag::DiagnosticsEngine::Diagnostic const& diag) override

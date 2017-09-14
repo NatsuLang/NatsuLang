@@ -538,9 +538,9 @@ natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 		type = initExpr->GetExprType();
 	}
 
-	// TODO: 处理 initializer
 	auto varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl.GetRange().GetBegin(),
 		SourceLocation{}, std::move(id), std::move(type), Specifier::StorageClass::None);
+	varDecl->SetInitializer(decl.GetInitializer());
 
 	return varDecl;
 }
