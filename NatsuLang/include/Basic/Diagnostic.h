@@ -27,12 +27,56 @@ namespace NatsuLang::Diag
 			Fatal
 		};
 
+		static constexpr const char* GetDiagLevelName(Level level) noexcept
+		{
+			switch (level)
+			{
+			case Level::Ignored:
+				return "Ignored";
+			case Level::Note:
+				return "Note";
+			case Level::Remark:
+				return "Remark";
+			case Level::Warning:
+				return "Warning";
+			case Level::Error:
+				return "Error";
+			case Level::Fatal:
+				return "Fatal";
+			default:
+				assert(!"Invalid level.");
+				return nullptr;
+			}
+		}
+
+		static constexpr nBool IsUnrecoverableLevel(Level level) noexcept
+		{
+			return level >= Level::Error;
+		}
+
 		enum class DiagID
 		{
 			Invalid,
+
 #define DIAG(ID, Level, ArgCount) ID,
 #include "DiagDef.h"
+
+			EndOfDiagID
 		};
+
+		static constexpr const char* GetDiagIDName(DiagID id) noexcept
+		{
+			switch (id)
+			{
+#define DIAG(ID, Level, ArgCount) case DiagID::ID: return #ID;
+#include "DiagDef.h"
+
+			case DiagID::Invalid:
+			case DiagID::EndOfDiagID:
+			default:
+				return nullptr;
+			}
+		}
 
 		enum class ArgumentType
 		{

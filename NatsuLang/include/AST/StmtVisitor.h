@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Statement.h"
 #include "Expression.h"
 
@@ -17,7 +17,7 @@ namespace NatsuLang
 #define ABSTRACT_STMT(Type)
 #include "Basic/StmtDef.h"
 			default:
-				// TODO
+				// TODO: 修改为优雅的实现
 				if (const auto castExpr = static_cast<NatsuLib::natRefPointer<Expression::CastExpr>>(stmt))
 				{
 					return VisitCastExpr(castExpr);
@@ -28,8 +28,7 @@ namespace NatsuLang
 					return VisitExpr(expr);
 				}
 
-				assert(!"Invalid StmtType.");
-				std::terminate();
+				return VisitStmt(stmt);
 			}
 		}
 

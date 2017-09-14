@@ -167,6 +167,10 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseDeclaration(Declaratio
 
 	Declaration::Declarator decl{ context };
 	ParseDeclarator(decl);
+	if (m_CurrentToken.Is(TokenType::Semi))
+	{
+		ConsumeToken();
+	}
 
 	return { m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), decl) };
 }

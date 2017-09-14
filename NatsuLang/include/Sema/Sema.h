@@ -69,7 +69,7 @@ namespace NatsuLang::Semantic
 
 		using ModulePathType = std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>;
 
-		explicit Sema(Preprocessor& preprocessor, ASTContext& astContext, NatsuLib::natRefPointer<ASTConsumer> astConsumer);
+		Sema(Preprocessor& preprocessor, ASTContext& astContext, NatsuLib::natRefPointer<ASTConsumer> astConsumer);
 		~Sema();
 
 		Preprocessor& GetPreprocessor() const noexcept
