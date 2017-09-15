@@ -1,4 +1,4 @@
-﻿#include "AST/Expression.h"
+#include "AST/Expression.h"
 #include "AST/Statement.h"
 #include "AST/StmtVisitor.h"
 #include "AST/NestedNameSpecifier.h"

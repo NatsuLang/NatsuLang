@@ -1,4 +1,4 @@
-﻿#include "Lex/Lexer.h"
+#include "Lex/Lexer.h"
 #include "Lex/Preprocessor.h"
 #include "Basic/CharInfo.h"
 

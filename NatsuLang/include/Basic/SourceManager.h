@@ -1,5 +1,6 @@
 #pragma once
-#include "natString.h"
+#include <natString.h>
+#include <natVFS.h>
 #include <map>
 #include <unordered_map>
 #include <variant>
@@ -42,15 +43,16 @@ namespace NatsuLang
 		}
 
 		nuInt GetFileID(nStrView uri);
+		nuInt GetFileID(NatsuLib::Uri const& uri);
 		std::pair<nBool, nStrView> GetFileContent(nuInt fileID);
 
 	private:
 		Diag::DiagnosticsEngine& m_DiagnosticsEngine;
 		FileManager& m_FileManager;
 		NatsuLib::StringType m_Encoding;
-		// Key: 文件URI, Value: 文件ID
+		// Key: 鏂囦欢URI, Value: 鏂囦欢ID
 		std::unordered_map<nStrView, nuInt> m_FileIDMap;
-		// Key: 文件ID, Value: （未加载过）文件URI/（已加载过）文件内容
+		// Key: 鏂囦欢ID, Value: 锛堟湭鍔犺浇杩囷級鏂囦欢URI/锛堝凡鍔犺浇杩囷級鏂囦欢鍐呭
 		std::map<nuInt, std::variant<nStrView, nString>> m_FileContentMap;
 
 		nuInt getFreeID() const noexcept;

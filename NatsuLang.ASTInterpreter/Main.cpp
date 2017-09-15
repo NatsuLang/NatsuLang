@@ -1,4 +1,4 @@
-﻿#include "Interpreter.h"
+#include "Interpreter.h"
 #include <natConsole.h>
 
 using namespace NatsuLib;
@@ -19,7 +19,7 @@ int main(int argc, char* argv[])
 	logger.UseDefaultAction(console);
 
 	// TODO: 添加诊断信息文件
-	Interpreter theInterpreter{ nullptr, logger };
+	Interpreter theInterpreter{ make_ref<natStreamReader<nStrView::UsingStringType>>(make_ref<natFileStream>("DiagIdMap.txt", true, false)), logger };
 
 	try
 	{

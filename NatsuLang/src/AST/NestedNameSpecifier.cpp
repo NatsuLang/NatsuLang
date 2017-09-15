@@ -1,4 +1,4 @@
-﻿#include "AST/NestedNameSpecifier.h"
+#include "AST/NestedNameSpecifier.h"
 #include "AST/ASTContext.h"
 #include "AST/Expression.h"
 #include "Basic/Identifier.h"

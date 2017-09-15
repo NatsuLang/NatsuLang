@@ -1,4 +1,4 @@
-﻿#include "Interpreter.h"
+#include "Interpreter.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang;
@@ -378,12 +378,13 @@ Interpreter::~Interpreter()
 
 void Interpreter::Run(Uri uri)
 {
-	nat_Throw(NotImplementedException);
+	m_SourceManager.GetFileID(uri);
 }
 
 void Interpreter::Run(nStrView content)
 {
-	nat_Throw(NotImplementedException);
+	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(content, m_Preprocessor));
+	m_Visitor->Visit(m_Parser.ParseStatement());
 }
 
 natRefPointer<Semantic::Scope> Interpreter::GetScope() const noexcept

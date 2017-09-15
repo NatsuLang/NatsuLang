@@ -11,6 +11,7 @@ namespace NatsuLang
 
 		NatsuLib::natVFS& GetVFS() noexcept;
 		NatsuLib::natRefPointer<NatsuLib::IRequest> GetFile(nStrView uri, nBool cacheFailure = true);
+		NatsuLib::natRefPointer<NatsuLib::IRequest> GetFile(NatsuLib::Uri const& uri, nBool cacheFailure = true);
 
 	private:
 		NatsuLib::natVFS m_VFS;

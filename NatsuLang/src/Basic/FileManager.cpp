@@ -15,8 +15,13 @@ natVFS& FileManager::GetVFS() noexcept
 
 natRefPointer<IRequest> FileManager::GetFile(nStrView uri, nBool cacheFailure)
 {
+	return GetFile(Uri{ uri }, cacheFailure);
+}
+
+natRefPointer<IRequest> FileManager::GetFile(Uri const& uri, nBool cacheFailure)
+{
 	++m_FileLookups;
-	auto iter = m_CachedFiles.find(uri);
+	auto iter = m_CachedFiles.find(uri.GetUnderlyingString());
 	if (iter != m_CachedFiles.end())
 	{
 		return iter->second;
@@ -24,7 +29,7 @@ natRefPointer<IRequest> FileManager::GetFile(nStrView uri, nBool cacheFailure)
 
 	++m_FileCacheMisses;
 
-	auto request = m_VFS.CreateRequest(Uri{ uri });
+	auto request = m_VFS.CreateRequest(uri);
 	if (!request && !cacheFailure)
 	{
 		return nullptr;

@@ -6,18 +6,18 @@ namespace NatsuLang::CharInfo
 {
 	enum class CharInfo : nuShort
 	{
-		None		= 0x0000, // ÎŞÊôĞÔ
+		None		= 0x0000, // æ— å±æ€§
 
-		HorzWs		= 0x0001, // ºáÏò¿Õ°××Ö·û
-		VertWs		= 0x0002, // ×İÏò¿Õ°××Ö·û
-		Space		= 0x0004, // ¿Õ¸ñ
-		Digit		= 0x0008, // Êı×Ö
-		XLetter		= 0x0010, // Ê®Áù½øÖÆÊ¹ÓÃ×ÖÄ¸
-		Upper		= 0x0020, // ´óĞ´×ÖÄ¸
-		Lower		= 0x0040, // Ğ¡Ğ´×ÖÄ¸
-		Under		= 0x0080, // ÏÂ»®Ïß
-		Period		= 0x0100, // µã
-		Punct		= 0x0200, // ±êµã
+		HorzWs		= 0x0001, // æ¨ªå‘ç©ºç™½å­—ç¬¦
+		VertWs		= 0x0002, // çºµå‘ç©ºç™½å­—ç¬¦
+		Space		= 0x0004, // ç©ºæ ¼
+		Digit		= 0x0008, // æ•°å­—
+		XLetter		= 0x0010, // åå…­è¿›åˆ¶ä½¿ç”¨å­—æ¯
+		Upper		= 0x0020, // å¤§å†™å­—æ¯
+		Lower		= 0x0040, // å°å†™å­—æ¯
+		Under		= 0x0080, // ä¸‹åˆ’çº¿
+		Period		= 0x0100, // ç‚¹
+		Punct		= 0x0200, // æ ‡ç‚¹
 
 		XUpper		= XLetter | Upper,
 		XLower		= XLetter | Lower,

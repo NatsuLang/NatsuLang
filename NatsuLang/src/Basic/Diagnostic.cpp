@@ -1,4 +1,4 @@
-﻿#include "Basic/Diagnostic.h"
+#include "Basic/Diagnostic.h"
 #include "Basic/Identifier.h"
 #include "Basic/CharInfo.h"
 

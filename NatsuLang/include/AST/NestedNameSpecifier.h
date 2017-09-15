@@ -74,9 +74,9 @@ namespace NatsuLang
 		static NatsuLib::natRefPointer<NestedNameSpecifier> Create(ASTContext const& context, NatsuLib::natRefPointer<NestedNameSpecifier> prefix);
 
 	private:
-		// ÉÏÒ»¼¶Ç¶Ì×Ãû³Æ
+		// ä¸Šä¸€çº§åµŒå¥—åç§°
 		NatsuLib::natRefPointer<NestedNameSpecifier> m_Prefix;
-		// ¿ÉÄÜÊÇIdPtr¡¢DeclPtr¡¢TypePtr»òÕßÎª¿Õ£¬Îª¿ÕÊ±±íÊ¾È«¾Ö
+		// å¯èƒ½æ˜¯IdPtrã€DeclPtrã€TypePtræˆ–è€…ä¸ºç©ºï¼Œä¸ºç©ºæ—¶è¡¨ç¤ºå…¨å±€
 		NatsuLib::natRefPointer<natRefObj> m_Specifier;
 		SpecifierType m_SpecifierType;
 

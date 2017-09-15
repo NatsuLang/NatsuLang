@@ -14,7 +14,7 @@ nuInt SourceManager::GetFileID(nStrView uri)
 	}
 
 	const auto freeID = getFreeID();
-	auto ret = m_FileContentMap.emplace(freeID, std::variant<nStrView, nString>{ std::in_place_index<0>, uri });
+	const auto ret = m_FileContentMap.emplace(freeID, std::variant<nStrView, nString>{ std::in_place_index<0>, uri });
 	if (!ret.second)
 	{
 		return 0;
@@ -32,6 +32,11 @@ nuInt SourceManager::GetFileID(nStrView uri)
 	return 0;
 }
 
+nuInt SourceManager::GetFileID(Uri const& uri)
+{
+	return GetFileID(uri.GetUnderlyingString());
+}
+
 std::pair<nBool, nStrView> SourceManager::GetFileContent(nuInt fileID)
 {
 	if (!fileID)
@@ -40,19 +45,19 @@ std::pair<nBool, nStrView> SourceManager::GetFileContent(nuInt fileID)
 	}
 
 	const auto iter = m_FileContentMap.find(fileID);
-	// ÎÞÐ§µÄID£¿
+	// æ— æ•ˆçš„IDï¼Ÿ
 	if (iter == m_FileContentMap.end())
 	{
 		return { false, {} };
 	}
 
-	// ÎÄ¼þÒÑ¾­»º´æ£¿
+	// æ–‡ä»¶å·²ç»ç¼“å­˜ï¼Ÿ
 	if (iter->second.index() == 1)
 	{
 		return { true, std::get<1>(iter->second) };
 	}
 
-	// ÎÄ¼þÎ´±»»º´æ£¬¼ÓÔØËü²¢·µ»Ø
+	// æ–‡ä»¶æœªè¢«ç¼“å­˜ï¼ŒåŠ è½½å®ƒå¹¶è¿”å›ž
 	const auto request = m_FileManager.GetFile(std::get<0>(iter->second));
 	if (!request)
 	{
