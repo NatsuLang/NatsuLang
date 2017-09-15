@@ -72,31 +72,6 @@ namespace
 		return CastType::FloatingCast;
 	}
 
-	NatsuLang::Type::TypePtr getUnderlyingType(NatsuLang::Type::TypePtr const& type)
-	{
-		if (!type)
-		{
-			return nullptr;
-		}
-
-		if (const auto deducedType = static_cast<natRefPointer<NatsuLang::Type::DeducedType>>(type))
-		{
-			return getUnderlyingType(deducedType->GetDeducedAsType());
-		}
-
-		if (const auto typeofType = static_cast<natRefPointer<NatsuLang::Type::TypeOfType>>(type))
-		{
-			return getUnderlyingType(typeofType->GetUnderlyingType());
-		}
-
-		if (const auto parenType = static_cast<natRefPointer<NatsuLang::Type::ParenType>>(type))
-		{
-			return getUnderlyingType(parenType->GetInnerType());
-		}
-
-		return type;
-	}
-
 	NatsuLang::Type::TypePtr getCommonType(NatsuLang::Type::TypePtr const& type1, NatsuLang::Type::TypePtr const& type2)
 	{
 		nat_Throw(NotImplementedException);
@@ -733,6 +708,11 @@ NatsuLang::Statement::StmtPtr Sema::ActOnReturnStmt(SourceLocation loc, Expressi
 	return nullptr;
 }
 
+NatsuLang::Statement::StmtPtr Sema::ActOnExprStmt(Expression::ExprPtr expr)
+{
+	return expr;
+}
+
 NatsuLang::Expression::ExprPtr Sema::ActOnBooleanLiteral(Lex::Token const& token) const
 {
 	assert(token.IsAnyOf({ Lex::TokenType::Kw_true, Lex::TokenType::Kw_false }));
@@ -1216,8 +1196,8 @@ NatsuLang::Expression::ExprPtr Sema::ImpCastExprToType(Expression::ExprPtr expr,
 
 NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr operand, Type::TypePtr toType)
 {
-	toType = getUnderlyingType(toType);
-	auto fromType = getUnderlyingType(operand->GetExprType());
+	toType = Type::Type::GetUnderlyingType(toType);
+	auto fromType = Type::Type::GetUnderlyingType(operand->GetExprType());
 
 	assert(operand && toType);
 	assert(fromType);

@@ -10,7 +10,7 @@ namespace NatsuLang::Identifier
 		: public NatsuLib::natRefObjImpl<IdentifierInfo, NatsuLib::RelationalOperator::IComparable<NatsuLib::natRefPointer<IdentifierInfo>>>
 	{
 	public:
-		IdentifierInfo(nStrView name = {}, Lex::TokenType tokenType = Lex::TokenType::Identifier) noexcept;
+		explicit IdentifierInfo(nStrView name = {}, Lex::TokenType tokenType = Lex::TokenType::Identifier) noexcept;
 
 		nStrView GetName() const noexcept;
 		nBool IsKeyword() const noexcept;

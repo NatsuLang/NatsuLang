@@ -10,6 +10,12 @@ namespace NatsuLang
 	class ASTContext
 		: public NatsuLib::natRefObjImpl<ASTContext>
 	{
+		struct TypeInfo
+		{
+			std::size_t Size;
+			std::size_t Align;
+		};
+
 	public:
 		friend class NestedNameSpecifier;
 
@@ -24,13 +30,9 @@ namespace NatsuLang
 
 		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> GetTranslationUnit() const noexcept;
 
-	private:
-		struct TypeInfo
-		{
-			std::size_t Size;
-			std::size_t Align;
-		};
+		TypeInfo GetTypeInfo(Type::TypePtr const& type);
 
+	private:
 		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> m_TUDecl;
 
 		template <typename T>
@@ -45,5 +47,7 @@ namespace NatsuLang
 
 		std::unordered_map<Type::TypePtr, TypeInfo> m_CachedTypeInfo;
 		std::unordered_map<Type::BuiltinType::BuiltinClass, NatsuLib::natRefPointer<Type::BuiltinType>> m_BuiltinTypeMap;
+
+		TypeInfo getTypeInfoImpl(Type::TypePtr const& type);
 	};
 }

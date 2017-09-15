@@ -145,6 +145,8 @@ namespace NatsuLang::Semantic
 		Statement::StmtPtr ActOnBreakStatement(SourceLocation loc, NatsuLib::natRefPointer<Scope> const& scope);
 		Statement::StmtPtr ActOnReturnStmt(SourceLocation loc, Expression::ExprPtr returnedExpr, NatsuLib::natRefPointer<Scope> const& scope);
 
+		Statement::StmtPtr ActOnExprStmt(Expression::ExprPtr expr);
+
 		Expression::ExprPtr ActOnBooleanLiteral(Lex::Token const& token) const;
 		Expression::ExprPtr ActOnNumericLiteral(Lex::Token const& token) const;
 		Expression::ExprPtr ActOnCharLiteral(Lex::Token const& token) const;

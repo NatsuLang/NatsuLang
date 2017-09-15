@@ -24,7 +24,7 @@ namespace NatsuLang::Type
 		{
 			Invalid,
 #define BUILTIN_TYPE(Id, Name) Id,
-#define LAST_BUILTIN_TYPE(Id) LastKind = Id
+#define LAST_BUILTIN_TYPE(Id) LastType = Id
 #include "Basic/BuiltinTypesDef.h"
 		};
 

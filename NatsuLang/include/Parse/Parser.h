@@ -180,6 +180,8 @@ namespace NatsuLang::Syntax
 		Statement::StmtPtr ParseBreakStatement();
 		Statement::StmtPtr ParseReturnStatement();
 
+		Statement::StmtPtr ParseExprStatement();
+
 		Expression::ExprPtr ParseExpression();
 
 		// cast-expression:

@@ -58,6 +58,37 @@ namespace NatsuLang
 			std::unordered_map<nStrView, NatsuLib::natRefPointer<Declaration::NamedDecl>> m_NamedDecls;
 		};
 
+		class InterpreterExprVisitor
+			: public NatsuLib::natRefObjImpl<InterpreterExprVisitor, StmtVisitorBase<Expression::ExprPtr>>
+		{
+		public:
+			explicit InterpreterExprVisitor(Interpreter& interpreter);
+			~InterpreterExprVisitor();
+
+			NatsuLib::natRefPointer<Expression::Expr> VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitExpr(NatsuLib::natRefPointer<Expression::Expr> const& expr) override;
+
+			NatsuLib::natRefPointer<Expression::Expr> VisitArraySubscriptExpr(NatsuLib::natRefPointer<Expression::ArraySubscriptExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitConstructExpr(NatsuLib::natRefPointer<Expression::ConstructExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitDeleteExpr(NatsuLib::natRefPointer<Expression::DeleteExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitNewExpr(NatsuLib::natRefPointer<Expression::NewExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitThisExpr(NatsuLib::natRefPointer<Expression::ThisExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitThrowExpr(NatsuLib::natRefPointer<Expression::ThrowExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitCallExpr(NatsuLib::natRefPointer<Expression::CallExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitMemberCallExpr(NatsuLib::natRefPointer<Expression::MemberCallExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitCastExpr(NatsuLib::natRefPointer<Expression::CastExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitAsTypeExpr(NatsuLib::natRefPointer<Expression::AsTypeExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitImplicitCastExpr(NatsuLib::natRefPointer<Expression::ImplicitCastExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitDeclRefExpr(NatsuLib::natRefPointer<Expression::DeclRefExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitMemberExpr(NatsuLib::natRefPointer<Expression::MemberExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitParenExpr(NatsuLib::natRefPointer<Expression::ParenExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitStmtExpr(NatsuLib::natRefPointer<Expression::StmtExpr> const& expr) override;
+			NatsuLib::natRefPointer<Expression::Expr> VisitUnaryExprOrTypeTraitExpr(NatsuLib::natRefPointer<Expression::UnaryExprOrTypeTraitExpr> const& expr) override;
+
+		private:
+			Interpreter& m_Interpreter;
+		};
+
 		class InterpreterStmtVisitor
 			: public NatsuLib::natRefObjImpl<InterpreterStmtVisitor, StmtVisitorBase<void>>
 		{
@@ -98,6 +129,8 @@ namespace NatsuLang
 		void Run(NatsuLib::Uri uri);
 		void Run(nStrView content);
 
+		NatsuLib::natRefPointer<Semantic::Scope> GetScope() const noexcept;
+
 	private:
 		Diag::DiagnosticsEngine m_Diag;
 		NatsuLib::natLog& m_Logger;
@@ -109,5 +142,8 @@ namespace NatsuLang
 		Syntax::Parser m_Parser;
 		NatsuLib::natRefPointer<InterpreterASTConsumer> m_Consumer;
 		NatsuLib::natRefPointer<InterpreterStmtVisitor> m_Visitor;
+
+		NatsuLib::natRefPointer<Semantic::Scope> m_CurrentScope;
+		std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, Expression::ExprPtr> m_DeclStorage;
 	};
 }

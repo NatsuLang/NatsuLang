@@ -199,6 +199,24 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 	// TODO: 完成根据 tokenType 判断语句类型的过程
 	switch (tokenType)
 	{
+	case TokenType::At:
+	{
+		ConsumeToken();
+		if (m_CurrentToken.Is(TokenType::Identifier))
+		{
+			auto id = m_CurrentToken.GetIdentifierInfo();
+			const auto loc = m_CurrentToken.GetLocation();
+
+			ConsumeToken();
+
+			if (m_CurrentToken.Is(TokenType::Colon))
+			{
+				return ParseLabeledStatement(std::move(id), loc);
+			}
+		}
+
+		return ParseStmtError();
+	}
 	case TokenType::Identifier:
 	{
 		auto id = m_CurrentToken.GetIdentifierInfo();
@@ -247,7 +265,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 	case TokenType::Kw_catch:
 		break;
 	default:
-		return ParseStmtError();
+		return ParseExprStatement();
 	}
 
 	// TODO
@@ -430,6 +448,11 @@ NatsuLang::Statement::StmtPtr Parser::ParseReturnStatement()
 	}
 
 	return m_Sema.ActOnReturnStmt(loc, std::move(returnedExpr), m_Sema.GetCurrentScope());
+}
+
+NatsuLang::Statement::StmtPtr Parser::ParseExprStatement()
+{
+	return m_Sema.ActOnExprStmt(ParseExpression());
 }
 
 NatsuLang::Expression::ExprPtr Parser::ParseExpression()

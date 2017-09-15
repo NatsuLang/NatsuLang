@@ -82,3 +82,84 @@ natRefPointer<Declaration::TranslationUnitDecl> ASTContext::GetTranslationUnit()
 {
 	return m_TUDecl;
 }
+
+ASTContext::TypeInfo ASTContext::GetTypeInfo(Type::TypePtr const& type)
+{
+	auto underlyingType = Type::Type::GetUnderlyingType(type);
+	const auto iter = m_CachedTypeInfo.find(underlyingType);
+	if (iter != m_CachedTypeInfo.cend())
+	{
+		return iter->second;
+	}
+
+	auto info = getTypeInfoImpl(underlyingType);
+	m_CachedTypeInfo.insert_or_assign(std::move(underlyingType), info);
+	return info;
+}
+
+// TODO: 使用编译目标的值
+ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
+{
+	switch (type->GetType())
+	{
+	case Type::Type::Builtin:
+	{
+		const auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(type);
+		switch (builtinType->GetBuiltinClass())
+		{
+		case Type::BuiltinType::Void:
+			return { 0, 4 };
+		case Type::BuiltinType::Bool:
+			return { 1, 4 };
+		case Type::BuiltinType::Char:
+			return { 1, 4 };
+		case Type::BuiltinType::UShort:
+		case Type::BuiltinType::Short:
+			return { 2, 4 };
+		case Type::BuiltinType::UInt:
+		case Type::BuiltinType::Int:
+			return { 4, 4 };
+		case Type::BuiltinType::ULong:
+		case Type::BuiltinType::Long:
+			return { 8, 8 };
+		case Type::BuiltinType::ULongLong:
+		case Type::BuiltinType::LongLong:
+			return { 16, 16 };
+		case Type::BuiltinType::UInt128:
+		case Type::BuiltinType::Int128:
+			return { 16, 16 };
+		case Type::BuiltinType::Float:
+			return { 4, 4 };
+		case Type::BuiltinType::Double:
+			return { 8, 8 };
+		case Type::BuiltinType::LongDouble:
+			return { 16, 16 };
+		case Type::BuiltinType::Float128:
+			return { 16, 16 };
+		case Type::BuiltinType::Overload:
+		case Type::BuiltinType::BoundMember:
+		case Type::BuiltinType::BuiltinFn:
+		default:
+			break;
+		}
+	}
+	case Type::Type::Array:
+	{
+		const auto arrayType = static_cast<natRefPointer<Type::ArrayType>>(type);
+		auto elemInfo = GetTypeInfo(arrayType->GetElementType());
+		elemInfo.Size *= arrayType->GetSize();
+		return elemInfo;
+	}
+	case Type::Type::Function:
+		return { 0, 0 };
+	case Type::Type::Record:
+		break;
+	case Type::Type::Enum:
+		break;
+	default:
+		assert(!"Invalid type.");
+		std::terminate();
+	}
+
+	nat_Throw(NotImplementedException);
+}
