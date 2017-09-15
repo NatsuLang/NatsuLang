@@ -1,5 +1,7 @@
-#include "AST/StmtBase.h"
+﻿#include "AST/StmtBase.h"
+#include "AST/StmtVisitor.h"
 
+using namespace NatsuLib;
 using namespace NatsuLang;
 using namespace NatsuLang::Statement;
 
@@ -51,4 +53,9 @@ NatsuLang::SourceLocation Stmt::GetEndLoc() const noexcept
 void Stmt::SetEndLoc(SourceLocation loc) noexcept
 {
 	m_End = loc;
+}
+
+void Stmt::Accept(natRefPointer<StmtVisitor> const& visitor)
+{
+	visitor->VisitStmt(ForkRef());
 }

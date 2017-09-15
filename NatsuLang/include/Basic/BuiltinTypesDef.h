@@ -1,4 +1,4 @@
-#ifndef BUILTIN_TYPE
+﻿#ifndef BUILTIN_TYPE
 #define BUILTIN_TYPE(Id, Name)
 #endif
 

@@ -1,4 +1,4 @@
-#ifndef DIAG
+﻿#ifndef DIAG
 #define DIAG(ID, Level, ArgCount)
 #endif
 

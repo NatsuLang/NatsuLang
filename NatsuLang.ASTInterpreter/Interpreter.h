@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <AST/StmtVisitor.h>
 #include <AST/ASTConsumer.h>
 #include <Basic/FileManager.h>

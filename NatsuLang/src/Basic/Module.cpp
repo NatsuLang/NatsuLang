@@ -1,4 +1,4 @@
-#include "Basic/Module.h"
+﻿#include "Basic/Module.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang;

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -223,6 +223,7 @@
     <ClCompile Include="src\AST\NestedNameSpecifier.cpp" />
     <ClCompile Include="src\AST\Statement.cpp" />
     <ClCompile Include="src\AST\StmtBase.cpp" />
+    <ClCompile Include="src\AST\StmtVisitor.cpp" />
     <ClCompile Include="src\AST\Type.cpp" />
     <ClCompile Include="src\AST\TypeBase.cpp" />
     <ClCompile Include="src\Basic\Diagnostic.cpp" />

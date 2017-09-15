@@ -1,46 +1,35 @@
-#pragma once
-#include "Statement.h"
-#include "Expression.h"
+﻿#pragma once
+#include <natRefObj.h>
 
 namespace NatsuLang
 {
-	template <typename RetType>
-	struct StmtVisitorBase
+	namespace Statement
 	{
-		virtual ~StmtVisitorBase();
+		class Stmt;
 
-		RetType Visit(NatsuLib::natRefPointer<Statement::Stmt> const& stmt)
-		{
-			switch (stmt->GetType())
-			{
-#define STMT(Type, Base) case Statement::Stmt::Type##Class: return Visit##Type(stmt);
-#define ABSTRACT_STMT(Type)
+#define STMT(StmtType, Base) class StmtType;
+#define EXPR(ExprType, Base)
 #include "Basic/StmtDef.h"
-			default:
-				// TODO: 修改为优雅的实现
-				if (const auto castExpr = static_cast<NatsuLib::natRefPointer<Expression::CastExpr>>(stmt))
-				{
-					return VisitCastExpr(castExpr);
-				}
-
-				if (const auto expr = static_cast<NatsuLib::natRefPointer<Expression::Expr>>(stmt))
-				{
-					return VisitExpr(expr);
-				}
-
-				return VisitStmt(stmt);
-			}
-		}
-
-#define STMT(Type, Base) virtual RetType Visit##Type(NatsuLib::natRefPointer<Statement::Type> const& stmt) { return Visit##Base(stmt); }
-#define EXPR(Type, Base) virtual RetType Visit##Type(NatsuLib::natRefPointer<Expression::Type> const& expr) { return Visit##Base(expr); }
-#include "Basic/StmtDef.h"
-
-		virtual RetType VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) = 0;
-	};
-
-	template <typename RetType>
-	StmtVisitorBase<RetType>::~StmtVisitorBase()
-	{
 	}
+
+	namespace Expression
+	{
+#define STMT(StmtType, Base)
+#define EXPR(ExprType, Base) class ExprType;
+#include "Basic/StmtDef.h"
+	}
+
+	struct StmtVisitor
+		: NatsuLib::natRefObjImpl<StmtVisitor>
+	{
+		virtual ~StmtVisitor() = 0;
+
+		void Visit(NatsuLib::natRefPointer<Statement::Stmt> const& stmt);
+
+#define STMT(Type, Base) virtual void Visit##Type(NatsuLib::natRefPointer<Statement::Type> const& stmt);
+#define EXPR(Type, Base) virtual void Visit##Type(NatsuLib::natRefPointer<Expression::Type> const& expr);
+#include "Basic/StmtDef.h"
+
+		virtual void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt);
+	};
 }

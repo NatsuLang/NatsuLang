@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "AST/OperatorPrecedence.h"
 #include "Lex/Preprocessor.h"
 #include "Basic/Config.h"

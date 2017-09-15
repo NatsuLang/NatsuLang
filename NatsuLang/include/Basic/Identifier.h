@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Token.h"
 #include <natRefObj.h>
 #include <natRelationalOperator.h>

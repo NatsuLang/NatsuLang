@@ -1,4 +1,4 @@
-#ifndef LEXER_USE_EXCEPTION
+﻿#ifndef LEXER_USE_EXCEPTION
 #	define LEXER_USE_EXCEPTION 0
 #endif
 

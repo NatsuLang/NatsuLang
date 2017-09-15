@@ -1,6 +1,8 @@
-#pragma once
+﻿#pragma once
 #include "StmtBase.h"
 #include "DeclBase.h"
+
+#define DEFAULT_ACCEPT_DECL void Accept(NatsuLib::natRefPointer<StmtVisitor> const& visitor) override
 
 namespace NatsuLang::Declaration
 {
@@ -45,6 +47,8 @@ namespace NatsuLang::Statement
 			m_Decls.assign(std::cbegin(decls), std::cend(decls));
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		std::vector<DeclPtr> m_Decls;
 	};
@@ -61,6 +65,8 @@ namespace NatsuLang::Statement
 
 		void SetStartLoc(SourceLocation loc) noexcept override;
 		void SetEndLoc(SourceLocation loc) noexcept override;
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		SourceLocation m_Location;
@@ -84,6 +90,8 @@ namespace NatsuLang::Statement
 
 		StmtEnumerable GetChildrens() override;
 		void SetStmts(StmtEnumerable const& stmts);
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		std::vector<StmtPtr> m_Stmts;
@@ -110,6 +118,8 @@ namespace NatsuLang::Statement
 		}
 
 		virtual StmtPtr GetSubStmt() = 0;
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		NatsuLib::natRefPointer<SwitchCase> m_NextSwitchCase;
@@ -156,6 +166,8 @@ namespace NatsuLang::Statement
 
 		StmtEnumerable GetChildrens() override;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		Expression::ExprPtr m_Cond;
 		StmtPtr m_Body;
@@ -193,6 +205,8 @@ namespace NatsuLang::Statement
 			m_SubStmt = std::move(stmt);
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		Expression::ExprPtr m_Expr;
 		StmtPtr m_SubStmt;
@@ -218,6 +232,8 @@ namespace NatsuLang::Statement
 		{
 			m_SubStmt = std::move(stmt);
 		}
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		StmtPtr m_SubStmt;
@@ -249,6 +265,8 @@ namespace NatsuLang::Statement
 		}
 
 		StmtEnumerable GetChildrens() override;
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		LabelDeclPtr m_Decl;
@@ -303,6 +321,8 @@ namespace NatsuLang::Statement
 
 		StmtEnumerable GetChildrens() override;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		Expression::ExprPtr m_Cond;
 		SourceLocation m_ElseLocation;
@@ -342,6 +362,8 @@ namespace NatsuLang::Statement
 		}
 
 		StmtEnumerable GetChildrens() override;
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		Expression::ExprPtr m_Cond;
@@ -390,6 +412,8 @@ namespace NatsuLang::Statement
 		}
 
 		StmtEnumerable GetChildrens() override;
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		StmtPtr m_Body;
@@ -477,6 +501,8 @@ namespace NatsuLang::Statement
 
 		StmtEnumerable GetChildrens() override;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		StmtPtr m_Init;
 		Expression::ExprPtr m_Cond;
@@ -506,6 +532,8 @@ namespace NatsuLang::Statement
 			m_Label = std::move(value);
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		NatsuLib::natRefPointer<LabelStmt> m_Label;
 	};
@@ -520,6 +548,8 @@ namespace NatsuLang::Statement
 		}
 
 		~ContinueStmt();
+
+		DEFAULT_ACCEPT_DECL;
 	};
 
 	class BreakStmt
@@ -532,6 +562,8 @@ namespace NatsuLang::Statement
 		}
 
 		~BreakStmt();
+
+		DEFAULT_ACCEPT_DECL;
 	};
 
 	class ReturnStmt
@@ -550,6 +582,8 @@ namespace NatsuLang::Statement
 
 		StmtEnumerable GetChildrens() override;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		Expression::ExprPtr m_RetExpr;
 	};
@@ -560,6 +594,8 @@ namespace NatsuLang::Statement
 	public:
 		TryStmt(SourceLocation loc, StmtPtr tryBlock, NatsuLib::Linq<NatsuLib::Valued<StmtPtr>> const& handlers);
 		~TryStmt();
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 
@@ -596,8 +632,12 @@ namespace NatsuLang::Statement
 			m_HandlerBlock = std::move(value);
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		NatsuLib::natRefPointer<Declaration::VarDecl> m_ExceptionDecl;
 		StmtPtr m_HandlerBlock;
 	};
 }
+
+#undef DEFAULT_ACCEPT_DECL

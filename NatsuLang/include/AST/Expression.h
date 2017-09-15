@@ -1,8 +1,10 @@
-#pragma once
+﻿#pragma once
 #include "Declaration.h"
 #include "Statement.h"
 #include "OperationTypes.h"
 #include <variant>
+
+#define DEFAULT_ACCEPT_DECL void Accept(NatsuLib::natRefPointer<StmtVisitor> const& visitor) override
 
 namespace NatsuLang
 {
@@ -45,6 +47,8 @@ namespace NatsuLang::Expression
 		nBool EvaluateAsInt(nuLong& result, ASTContext& context);
 		nBool EvaluateAsFloat(nDouble& result, ASTContext& context);
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		Type::TypePtr m_ExprType;
 	};
@@ -77,6 +81,8 @@ namespace NatsuLang::Expression
 			m_ValueDecl = std::move(value);
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		NatsuLib::natRefPointer<NestedNameSpecifier> m_NestedNameSpecifier;
 		NatsuLib::natRefPointer<Declaration::ValueDecl> m_ValueDecl;
@@ -102,6 +108,8 @@ namespace NatsuLang::Expression
 		{
 			m_Value = value;
 		}
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		nuLong m_Value;
@@ -138,6 +146,8 @@ namespace NatsuLang::Expression
 			m_CharType = value;
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		nuInt m_CodePoint;
 		NatsuLib::StringType m_CharType;
@@ -164,6 +174,8 @@ namespace NatsuLang::Expression
 			m_Value = value;
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		nDouble m_Value;
 	};
@@ -189,6 +201,8 @@ namespace NatsuLang::Expression
 			m_Value = std::move(str);
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		nString m_Value;
 	};
@@ -213,6 +227,8 @@ namespace NatsuLang::Expression
 		{
 			m_Value = value;
 		}
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		nBool m_Value;
@@ -240,6 +256,8 @@ namespace NatsuLang::Expression
 		}
 
 		Statement::StmtEnumerable GetChildrens() override;
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		ExprPtr m_InnerExpr;
@@ -277,6 +295,8 @@ namespace NatsuLang::Expression
 		}
 
 		Statement::StmtEnumerable GetChildrens() override;
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		ExprPtr m_Operand;
@@ -336,6 +356,8 @@ namespace NatsuLang::Expression
 
 		Statement::StmtEnumerable GetChildrens() override;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		std::variant<Type::TypePtr, ExprPtr> m_Operand;
 	};
@@ -373,6 +395,8 @@ namespace NatsuLang::Expression
 
 		Statement::StmtEnumerable GetChildrens() override;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		ExprPtr m_LeftOperand, m_RightOperand;
 	};
@@ -408,6 +432,8 @@ namespace NatsuLang::Expression
 		void SetArgs(NatsuLib::Linq<NatsuLib::Valued<ExprPtr>> const& value);
 
 		Statement::StmtEnumerable GetChildrens() override;
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		ExprPtr m_Function;
@@ -457,6 +483,8 @@ namespace NatsuLang::Expression
 
 		Statement::StmtEnumerable GetChildrens() override;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		ExprPtr m_Base;
 		NatsuLib::natRefPointer<Declaration::ValueDecl> m_MemberDecl;
@@ -475,6 +503,8 @@ namespace NatsuLang::Expression
 		~MemberCallExpr();
 
 		ExprPtr GetImplicitObjectArgument() const noexcept;
+
+		DEFAULT_ACCEPT_DECL;
 	};
 
 	class CastExpr
@@ -510,6 +540,8 @@ namespace NatsuLang::Expression
 
 		Statement::StmtEnumerable GetChildrens() override;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		CastType m_CastType;
 		ExprPtr m_Operand;
@@ -527,6 +559,8 @@ namespace NatsuLang::Expression
 		}
 
 		~ImplicitCastExpr();
+
+		DEFAULT_ACCEPT_DECL;
 	};
 
 	class AsTypeExpr
@@ -541,6 +575,8 @@ namespace NatsuLang::Expression
 		}
 
 		~AsTypeExpr();
+
+		DEFAULT_ACCEPT_DECL;
 	};
 
 	class BinaryOperator
@@ -586,6 +622,8 @@ namespace NatsuLang::Expression
 
 		Statement::StmtEnumerable GetChildrens() override;
 		
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		ExprPtr m_LeftOperand, m_RightOperand;
 		BinaryOperationType m_Opcode;
@@ -601,6 +639,8 @@ namespace NatsuLang::Expression
 		}
 
 		~CompoundAssignOperator();
+
+		DEFAULT_ACCEPT_DECL;
 	};
 
 	class ConditionalOperator
@@ -669,6 +709,8 @@ namespace NatsuLang::Expression
 
 		Statement::StmtEnumerable GetChildrens() override;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		SourceLocation m_QuesionLoc, m_ColonLoc;
 		ExprPtr m_Condition, m_LeftOperand, m_RightOperand;
@@ -697,6 +739,8 @@ namespace NatsuLang::Expression
 
 		Statement::StmtEnumerable GetChildrens() override;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		NatsuLib::natRefPointer<Statement::CompoundStmt> m_SubStmt;
 	};
@@ -721,6 +765,8 @@ namespace NatsuLang::Expression
 		{
 			m_IsImplicit = value;
 		}
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		nBool m_IsImplicit;
@@ -749,6 +795,8 @@ namespace NatsuLang::Expression
 		}
 
 		Statement::StmtEnumerable GetChildrens() override;
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		ExprPtr m_Operand;
@@ -780,6 +828,8 @@ namespace NatsuLang::Expression
 
 		Statement::StmtEnumerable GetChildrens() override;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		NatsuLib::natRefPointer<Declaration::ConstructorDecl> m_ConstructorDecl;
 		std::vector<ExprPtr> m_Args;
@@ -800,6 +850,8 @@ namespace NatsuLang::Expression
 		void SetArgs(NatsuLib::Linq<NatsuLib::Valued<ExprPtr>> const& value);
 
 		Statement::StmtEnumerable GetChildrens() override;
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		std::vector<ExprPtr> m_Args;
@@ -828,6 +880,8 @@ namespace NatsuLang::Expression
 
 		Statement::StmtEnumerable GetChildrens() override;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		ExprPtr m_Operand;
 	};
@@ -840,8 +894,12 @@ namespace NatsuLang::Expression
 		OverloadExpr(StmtType stmtType, Identifier::IdPtr name);
 		~OverloadExpr();
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		Identifier::IdPtr m_Name;
 		std::vector<Declaration::DeclPtr> m_Decls;
 	};
 }
+
+#undef DEFAULT_ACCEPT_DECL

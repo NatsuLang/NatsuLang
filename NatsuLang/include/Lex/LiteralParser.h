@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Basic/Diagnostic.h"
 
 namespace NatsuLang::Lex

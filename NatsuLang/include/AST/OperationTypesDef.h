@@ -1,4 +1,4 @@
-#ifndef CAST_OPERATION
+﻿#ifndef CAST_OPERATION
 #define CAST_OPERATION(Name)
 #endif
 

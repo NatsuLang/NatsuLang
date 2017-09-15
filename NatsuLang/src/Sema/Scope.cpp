@@ -1,4 +1,4 @@
-#include "Sema/Scope.h"
+﻿#include "Sema/Scope.h"
 
 using namespace NatsuLang::Semantic;
 

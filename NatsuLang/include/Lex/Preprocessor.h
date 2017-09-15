@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Basic/Identifier.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceManager.h"

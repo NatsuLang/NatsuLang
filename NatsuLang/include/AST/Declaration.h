@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <natLinq.h>
 #include "DeclBase.h"
 #include "Type.h"

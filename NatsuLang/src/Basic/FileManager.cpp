@@ -36,7 +36,7 @@ natRefPointer<IRequest> FileManager::GetFile(Uri const& uri, nBool cacheFailure)
 	}
 
 	nBool succeed;
-	tie(iter, succeed) = m_CachedFiles.emplace(uri, std::move(request));
+	tie(iter, succeed) = m_CachedFiles.emplace(uri.GetUnderlyingString(), std::move(request));
 	if (!succeed)
 	{
 		nat_Throw(natErrException, NatErr_InternalErr, "Cannot add entry.");

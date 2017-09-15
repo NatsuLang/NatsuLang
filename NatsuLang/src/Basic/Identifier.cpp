@@ -1,4 +1,4 @@
-#include "Basic/Identifier.h"
+﻿#include "Basic/Identifier.h"
 #include "Basic/Token.h"
 
 using namespace NatsuLib;

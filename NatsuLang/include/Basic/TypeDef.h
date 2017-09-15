@@ -1,4 +1,4 @@
-#ifndef TYPE
+﻿#ifndef TYPE
 #define TYPE(Class, Base)
 #endif
 

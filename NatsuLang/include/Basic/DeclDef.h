@@ -1,4 +1,4 @@
-#ifndef DECL
+﻿#ifndef DECL
 #define DECL(Type, Base)
 #endif
 #ifndef ABSTRACT_DECL

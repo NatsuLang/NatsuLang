@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <AST/Expression.h>
 #include <AST/ASTConsumer.h>
 

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "ASTContext.h"
 
 namespace NatsuLang

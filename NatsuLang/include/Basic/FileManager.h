@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <natVFS.h>
 #include <unordered_map>
 

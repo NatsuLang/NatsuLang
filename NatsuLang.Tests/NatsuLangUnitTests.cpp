@@ -1,4 +1,4 @@
-#include "TestClasses.h"
+﻿#include "TestClasses.h"
 
 TEST_CASE("AST Generation", "[Lexer][Parser][Sema]")
 {

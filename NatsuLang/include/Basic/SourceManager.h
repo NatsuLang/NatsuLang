@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <natString.h>
 #include <natVFS.h>
 #include <map>

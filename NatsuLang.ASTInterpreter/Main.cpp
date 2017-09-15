@@ -1,4 +1,4 @@
-#include "Interpreter.h"
+﻿#include "Interpreter.h"
 #include <natConsole.h>
 
 using namespace NatsuLib;

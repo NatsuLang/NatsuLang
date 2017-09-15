@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <natMisc.h>
 #include <natRefObj.h>
 #include <natLinq.h>

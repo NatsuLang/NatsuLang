@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <natRefObj.h>
 #include "SourceLocation.h"
 

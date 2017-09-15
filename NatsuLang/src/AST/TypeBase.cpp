@@ -1,7 +1,9 @@
 #include "AST/TypeBase.h"
+#include "AST/Type.h"
+#include "AST/Expression.h"
+#include "AST/NestedNameSpecifier.h"
 #include "Basic/Token.h"
 #include "Basic/Identifier.h"
-#include "AST/Type.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang;

@@ -1,4 +1,4 @@
-#ifndef TOK
+﻿#ifndef TOK
 #define TOK(X)
 #endif
 #ifndef PUNCTUATOR

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -159,9 +159,6 @@
     <ClCompile Include="NatsuLangUnitTests.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\NatsuLang.JITCompiler\NatsuLang.JITCompiler.vcxproj">
-      <Project>{51c69829-4ce5-47b5-85a7-2ac2b2331cc9}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\NatsuLang\NatsuLang.vcxproj">
       <Project>{5306b493-f4e5-4a93-b487-d6a4a3561019}</Project>
     </ProjectReference>

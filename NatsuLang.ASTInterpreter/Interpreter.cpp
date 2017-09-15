@@ -1,4 +1,4 @@
-#include "Interpreter.h"
+﻿#include "Interpreter.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang;
@@ -378,7 +378,8 @@ Interpreter::~Interpreter()
 
 void Interpreter::Run(Uri uri)
 {
-	m_SourceManager.GetFileID(uri);
+	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(m_SourceManager.GetFileContent(m_SourceManager.GetFileID(uri)).second));
+	m_Visitor->Visit(m_Parser.ParseStatement());
 }
 
 void Interpreter::Run(nStrView content)
