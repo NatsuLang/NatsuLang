@@ -7,6 +7,7 @@
 
 #include <natStream.h>
 #include <natText.h>
+#include <natLog.h>
 
 namespace NatsuLang
 {
@@ -53,6 +54,8 @@ namespace NatsuLang
 
 		private:
 			Interpreter& m_Interpreter;
+			std::vector<Declaration::DeclPtr> m_UnnamedDecls;
+			std::unordered_map<nStrView, NatsuLib::natRefPointer<Declaration::NamedDecl>> m_NamedDecls;
 		};
 
 		class InterpreterStmtVisitor
@@ -64,12 +67,32 @@ namespace NatsuLang
 
 			void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) override;
 
+			void VisitBreakStmt(NatsuLib::natRefPointer<Statement::BreakStmt> const& stmt) override;
+			void VisitCatchStmt(NatsuLib::natRefPointer<Statement::CatchStmt> const& stmt) override;
+			void VisitTryStmt(NatsuLib::natRefPointer<Statement::TryStmt> const& stmt) override;
+			void VisitCompoundStmt(NatsuLib::natRefPointer<Statement::CompoundStmt> const& stmt) override;
+			void VisitContinueStmt(NatsuLib::natRefPointer<Statement::ContinueStmt> const& stmt) override;
+			void VisitDeclStmt(NatsuLib::natRefPointer<Statement::DeclStmt> const& stmt) override;
+			void VisitDoStmt(NatsuLib::natRefPointer<Statement::DoStmt> const& stmt) override;
+			void VisitForStmt(NatsuLib::natRefPointer<Statement::ForStmt> const& stmt) override;
+			void VisitGotoStmt(NatsuLib::natRefPointer<Statement::GotoStmt> const& stmt) override;
+			void VisitIfStmt(NatsuLib::natRefPointer<Statement::IfStmt> const& stmt) override;
+			void VisitLabelStmt(NatsuLib::natRefPointer<Statement::LabelStmt> const& stmt) override;
+			void VisitNullStmt(NatsuLib::natRefPointer<Statement::NullStmt> const& stmt) override;
+			void VisitReturnStmt(NatsuLib::natRefPointer<Statement::ReturnStmt> const& stmt) override;
+			void VisitCaseStmt(NatsuLib::natRefPointer<Statement::CaseStmt> const& stmt) override;
+			void VisitDefaultStmt(NatsuLib::natRefPointer<Statement::DefaultStmt> const& stmt) override;
+			void VisitSwitchStmt(NatsuLib::natRefPointer<Statement::SwitchStmt> const& stmt) override;
+			void VisitWhileStmt(NatsuLib::natRefPointer<Statement::WhileStmt> const& stmt) override;
+
+			void VisitExpr(NatsuLib::natRefPointer<Expression::Expr> const& expr) override;
+
 		private:
 			Interpreter& m_Interpreter;
 		};
 
 	public:
-		explicit Interpreter(NatsuLib::natRefPointer<NatsuLib::TextReader<NatsuLib::StringType::Utf8>> const& diagIdMapFile);
+		Interpreter(NatsuLib::natRefPointer<NatsuLib::TextReader<NatsuLib::StringType::Utf8>> const& diagIdMapFile, NatsuLib::natLog& logger);
 		~Interpreter();
 
 		void Run(NatsuLib::Uri uri);
@@ -77,6 +100,7 @@ namespace NatsuLang
 
 	private:
 		Diag::DiagnosticsEngine m_Diag;
+		NatsuLib::natLog& m_Logger;
 		FileManager m_FileManager;
 		SourceManager m_SourceManager;
 		Preprocessor m_Preprocessor;
@@ -84,5 +108,6 @@ namespace NatsuLang
 		Semantic::Sema m_Sema;
 		Syntax::Parser m_Parser;
 		NatsuLib::natRefPointer<InterpreterASTConsumer> m_Consumer;
+		NatsuLib::natRefPointer<InterpreterStmtVisitor> m_Visitor;
 	};
 }

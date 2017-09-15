@@ -13,9 +13,13 @@ int main(int argc, char* argv[])
 	}
 
 	natConsole console;
+	natEventBus eventBus;
+	natLog logger{ eventBus };
+
+	logger.UseDefaultAction(console);
 
 	// TODO: 添加诊断信息文件
-	Interpreter theInterpreter{ nullptr };
+	Interpreter theInterpreter{ nullptr, logger };
 
 	try
 	{
