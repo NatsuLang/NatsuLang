@@ -36,7 +36,7 @@ namespace NatsuLang
 
 		nBool Lex(Lex::Token& result) const
 		{
-			return m_Lexer->Lex(result);
+			return m_Lexer ? m_Lexer->Lex(result) : false;
 		}
 
 	private:

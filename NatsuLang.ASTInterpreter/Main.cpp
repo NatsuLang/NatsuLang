@@ -26,16 +26,23 @@ int main(int argc, char* argv[])
 		if (argc == 1)
 		{
 			// REPL 模式
-			const auto line = static_cast<nString>(console.ReadLine());
-			while (line != "")
+			
+			while (true)
 			{
 				try
 				{
+					console.Write(u8"Fuyu> "_nv);
+					const auto line = static_cast<nString>(console.ReadLine());
+					if (line.IsEmpty())
+					{
+						break;
+					}
+
 					theInterpreter.Run(line);
 				}
 				catch (InterpreterException& e)
 				{
-					console.WriteLineErr(e.GetDesc());
+					logger.LogErr(e.GetDesc());
 					// 吃掉异常，因为在 REPL 模式下此类异常总被视为可恢复的
 				}
 			}
@@ -48,10 +55,14 @@ int main(int argc, char* argv[])
 	}
 	catch (natException& e)
 	{
-		console.WriteLineErr(e.GetDesc());
+		logger.LogErr(e.GetDesc());
+		logger.LogErr(u8"解释器由于未处理的不可恢复的异常而中止运行，请按 Enter 退出程序");
+		console.ReadLine();
 	}
 	catch (std::exception& e)
 	{
-		console.WriteLineErr(nStrView{ e.what() });
+		logger.LogErr(e.what());
+		logger.LogErr(u8"解释器由于未处理的不可恢复的异常而中止运行，请按 Enter 退出程序");
+		console.ReadLine();
 	}
 }

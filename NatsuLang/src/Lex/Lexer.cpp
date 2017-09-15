@@ -435,8 +435,13 @@ nBool Lexer::lexNumericLiteral(Lex::Token& result, Iterator cur)
 	}
 
 	// 科学计数法，例如1E+10
-	if ((curChar == '+' || curChar == '-') || (prevChar == 'e' || prevChar == 'E'))
+	if ((curChar == '+' || curChar == '-') && (prevChar == 'e' || prevChar == 'E'))
 	{
+		if (!IsNumericLiteralBody(*++cur))
+		{
+			return false;
+		}
+
 		return lexNumericLiteral(result, ++cur);
 	}
 

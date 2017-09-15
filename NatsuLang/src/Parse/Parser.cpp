@@ -217,20 +217,6 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 
 		return ParseStmtError();
 	}
-	case TokenType::Identifier:
-	{
-		auto id = m_CurrentToken.GetIdentifierInfo();
-		const auto loc = m_CurrentToken.GetLocation();
-
-		ConsumeToken();
-
-		if (m_CurrentToken.Is(TokenType::Colon))
-		{
-			return ParseLabeledStatement(std::move(id), loc);
-		}
-
-		return ParseStmtError();
-	}
 	case TokenType::LeftBrace:
 		return ParseCompoundStatement();
 	case TokenType::Semi:
@@ -264,6 +250,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 		break;
 	case TokenType::Kw_catch:
 		break;
+	case TokenType::Identifier:
 	default:
 		return ParseExprStatement();
 	}
@@ -508,6 +495,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 		{
 			// TODO: 报告错误
 			result = ParseExprError();
+			break;
 		}
 
 		result = m_Sema.ActOnUnaryOp(m_Sema.GetCurrentScope(), loc, tokenType, std::move(result));
@@ -978,15 +966,18 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 			break;
 		}
 
+		mayBeParenType = false;
+
 		if (!m_CurrentToken.Is(TokenType::Comma))
 		{
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
 				.AddArgument(TokenType::Comma)
 				.AddArgument(m_CurrentToken.GetType());
 		}
-
-		mayBeParenType = false;
-		ConsumeToken();
+		else
+		{
+			ConsumeToken();
+		}
 	}
 
 	// 读取完函数参数信息，开始读取返回类型

@@ -1,9 +1,11 @@
 ﻿#pragma once
 #include <AST/StmtVisitor.h>
 #include <AST/ASTConsumer.h>
+#include <AST/Expression.h>
 #include <Basic/FileManager.h>
 #include <Parse/Parser.h>
 #include <Sema/Sema.h>
+#include <Sema/Scope.h>
 
 #include <natStream.h>
 #include <natText.h>
@@ -37,8 +39,19 @@ namespace NatsuLang
 
 			void HandleDiagnostic(Diag::DiagnosticsEngine::Level level, Diag::DiagnosticsEngine::Diagnostic const& diag) override;
 
+			nBool IsErrored() const noexcept
+			{
+				return m_Errored;
+			}
+
+			void Reset() noexcept
+			{
+				m_Errored = false;
+			}
+
 		private:
 			Interpreter& m_Interpreter;
+			nBool m_Errored;
 		};
 
 		class InterpreterASTConsumer
@@ -59,38 +72,38 @@ namespace NatsuLang
 		};
 
 		class InterpreterExprVisitor
-			: public NatsuLib::natRefObjImpl<InterpreterExprVisitor, StmtVisitorBase<Expression::ExprPtr>>
+			: public NatsuLib::natRefObjImpl<InterpreterExprVisitor, StmtVisitor>
 		{
 		public:
 			explicit InterpreterExprVisitor(Interpreter& interpreter);
 			~InterpreterExprVisitor();
 
-			NatsuLib::natRefPointer<Expression::Expr> VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitExpr(NatsuLib::natRefPointer<Expression::Expr> const& expr) override;
+			void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) override;
+			void VisitExpr(NatsuLib::natRefPointer<Expression::Expr> const& expr) override;
 
-			NatsuLib::natRefPointer<Expression::Expr> VisitArraySubscriptExpr(NatsuLib::natRefPointer<Expression::ArraySubscriptExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitConstructExpr(NatsuLib::natRefPointer<Expression::ConstructExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitDeleteExpr(NatsuLib::natRefPointer<Expression::DeleteExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitNewExpr(NatsuLib::natRefPointer<Expression::NewExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitThisExpr(NatsuLib::natRefPointer<Expression::ThisExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitThrowExpr(NatsuLib::natRefPointer<Expression::ThrowExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitCallExpr(NatsuLib::natRefPointer<Expression::CallExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitMemberCallExpr(NatsuLib::natRefPointer<Expression::MemberCallExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitCastExpr(NatsuLib::natRefPointer<Expression::CastExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitAsTypeExpr(NatsuLib::natRefPointer<Expression::AsTypeExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitImplicitCastExpr(NatsuLib::natRefPointer<Expression::ImplicitCastExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitDeclRefExpr(NatsuLib::natRefPointer<Expression::DeclRefExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitMemberExpr(NatsuLib::natRefPointer<Expression::MemberExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitParenExpr(NatsuLib::natRefPointer<Expression::ParenExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitStmtExpr(NatsuLib::natRefPointer<Expression::StmtExpr> const& expr) override;
-			NatsuLib::natRefPointer<Expression::Expr> VisitUnaryExprOrTypeTraitExpr(NatsuLib::natRefPointer<Expression::UnaryExprOrTypeTraitExpr> const& expr) override;
+			void VisitArraySubscriptExpr(NatsuLib::natRefPointer<Expression::ArraySubscriptExpr> const& expr) override;
+			void VisitConstructExpr(NatsuLib::natRefPointer<Expression::ConstructExpr> const& expr) override;
+			void VisitDeleteExpr(NatsuLib::natRefPointer<Expression::DeleteExpr> const& expr) override;
+			void VisitNewExpr(NatsuLib::natRefPointer<Expression::NewExpr> const& expr) override;
+			void VisitThisExpr(NatsuLib::natRefPointer<Expression::ThisExpr> const& expr) override;
+			void VisitThrowExpr(NatsuLib::natRefPointer<Expression::ThrowExpr> const& expr) override;
+			void VisitCallExpr(NatsuLib::natRefPointer<Expression::CallExpr> const& expr) override;
+			void VisitMemberCallExpr(NatsuLib::natRefPointer<Expression::MemberCallExpr> const& expr) override;
+			void VisitCastExpr(NatsuLib::natRefPointer<Expression::CastExpr> const& expr) override;
+			void VisitAsTypeExpr(NatsuLib::natRefPointer<Expression::AsTypeExpr> const& expr) override;
+			void VisitImplicitCastExpr(NatsuLib::natRefPointer<Expression::ImplicitCastExpr> const& expr) override;
+			void VisitDeclRefExpr(NatsuLib::natRefPointer<Expression::DeclRefExpr> const& expr) override;
+			void VisitMemberExpr(NatsuLib::natRefPointer<Expression::MemberExpr> const& expr) override;
+			void VisitParenExpr(NatsuLib::natRefPointer<Expression::ParenExpr> const& expr) override;
+			void VisitStmtExpr(NatsuLib::natRefPointer<Expression::StmtExpr> const& expr) override;
+			void VisitUnaryExprOrTypeTraitExpr(NatsuLib::natRefPointer<Expression::UnaryExprOrTypeTraitExpr> const& expr) override;
 
 		private:
 			Interpreter& m_Interpreter;
 		};
 
 		class InterpreterStmtVisitor
-			: public NatsuLib::natRefObjImpl<InterpreterStmtVisitor, StmtVisitorBase<void>>
+			: public NatsuLib::natRefObjImpl<InterpreterStmtVisitor, StmtVisitor>
 		{
 		public:
 			explicit InterpreterStmtVisitor(Interpreter& interpreter);

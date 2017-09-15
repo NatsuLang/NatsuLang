@@ -32,19 +32,19 @@ Interpreter::InterpreterDiagIdMap::InterpreterDiagIdMap(natRefPointer<TextReader
 		}
 		else
 		{
-			const auto iter = idNameMap.find(curLine);
+			const auto iter = idNameMap.find(diagIDName);
 			if (iter == idNameMap.cend())
 			{
 				// TODO: 报告错误的 ID
 				break;
 			}
 
-			auto [i, succeed] = m_IdMap.try_emplace(iter->second, std::move(curLine));
-
-			if (!succeed)
+			if (!m_IdMap.try_emplace(iter->second, std::move(curLine)).second)
 			{
 				// TODO: 报告重复的 ID
 			}
+
+			diagIDName.Clear();
 		}
 	}
 }
@@ -60,7 +60,7 @@ nString Interpreter::InterpreterDiagIdMap::GetText(Diag::DiagnosticsEngine::Diag
 }
 
 Interpreter::InterpreterDiagConsumer::InterpreterDiagConsumer(Interpreter& interpreter)
-	: m_Interpreter{ interpreter }
+	: m_Interpreter{ interpreter }, m_Errored{ false }
 {
 }
 
@@ -71,7 +71,25 @@ Interpreter::InterpreterDiagConsumer::~InterpreterDiagConsumer()
 void Interpreter::InterpreterDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEngine::Level level,
 	Diag::DiagnosticsEngine::Diagnostic const& diag)
 {
-	const auto levelId = static_cast<nuInt>(level);
+	nuInt levelId;
+
+	switch (level)
+	{
+	case Diag::DiagnosticsEngine::Level::Ignored:
+	case Diag::DiagnosticsEngine::Level::Note:
+	case Diag::DiagnosticsEngine::Level::Remark:
+		levelId = natLog::Msg;
+		break;
+	case Diag::DiagnosticsEngine::Level::Warning:
+		levelId = natLog::Warn;
+		break;
+	case Diag::DiagnosticsEngine::Level::Error:
+	case Diag::DiagnosticsEngine::Level::Fatal:
+	default:
+		levelId = natLog::Err;
+		break;
+	}
+
 	m_Interpreter.m_Logger.Log(levelId, diag.GetDiagMessage());
 
 	const auto loc = diag.GetSourceLocation();
@@ -106,6 +124,8 @@ void Interpreter::InterpreterDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEng
 			m_Interpreter.m_Logger.Log(levelId, "^");
 		}
 	}
+
+	m_Errored = Diag::DiagnosticsEngine::IsUnrecoverableLevel(level);
 }
 
 Interpreter::InterpreterASTConsumer::InterpreterASTConsumer(Interpreter& interpreter)
@@ -162,94 +182,95 @@ Interpreter::InterpreterExprVisitor::~InterpreterExprVisitor()
 {
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitStmt(natRefPointer<Statement::Stmt> const& stmt)
+void Interpreter::InterpreterExprVisitor::VisitStmt(natRefPointer<Statement::Stmt> const& stmt)
 {
 	nat_Throw(InterpreterException, u8"此表达式无法被访问");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitExpr(natRefPointer<Expression::Expr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitExpr(natRefPointer<Expression::Expr> const& expr)
 {
-	return expr;
+	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<Expression::ArraySubscriptExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<Expression::ArraySubscriptExpr> const& expr)
 {
-	auto baseOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(Visit(expr->GetLeftOperand()));
+	Visit(expr->GetLeftOperand());
+	auto baseOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(nullptr);
 	
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitConstructExpr(natRefPointer<Expression::ConstructExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitConstructExpr(natRefPointer<Expression::ConstructExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitDeleteExpr(natRefPointer<Expression::DeleteExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitDeleteExpr(natRefPointer<Expression::DeleteExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitNewExpr(natRefPointer<Expression::NewExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitNewExpr(natRefPointer<Expression::NewExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitThisExpr(natRefPointer<Expression::ThisExpr> const& expr)
-{
-	return expr;
-}
-
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitThrowExpr(natRefPointer<Expression::ThrowExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitThisExpr(natRefPointer<Expression::ThisExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression::CallExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitThrowExpr(natRefPointer<Expression::ThrowExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitMemberCallExpr(natRefPointer<Expression::MemberCallExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression::CallExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitCastExpr(natRefPointer<Expression::CastExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitMemberCallExpr(natRefPointer<Expression::MemberCallExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitAsTypeExpr(natRefPointer<Expression::AsTypeExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitCastExpr(natRefPointer<Expression::CastExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Expression::ImplicitCastExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitAsTypeExpr(natRefPointer<Expression::AsTypeExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Expression::DeclRefExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Expression::ImplicitCastExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitMemberExpr(natRefPointer<Expression::MemberExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Expression::DeclRefExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitParenExpr(natRefPointer<Expression::ParenExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitMemberExpr(natRefPointer<Expression::MemberExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitStmtExpr(natRefPointer<Expression::StmtExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitParenExpr(natRefPointer<Expression::ParenExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-natRefPointer<Expression::Expr> Interpreter::InterpreterExprVisitor::VisitUnaryExprOrTypeTraitExpr(natRefPointer<Expression::UnaryExprOrTypeTraitExpr> const& expr)
+void Interpreter::InterpreterExprVisitor::VisitStmtExpr(natRefPointer<Expression::StmtExpr> const& expr)
+{
+	nat_Throw(InterpreterException, u8"此功能尚未实现");
+}
+
+void Interpreter::InterpreterExprVisitor::VisitUnaryExprOrTypeTraitExpr(natRefPointer<Expression::UnaryExprOrTypeTraitExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
@@ -378,14 +399,21 @@ Interpreter::~Interpreter()
 
 void Interpreter::Run(Uri uri)
 {
-	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(m_SourceManager.GetFileContent(m_SourceManager.GetFileID(uri)).second));
+	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(m_SourceManager.GetFileContent(m_SourceManager.GetFileID(uri)).second, m_Preprocessor));
 	m_Visitor->Visit(m_Parser.ParseStatement());
 }
 
 void Interpreter::Run(nStrView content)
 {
 	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(content, m_Preprocessor));
-	m_Visitor->Visit(m_Parser.ParseStatement());
+	m_Parser.ConsumeToken();
+	const auto stmt = m_Parser.ParseStatement();
+	if (!stmt || static_cast<natRefPointer<InterpreterDiagConsumer>>(m_Diag.GetDiagConsumer())->IsErrored())
+	{
+		nat_Throw(InterpreterException, "编译语句 \"{0}\" 失败", content);
+	}
+
+	m_Visitor->Visit(stmt);
 }
 
 natRefPointer<Semantic::Scope> Interpreter::GetScope() const noexcept

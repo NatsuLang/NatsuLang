@@ -1,0 +1,18 @@
+ErrUndefinedIdentifier
+未定义的标识符"{0}"
+ErrMultiCharInLiteral
+在字符字面量中出现多个字符
+ErrUnexpectEOF
+意外的文件结束
+ErrExpectedIdentifier
+期望获得标识符
+ErrExpectedTypeSpecifierGot
+期望获得类型说明符，但获得了 {0}
+ErrExpectedDeclarator
+期望获得声明符
+ErrExpected
+期望获得 {0}
+ErrExpectedGot
+期望获得 {0}，但获得了 {1}
+ErrExtraneousClosingBrace
+未匹配的关闭大括号

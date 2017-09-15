@@ -94,6 +94,11 @@ namespace NatsuLang::Diag
 		void Clear() noexcept;
 		nBool EmitDiag();
 
+		NatsuLib::natRefPointer<DiagnosticConsumer> GetDiagConsumer() const noexcept
+		{
+			return m_Consumer;
+		}
+
 	private:
 		using Argument = std::variant<nString, nChar, nInt, nuInt, Lex::TokenType, NatsuLib::natRefPointer<Identifier::IdentifierInfo>>;
 

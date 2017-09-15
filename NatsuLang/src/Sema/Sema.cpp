@@ -619,6 +619,11 @@ NatsuLang::Statement::StmtPtr Sema::ActOnLabelStmt(SourceLocation labelLoc, natR
 {
 	static_cast<void>(colonLoc);
 
+	if (!labelDecl)
+	{
+		return nullptr;
+	}
+
 	if (labelDecl->GetStmt())
 	{
 		// TODO: 报告标签重定义错误
@@ -984,6 +989,11 @@ NatsuLang::Expression::ExprPtr Sema::ActOnBinaryOp(natRefPointer<Scope> const& s
 
 NatsuLang::Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::BinaryOperationType binOpType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand)
 {
+	if (!leftOperand || !rightOperand)
+	{
+		return nullptr;
+	}
+
 	switch (binOpType)
 	{
 	case Expression::BinaryOperationType::Invalid:

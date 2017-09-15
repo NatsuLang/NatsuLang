@@ -115,12 +115,22 @@ nString Diag::DiagnosticsEngine::Diagnostic::GetDiagMessage() const
 		else
 		{
 			nuInt tmpIndex = 0;
-			while (++pRead != pEnd && CharInfo::IsWhitespace(*pRead)) {}
-			while (++pRead != pEnd && CharInfo::IsDigit(*pRead))
+			++pRead;
+			while (pRead != pEnd && CharInfo::IsWhitespace(*pRead))
 			{
-				tmpIndex = tmpIndex * 10 + *pRead - '0';
+				++pRead;
 			}
-			while (++pRead != pEnd && CharInfo::IsWhitespace(*pRead)) {}
+
+			while (pRead != pEnd && CharInfo::IsDigit(*pRead))
+			{
+				tmpIndex = tmpIndex * 10 + *pRead++ - '0';
+			}
+
+			while (pRead != pEnd && CharInfo::IsWhitespace(*pRead))
+			{
+				++pRead;
+			}
+
 			if (pRead == pEnd || *pRead != '}')
 			{
 				nat_Throw(natErrException, NatErr_InvalidArg, "Expect '}'.");
