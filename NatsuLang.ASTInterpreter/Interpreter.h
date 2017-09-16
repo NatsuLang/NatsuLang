@@ -80,6 +80,7 @@ namespace NatsuLang
 
 			void Clear() noexcept;
 			void PrintExpr(NatsuLib::natRefPointer<Expression::Expr> const& expr);
+			Expression::ExprPtr GetLastVisitedExpr() const noexcept;
 
 			void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) override;
 			void VisitExpr(NatsuLib::natRefPointer<Expression::Expr> const& expr) override;
@@ -113,7 +114,7 @@ namespace NatsuLang
 
 		private:
 			Interpreter& m_Interpreter;
-			NatsuLib::natRefPointer<Expression::Expr> m_LastVisitedExpr;
+			Expression::ExprPtr m_LastVisitedExpr;
 			nBool m_ShouldPrint;
 		};
 

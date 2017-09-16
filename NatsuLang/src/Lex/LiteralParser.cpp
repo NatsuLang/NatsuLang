@@ -60,7 +60,7 @@ namespace
 		assert(*cur == '\\');
 
 		++cur;
-		nuInt chr = *cur++;
+		nuInt chr = *cur;
 		switch (chr)
 		{
 		case '\'':
@@ -417,7 +417,7 @@ StringLiteralParser::StringLiteralParser(nStrView buffer, SourceLocation loc, Di
 		}
 		else
 		{
-			auto codePoint = EscapeChar(m_Current, end, m_Errored, loc, m_Diag);
+			const auto codePoint = EscapeChar(m_Current, end, m_Errored, loc, m_Diag);
 			// TODO: 适配具有不同宽度的字符串
 			m_Value.Append(static_cast<nString::CharType>(codePoint & std::numeric_limits<nString::CharType>::max()));
 		}

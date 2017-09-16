@@ -20,7 +20,7 @@ namespace NatsuLang::Identifier
 		nInt CompareTo(NatsuLib::natRefPointer<IdentifierInfo> const& other) const override;
 
 	private:
-		nStrView m_Name;
+		nString m_Name;
 		Lex::TokenType m_TokenType;
 	};
 

@@ -37,7 +37,7 @@ namespace NatsuLang::Statement
 
 		~DeclStmt();
 
-		DeclEnumerable const& GetDecls() const noexcept
+		DeclEnumerable GetDecls() const noexcept
 		{
 			return from(m_Decls);
 		}

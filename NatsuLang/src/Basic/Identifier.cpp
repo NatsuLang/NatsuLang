@@ -48,7 +48,7 @@ NatsuLang::Lex::TokenType IdentifierInfo::SetTokenType(Lex::TokenType tokenType)
 
 nInt IdentifierInfo::CompareTo(natRefPointer<IdentifierInfo> const& other) const
 {
-	return m_Name.Compare(other->m_Name);
+	return m_Name.GetView().Compare(other->m_Name);
 }
 
 natRefPointer<IdentifierInfo> IdentifierTable::GetOrAdd(nStrView name, Lex::TokenType tokenType)

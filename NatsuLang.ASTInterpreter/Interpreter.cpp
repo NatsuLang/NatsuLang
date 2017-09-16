@@ -198,6 +198,11 @@ void Interpreter::InterpreterExprVisitor::PrintExpr(natRefPointer<Expression::Ex
 	}
 }
 
+Expression::ExprPtr Interpreter::InterpreterExprVisitor::GetLastVisitedExpr() const noexcept
+{
+	return m_LastVisitedExpr;
+}
+
 void Interpreter::InterpreterExprVisitor::VisitStmt(natRefPointer<Statement::Stmt> const& stmt)
 {
 	nat_Throw(InterpreterException, u8"此表达式无法被访问");
@@ -213,7 +218,7 @@ void Interpreter::InterpreterExprVisitor::VisitBooleanLiteral(natRefPointer<Expr
 	VisitExpr(expr);
 	if (m_ShouldPrint)
 	{
-		m_Interpreter.m_Logger.LogMsg("(Expr) {0}", expr->GetValue() ? "true" : "false");
+		m_Interpreter.m_Logger.LogMsg("(表达式) {0}", expr->GetValue() ? "true" : "false");
 	}
 }
 
@@ -222,7 +227,7 @@ void Interpreter::InterpreterExprVisitor::VisitCharacterLiteral(natRefPointer<Ex
 	VisitExpr(expr);
 	if (m_ShouldPrint)
 	{
-		m_Interpreter.m_Logger.LogMsg("(Expr) '{0}'", U32StringView{ static_cast<U32StringView::CharType>(expr->GetCodePoint()) });
+		m_Interpreter.m_Logger.LogMsg("(表达式) '{0}'", U32StringView{ static_cast<U32StringView::CharType>(expr->GetCodePoint()) });
 	}
 }
 
@@ -240,7 +245,7 @@ void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Express
 
 		visit([this, id = decl->GetIdentifierInfo()](auto value)
 		{
-			m_Interpreter.m_Logger.LogMsg("(Decl : {0}) {1}", id ? id->GetName() : "(临时对象)", value);
+			m_Interpreter.m_Logger.LogMsg("(声明 : {0}) {1}", id ? id->GetName() : "(临时对象)", value);
 		}, iter->second);
 	}
 }
@@ -250,7 +255,7 @@ void Interpreter::InterpreterExprVisitor::VisitFloatingLiteral(natRefPointer<Exp
 	VisitExpr(expr);
 	if (m_ShouldPrint)
 	{
-		m_Interpreter.m_Logger.LogMsg("(Expr) {0}", expr->GetValue());
+		m_Interpreter.m_Logger.LogMsg("(表达式) {0}", expr->GetValue());
 	}
 }
 
@@ -259,7 +264,7 @@ void Interpreter::InterpreterExprVisitor::VisitIntegerLiteral(natRefPointer<Expr
 	VisitExpr(expr);
 	if (m_ShouldPrint)
 	{
-		m_Interpreter.m_Logger.LogMsg("(Expr) {0}", expr->GetValue());
+		m_Interpreter.m_Logger.LogMsg("(表达式) {0}", expr->GetValue());
 	}
 }
 
@@ -268,7 +273,7 @@ void Interpreter::InterpreterExprVisitor::VisitStringLiteral(natRefPointer<Expre
 	VisitExpr(expr);
 	if (m_ShouldPrint)
 	{
-		m_Interpreter.m_Logger.LogMsg("(Expr) \"{0}\"", expr->GetValue());
+		m_Interpreter.m_Logger.LogMsg("(表达式) \"{0}\"", expr->GetValue());
 	}
 }
 
@@ -471,6 +476,57 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 
 void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expression::UnaryOperator> const& expr)
 {
+	const auto opCode = expr->GetOpcode();
+	Visit(expr->GetOperand());
+	const auto declExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr);
+
+	switch (opCode)
+	{
+	case Expression::UnaryOperationType::PostInc:
+		break;
+	case Expression::UnaryOperationType::PostDec:
+		break;
+	case Expression::UnaryOperationType::PreInc:
+		if (declExpr)
+		{
+			const auto iter = m_Interpreter.m_DeclStorage.find(declExpr->GetDecl());
+			if (iter != m_Interpreter.m_DeclStorage.cend())
+			{
+				visit([this](auto& value)
+				{
+					++value;
+				}, iter->second);
+				return;
+			}
+		}
+		break;
+	case Expression::UnaryOperationType::PreDec:
+		if (declExpr)
+		{
+			const auto iter = m_Interpreter.m_DeclStorage.find(declExpr->GetDecl());
+			if (iter != m_Interpreter.m_DeclStorage.cend())
+			{
+				visit([this](auto& value)
+				{
+					--value;
+				}, iter->second);
+				return;
+			}
+		}
+		break;
+	case Expression::UnaryOperationType::Plus:
+		return;
+	case Expression::UnaryOperationType::Minus:
+		break;
+	case Expression::UnaryOperationType::Not:
+		break;
+	case Expression::UnaryOperationType::LNot:
+		break;
+	case Expression::UnaryOperationType::Invalid:
+	default:
+		break;
+	}
+
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
@@ -524,7 +580,27 @@ void Interpreter::InterpreterStmtVisitor::VisitContinueStmt(natRefPointer<Statem
 
 void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	for (auto&& decl : stmt->GetDecls())
+	{
+		if (auto varDecl = static_cast<natRefPointer<Declaration::VarDecl>>(decl))
+		{
+			if (auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(varDecl->GetValueType()))
+			{
+				if (builtinType->IsIntegerType())
+				{
+					InterpreterExprVisitor visitor{ m_Interpreter };
+					visitor.Visit(varDecl->GetInitializer());
+					m_Interpreter.m_DeclStorage.emplace(
+						std::piecewise_construct,
+						std::forward_as_tuple(varDecl),
+						std::forward_as_tuple(std::in_place_index<0>, static_cast<natRefPointer<Expression::IntegerLiteral>>(visitor.GetLastVisitedExpr()))
+					);
+				}
+			}
+		}
+
+		
+	}
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitDoStmt(natRefPointer<Statement::DoStmt> const& stmt)
