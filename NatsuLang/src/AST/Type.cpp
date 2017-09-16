@@ -138,30 +138,12 @@ BuiltinType::BuiltinClass BuiltinType::GetBuiltinClassFromTokenType(Lex::TokenTy
 {
 	switch (type)
 	{
-	case Lex::TokenType::Kw_bool:
-		return Bool;
-	case Lex::TokenType::Kw_char:
-		return Char;
-	case Lex::TokenType::Kw_ushort:
-		return UShort;
-	case Lex::TokenType::Kw_uint:
-		return UInt;
-	case Lex::TokenType::Kw_ulong:
-		return ULong;
-	case Lex::TokenType::Kw_ulonglong:
-		return ULongLong;
-	case Lex::TokenType::Kw_uint128:
-		return UInt128;
-	case Lex::TokenType::Kw_short:
-		return Short;
-	case Lex::TokenType::Kw_int:
-		return Int;
-	case Lex::TokenType::Kw_long:
-		return Long;
-	case Lex::TokenType::Kw_longlong:
-		return LongLong;
-	case Lex::TokenType::Kw_int128:
-		return Int128;
+#define BUILTIN_TYPE(Id, Name) case Lex::TokenType::Kw_ ## Name: return Id;
+#define SIGNED_TYPE(Id, Name) case Lex::TokenType::Kw_ ## Name: return Id;
+#define UNSIGNED_TYPE(Id, Name) case Lex::TokenType::Kw_ ## Name: return Id;
+#define FLOATING_TYPE(Id, Name) case Lex::TokenType::Kw_ ## Name: return Id;
+#define PLACEHOLDER_TYPE(Id, Name)
+#include "Basic/BuiltinTypesDef.h"
 	default:
 		return Invalid;
 	}

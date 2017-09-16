@@ -34,6 +34,11 @@ DiagnosticsEngine& Parser::GetDiagnosticsEngine() const noexcept
 	return m_Diag;
 }
 
+Semantic::Sema& Parser::GetSema() const noexcept
+{
+	return m_Sema;
+}
+
 #if PARSER_USE_EXCEPTION
 Expression::ExprPtr Parser::ParseExprError()
 {
@@ -937,47 +942,55 @@ void Parser::ParseFunctionType(Declaration::Declarator& decl)
 
 	auto mayBeParenType = true;
 
-	while (true)
+	if (!m_CurrentToken.Is(TokenType::RightParen))
 	{
-		Declaration::Declarator param{ Declaration::Context::Prototype };
-		ParseDeclarator(param);
-		if (mayBeParenType && param.GetIdentifier() || !param.GetType())
+		while (true)
 		{
+			Declaration::Declarator param{ Declaration::Context::Prototype };
+			ParseDeclarator(param);
+			if (mayBeParenType && param.GetIdentifier() || !param.GetType())
+			{
+				mayBeParenType = false;
+			}
+
+			if (param.IsValid())
+			{
+				paramDecls.emplace_back(std::move(param));
+			}
+			else
+			{
+				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedDeclarator, m_CurrentToken.GetLocation());
+			}
+
+			if (!param.GetType() && !param.GetInitializer())
+			{
+				// TODO: 报告错误：参数的类型和初始化器至少要存在一个
+			}
+
+			if (m_CurrentToken.Is(TokenType::RightParen))
+			{
+				ConsumeParen();
+				break;
+			}
+
 			mayBeParenType = false;
-		}
 
-		if (param.IsValid())
-		{
-			paramDecls.emplace_back(std::move(param));
+			if (!m_CurrentToken.Is(TokenType::Comma))
+			{
+				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+					.AddArgument(TokenType::Comma)
+					.AddArgument(m_CurrentToken.GetType());
+			}
+			else
+			{
+				ConsumeToken();
+			}
 		}
-		else
-		{
-			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedDeclarator, m_CurrentToken.GetLocation());
-		}
-
-		if (!param.GetType() && !param.GetInitializer())
-		{
-			// TODO: 报告错误：参数的类型和初始化器至少要存在一个
-		}
-
-		if (m_CurrentToken.Is(TokenType::RightParen))
-		{
-			ConsumeParen();
-			break;
-		}
-
+	}
+	else
+	{
 		mayBeParenType = false;
-
-		if (!m_CurrentToken.Is(TokenType::Comma))
-		{
-			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-				.AddArgument(TokenType::Comma)
-				.AddArgument(m_CurrentToken.GetType());
-		}
-		else
-		{
-			ConsumeToken();
-		}
+		ConsumeParen();
 	}
 
 	// 读取完函数参数信息，开始读取返回类型
@@ -1125,15 +1138,23 @@ void NatsuLang::ParseAST(Preprocessor& pp, ASTContext& astContext, natRefPointer
 	Semantic::Sema sema{ pp, astContext, astConsumer };
 	Parser parser{ pp, sema };
 
+	ParseAST(parser);
+}
+
+void NatsuLang::ParseAST(Parser& parser)
+{
+	auto& sema = parser.GetSema();
+	auto const& consumer = sema.GetASTConsumer();
+
 	std::vector<Declaration::DeclPtr> decls;
 
 	for (auto atEof = parser.ParseTopLevelDecl(decls); !atEof; atEof = parser.ParseTopLevelDecl(decls))
 	{
-		if (!astConsumer->HandleTopLevelDecl(from(decls)))
+		if (!consumer->HandleTopLevelDecl(from(decls)))
 		{
 			return;
 		}
 	}
 
-	astConsumer->HandleTranslationUnit(astContext);
+	consumer->HandleTranslationUnit(sema.GetASTContext());
 }

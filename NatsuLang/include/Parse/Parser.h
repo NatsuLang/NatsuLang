@@ -76,6 +76,7 @@ namespace NatsuLang::Syntax
 
 		Preprocessor& GetPreprocessor() const noexcept;
 		Diag::DiagnosticsEngine& GetDiagnosticsEngine() const noexcept;
+		Semantic::Sema& GetSema() const noexcept;
 
 		void ConsumeToken()
 		{
@@ -265,4 +266,5 @@ namespace NatsuLang
 	struct ASTConsumer;
 
 	void ParseAST(Preprocessor& pp, ASTContext& astContext, NatsuLib::natRefPointer<ASTConsumer> astConsumer);
+	void ParseAST(Syntax::Parser& parser);
 }

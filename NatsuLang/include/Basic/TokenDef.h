@@ -94,6 +94,7 @@ KEYWORD(this)
 KEYWORD(typeof)
 KEYWORD(as)
 
+KEYWORD(void)
 KEYWORD(bool)
 KEYWORD(char)
 KEYWORD(ushort)
@@ -106,6 +107,10 @@ KEYWORD(int)
 KEYWORD(long)
 KEYWORD(longlong)
 KEYWORD(int128)
+KEYWORD(float)
+KEYWORD(double)
+KEYWORD(longdouble)
+KEYWORD(float128)
 
 #undef KEYWORD
 #undef PUNCTUATOR

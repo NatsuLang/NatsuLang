@@ -182,6 +182,11 @@ Interpreter::InterpreterExprVisitor::~InterpreterExprVisitor()
 {
 }
 
+void Interpreter::InterpreterExprVisitor::Clear() noexcept
+{
+	m_LastVisitedExpr = nullptr;
+}
+
 void Interpreter::InterpreterExprVisitor::VisitStmt(natRefPointer<Statement::Stmt> const& stmt)
 {
 	nat_Throw(InterpreterException, u8"此表达式无法被访问");
@@ -189,14 +194,43 @@ void Interpreter::InterpreterExprVisitor::VisitStmt(natRefPointer<Statement::Stm
 
 void Interpreter::InterpreterExprVisitor::VisitExpr(natRefPointer<Expression::Expr> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	m_LastVisitedExpr = expr;
 }
 
 void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<Expression::ArraySubscriptExpr> const& expr)
 {
 	Visit(expr->GetLeftOperand());
-	auto baseOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(nullptr);
+	const auto baseOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr);
+	natRefPointer<Declaration::ValueDecl> baseDecl;
+	natRefPointer<Type::ArrayType> baseType;
+	if (baseOperand)
+	{
+		baseDecl = baseOperand->GetDecl();
+		baseType = baseOperand->GetExprType();
+	}
+
+	if (!baseOperand || !baseDecl || !baseType)
+	{
+		nat_Throw(InterpreterException, u8"基础操作数无法被计算为有效的定义引用表达式");
+	}
 	
+	Visit(expr->GetRightOperand());
+	nuLong indexValue;
+	if (const auto indexDeclOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr))
+	{
+		const auto iter = m_Interpreter.m_DeclStorage.find(indexDeclOperand->GetDecl());
+		if (iter == m_Interpreter.m_DeclStorage.cend())
+		{
+			nat_Throw(InterpreterException, u8"下标操作数引用了一个不存在的值定义");
+		}
+
+		indexValue = std::get<0>(iter->second);
+	}
+	else if (const auto indexLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
+	{
+		indexValue = indexLiteralOperand->GetValue();
+	}
+
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
@@ -247,11 +281,63 @@ void Interpreter::InterpreterExprVisitor::VisitAsTypeExpr(natRefPointer<Expressi
 
 void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Expression::ImplicitCastExpr> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
-}
+	Visit(expr->GetOperand());
 
-void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Expression::DeclRefExpr> const& expr)
-{
+	// TODO
+	auto castToType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetExprType());
+	auto tempObjDef = make_ref<Declaration::ValueDecl>(Declaration::Decl::Var, m_Interpreter.m_CurrentScope->GetEntity(), SourceLocation{}, nullptr, castToType);
+	auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, castToType);
+
+	if (castToType)
+	{
+		if (castToType->IsIntegerType())
+		{
+			if (const auto declOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr))
+			{
+				const auto iter = m_Interpreter.m_DeclStorage.find(declOperand->GetDecl());
+				if (iter != m_Interpreter.m_DeclStorage.cend())
+				{
+					const auto declValue = iter->second;
+					visit([this](auto value)
+					{
+						m_Interpreter.m_DeclStorage.emplace(tempObjDef, std::in_place_index<0>, static_cast<nuLong>(value));
+					}, declValue);
+				}
+			}
+			else if (const auto intLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
+			{
+				m_Interpreter.m_DeclStorage.emplace(tempObjDef, std::in_place_index<0>, intLiteralOperand->GetValue());
+			}
+			else if (const auto floatLiteralOperand = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
+			{
+				m_Interpreter.m_DeclStorage.emplace(tempObjDef, std::in_place_index<0>, static_cast<nuLong>(floatLiteralOperand->GetValue()));
+			}
+		}
+		else if (castToType->IsFloatingType())
+		{
+			if (const auto declOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr))
+			{
+				const auto iter = m_Interpreter.m_DeclStorage.find(declOperand->GetDecl());
+				if (iter != m_Interpreter.m_DeclStorage.cend())
+				{
+					const auto declValue = iter->second;
+					visit([this](auto value)
+					{
+						m_Interpreter.m_DeclStorage.emplace(tempObjDef, std::in_place_index<1>, static_cast<nDouble>(value));
+					}, declValue);
+				}
+			}
+			else if (const auto intLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
+			{
+				m_Interpreter.m_DeclStorage.emplace(tempObjDef, std::in_place_index<1>, static_cast<nDouble>(intLiteralOperand->GetValue()));
+			}
+			else if (const auto floatLiteralOperand = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
+			{
+				m_Interpreter.m_DeclStorage.emplace(tempObjDef, std::in_place_index<1>, floatLiteralOperand->GetValue());
+			}
+		}
+	}
+	
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
@@ -262,7 +348,7 @@ void Interpreter::InterpreterExprVisitor::VisitMemberExpr(natRefPointer<Expressi
 
 void Interpreter::InterpreterExprVisitor::VisitParenExpr(natRefPointer<Expression::ParenExpr> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	m_LastVisitedExpr = expr->GetInnerExpr();
 }
 
 void Interpreter::InterpreterExprVisitor::VisitStmtExpr(natRefPointer<Expression::StmtExpr> const& expr)
@@ -273,6 +359,22 @@ void Interpreter::InterpreterExprVisitor::VisitStmtExpr(natRefPointer<Expression
 void Interpreter::InterpreterExprVisitor::VisitUnaryExprOrTypeTraitExpr(natRefPointer<Expression::UnaryExprOrTypeTraitExpr> const& expr)
 {
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
+}
+
+void Interpreter::InterpreterExprVisitor::VisitConditionalOperator(natRefPointer<Expression::ConditionalOperator> const& expr)
+{
+}
+
+void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> const& expr)
+{
+}
+
+void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPointer<Expression::CompoundAssignOperator> const& expr)
+{
+}
+
+void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expression::UnaryOperator> const& expr)
+{
 }
 
 Interpreter::InterpreterStmtVisitor::InterpreterStmtVisitor(Interpreter& interpreter)
@@ -287,6 +389,13 @@ Interpreter::InterpreterStmtVisitor::~InterpreterStmtVisitor()
 void Interpreter::InterpreterStmtVisitor::VisitStmt(natRefPointer<Statement::Stmt> const& stmt)
 {
 	nat_Throw(InterpreterException, u8"此语句无法被访问");
+}
+
+void Interpreter::InterpreterStmtVisitor::VisitExpr(natRefPointer<Expression::Expr> const& expr)
+{
+	InterpreterExprVisitor visitor{ m_Interpreter };
+	visitor.Visit(expr);
+	// TODO: 输出 expr
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitBreakStmt(natRefPointer<Statement::BreakStmt> const& stmt)
@@ -377,17 +486,14 @@ void Interpreter::InterpreterStmtVisitor::VisitWhileStmt(natRefPointer<Statement
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
-void Interpreter::InterpreterStmtVisitor::VisitExpr(natRefPointer<Expression::Expr> const& expr)
-{
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
-}
-
 Interpreter::Interpreter(natRefPointer<TextReader<StringType::Utf8>> const& diagIdMapFile, natLog& logger)
-	: m_Diag{ make_ref<InterpreterDiagIdMap>(diagIdMapFile), make_ref<InterpreterDiagConsumer>(*this) },
+	: m_DiagConsumer{ make_ref<InterpreterDiagConsumer>(*this) },
+	m_Diag{ make_ref<InterpreterDiagIdMap>(diagIdMapFile), m_DiagConsumer },
 	m_Logger{ logger },
 	m_SourceManager{ m_Diag, m_FileManager },
 	m_Preprocessor{ m_Diag, m_SourceManager },
-	m_Sema{ m_Preprocessor, m_AstContext, m_Consumer = make_ref<InterpreterASTConsumer>(*this) },
+	m_Consumer{ make_ref<InterpreterASTConsumer>(*this) },
+	m_Sema{ m_Preprocessor, m_AstContext, m_Consumer },
 	m_Parser{ m_Preprocessor, m_Sema },
 	m_Visitor{ make_ref<InterpreterStmtVisitor>(*this) }
 {
@@ -397,10 +503,10 @@ Interpreter::~Interpreter()
 {
 }
 
-void Interpreter::Run(Uri uri)
+void Interpreter::Run(Uri const& uri)
 {
 	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(m_SourceManager.GetFileContent(m_SourceManager.GetFileID(uri)).second, m_Preprocessor));
-	m_Visitor->Visit(m_Parser.ParseStatement());
+	ParseAST(m_Parser);
 }
 
 void Interpreter::Run(nStrView content)
@@ -408,8 +514,9 @@ void Interpreter::Run(nStrView content)
 	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(content, m_Preprocessor));
 	m_Parser.ConsumeToken();
 	const auto stmt = m_Parser.ParseStatement();
-	if (!stmt || static_cast<natRefPointer<InterpreterDiagConsumer>>(m_Diag.GetDiagConsumer())->IsErrored())
+	if (!stmt || m_DiagConsumer->IsErrored())
 	{
+		m_DiagConsumer->Reset();
 		nat_Throw(InterpreterException, "编译语句 \"{0}\" 失败", content);
 	}
 
