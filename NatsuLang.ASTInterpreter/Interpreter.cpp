@@ -174,7 +174,7 @@ nBool Interpreter::InterpreterASTConsumer::HandleTopLevelDecl(Linq<Valued<Declar
 }
 
 Interpreter::InterpreterExprVisitor::InterpreterExprVisitor(Interpreter& interpreter)
-	: m_Interpreter{ interpreter }
+	: m_Interpreter{ interpreter }, m_ShouldPrint{ false }
 {
 }
 
@@ -187,6 +187,17 @@ void Interpreter::InterpreterExprVisitor::Clear() noexcept
 	m_LastVisitedExpr = nullptr;
 }
 
+void Interpreter::InterpreterExprVisitor::PrintExpr(natRefPointer<Expression::Expr> const& expr)
+{
+	Visit(expr);
+	if (m_LastVisitedExpr)
+	{
+		m_ShouldPrint = true;
+		Visit(m_LastVisitedExpr);
+		m_ShouldPrint = false;
+	}
+}
+
 void Interpreter::InterpreterExprVisitor::VisitStmt(natRefPointer<Statement::Stmt> const& stmt)
 {
 	nat_Throw(InterpreterException, u8"此表达式无法被访问");
@@ -195,6 +206,70 @@ void Interpreter::InterpreterExprVisitor::VisitStmt(natRefPointer<Statement::Stm
 void Interpreter::InterpreterExprVisitor::VisitExpr(natRefPointer<Expression::Expr> const& expr)
 {
 	m_LastVisitedExpr = expr;
+}
+
+void Interpreter::InterpreterExprVisitor::VisitBooleanLiteral(natRefPointer<Expression::BooleanLiteral> const& expr)
+{
+	VisitExpr(expr);
+	if (m_ShouldPrint)
+	{
+		m_Interpreter.m_Logger.LogMsg("(Expr) {0}", expr->GetValue() ? "true" : "false");
+	}
+}
+
+void Interpreter::InterpreterExprVisitor::VisitCharacterLiteral(natRefPointer<Expression::CharacterLiteral> const& expr)
+{
+	VisitExpr(expr);
+	if (m_ShouldPrint)
+	{
+		m_Interpreter.m_Logger.LogMsg("(Expr) '{0}'", U32StringView{ static_cast<U32StringView::CharType>(expr->GetCodePoint()) });
+	}
+}
+
+void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Expression::DeclRefExpr> const& expr)
+{
+	VisitExpr(expr);
+	if (m_ShouldPrint)
+	{
+		const auto decl = expr->GetDecl();
+		const auto iter = m_Interpreter.m_DeclStorage.find(decl);
+		if (iter == m_Interpreter.m_DeclStorage.cend())
+		{
+			nat_Throw(InterpreterException, u8"表达式引用了一个不存在的值定义");
+		}
+
+		visit([this, id = decl->GetIdentifierInfo()](auto value)
+		{
+			m_Interpreter.m_Logger.LogMsg("(Decl : {0}) {1}", id ? id->GetName() : "(临时对象)", value);
+		}, iter->second);
+	}
+}
+
+void Interpreter::InterpreterExprVisitor::VisitFloatingLiteral(natRefPointer<Expression::FloatingLiteral> const& expr)
+{
+	VisitExpr(expr);
+	if (m_ShouldPrint)
+	{
+		m_Interpreter.m_Logger.LogMsg("(Expr) {0}", expr->GetValue());
+	}
+}
+
+void Interpreter::InterpreterExprVisitor::VisitIntegerLiteral(natRefPointer<Expression::IntegerLiteral> const& expr)
+{
+	VisitExpr(expr);
+	if (m_ShouldPrint)
+	{
+		m_Interpreter.m_Logger.LogMsg("(Expr) {0}", expr->GetValue());
+	}
+}
+
+void Interpreter::InterpreterExprVisitor::VisitStringLiteral(natRefPointer<Expression::StringLiteral> const& expr)
+{
+	VisitExpr(expr);
+	if (m_ShouldPrint)
+	{
+		m_Interpreter.m_Logger.LogMsg("(Expr) \"{0}\"", expr->GetValue());
+	}
 }
 
 void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<Expression::ArraySubscriptExpr> const& expr)
@@ -298,19 +373,28 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 				if (iter != m_Interpreter.m_DeclStorage.cend())
 				{
 					const auto declValue = iter->second;
-					visit([this](auto value)
+					visit([this, &tempObjDef](auto value)
 					{
-						m_Interpreter.m_DeclStorage.emplace(tempObjDef, std::in_place_index<0>, static_cast<nuLong>(value));
+						m_Interpreter.m_DeclStorage.emplace(
+							std::piecewise_construct,
+							std::forward_as_tuple(tempObjDef),
+							std::forward_as_tuple(std::in_place_index<0>, static_cast<nuLong>(value)));
 					}, declValue);
 				}
 			}
 			else if (const auto intLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
 			{
-				m_Interpreter.m_DeclStorage.emplace(tempObjDef, std::in_place_index<0>, intLiteralOperand->GetValue());
+				m_Interpreter.m_DeclStorage.emplace(
+					std::piecewise_construct,
+					std::forward_as_tuple(tempObjDef),
+					std::forward_as_tuple(std::in_place_index<0>, intLiteralOperand->GetValue()));
 			}
 			else if (const auto floatLiteralOperand = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
 			{
-				m_Interpreter.m_DeclStorage.emplace(tempObjDef, std::in_place_index<0>, static_cast<nuLong>(floatLiteralOperand->GetValue()));
+				m_Interpreter.m_DeclStorage.emplace(
+					std::piecewise_construct,
+					std::forward_as_tuple(tempObjDef),
+					std::forward_as_tuple(std::in_place_index<0>, static_cast<nuLong>(floatLiteralOperand->GetValue())));
 			}
 		}
 		else if (castToType->IsFloatingType())
@@ -321,19 +405,28 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 				if (iter != m_Interpreter.m_DeclStorage.cend())
 				{
 					const auto declValue = iter->second;
-					visit([this](auto value)
+					visit([this, &tempObjDef](auto value)
 					{
-						m_Interpreter.m_DeclStorage.emplace(tempObjDef, std::in_place_index<1>, static_cast<nDouble>(value));
+						m_Interpreter.m_DeclStorage.emplace(
+							std::piecewise_construct,
+							std::forward_as_tuple(tempObjDef),
+							std::forward_as_tuple(std::in_place_index<1>, static_cast<nDouble>(value)));
 					}, declValue);
 				}
 			}
 			else if (const auto intLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
 			{
-				m_Interpreter.m_DeclStorage.emplace(tempObjDef, std::in_place_index<1>, static_cast<nDouble>(intLiteralOperand->GetValue()));
+				m_Interpreter.m_DeclStorage.emplace(
+					std::piecewise_construct,
+					std::forward_as_tuple(tempObjDef),
+					std::forward_as_tuple(std::in_place_index<1>, static_cast<nDouble>(intLiteralOperand->GetValue())));
 			}
 			else if (const auto floatLiteralOperand = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
 			{
-				m_Interpreter.m_DeclStorage.emplace(tempObjDef, std::in_place_index<1>, floatLiteralOperand->GetValue());
+				m_Interpreter.m_DeclStorage.emplace(
+					std::piecewise_construct,
+					std::forward_as_tuple(tempObjDef),
+					std::forward_as_tuple(std::in_place_index<1>, floatLiteralOperand->GetValue()));
 			}
 		}
 	}
@@ -363,18 +456,22 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryExprOrTypeTraitExpr(natRefPo
 
 void Interpreter::InterpreterExprVisitor::VisitConditionalOperator(natRefPointer<Expression::ConditionalOperator> const& expr)
 {
+	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
 void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> const& expr)
 {
+	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
 void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPointer<Expression::CompoundAssignOperator> const& expr)
 {
+	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
 void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expression::UnaryOperator> const& expr)
 {
+	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
 Interpreter::InterpreterStmtVisitor::InterpreterStmtVisitor(Interpreter& interpreter)
@@ -394,8 +491,7 @@ void Interpreter::InterpreterStmtVisitor::VisitStmt(natRefPointer<Statement::Stm
 void Interpreter::InterpreterStmtVisitor::VisitExpr(natRefPointer<Expression::Expr> const& expr)
 {
 	InterpreterExprVisitor visitor{ m_Interpreter };
-	visitor.Visit(expr);
-	// TODO: 输出 expr
+	visitor.PrintExpr(expr);
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitBreakStmt(natRefPointer<Statement::BreakStmt> const& stmt)

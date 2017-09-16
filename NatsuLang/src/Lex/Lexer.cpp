@@ -485,7 +485,7 @@ nBool Lexer::lexCharLiteral(Lex::Token& result, Iterator cur)
 
 	const auto start = cur, end = m_Buffer.end();
 
-	auto prevChar = *cur;
+	auto prevChar = *cur++;
 	while (cur != end)
 	{
 		if (*cur == '\'' && prevChar != '\\')
@@ -497,16 +497,8 @@ nBool Lexer::lexCharLiteral(Lex::Token& result, Iterator cur)
 		prevChar = *cur++;
 	}
 
-	if (cur == end)
-	{
-		m_Preprocessor.GetDiag().Report(Diag::DiagnosticsEngine::DiagID::ErrUnexpectEOF);
-	}
-	else
-	{
-		result.SetType(TokenType::CharLiteral);
-		result.SetLiteralContent({ start, cur });
-		++cur;
-	}
+	result.SetType(TokenType::CharLiteral);
+	result.SetLiteralContent({ start, cur });
 
 	m_Current = cur;
 	return true;
@@ -518,7 +510,7 @@ nBool Lexer::lexStringLiteral(Lex::Token& result, Iterator cur)
 
 	const auto start = cur, end = m_Buffer.end();
 
-	auto prevChar = *cur;
+	auto prevChar = *cur++;
 	while (cur != end)
 	{
 		if (*cur == '"' && prevChar != '\\')
@@ -530,16 +522,8 @@ nBool Lexer::lexStringLiteral(Lex::Token& result, Iterator cur)
 		prevChar = *cur++;
 	}
 
-	if (cur == end)
-	{
-		m_Preprocessor.GetDiag().Report(Diag::DiagnosticsEngine::DiagID::ErrUnexpectEOF);
-	}
-	else
-	{
-		result.SetType(TokenType::StringLiteral);
-		result.SetLiteralContent({ start, cur });
-		++cur;
-	}
+	result.SetType(TokenType::StringLiteral);
+	result.SetLiteralContent({ start, cur });
 
 	m_Current = cur;
 	return true;

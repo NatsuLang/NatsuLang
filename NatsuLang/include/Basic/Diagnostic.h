@@ -202,4 +202,33 @@ namespace NatsuLang::Diag
 		virtual void Finish();
 		virtual void HandleDiagnostic(DiagnosticsEngine::Level level, DiagnosticsEngine::Diagnostic const& diag) = 0;
 	};
+
+	class DiagException
+		: public NatsuLib::natException
+	{
+	public:
+		typedef NatsuLib::natException BaseException;
+
+		DiagException(nStrView src, nStrView file, nuInt line, DiagnosticsEngine::DiagID diagId);
+		DiagException(std::exception_ptr nestedException, nStrView src, nStrView file, nuInt line, DiagnosticsEngine::DiagID diagId);
+
+		template <typename... Args>
+		DiagException(nStrView src, nStrView file, nuInt line, DiagnosticsEngine::DiagID diagId, nStrView desc, Args&&... args)
+			: BaseException(src, file, line, desc, std::forward<Args>(args)...), m_Id{ diagId }
+		{
+		}
+
+		template <typename... Args>
+		DiagException(std::exception_ptr nestedException, nStrView src, nStrView file, nuInt line, DiagnosticsEngine::DiagID diagId, nStrView desc, Args&&... args)
+			: BaseException(nestedException, src, file, line, desc, std::forward<Args>(args)...), m_Id{ diagId }
+		{
+		}
+
+		~DiagException();
+
+		DiagnosticsEngine::DiagID GetDiagId() const noexcept;
+
+	private:
+		DiagnosticsEngine::DiagID m_Id;
+	};
 }

@@ -173,3 +173,22 @@ void Diag::DiagnosticConsumer::EndSourceFile()
 void Diag::DiagnosticConsumer::Finish()
 {
 }
+
+Diag::DiagException::DiagException(nStrView src, nStrView file, nuInt line, DiagnosticsEngine::DiagID diagId)
+	: BaseException(src, file, line, u8"Exception with DiagID infomation."), m_Id{ diagId }
+{
+}
+
+Diag::DiagException::DiagException(std::exception_ptr nestedException, nStrView src, nStrView file, nuInt line, DiagnosticsEngine::DiagID diagId)
+	: BaseException(nestedException, src, file, line, u8"Exception with DiagID infomation."), m_Id{ diagId }
+{
+}
+
+Diag::DiagException::~DiagException()
+{
+}
+
+Diag::DiagnosticsEngine::DiagID Diag::DiagException::GetDiagId() const noexcept
+{
+	return m_Id;
+}
