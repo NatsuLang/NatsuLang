@@ -2,6 +2,7 @@
 
 using namespace NatsuLib;
 using namespace NatsuLang;
+using namespace NatsuLang::Detail;
 
 Interpreter::InterpreterDiagIdMap::InterpreterDiagIdMap(natRefPointer<TextReader<StringType::Utf8>> const& reader)
 {
@@ -166,8 +167,10 @@ nBool Interpreter::InterpreterASTConsumer::HandleTopLevelDecl(Linq<Valued<Declar
 		{
 			m_NamedDecls.emplace(namedDecl->GetIdentifierInfo()->GetName(), std::move(namedDecl));
 		}
-
-		m_UnnamedDecls.emplace_back(std::move(decl));
+		else
+		{
+			m_UnnamedDecls.emplace_back(std::move(decl));
+		}
 	}
 
 	return true;
@@ -243,10 +246,10 @@ void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Express
 			nat_Throw(InterpreterException, u8"表达式引用了一个不存在的值定义");
 		}
 
-		visit([this, id = decl->GetIdentifierInfo()](auto value)
+		m_Interpreter.visitDeclStorage(decl, [this, id = decl->GetIdentifierInfo()](auto value)
 		{
 			m_Interpreter.m_Logger.LogMsg("(声明 : {0}) {1}", id ? id->GetName() : "(临时对象)", value);
-		}, iter->second);
+		});
 	}
 }
 
@@ -304,7 +307,10 @@ void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<
 			nat_Throw(InterpreterException, u8"下标操作数引用了一个不存在的值定义");
 		}
 
-		indexValue = std::get<0>(iter->second);
+		m_Interpreter.visitDeclStorage(indexDeclOperand->GetDecl(), [&indexValue](auto value)
+		{
+			indexValue = value;
+		}, Expected<nuLong>);
 	}
 	else if (const auto indexLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
 	{
@@ -374,64 +380,58 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 		{
 			if (const auto declOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr))
 			{
-				const auto iter = m_Interpreter.m_DeclStorage.find(declOperand->GetDecl());
-				if (iter != m_Interpreter.m_DeclStorage.cend())
+				m_Interpreter.visitDeclStorage(declOperand->GetDecl(), [this, &tempObjDef](auto const& value)
 				{
-					const auto declValue = iter->second;
-					visit([this, &tempObjDef](auto value)
+					m_Interpreter.visitDeclStorage(tempObjDef, [&value](auto& storage)
 					{
-						m_Interpreter.m_DeclStorage.emplace(
-							std::piecewise_construct,
-							std::forward_as_tuple(tempObjDef),
-							std::forward_as_tuple(std::in_place_index<0>, static_cast<nuLong>(value)));
-					}, declValue);
-				}
+						storage = static_cast<nuLong>(value);
+					}, Expected<nuLong>);
+				}, Expected<nuLong>);
 			}
 			else if (const auto intLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
 			{
-				m_Interpreter.m_DeclStorage.emplace(
-					std::piecewise_construct,
-					std::forward_as_tuple(tempObjDef),
-					std::forward_as_tuple(std::in_place_index<0>, intLiteralOperand->GetValue()));
+				const auto value = intLiteralOperand->GetValue();
+				m_Interpreter.visitDeclStorage(tempObjDef, [value](auto& storage)
+				{
+					storage = value;
+				}, Expected<nuLong>);
 			}
 			else if (const auto floatLiteralOperand = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
 			{
-				m_Interpreter.m_DeclStorage.emplace(
-					std::piecewise_construct,
-					std::forward_as_tuple(tempObjDef),
-					std::forward_as_tuple(std::in_place_index<0>, static_cast<nuLong>(floatLiteralOperand->GetValue())));
+				const auto value = static_cast<nuLong>(floatLiteralOperand->GetValue());
+				m_Interpreter.visitDeclStorage(tempObjDef, [value](auto& storage)
+				{
+					storage = value;
+				}, Expected<nuLong>);
 			}
 		}
 		else if (castToType->IsFloatingType())
 		{
 			if (const auto declOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr))
 			{
-				const auto iter = m_Interpreter.m_DeclStorage.find(declOperand->GetDecl());
-				if (iter != m_Interpreter.m_DeclStorage.cend())
+				m_Interpreter.visitDeclStorage(declOperand->GetDecl(), [this, &tempObjDef](auto const& value)
 				{
-					const auto declValue = iter->second;
-					visit([this, &tempObjDef](auto value)
+					m_Interpreter.visitDeclStorage(tempObjDef, [&value](auto& storage)
 					{
-						m_Interpreter.m_DeclStorage.emplace(
-							std::piecewise_construct,
-							std::forward_as_tuple(tempObjDef),
-							std::forward_as_tuple(std::in_place_index<1>, static_cast<nDouble>(value)));
-					}, declValue);
-				}
+						storage = static_cast<nDouble>(value);
+					}, Expected<nDouble>);
+				}, Expected<nDouble>);
 			}
 			else if (const auto intLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
 			{
-				m_Interpreter.m_DeclStorage.emplace(
-					std::piecewise_construct,
-					std::forward_as_tuple(tempObjDef),
-					std::forward_as_tuple(std::in_place_index<1>, static_cast<nDouble>(intLiteralOperand->GetValue())));
+				const auto value = static_cast<nDouble>(intLiteralOperand->GetValue());
+				m_Interpreter.visitDeclStorage(tempObjDef, [value](auto& storage)
+				{
+					storage = value;
+				}, Expected<nDouble>);
 			}
 			else if (const auto floatLiteralOperand = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
 			{
-				m_Interpreter.m_DeclStorage.emplace(
-					std::piecewise_construct,
-					std::forward_as_tuple(tempObjDef),
-					std::forward_as_tuple(std::in_place_index<1>, floatLiteralOperand->GetValue()));
+				const auto value = floatLiteralOperand->GetValue();
+				m_Interpreter.visitDeclStorage(tempObjDef, [value](auto& storage)
+				{
+					storage = value;
+				}, Expected<nDouble>);
 			}
 		}
 	}
@@ -489,13 +489,18 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 	case Expression::UnaryOperationType::PreInc:
 		if (declExpr)
 		{
-			const auto iter = m_Interpreter.m_DeclStorage.find(declExpr->GetDecl());
-			if (iter != m_Interpreter.m_DeclStorage.cend())
-			{
-				visit([this](auto& value)
+			if (m_Interpreter.visitDeclStorage(declExpr->GetDecl(), [](auto& value)
 				{
-					++value;
-				}, iter->second);
+					if constexpr (std::is_same_v<std::remove_reference_t<decltype(value)>, nBool>)
+					{
+						nat_Throw(InterpreterException, "不允许在具有 bool 类型的操作数上执行此操作");
+					}
+					else
+					{
+						++value;
+					}
+				}))
+			{
 				return;
 			}
 		}
@@ -503,13 +508,18 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 	case Expression::UnaryOperationType::PreDec:
 		if (declExpr)
 		{
-			const auto iter = m_Interpreter.m_DeclStorage.find(declExpr->GetDecl());
-			if (iter != m_Interpreter.m_DeclStorage.cend())
-			{
-				visit([this](auto& value)
+			if (m_Interpreter.visitDeclStorage(declExpr->GetDecl(), [](auto& value)
 				{
-					--value;
-				}, iter->second);
+					if constexpr (std::is_same_v<std::remove_reference_t<decltype(value)>, nBool>)
+					{
+						nat_Throw(InterpreterException, "不允许在具有 bool 类型的操作数上执行此操作");
+					}
+					else
+					{
+						--value;
+					}
+				}))
+			{
 				return;
 			}
 		}
@@ -584,19 +594,21 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 	{
 		if (auto varDecl = static_cast<natRefPointer<Declaration::VarDecl>>(decl))
 		{
-			if (auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(varDecl->GetValueType()))
+			// TODO: 修改为通用的实现
+			m_Interpreter.visitDeclStorage(varDecl, [this, &varDecl](auto& storage)
 			{
-				if (builtinType->IsIntegerType())
+				InterpreterExprVisitor visitor{ m_Interpreter };
+				visitor.Visit(varDecl->GetInitializer());
+				const auto initExpr = visitor.GetLastVisitedExpr();
+				
+				if (const auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(initExpr->GetExprType()))
 				{
-					InterpreterExprVisitor visitor{ m_Interpreter };
-					visitor.Visit(varDecl->GetInitializer());
-					m_Interpreter.m_DeclStorage.emplace(
-						std::piecewise_construct,
-						std::forward_as_tuple(varDecl),
-						std::forward_as_tuple(std::in_place_index<0>, static_cast<natRefPointer<Expression::IntegerLiteral>>(visitor.GetLastVisitedExpr()))
-					);
+					if (builtinType->IsIntegerType())
+					{
+						storage = static_cast<std::remove_reference_t<decltype(storage)>>(static_cast<natRefPointer<Expression::IntegerLiteral>>(initExpr)->GetValue());
+					}
 				}
-			}
+			}, Expected<nInt, nLong, nuInt, nuLong>, true);
 		}
 
 		
@@ -678,6 +690,7 @@ Interpreter::~Interpreter()
 void Interpreter::Run(Uri const& uri)
 {
 	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(m_SourceManager.GetFileContent(m_SourceManager.GetFileID(uri)).second, m_Preprocessor));
+	m_Parser.ConsumeToken();
 	ParseAST(m_Parser);
 }
 

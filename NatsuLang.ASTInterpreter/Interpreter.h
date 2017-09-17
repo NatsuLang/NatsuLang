@@ -15,6 +15,18 @@ namespace NatsuLang
 {
 	DeclareException(InterpreterException, NatsuLib::natException, u8"由解释器生成的异常");
 
+	namespace Detail
+	{
+		template <typename... ExpectedTypes>
+		struct Expected_t
+		{
+			constexpr Expected_t() {}
+		};
+
+		template <typename... ExpectedTypes>
+		constexpr Expected_t<ExpectedTypes...> Expected{};
+	}
+
 	class Interpreter final
 	{
 		class InterpreterDiagIdMap
@@ -173,7 +185,118 @@ namespace NatsuLang
 		NatsuLib::natRefPointer<InterpreterStmtVisitor> m_Visitor;
 
 		NatsuLib::natRefPointer<Semantic::Scope> m_CurrentScope;
-		// TODO: 修改为通用的存储实现（例如数组等）
-		std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, std::variant<nuLong, nDouble>> m_DeclStorage;
+		std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, std::vector<nByte>> m_DeclStorage;
+
+		template <typename Callable, typename RealType, typename... ExpectedTypes>
+		nBool visitInvokeHelper(Callable&& visitor, RealType& realValue, Detail::Expected_t<ExpectedTypes...>)
+		{
+			if constexpr (!sizeof...(ExpectedTypes) || std::disjunction_v<std::is_same<RealType, ExpectedTypes>...>)
+			{
+				std::forward<Callable>(visitor)(realValue);
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+		template <typename Callable, typename... ExpectedTypes>
+		nBool visitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl, Callable&& visitor, Detail::Expected_t<ExpectedTypes...> expected = {}, nBool createIfNotExist = false)
+		{
+			const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
+			const auto typeInfo = m_AstContext.GetTypeInfo(type);
+
+			auto iter = m_DeclStorage.find(decl);
+			if (iter == m_DeclStorage.cend())
+			{
+				if (!createIfNotExist)
+				{
+					return false;
+				}
+				
+				nBool succeed;
+				tie(iter, succeed) = m_DeclStorage.try_emplace(decl, typeInfo.Size);
+				if (!succeed)
+				{
+					return false;
+				}
+			}
+
+			auto& storage = *iter->second.data();
+			if (typeInfo.Size < iter->second.size())
+			{
+				return false;
+			}
+
+			switch (type->GetType())
+			{
+			case Type::Type::Builtin:
+			{
+				const auto builtinType = static_cast<NatsuLib::natRefPointer<Type::BuiltinType>>(type);
+				assert(builtinType);
+
+				switch (builtinType->GetBuiltinClass())
+				{
+				case Type::BuiltinType::Bool:
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nBool&>(storage), expected);
+				case Type::BuiltinType::Char:
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nByte&>(storage), expected);
+				case Type::BuiltinType::UShort:
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuShort&>(storage), expected);
+				case Type::BuiltinType::UInt:
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuInt&>(storage), expected);
+				// TODO: 区分Long类型
+				case Type::BuiltinType::ULong:
+				case Type::BuiltinType::ULongLong:
+				case Type::BuiltinType::UInt128:
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuLong&>(storage), expected);
+				case Type::BuiltinType::Short:
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nShort&>(storage), expected);
+				case Type::BuiltinType::Int:
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nInt&>(storage), expected);
+				case Type::BuiltinType::Long:
+				case Type::BuiltinType::LongLong:
+				case Type::BuiltinType::Int128:
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nLong&>(storage), expected);
+				case Type::BuiltinType::Float:
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nFloat&>(storage), expected);
+				case Type::BuiltinType::Double:
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nDouble&>(storage), expected);
+				case Type::BuiltinType::LongDouble:
+				case Type::BuiltinType::Float128:
+					break;
+				default:
+					assert(!"Invalid type.");
+					[[fallthrough]];
+				case Type::BuiltinType::Invalid:
+				case Type::BuiltinType::Void:
+				case Type::BuiltinType::BoundMember:
+				case Type::BuiltinType::BuiltinFn:
+				case Type::BuiltinType::Overload:
+					break;
+				}
+
+				return false;
+			}
+			case Type::Type::Array:
+				break;
+			case Type::Type::Function:
+				break;
+			case Type::Type::Record:
+				break;
+			case Type::Type::Enum:
+				break;
+			default:
+				assert(!"Invalid type.");
+				[[fallthrough]];
+			case Type::Type::Paren:
+			case Type::Type::TypeOf:
+			case Type::Type::Auto:
+				return false;
+			}
+
+			nat_Throw(InterpreterException, u8"此功能尚未实现");
+		}
 	};
 }
