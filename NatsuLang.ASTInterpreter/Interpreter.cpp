@@ -413,25 +413,25 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 				{
 					m_Interpreter.visitDeclStorage(tempObjDef, [&value](auto& storage)
 					{
-						storage = static_cast<nDouble>(value);
-					}, Expected<nDouble>);
-				}, Expected<nDouble>);
+						storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
+					}, Expected<nFloat, nDouble>);
+				}, Expected<nFloat, nDouble>);
 			}
 			else if (const auto intLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
 			{
 				const auto value = static_cast<nDouble>(intLiteralOperand->GetValue());
 				m_Interpreter.visitDeclStorage(tempObjDef, [value](auto& storage)
 				{
-					storage = value;
-				}, Expected<nDouble>);
+					storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
+				}, Expected<nFloat, nDouble>);
 			}
 			else if (const auto floatLiteralOperand = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
 			{
 				const auto value = floatLiteralOperand->GetValue();
 				m_Interpreter.visitDeclStorage(tempObjDef, [value](auto& storage)
 				{
-					storage = value;
-				}, Expected<nDouble>);
+					storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
+				}, Expected<nFloat, nDouble>);
 			}
 		}
 	}
@@ -491,15 +491,8 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 		{
 			if (m_Interpreter.visitDeclStorage(declExpr->GetDecl(), [](auto& value)
 				{
-					if constexpr (std::is_same_v<std::remove_reference_t<decltype(value)>, nBool>)
-					{
-						nat_Throw(InterpreterException, "不允许在具有 bool 类型的操作数上执行此操作");
-					}
-					else
-					{
-						++value;
-					}
-				}))
+					++value;
+				}, Excepted<nBool>))
 			{
 				return;
 			}
@@ -510,15 +503,8 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 		{
 			if (m_Interpreter.visitDeclStorage(declExpr->GetDecl(), [](auto& value)
 				{
-					if constexpr (std::is_same_v<std::remove_reference_t<decltype(value)>, nBool>)
-					{
-						nat_Throw(InterpreterException, "不允许在具有 bool 类型的操作数上执行此操作");
-					}
-					else
-					{
-						--value;
-					}
-				}))
+					--value;
+				}, Excepted<nBool>))
 			{
 				return;
 			}
@@ -600,8 +586,15 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 				InterpreterExprVisitor visitor{ m_Interpreter };
 				visitor.Visit(varDecl->GetInitializer());
 				const auto initExpr = visitor.GetLastVisitedExpr();
-				
-				if (const auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(initExpr->GetExprType()))
+
+				if (auto declExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(initExpr))
+				{
+					m_Interpreter.visitDeclStorage(declExpr->GetDecl(), [&storage](auto& opStorage)
+					{
+						storage = opStorage;
+					}, Expected<std::remove_reference_t<decltype(storage)>>);
+				}
+				else if (const auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(initExpr->GetExprType()))
 				{
 					if (builtinType->IsIntegerType())
 					{

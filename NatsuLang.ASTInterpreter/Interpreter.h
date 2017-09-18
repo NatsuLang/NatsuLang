@@ -20,11 +20,20 @@ namespace NatsuLang
 		template <typename... ExpectedTypes>
 		struct Expected_t
 		{
-			constexpr Expected_t() {}
+			constexpr Expected_t() = default;
 		};
 
 		template <typename... ExpectedTypes>
 		constexpr Expected_t<ExpectedTypes...> Expected{};
+
+		template <typename... ExceptedTypes>
+		struct Excepted_t
+		{
+			constexpr Excepted_t() = default;
+		};
+
+		template <typename... ExceptedTypes>
+		constexpr Excepted_t<ExceptedTypes...> Excepted{};
 	}
 
 	class Interpreter final
@@ -201,8 +210,22 @@ namespace NatsuLang
 			}
 		}
 
-		template <typename Callable, typename... ExpectedTypes>
-		nBool visitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl, Callable&& visitor, Detail::Expected_t<ExpectedTypes...> expected = {}, nBool createIfNotExist = false)
+		template <typename Callable, typename RealType, typename... ExceptedTypes>
+		nBool visitInvokeHelper(Callable&& visitor, RealType& realValue, Detail::Excepted_t<ExceptedTypes...>)
+		{
+			if constexpr (!sizeof...(ExceptedTypes) || std::conjunction_v<std::negation<std::is_same<RealType, ExceptedTypes>>...>)
+			{
+				std::forward<Callable>(visitor)(realValue);
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+		template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
+		nBool visitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl, Callable&& visitor, ExpectedOrExcepted condition = {}, nBool createIfNotExist = false)
 		{
 			const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
 			const auto typeInfo = m_AstContext.GetTypeInfo(type);
@@ -239,30 +262,30 @@ namespace NatsuLang
 				switch (builtinType->GetBuiltinClass())
 				{
 				case Type::BuiltinType::Bool:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nBool&>(storage), expected);
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nBool&>(storage), condition);
 				case Type::BuiltinType::Char:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nByte&>(storage), expected);
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nByte&>(storage), condition);
 				case Type::BuiltinType::UShort:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuShort&>(storage), expected);
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuShort&>(storage), condition);
 				case Type::BuiltinType::UInt:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuInt&>(storage), expected);
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuInt&>(storage), condition);
 				// TODO: 区分Long类型
 				case Type::BuiltinType::ULong:
 				case Type::BuiltinType::ULongLong:
 				case Type::BuiltinType::UInt128:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuLong&>(storage), expected);
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuLong&>(storage), condition);
 				case Type::BuiltinType::Short:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nShort&>(storage), expected);
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nShort&>(storage), condition);
 				case Type::BuiltinType::Int:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nInt&>(storage), expected);
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nInt&>(storage), condition);
 				case Type::BuiltinType::Long:
 				case Type::BuiltinType::LongLong:
 				case Type::BuiltinType::Int128:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nLong&>(storage), expected);
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nLong&>(storage), condition);
 				case Type::BuiltinType::Float:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nFloat&>(storage), expected);
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nFloat&>(storage), condition);
 				case Type::BuiltinType::Double:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nDouble&>(storage), expected);
+					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nDouble&>(storage), condition);
 				case Type::BuiltinType::LongDouble:
 				case Type::BuiltinType::Float128:
 					break;
