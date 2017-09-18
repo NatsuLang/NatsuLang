@@ -598,7 +598,14 @@ natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPo
 		retDecl = ActOnVariableDeclarator(scope, decl, dc);
 	}
 
-	PushOnScopeChains(retDecl, scope);
+	if (retDecl)
+	{
+		PushOnScopeChains(retDecl, scope);
+	}
+	else
+	{
+		// TODO: 报告无法加入声明
+	}
 
 	return retDecl;
 }

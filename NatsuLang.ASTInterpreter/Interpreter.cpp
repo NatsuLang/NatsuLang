@@ -240,15 +240,14 @@ void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Express
 	if (m_ShouldPrint)
 	{
 		const auto decl = expr->GetDecl();
-		const auto iter = m_Interpreter.m_DeclStorage.find(decl);
-		if (iter == m_Interpreter.m_DeclStorage.cend())
+		if (!m_Interpreter.m_DeclStorage.DoesDeclExist(decl))
 		{
 			nat_Throw(InterpreterException, u8"表达式引用了一个不存在的值定义");
 		}
 
-		m_Interpreter.visitDeclStorage(decl, [this, id = decl->GetIdentifierInfo()](auto value)
+		m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [this, id = decl->GetIdentifierInfo()](auto value)
 		{
-			m_Interpreter.m_Logger.LogMsg("(声明 : {0}) {1}", id ? id->GetName() : "(临时对象)", value);
+			m_Interpreter.m_Logger.LogMsg("(声明 : {0}) {1}", id ? id->GetName() : u8"(临时对象)"_nv, value);
 		});
 	}
 }
@@ -301,13 +300,13 @@ void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<
 	nuLong indexValue;
 	if (const auto indexDeclOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr))
 	{
-		const auto iter = m_Interpreter.m_DeclStorage.find(indexDeclOperand->GetDecl());
-		if (iter == m_Interpreter.m_DeclStorage.cend())
+		auto decl = indexDeclOperand->GetDecl();
+		if (!m_Interpreter.m_DeclStorage.DoesDeclExist(decl))
 		{
 			nat_Throw(InterpreterException, u8"下标操作数引用了一个不存在的值定义");
 		}
 
-		m_Interpreter.visitDeclStorage(indexDeclOperand->GetDecl(), [&indexValue](auto value)
+		m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [&indexValue](auto value)
 		{
 			indexValue = value;
 		}, Expected<nuLong>);
@@ -371,7 +370,7 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 
 	// TODO
 	auto castToType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetExprType());
-	auto tempObjDef = make_ref<Declaration::ValueDecl>(Declaration::Decl::Var, m_Interpreter.m_CurrentScope->GetEntity(), SourceLocation{}, nullptr, castToType);
+	auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(castToType);
 	auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, castToType);
 
 	if (castToType)
@@ -380,9 +379,9 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 		{
 			if (const auto declOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr))
 			{
-				m_Interpreter.visitDeclStorage(declOperand->GetDecl(), [this, &tempObjDef](auto const& value)
+				m_Interpreter.m_DeclStorage.VisitDeclStorage(declOperand->GetDecl(), [this, &tempObjDef](auto const& value)
 				{
-					m_Interpreter.visitDeclStorage(tempObjDef, [&value](auto& storage)
+					m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [&value](auto& storage)
 					{
 						storage = static_cast<nuLong>(value);
 					}, Expected<nuLong>);
@@ -391,7 +390,7 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 			else if (const auto intLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
 			{
 				const auto value = intLiteralOperand->GetValue();
-				m_Interpreter.visitDeclStorage(tempObjDef, [value](auto& storage)
+				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
 				{
 					storage = value;
 				}, Expected<nuLong>);
@@ -399,7 +398,7 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 			else if (const auto floatLiteralOperand = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
 			{
 				const auto value = static_cast<nuLong>(floatLiteralOperand->GetValue());
-				m_Interpreter.visitDeclStorage(tempObjDef, [value](auto& storage)
+				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
 				{
 					storage = value;
 				}, Expected<nuLong>);
@@ -409,9 +408,9 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 		{
 			if (const auto declOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr))
 			{
-				m_Interpreter.visitDeclStorage(declOperand->GetDecl(), [this, &tempObjDef](auto const& value)
+				m_Interpreter.m_DeclStorage.VisitDeclStorage(declOperand->GetDecl(), [this, &tempObjDef](auto const& value)
 				{
-					m_Interpreter.visitDeclStorage(tempObjDef, [&value](auto& storage)
+					m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [&value](auto& storage)
 					{
 						storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
 					}, Expected<nFloat, nDouble>);
@@ -420,7 +419,7 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 			else if (const auto intLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
 			{
 				const auto value = static_cast<nDouble>(intLiteralOperand->GetValue());
-				m_Interpreter.visitDeclStorage(tempObjDef, [value](auto& storage)
+				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
 				{
 					storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
 				}, Expected<nFloat, nDouble>);
@@ -428,12 +427,15 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 			else if (const auto floatLiteralOperand = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
 			{
 				const auto value = floatLiteralOperand->GetValue();
-				m_Interpreter.visitDeclStorage(tempObjDef, [value](auto& storage)
+				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
 				{
 					storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
 				}, Expected<nFloat, nDouble>);
 			}
 		}
+
+		m_LastVisitedExpr = declRefExpr;
+		return;
 	}
 	
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
@@ -474,6 +476,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
+// TODO: 在规范中定义对象被销毁的时机
 void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expression::UnaryOperator> const& expr)
 {
 	const auto opCode = expr->GetOpcode();
@@ -483,13 +486,55 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 	switch (opCode)
 	{
 	case Expression::UnaryOperationType::PostInc:
+		if (declExpr)
+		{
+			const auto decl = declExpr->GetDecl();
+			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &decl](auto& value)
+				{
+					auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(decl->GetValueType());
+					if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& tmpValue)
+						{
+							tmpValue = value;
+						}, Expected<std::remove_reference_t<decltype(value)>>))
+					{
+						nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					}
+
+					m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
+					++value;
+				}, Excepted<nBool>))
+			{
+				return;
+			}
+		}
 		break;
 	case Expression::UnaryOperationType::PostDec:
+		if (declExpr)
+		{
+			const auto decl = declExpr->GetDecl();
+			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &decl](auto& value)
+			{
+				auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(decl->GetValueType());
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& tmpValue)
+				{
+					tmpValue = value;
+				}, Expected<std::remove_reference_t<decltype(value)>>))
+				{
+					nat_Throw(InterpreterException, "无法创建临时对象的存储");
+				}
+
+				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
+				--value;
+			}, Excepted<nBool>))
+			{
+				return;
+			}
+		}
 		break;
 	case Expression::UnaryOperationType::PreInc:
 		if (declExpr)
 		{
-			if (m_Interpreter.visitDeclStorage(declExpr->GetDecl(), [](auto& value)
+			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(declExpr->GetDecl(), [](auto& value)
 				{
 					++value;
 				}, Excepted<nBool>))
@@ -501,7 +546,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 	case Expression::UnaryOperationType::PreDec:
 		if (declExpr)
 		{
-			if (m_Interpreter.visitDeclStorage(declExpr->GetDecl(), [](auto& value)
+			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(declExpr->GetDecl(), [](auto& value)
 				{
 					--value;
 				}, Excepted<nBool>))
@@ -581,7 +626,7 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 		if (auto varDecl = static_cast<natRefPointer<Declaration::VarDecl>>(decl))
 		{
 			// TODO: 修改为通用的实现
-			m_Interpreter.visitDeclStorage(varDecl, [this, &varDecl](auto& storage)
+			if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [this, &varDecl](auto& storage)
 			{
 				InterpreterExprVisitor visitor{ m_Interpreter };
 				visitor.Visit(varDecl->GetInitializer());
@@ -589,7 +634,7 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 
 				if (auto declExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(initExpr))
 				{
-					m_Interpreter.visitDeclStorage(declExpr->GetDecl(), [&storage](auto& opStorage)
+					m_Interpreter.m_DeclStorage.VisitDeclStorage(declExpr->GetDecl(), [&storage](auto& opStorage)
 					{
 						storage = opStorage;
 					}, Expected<std::remove_reference_t<decltype(storage)>>);
@@ -601,7 +646,10 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 						storage = static_cast<std::remove_reference_t<decltype(storage)>>(static_cast<natRefPointer<Expression::IntegerLiteral>>(initExpr)->GetValue());
 					}
 				}
-			}, Expected<nInt, nLong, nuInt, nuLong>, true);
+			}, Expected<nInt, nLong, nuInt, nuLong>))
+			{
+				nat_Throw(InterpreterException, u8"此功能尚未实现");
+			}
 		}
 
 		
@@ -663,16 +711,70 @@ void Interpreter::InterpreterStmtVisitor::VisitWhileStmt(natRefPointer<Statement
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
+Interpreter::InterpreterDeclStorage::InterpreterDeclStorage(Interpreter& interpreter)
+	: m_Interpreter{ interpreter }
+{
+}
+
+std::vector<nByte>& Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRefPointer<Declaration::ValueDecl> decl)
+{
+	const auto type = decl->GetValueType();
+	assert(type);
+	const auto typeInfo = m_Interpreter.m_AstContext.GetTypeInfo(type);
+
+	auto iter = m_DeclStorage.find(decl);
+	if (iter != m_DeclStorage.cend())
+	{
+		assert(typeInfo.Size <= iter->second.size());
+		return iter->second;
+	}
+
+	nBool succeed;
+	tie(iter, succeed) = m_DeclStorage.emplace(std::move(decl), typeInfo.Size);
+	if (!succeed)
+	{
+		nat_Throw(InterpreterException, "无法为此声明创建存储");
+	}
+
+	return iter->second;
+}
+
+nBool Interpreter::InterpreterDeclStorage::DoesDeclExist(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl) const noexcept
+{
+	return m_DeclStorage.find(decl) != m_DeclStorage.cend();
+}
+
+void Interpreter::InterpreterDeclStorage::GarbageCollect()
+{
+	for (auto iter = m_DeclStorage.begin(); iter != m_DeclStorage.end();)
+	{
+		// 没有外部引用了，回收这个声明及占用的存储
+		if (iter->first->IsUnique())
+		{
+			iter = m_DeclStorage.erase(iter);
+		}
+		else
+		{
+			++iter;
+		}
+	}
+}
+
+natRefPointer<Declaration::ValueDecl> Interpreter::InterpreterDeclStorage::CreateTemporaryObjectDecl(Type::TypePtr type, SourceLocation loc)
+{
+	return make_ref<Declaration::ValueDecl>(Declaration::Decl::Var,	nullptr, loc, nullptr, type);
+}
+
 Interpreter::Interpreter(natRefPointer<TextReader<StringType::Utf8>> const& diagIdMapFile, natLog& logger)
 	: m_DiagConsumer{ make_ref<InterpreterDiagConsumer>(*this) },
-	m_Diag{ make_ref<InterpreterDiagIdMap>(diagIdMapFile), m_DiagConsumer },
-	m_Logger{ logger },
-	m_SourceManager{ m_Diag, m_FileManager },
-	m_Preprocessor{ m_Diag, m_SourceManager },
-	m_Consumer{ make_ref<InterpreterASTConsumer>(*this) },
-	m_Sema{ m_Preprocessor, m_AstContext, m_Consumer },
-	m_Parser{ m_Preprocessor, m_Sema },
-	m_Visitor{ make_ref<InterpreterStmtVisitor>(*this) }
+	  m_Diag{ make_ref<InterpreterDiagIdMap>(diagIdMapFile), m_DiagConsumer },
+	  m_Logger{ logger },
+	  m_SourceManager{ m_Diag, m_FileManager },
+	  m_Preprocessor{ m_Diag, m_SourceManager },
+	  m_Consumer{ make_ref<InterpreterASTConsumer>(*this) },
+	  m_Sema{ m_Preprocessor, m_AstContext, m_Consumer },
+	  m_Parser{ m_Preprocessor, m_Sema },
+	  m_Visitor{ make_ref<InterpreterStmtVisitor>(*this) }, m_DeclStorage{ *this }
 {
 }
 
@@ -684,6 +786,7 @@ void Interpreter::Run(Uri const& uri)
 {
 	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(m_SourceManager.GetFileContent(m_SourceManager.GetFileID(uri)).second, m_Preprocessor));
 	m_Parser.ConsumeToken();
+	m_CurrentScope = m_Sema.GetCurrentScope();
 	ParseAST(m_Parser);
 }
 
@@ -691,6 +794,7 @@ void Interpreter::Run(nStrView content)
 {
 	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(content, m_Preprocessor));
 	m_Parser.ConsumeToken();
+	m_CurrentScope = m_Sema.GetCurrentScope();
 	const auto stmt = m_Parser.ParseStatement();
 	if (!stmt || m_DiagConsumer->IsErrored())
 	{
@@ -699,6 +803,7 @@ void Interpreter::Run(nStrView content)
 	}
 
 	m_Visitor->Visit(stmt);
+	m_DeclStorage.GarbageCollect();
 }
 
 natRefPointer<Semantic::Scope> Interpreter::GetScope() const noexcept

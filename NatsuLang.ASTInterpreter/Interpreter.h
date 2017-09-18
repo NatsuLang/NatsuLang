@@ -171,6 +171,139 @@ namespace NatsuLang
 			Interpreter& m_Interpreter;
 		};
 
+		class InterpreterDeclStorage
+		{
+			template <typename Callable, typename RealType, typename... ExpectedTypes>
+			nBool VisitInvokeHelper(Callable&& visitor, RealType& realValue, Detail::Expected_t<ExpectedTypes...>)
+			{
+				if constexpr (!sizeof...(ExpectedTypes) || std::disjunction_v<std::is_same<RealType, ExpectedTypes>...>)
+				{
+					std::forward<Callable>(visitor)(realValue);
+					return true;
+				}
+				else
+				{
+					return false;
+				}
+			}
+
+			template <typename Callable, typename RealType, typename... ExceptedTypes>
+			nBool VisitInvokeHelper(Callable&& visitor, RealType& realValue, Detail::Excepted_t<ExceptedTypes...>)
+			{
+				if constexpr (!sizeof...(ExceptedTypes) || std::conjunction_v<std::negation<std::is_same<RealType, ExceptedTypes>>...>)
+				{
+					std::forward<Callable>(visitor)(realValue);
+					return true;
+				}
+				else
+				{
+					return false;
+				}
+			}
+
+		public:
+			explicit InterpreterDeclStorage(Interpreter& interpreter);
+
+			std::vector<nByte>& GetOrAddDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> decl);
+			nBool DoesDeclExist(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl) const noexcept;
+
+			void GarbageCollect();
+
+			static NatsuLib::natRefPointer<Declaration::ValueDecl> CreateTemporaryObjectDecl(Type::TypePtr type, SourceLocation loc = {});
+
+			// TODO: 添加数组及相关的处理，可能需要添加 NonArray 等辅助 Tag
+			template <typename T>
+			struct Array
+			{
+				T* Data;
+				std::size_t Size;
+			};
+
+			// TODO: 添加函数、类等
+
+			template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
+			nBool VisitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Callable&& visitor, ExpectedOrExcepted condition = {})
+			{
+				const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
+
+				// TODO: 访问失败时回滚
+				auto& storage = *GetOrAddDecl(std::move(decl)).data();
+
+				switch (type->GetType())
+				{
+				case Type::Type::Builtin:
+				{
+					const auto builtinType = static_cast<NatsuLib::natRefPointer<Type::BuiltinType>>(type);
+					assert(builtinType);
+
+					switch (builtinType->GetBuiltinClass())
+					{
+					case Type::BuiltinType::Bool:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nBool&>(storage), condition);
+					case Type::BuiltinType::Char:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nByte&>(storage), condition);
+					case Type::BuiltinType::UShort:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuShort&>(storage), condition);
+					case Type::BuiltinType::UInt:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuInt&>(storage), condition);
+						// TODO: 区分Long类型
+					case Type::BuiltinType::ULong:
+					case Type::BuiltinType::ULongLong:
+					case Type::BuiltinType::UInt128:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuLong&>(storage), condition);
+					case Type::BuiltinType::Short:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nShort&>(storage), condition);
+					case Type::BuiltinType::Int:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nInt&>(storage), condition);
+					case Type::BuiltinType::Long:
+					case Type::BuiltinType::LongLong:
+					case Type::BuiltinType::Int128:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nLong&>(storage), condition);
+					case Type::BuiltinType::Float:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nFloat&>(storage), condition);
+					case Type::BuiltinType::Double:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nDouble&>(storage), condition);
+					case Type::BuiltinType::LongDouble:
+					case Type::BuiltinType::Float128:
+						break;
+					default:
+						assert(!"Invalid type.");
+						[[fallthrough]];
+					case Type::BuiltinType::Invalid:
+					case Type::BuiltinType::Void:
+					case Type::BuiltinType::BoundMember:
+					case Type::BuiltinType::BuiltinFn:
+					case Type::BuiltinType::Overload:
+						break;
+					}
+
+					return false;
+				}
+				case Type::Type::Array:
+					break;
+				case Type::Type::Function:
+					break;
+				case Type::Type::Record:
+					break;
+				case Type::Type::Enum:
+					break;
+				default:
+					assert(!"Invalid type.");
+					[[fallthrough]];
+				case Type::Type::Paren:
+				case Type::Type::TypeOf:
+				case Type::Type::Auto:
+					return false;
+				}
+
+				nat_Throw(InterpreterException, u8"此功能尚未实现");
+			}
+
+		private:
+			Interpreter& m_Interpreter;
+			std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, std::vector<nByte>> m_DeclStorage;
+		};
+
 	public:
 		Interpreter(NatsuLib::natRefPointer<NatsuLib::TextReader<NatsuLib::StringType::Utf8>> const& diagIdMapFile, NatsuLib::natLog& logger);
 		~Interpreter();
@@ -194,132 +327,6 @@ namespace NatsuLang
 		NatsuLib::natRefPointer<InterpreterStmtVisitor> m_Visitor;
 
 		NatsuLib::natRefPointer<Semantic::Scope> m_CurrentScope;
-		std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, std::vector<nByte>> m_DeclStorage;
-
-		template <typename Callable, typename RealType, typename... ExpectedTypes>
-		nBool visitInvokeHelper(Callable&& visitor, RealType& realValue, Detail::Expected_t<ExpectedTypes...>)
-		{
-			if constexpr (!sizeof...(ExpectedTypes) || std::disjunction_v<std::is_same<RealType, ExpectedTypes>...>)
-			{
-				std::forward<Callable>(visitor)(realValue);
-				return true;
-			}
-			else
-			{
-				return false;
-			}
-		}
-
-		template <typename Callable, typename RealType, typename... ExceptedTypes>
-		nBool visitInvokeHelper(Callable&& visitor, RealType& realValue, Detail::Excepted_t<ExceptedTypes...>)
-		{
-			if constexpr (!sizeof...(ExceptedTypes) || std::conjunction_v<std::negation<std::is_same<RealType, ExceptedTypes>>...>)
-			{
-				std::forward<Callable>(visitor)(realValue);
-				return true;
-			}
-			else
-			{
-				return false;
-			}
-		}
-
-		template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
-		nBool visitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl, Callable&& visitor, ExpectedOrExcepted condition = {}, nBool createIfNotExist = false)
-		{
-			const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
-			const auto typeInfo = m_AstContext.GetTypeInfo(type);
-
-			auto iter = m_DeclStorage.find(decl);
-			if (iter == m_DeclStorage.cend())
-			{
-				if (!createIfNotExist)
-				{
-					return false;
-				}
-				
-				nBool succeed;
-				tie(iter, succeed) = m_DeclStorage.try_emplace(decl, typeInfo.Size);
-				if (!succeed)
-				{
-					return false;
-				}
-			}
-
-			auto& storage = *iter->second.data();
-			if (typeInfo.Size < iter->second.size())
-			{
-				return false;
-			}
-
-			switch (type->GetType())
-			{
-			case Type::Type::Builtin:
-			{
-				const auto builtinType = static_cast<NatsuLib::natRefPointer<Type::BuiltinType>>(type);
-				assert(builtinType);
-
-				switch (builtinType->GetBuiltinClass())
-				{
-				case Type::BuiltinType::Bool:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nBool&>(storage), condition);
-				case Type::BuiltinType::Char:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nByte&>(storage), condition);
-				case Type::BuiltinType::UShort:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuShort&>(storage), condition);
-				case Type::BuiltinType::UInt:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuInt&>(storage), condition);
-				// TODO: 区分Long类型
-				case Type::BuiltinType::ULong:
-				case Type::BuiltinType::ULongLong:
-				case Type::BuiltinType::UInt128:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuLong&>(storage), condition);
-				case Type::BuiltinType::Short:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nShort&>(storage), condition);
-				case Type::BuiltinType::Int:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nInt&>(storage), condition);
-				case Type::BuiltinType::Long:
-				case Type::BuiltinType::LongLong:
-				case Type::BuiltinType::Int128:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nLong&>(storage), condition);
-				case Type::BuiltinType::Float:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nFloat&>(storage), condition);
-				case Type::BuiltinType::Double:
-					return visitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nDouble&>(storage), condition);
-				case Type::BuiltinType::LongDouble:
-				case Type::BuiltinType::Float128:
-					break;
-				default:
-					assert(!"Invalid type.");
-					[[fallthrough]];
-				case Type::BuiltinType::Invalid:
-				case Type::BuiltinType::Void:
-				case Type::BuiltinType::BoundMember:
-				case Type::BuiltinType::BuiltinFn:
-				case Type::BuiltinType::Overload:
-					break;
-				}
-
-				return false;
-			}
-			case Type::Type::Array:
-				break;
-			case Type::Type::Function:
-				break;
-			case Type::Type::Record:
-				break;
-			case Type::Type::Enum:
-				break;
-			default:
-				assert(!"Invalid type.");
-				[[fallthrough]];
-			case Type::Type::Paren:
-			case Type::Type::TypeOf:
-			case Type::Type::Auto:
-				return false;
-			}
-
-			nat_Throw(InterpreterException, u8"此功能尚未实现");
-		}
+		InterpreterDeclStorage m_DeclStorage;
 	};
 }

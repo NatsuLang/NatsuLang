@@ -437,6 +437,10 @@ NatsuLang::Statement::StmtPtr Parser::ParseReturnStatement()
 	if (!m_CurrentToken.Is(TokenType::Semi))
 	{
 		returnedExpr = ParseExpression();
+		if (m_CurrentToken.Is(TokenType::Semi))
+		{
+			ConsumeToken();
+		}
 	}
 
 	return m_Sema.ActOnReturnStmt(loc, std::move(returnedExpr), m_Sema.GetCurrentScope());
@@ -508,6 +512,9 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 	}
 	case TokenType::Kw_this:
 		return m_Sema.ActOnThis(m_CurrentToken.GetLocation());
+	case TokenType::Eof:
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF);
+		[[fallthrough]];
 	default:
 		return ParseExprError();
 	}
@@ -718,7 +725,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseAssignmentExpression()
 NatsuLang::Expression::ExprPtr Parser::ParseThrowExpression()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_throw));
-	auto throwLocation = m_CurrentToken.GetLocation();
+	const auto throwLocation = m_CurrentToken.GetLocation();
 	ConsumeToken();
 
 	switch (m_CurrentToken.GetType())
@@ -730,6 +737,9 @@ NatsuLang::Expression::ExprPtr Parser::ParseThrowExpression()
 	case TokenType::Colon:
 	case TokenType::Comma:
 		return m_Sema.ActOnThrow(m_Sema.GetCurrentScope(), throwLocation, {});
+	case TokenType::Eof:
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF);
+		return ParseExprError();
 	default:
 		auto expr = ParseAssignmentExpression();
 		if (!expr)
@@ -893,6 +903,9 @@ void Parser::ParseType(Declaration::Declarator& decl)
 
 		break;
 	}
+	case TokenType::Eof:
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF);
+		break;
 	default:
 	{
 		const auto builtinClass = Type::BuiltinType::GetBuiltinClassFromTokenType(tokenType);
