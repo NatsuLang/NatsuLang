@@ -371,7 +371,7 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 	// TODO
 	auto castToType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetExprType());
 	auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(castToType);
-	auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, castToType);
+	const auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, castToType);
 
 	if (castToType)
 	{
@@ -558,6 +558,26 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 	case Expression::UnaryOperationType::Plus:
 		return;
 	case Expression::UnaryOperationType::Minus:
+		if (declExpr)
+		{
+			const auto decl = declExpr->GetDecl();
+			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &decl](auto value)
+			{
+				auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(decl->GetValueType());
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& tmpValue)
+				{
+					tmpValue = decltype(value){} - value;
+				}, Expected<decltype(value)>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+
+				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
+			}, Excepted<nBool>))
+			{
+				return;
+			}
+		}
 		break;
 	case Expression::UnaryOperationType::Not:
 		break;

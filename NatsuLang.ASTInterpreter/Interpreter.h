@@ -207,6 +207,7 @@ namespace NatsuLang
 			explicit InterpreterDeclStorage(Interpreter& interpreter);
 
 			// 返回值：是否新增了声明，声明的存储
+			// TODO: 不暴露内部实现，返回值不应当使用 std::vector<nByte>&
 			std::pair<nBool, std::vector<nByte>&> GetOrAddDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> decl);
 			void RemoveDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl);
 			nBool DoesDeclExist(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl) const noexcept;
@@ -215,15 +216,13 @@ namespace NatsuLang
 
 			static NatsuLib::natRefPointer<Declaration::ValueDecl> CreateTemporaryObjectDecl(Type::TypePtr type, SourceLocation loc = {});
 
-			// TODO: 添加数组及相关的处理，可能需要添加 NonArray 等辅助 Tag
-			template <typename T>
-			struct Array
+			// TODO: 设计 MemberAccessor
+			struct MemberAccessor
 			{
-				T* Data;
-				std::size_t Size;
+
 			};
 
-			// TODO: 添加函数、类等
+			// TODO: 添加函数
 
 			template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
 			nBool VisitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Callable&& visitor, ExpectedOrExcepted condition = {})

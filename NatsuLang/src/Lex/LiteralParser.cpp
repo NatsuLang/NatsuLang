@@ -265,7 +265,7 @@ nBool NumericLiteralParser::GetFloatValue(nDouble& result) const noexcept
 
 	if (periodPos)
 	{
-		result += partAfterPeriod * pow(m_Radix, periodPos - m_SuffixBegin);
+		result += partAfterPeriod * pow(m_Radix, periodPos - m_SuffixBegin + 1);
 	}
 	
 	// TODO: 检查是否溢出
