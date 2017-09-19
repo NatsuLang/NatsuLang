@@ -623,36 +623,82 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 {
 	for (auto&& decl : stmt->GetDecls())
 	{
+		if (!decl)
+		{
+			nat_Throw(InterpreterException, u8"错误的声明");
+		}
+
 		if (auto varDecl = static_cast<natRefPointer<Declaration::VarDecl>>(decl))
 		{
 			// TODO: 修改为通用的实现
-			if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [this, &varDecl](auto& storage)
-			{
-				InterpreterExprVisitor visitor{ m_Interpreter };
-				visitor.Visit(varDecl->GetInitializer());
-				const auto initExpr = visitor.GetLastVisitedExpr();
+			InterpreterExprVisitor visitor{ m_Interpreter };
+			visitor.Visit(varDecl->GetInitializer());
+			const auto initExpr = visitor.GetLastVisitedExpr();
 
-				if (auto declExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(initExpr))
+			if (auto declExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(initExpr))
+			{
+				auto succeed = false;
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [this, &succeed, declExpr = std::move(declExpr)](auto& storage)
 				{
-					m_Interpreter.m_DeclStorage.VisitDeclStorage(declExpr->GetDecl(), [&storage](auto& opStorage)
+					succeed = m_Interpreter.m_DeclStorage.VisitDeclStorage(declExpr->GetDecl(), [&storage](auto& opStorage)
 					{
 						storage = opStorage;
 					}, Expected<std::remove_reference_t<decltype(storage)>>);
-				}
-				else if (const auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(initExpr->GetExprType()))
+				}) || !succeed)
 				{
-					if (builtinType->IsIntegerType())
-					{
-						storage = static_cast<std::remove_reference_t<decltype(storage)>>(static_cast<natRefPointer<Expression::IntegerLiteral>>(initExpr)->GetValue());
-					}
+					nat_Throw(InterpreterException, u8"无法访问存储");
 				}
-			}, Expected<nInt, nLong, nuInt, nuLong>))
-			{
-				nat_Throw(InterpreterException, u8"此功能尚未实现");
-			}
-		}
 
-		
+				continue;
+			}
+			
+			if (const auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(initExpr->GetExprType()))
+			{
+				if (const auto intLiteral = static_cast<natRefPointer<Expression::IntegerLiteral>>(initExpr))
+				{
+					const auto value = intLiteral->GetValue();
+					if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [value](auto& storage)
+				                                                  {
+					                                                  storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
+				                                                  }, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>))
+					{
+						nat_Throw(InterpreterException, u8"无法访问存储");
+					}
+
+					continue;
+				}
+				
+				if (const auto floatingLiteral = static_cast<natRefPointer<Expression::FloatingLiteral>>(initExpr))
+				{
+					const auto value = floatingLiteral->GetValue();
+					if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [value](auto& storage)
+				                                                  {
+					                                                  storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
+				                                                  }, Expected<nFloat, nDouble>))
+					{
+						nat_Throw(InterpreterException, u8"无法访问存储");
+					}
+
+					continue;
+				}
+				
+				if (const auto boolLiteral = static_cast<natRefPointer<Expression::BooleanLiteral>>(initExpr))
+				{
+					const auto value = boolLiteral->GetValue();
+					if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [value](auto& storage)
+				                                                  {
+					                                                  storage = value;
+				                                                  }, Expected<nBool>))
+					{
+						nat_Throw(InterpreterException, u8"无法访问存储");
+					}
+
+					continue;
+				}
+			}
+
+			nat_Throw(InterpreterException, u8"此功能尚未实现");
+		}
 	}
 }
 

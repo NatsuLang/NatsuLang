@@ -171,7 +171,14 @@ NumericLiteralParser::NumericLiteralParser(nStrView buffer, SourceLocation loc, 
 		m_Radix = 10;
 		m_Current = skipDigits(m_Current);
 
-		// TODO: 完成读取指数与小数部分
+		if (*m_Current == '.')
+		{
+			++m_Current;
+			m_SawPeriod = true;
+			m_Current = skipDigits(m_Current);
+		}
+
+		// TODO: 完成读取指数部分
 	}
 
 	// TODO: 读取后缀
@@ -235,6 +242,8 @@ nBool NumericLiteralParser::GetIntegerValue(nuLong& result) const noexcept
 
 nBool NumericLiteralParser::GetFloatValue(nDouble& result) const noexcept
 {
+	result = 0;
+
 	nStrView::iterator periodPos{};
 	nDouble partAfterPeriod{};
 	for (auto i = m_DigitBegin; i != m_SuffixBegin; ++i)
@@ -256,7 +265,7 @@ nBool NumericLiteralParser::GetFloatValue(nDouble& result) const noexcept
 
 	if (periodPos)
 	{
-		result = partAfterPeriod * pow(m_Radix, periodPos - m_SuffixBegin);
+		result += partAfterPeriod * pow(m_Radix, periodPos - m_SuffixBegin);
 	}
 	
 	// TODO: 检查是否溢出
