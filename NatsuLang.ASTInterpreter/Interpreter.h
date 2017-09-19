@@ -178,13 +178,14 @@ namespace NatsuLang
 			{
 				if constexpr (!sizeof...(ExpectedTypes) || std::disjunction_v<std::is_same<RealType, ExpectedTypes>...>)
 				{
-					std::forward<Callable>(visitor)(realValue);
-					return true;
+					if constexpr (std::is_invocable_v<decltype(visitor), RealType&>)
+					{
+						std::invoke(std::forward<Callable>(visitor), realValue);
+						return true;
+					}
 				}
-				else
-				{
-					return false;
-				}
+
+				return false;
 			}
 
 			template <typename Callable, typename RealType, typename... ExceptedTypes>
@@ -192,19 +193,22 @@ namespace NatsuLang
 			{
 				if constexpr (!sizeof...(ExceptedTypes) || std::conjunction_v<std::negation<std::is_same<RealType, ExceptedTypes>>...>)
 				{
-					std::forward<Callable>(visitor)(realValue);
-					return true;
+					if constexpr (std::is_invocable_v<decltype(visitor), RealType&>)
+					{
+						std::invoke(std::forward<Callable>(visitor), realValue);
+						return true;
+					}
 				}
-				else
-				{
-					return false;
-				}
+
+				return false;
 			}
 
 		public:
 			explicit InterpreterDeclStorage(Interpreter& interpreter);
 
-			std::vector<nByte>& GetOrAddDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> decl);
+			// 返回值：是否新增了声明，声明的存储
+			std::pair<nBool, std::vector<nByte>&> GetOrAddDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> decl);
+			void RemoveDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl);
 			nBool DoesDeclExist(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl) const noexcept;
 
 			void GarbageCollect();
@@ -226,8 +230,16 @@ namespace NatsuLang
 			{
 				const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
 
-				// TODO: 访问失败时回滚
-				auto& storage = *GetOrAddDecl(std::move(decl)).data();
+				auto [addedDecl, storageVec] = GetOrAddDecl(decl);
+				auto& storage = *storageVec.data();
+				auto visitSucceed = false;
+				const auto scope = NatsuLib::make_scope([this, addedDecl, &visitSucceed, decl = std::move(decl)]
+				{
+					if (addedDecl && !visitSucceed)
+					{
+						RemoveDecl(decl);
+					}
+				});
 
 				switch (type->GetType())
 				{
@@ -239,33 +251,43 @@ namespace NatsuLang
 					switch (builtinType->GetBuiltinClass())
 					{
 					case Type::BuiltinType::Bool:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nBool&>(storage), condition);
+						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nBool&>(storage), condition);
+						break;
 					case Type::BuiltinType::Char:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nByte&>(storage), condition);
+						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nByte&>(storage), condition);
+						break;
 					case Type::BuiltinType::UShort:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuShort&>(storage), condition);
+						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuShort&>(storage), condition);
+						break;
 					case Type::BuiltinType::UInt:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuInt&>(storage), condition);
-						// TODO: 区分Long类型
+						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuInt&>(storage), condition);
+						break;
+					// TODO: 区分Long类型
 					case Type::BuiltinType::ULong:
 					case Type::BuiltinType::ULongLong:
 					case Type::BuiltinType::UInt128:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuLong&>(storage), condition);
+						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuLong&>(storage), condition);
+						break;
 					case Type::BuiltinType::Short:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nShort&>(storage), condition);
+						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nShort&>(storage), condition);
+						break;
 					case Type::BuiltinType::Int:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nInt&>(storage), condition);
+						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nInt&>(storage), condition);
+						break;
 					case Type::BuiltinType::Long:
 					case Type::BuiltinType::LongLong:
 					case Type::BuiltinType::Int128:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nLong&>(storage), condition);
+						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nLong&>(storage), condition);
+						break;
 					case Type::BuiltinType::Float:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nFloat&>(storage), condition);
+						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nFloat&>(storage), condition);
+						break;
 					case Type::BuiltinType::Double:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nDouble&>(storage), condition);
+						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nDouble&>(storage), condition);
+						break;
 					case Type::BuiltinType::LongDouble:
 					case Type::BuiltinType::Float128:
-						break;
+						nat_Throw(InterpreterException, u8"此功能尚未实现");
 					default:
 						assert(!"Invalid type.");
 						[[fallthrough]];
@@ -274,19 +296,19 @@ namespace NatsuLang
 					case Type::BuiltinType::BoundMember:
 					case Type::BuiltinType::BuiltinFn:
 					case Type::BuiltinType::Overload:
-						break;
+						nat_Throw(InterpreterException, u8"此功能尚未实现");
 					}
 
-					return false;
+					break;
 				}
 				case Type::Type::Array:
-					break;
+					nat_Throw(InterpreterException, u8"此功能尚未实现");
 				case Type::Type::Function:
-					break;
+					nat_Throw(InterpreterException, u8"此功能尚未实现");
 				case Type::Type::Record:
-					break;
+					nat_Throw(InterpreterException, u8"此功能尚未实现");
 				case Type::Type::Enum:
-					break;
+					nat_Throw(InterpreterException, u8"此功能尚未实现");
 				default:
 					assert(!"Invalid type.");
 					[[fallthrough]];
@@ -296,7 +318,7 @@ namespace NatsuLang
 					return false;
 				}
 
-				nat_Throw(InterpreterException, u8"此功能尚未实现");
+				return visitSucceed;
 			}
 
 		private:

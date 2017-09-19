@@ -716,7 +716,7 @@ Interpreter::InterpreterDeclStorage::InterpreterDeclStorage(Interpreter& interpr
 {
 }
 
-std::vector<nByte>& Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRefPointer<Declaration::ValueDecl> decl)
+std::pair<nBool, std::vector<nByte>&> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRefPointer<Declaration::ValueDecl> decl)
 {
 	const auto type = decl->GetValueType();
 	assert(type);
@@ -726,7 +726,7 @@ std::vector<nByte>& Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRefPoin
 	if (iter != m_DeclStorage.cend())
 	{
 		assert(typeInfo.Size <= iter->second.size());
-		return iter->second;
+		return { false, iter->second };
 	}
 
 	nBool succeed;
@@ -736,7 +736,12 @@ std::vector<nByte>& Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRefPoin
 		nat_Throw(InterpreterException, "无法为此声明创建存储");
 	}
 
-	return iter->second;
+	return { true, iter->second };
+}
+
+void Interpreter::InterpreterDeclStorage::RemoveDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl)
+{
+	m_DeclStorage.erase(decl);
 }
 
 nBool Interpreter::InterpreterDeclStorage::DoesDeclExist(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl) const noexcept

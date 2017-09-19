@@ -109,13 +109,13 @@ natRefPointer<NestedNameSpecifier> NestedNameSpecifier::Create(ASTContext const&
 
 natRefPointer<NestedNameSpecifier> NestedNameSpecifier::FindOrInsert(ASTContext const& context, natRefPointer<NestedNameSpecifier> nns)
 {
-	auto iter = context.m_NestedNameSpecifiers.find(nns);
+	const auto iter = context.m_NestedNameSpecifiers.find(nns);
 	if (iter != context.m_NestedNameSpecifiers.end())
 	{
 		return *iter;
 	}
 
-	auto result = context.m_NestedNameSpecifiers.emplace(std::move(nns));
+	const auto result = context.m_NestedNameSpecifiers.emplace(std::move(nns));
 	if (!result.second)
 	{
 		nat_Throw(natErrException, NatErr_InternalErr, "Cannot insert NestedNameSpecifier to context.");

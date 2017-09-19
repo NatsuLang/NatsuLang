@@ -113,13 +113,13 @@ Linq<Valued<natRefPointer<FieldDecl>>> RecordDecl::GetFields() const noexcept
 {
 	return from(GetDecls())
 		.where([](natRefPointer<Decl> const& decl)
-	{
-		return decl->GetType() == Field;
-	})
-		.select([](natRefPointer<Decl> const& decl)
-	{
-		return static_cast<natRefPointer<FieldDecl>>(decl);
-	});
+		{
+			return decl->GetType() == Field;
+		})
+			.select([](natRefPointer<Decl> const& decl)
+		{
+			return static_cast<natRefPointer<FieldDecl>>(decl);
+		});
 }
 
 ImportDecl::~ImportDecl()
