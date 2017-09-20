@@ -777,12 +777,25 @@ void Interpreter::InterpreterStmtVisitor::VisitWhileStmt(natRefPointer<Statement
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
+void Interpreter::InterpreterDeclStorage::StorageDeleter::operator()(nData data) const noexcept
+{
+#ifdef _MSC_VER
+#	ifdef NDEBUG
+		_aligned_free(data);
+#	else
+		_aligned_free_dbg(data);
+#	endif
+#else
+	std::free(data);
+#endif
+}
+
 Interpreter::InterpreterDeclStorage::InterpreterDeclStorage(Interpreter& interpreter)
 	: m_Interpreter{ interpreter }
 {
 }
 
-std::pair<nBool, std::vector<nByte>&> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRefPointer<Declaration::ValueDecl> decl)
+std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRefPointer<Declaration::ValueDecl> decl)
 {
 	const auto type = decl->GetValueType();
 	assert(type);
@@ -791,18 +804,31 @@ std::pair<nBool, std::vector<nByte>&> Interpreter::InterpreterDeclStorage::GetOr
 	auto iter = m_DeclStorage.find(decl);
 	if (iter != m_DeclStorage.cend())
 	{
-		assert(typeInfo.Size <= iter->second.size());
-		return { false, iter->second };
+		return { false, iter->second.get() };
 	}
 
 	nBool succeed;
-	tie(iter, succeed) = m_DeclStorage.emplace(std::move(decl), typeInfo.Size);
+	tie(iter, succeed) = m_DeclStorage.emplace(std::move(decl), std::unique_ptr<nByte[], StorageDeleter>
+	{ 
+#ifdef _MSC_VER
+#	ifdef NDEBUG
+			static_cast<nData>(_aligned_malloc(typeInfo.Size, typeInfo.Align))
+#	else
+			static_cast<nData>(_aligned_malloc_dbg(typeInfo.Size, typeInfo.Align, __FILE__, __LINE__))
+#	endif
+#else
+		static_cast<nData>(std::aligned_alloc(typeInfo.Align, typeInfo.Size))
+#endif
+	});
+
 	if (!succeed)
 	{
 		nat_Throw(InterpreterException, "无法为此声明创建存储");
 	}
 
-	return { true, iter->second };
+	std::memset(iter->second.get(), 0, typeInfo.Size);
+
+	return { true, iter->second.get() };
 }
 
 void Interpreter::InterpreterDeclStorage::RemoveDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl)

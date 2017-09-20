@@ -203,12 +203,17 @@ namespace NatsuLang
 				return false;
 			}
 
+			struct StorageDeleter
+			{
+				constexpr StorageDeleter() noexcept = default;
+				void operator()(nData data) const noexcept;
+			};
+
 		public:
 			explicit InterpreterDeclStorage(Interpreter& interpreter);
 
 			// 返回值：是否新增了声明，声明的存储
-			// TODO: 不暴露内部实现，返回值不应当使用 std::vector<nByte>&
-			std::pair<nBool, std::vector<nByte>&> GetOrAddDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> decl);
+			std::pair<nBool, nData> GetOrAddDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> decl);
 			void RemoveDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl);
 			nBool DoesDeclExist(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl) const noexcept;
 
@@ -229,8 +234,8 @@ namespace NatsuLang
 			{
 				const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
 
-				auto [addedDecl, storageVec] = GetOrAddDecl(decl);
-				auto& storage = *storageVec.data();
+				auto [addedDecl, storagePointer] = GetOrAddDecl(decl);
+				auto& storage = *storagePointer;
 				auto visitSucceed = false;
 				const auto scope = NatsuLib::make_scope([this, addedDecl, &visitSucceed, decl = std::move(decl)]
 				{
@@ -322,7 +327,7 @@ namespace NatsuLang
 
 		private:
 			Interpreter& m_Interpreter;
-			std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, std::vector<nByte>> m_DeclStorage;
+			std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, std::unique_ptr<nByte[], StorageDeleter>> m_DeclStorage;
 		};
 
 	public:
