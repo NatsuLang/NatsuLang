@@ -489,6 +489,11 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 		if (declExpr)
 		{
 			const auto decl = declExpr->GetDecl();
+			if (!decl->GetIdentifierInfo())
+			{
+				nat_Throw(InterpreterException, u8"不允许修改临时对象");
+			}
+
 			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &decl](auto& value)
 				{
 					auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(decl->GetValueType());
@@ -512,6 +517,11 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 		if (declExpr)
 		{
 			const auto decl = declExpr->GetDecl();
+			if (!decl->GetIdentifierInfo())
+			{
+				nat_Throw(InterpreterException, u8"不允许修改临时对象");
+			}
+
 			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &decl](auto& value)
 			{
 				auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(decl->GetValueType());
@@ -520,7 +530,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 					tmpValue = value;
 				}, Expected<std::remove_reference_t<decltype(value)>>))
 				{
-					nat_Throw(InterpreterException, "无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
 				}
 
 				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
@@ -534,7 +544,13 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 	case Expression::UnaryOperationType::PreInc:
 		if (declExpr)
 		{
-			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(declExpr->GetDecl(), [](auto& value)
+			const auto decl = declExpr->GetDecl();
+			if (!decl->GetIdentifierInfo())
+			{
+				nat_Throw(InterpreterException, u8"不允许修改临时对象");
+			}
+
+			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [](auto& value)
 				{
 					++value;
 				}, Excepted<nBool>))
@@ -546,7 +562,13 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 	case Expression::UnaryOperationType::PreDec:
 		if (declExpr)
 		{
-			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(declExpr->GetDecl(), [](auto& value)
+			const auto decl = declExpr->GetDecl();
+			if (!decl->GetIdentifierInfo())
+			{
+				nat_Throw(InterpreterException, u8"不允许修改临时对象");
+			}
+
+			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [](auto& value)
 				{
 					--value;
 				}, Excepted<nBool>))
@@ -807,28 +829,30 @@ std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRef
 		return { false, iter->second.get() };
 	}
 
-	nBool succeed;
-	tie(iter, succeed) = m_DeclStorage.emplace(std::move(decl), std::unique_ptr<nByte[], StorageDeleter>
-	{ 
+	const auto storagePointer =
 #ifdef _MSC_VER
 #	ifdef NDEBUG
-			static_cast<nData>(_aligned_malloc(typeInfo.Size, typeInfo.Align))
+		static_cast<nData>(_aligned_malloc(typeInfo.Size, typeInfo.Align));
 #	else
-			static_cast<nData>(_aligned_malloc_dbg(typeInfo.Size, typeInfo.Align, __FILE__, __LINE__))
+		static_cast<nData>(_aligned_malloc_dbg(typeInfo.Size, typeInfo.Align, __FILE__, __LINE__));
 #	endif
 #else
-		static_cast<nData>(std::aligned_alloc(typeInfo.Align, typeInfo.Size))
+		static_cast<nData>(std::aligned_alloc(typeInfo.Align, typeInfo.Size));
 #endif
-	});
 
-	if (!succeed)
+	if (storagePointer)
 	{
-		nat_Throw(InterpreterException, "无法为此声明创建存储");
+		nBool succeed;
+		tie(iter, succeed) = m_DeclStorage.emplace(std::move(decl), std::unique_ptr<nByte[], StorageDeleter>{ storagePointer });
+
+		if (succeed)
+		{
+			std::memset(iter->second.get(), 0, typeInfo.Size);
+			return { true, iter->second.get() };
+		}
 	}
 
-	std::memset(iter->second.get(), 0, typeInfo.Size);
-
-	return { true, iter->second.get() };
+	nat_Throw(InterpreterException, "无法为此声明创建存储");
 }
 
 void Interpreter::InterpreterDeclStorage::RemoveDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl)
