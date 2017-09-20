@@ -234,7 +234,7 @@ namespace NatsuLang
 			{
 				const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
 
-				auto [addedDecl, storagePointer] = GetOrAddDecl(decl);
+				const auto [addedDecl, storagePointer] = GetOrAddDecl(decl);
 				auto& storage = *storagePointer;
 				auto visitSucceed = false;
 				const auto scope = NatsuLib::make_scope([this, addedDecl, &visitSucceed, decl = std::move(decl)]

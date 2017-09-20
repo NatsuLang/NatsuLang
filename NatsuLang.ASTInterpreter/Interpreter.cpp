@@ -674,7 +674,13 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 		{
 			// TODO: 修改为通用的实现
 			InterpreterExprVisitor visitor{ m_Interpreter };
-			visitor.Visit(varDecl->GetInitializer());
+			const auto initializer = varDecl->GetInitializer();
+			if (!initializer)
+			{
+				continue;
+			}
+
+			visitor.Visit(initializer);
 			const auto initExpr = visitor.GetLastVisitedExpr();
 
 			if (auto declExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(initExpr))
@@ -855,12 +861,13 @@ std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRef
 	nat_Throw(InterpreterException, "无法为此声明创建存储");
 }
 
-void Interpreter::InterpreterDeclStorage::RemoveDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl)
+void Interpreter::InterpreterDeclStorage::RemoveDecl(natRefPointer<Declaration::ValueDecl> const& decl)
 {
+	// TODO: 是否需要将声明从所在的域中移除？
 	m_DeclStorage.erase(decl);
 }
 
-nBool Interpreter::InterpreterDeclStorage::DoesDeclExist(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl) const noexcept
+nBool Interpreter::InterpreterDeclStorage::DoesDeclExist(natRefPointer<Declaration::ValueDecl> const& decl) const noexcept
 {
 	return m_DeclStorage.find(decl) != m_DeclStorage.cend();
 }
@@ -909,6 +916,7 @@ void Interpreter::Run(Uri const& uri)
 	m_Parser.ConsumeToken();
 	m_CurrentScope = m_Sema.GetCurrentScope();
 	ParseAST(m_Parser);
+	m_DeclStorage.GarbageCollect();
 }
 
 void Interpreter::Run(nStrView content)

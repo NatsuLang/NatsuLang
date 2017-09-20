@@ -2,6 +2,7 @@
 #include "Lex/Preprocessor.h"
 #include "Basic/CharInfo.h"
 
+using namespace NatsuLib;
 using namespace NatsuLang;
 using namespace NatsuLang::Lex;
 using namespace NatsuLang::CharInfo;
