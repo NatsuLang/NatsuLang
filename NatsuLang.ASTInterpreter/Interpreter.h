@@ -203,6 +203,77 @@ namespace NatsuLang
 				return false;
 			}
 
+			template <typename Callable, typename ExpectedOrExcepted>
+			nBool VisitStorage(Type::TypePtr const& type, nData storage, Callable&& visitor, ExpectedOrExcepted condition)
+			{
+				auto& storageRef = *storage;
+
+				switch (type->GetType())
+				{
+				case Type::Type::Builtin:
+				{
+					const auto builtinType = static_cast<NatsuLib::natRefPointer<Type::BuiltinType>>(type);
+					assert(builtinType);
+
+					switch (builtinType->GetBuiltinClass())
+					{
+					case Type::BuiltinType::Bool:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nBool&>(storageRef), condition);
+					case Type::BuiltinType::Char:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nByte&>(storageRef), condition);
+					case Type::BuiltinType::UShort:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuShort&>(storageRef), condition);
+					case Type::BuiltinType::UInt:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuInt&>(storageRef), condition);
+						// TODO: 区分Long类型
+					case Type::BuiltinType::ULong:
+					case Type::BuiltinType::ULongLong:
+					case Type::BuiltinType::UInt128:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuLong&>(storageRef), condition);
+					case Type::BuiltinType::Short:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nShort&>(storageRef), condition);
+					case Type::BuiltinType::Int:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nInt&>(storageRef), condition);
+					case Type::BuiltinType::Long:
+					case Type::BuiltinType::LongLong:
+					case Type::BuiltinType::Int128:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nLong&>(storageRef), condition);
+					case Type::BuiltinType::Float:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nFloat&>(storageRef), condition);
+					case Type::BuiltinType::Double:
+						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nDouble&>(storageRef), condition);
+					case Type::BuiltinType::LongDouble:
+					case Type::BuiltinType::Float128:
+						nat_Throw(InterpreterException, u8"此功能尚未实现");
+					default:
+						assert(!"Invalid type.");
+						[[fallthrough]];
+					case Type::BuiltinType::Invalid:
+					case Type::BuiltinType::Void:
+					case Type::BuiltinType::BoundMember:
+					case Type::BuiltinType::BuiltinFn:
+					case Type::BuiltinType::Overload:
+						nat_Throw(InterpreterException, u8"此功能尚未实现");
+					}
+				}
+				case Type::Type::Array:
+					nat_Throw(InterpreterException, u8"此功能尚未实现");
+				case Type::Type::Function:
+					nat_Throw(InterpreterException, u8"此功能尚未实现");
+				case Type::Type::Record:
+					nat_Throw(InterpreterException, u8"此功能尚未实现");
+				case Type::Type::Enum:
+					nat_Throw(InterpreterException, u8"此功能尚未实现");
+				default:
+					assert(!"Invalid type.");
+					[[fallthrough]];
+				case Type::Type::Paren:
+				case Type::Type::TypeOf:
+				case Type::Type::Auto:
+					return false;
+				}
+			}
+
 			struct StorageDeleter
 			{
 				constexpr StorageDeleter() noexcept = default;
@@ -235,7 +306,6 @@ namespace NatsuLang
 				const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
 
 				const auto [addedDecl, storagePointer] = GetOrAddDecl(decl);
-				auto& storage = *storagePointer;
 				auto visitSucceed = false;
 				const auto scope = NatsuLib::make_scope([this, addedDecl, &visitSucceed, decl = std::move(decl)]
 				{
@@ -245,83 +315,7 @@ namespace NatsuLang
 					}
 				});
 
-				switch (type->GetType())
-				{
-				case Type::Type::Builtin:
-				{
-					const auto builtinType = static_cast<NatsuLib::natRefPointer<Type::BuiltinType>>(type);
-					assert(builtinType);
-
-					switch (builtinType->GetBuiltinClass())
-					{
-					case Type::BuiltinType::Bool:
-						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nBool&>(storage), condition);
-						break;
-					case Type::BuiltinType::Char:
-						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nByte&>(storage), condition);
-						break;
-					case Type::BuiltinType::UShort:
-						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuShort&>(storage), condition);
-						break;
-					case Type::BuiltinType::UInt:
-						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuInt&>(storage), condition);
-						break;
-					// TODO: 区分Long类型
-					case Type::BuiltinType::ULong:
-					case Type::BuiltinType::ULongLong:
-					case Type::BuiltinType::UInt128:
-						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuLong&>(storage), condition);
-						break;
-					case Type::BuiltinType::Short:
-						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nShort&>(storage), condition);
-						break;
-					case Type::BuiltinType::Int:
-						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nInt&>(storage), condition);
-						break;
-					case Type::BuiltinType::Long:
-					case Type::BuiltinType::LongLong:
-					case Type::BuiltinType::Int128:
-						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nLong&>(storage), condition);
-						break;
-					case Type::BuiltinType::Float:
-						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nFloat&>(storage), condition);
-						break;
-					case Type::BuiltinType::Double:
-						visitSucceed = VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nDouble&>(storage), condition);
-						break;
-					case Type::BuiltinType::LongDouble:
-					case Type::BuiltinType::Float128:
-						nat_Throw(InterpreterException, u8"此功能尚未实现");
-					default:
-						assert(!"Invalid type.");
-						[[fallthrough]];
-					case Type::BuiltinType::Invalid:
-					case Type::BuiltinType::Void:
-					case Type::BuiltinType::BoundMember:
-					case Type::BuiltinType::BuiltinFn:
-					case Type::BuiltinType::Overload:
-						nat_Throw(InterpreterException, u8"此功能尚未实现");
-					}
-
-					break;
-				}
-				case Type::Type::Array:
-					nat_Throw(InterpreterException, u8"此功能尚未实现");
-				case Type::Type::Function:
-					nat_Throw(InterpreterException, u8"此功能尚未实现");
-				case Type::Type::Record:
-					nat_Throw(InterpreterException, u8"此功能尚未实现");
-				case Type::Type::Enum:
-					nat_Throw(InterpreterException, u8"此功能尚未实现");
-				default:
-					assert(!"Invalid type.");
-					[[fallthrough]];
-				case Type::Type::Paren:
-				case Type::Type::TypeOf:
-				case Type::Type::Auto:
-					return false;
-				}
-
+				visitSucceed = VisitStorage(type, storagePointer, std::forward<Callable>(visitor), condition);
 				return visitSucceed;
 			}
 

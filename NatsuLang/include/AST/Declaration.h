@@ -13,6 +13,7 @@ namespace NatsuLang
 namespace NatsuLang::Identifier
 {
 	class IdentifierInfo;
+	using IdPtr = NatsuLib::natRefPointer<IdentifierInfo>;
 }
 
 namespace NatsuLang::Statement
@@ -47,21 +48,19 @@ namespace NatsuLang::Declaration
 		: public Decl
 	{
 	public:
-		using IdPtr = NatsuLib::natRefPointer<Identifier::IdentifierInfo>;
-
-		NamedDecl(DeclType type, DeclContext* context, SourceLocation loc, IdPtr identifierInfo)
+		NamedDecl(DeclType type, DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo)
 			: Decl(type, context, loc), m_IdentifierInfo{ std::move(identifierInfo) }
 		{
 		}
 
 		~NamedDecl();
 
-		IdPtr GetIdentifierInfo() const noexcept
+		Identifier::IdPtr GetIdentifierInfo() const noexcept
 		{
 			return m_IdentifierInfo;
 		}
 
-		void SetIdentifierInfo(IdPtr identifierInfo) noexcept
+		void SetIdentifierInfo(Identifier::IdPtr identifierInfo) noexcept
 		{
 			m_IdentifierInfo = std::move(identifierInfo);
 		}
@@ -75,7 +74,7 @@ namespace NatsuLang::Declaration
 		}
 
 	private:
-		IdPtr m_IdentifierInfo;
+		Identifier::IdPtr m_IdentifierInfo;
 	};
 
 	class LabelDecl
@@ -84,7 +83,7 @@ namespace NatsuLang::Declaration
 	public:
 		using LabelStmtPtr = NatsuLib::natWeakRefPointer<Statement::LabelStmt>;
 
-		LabelDecl(DeclContext* context, SourceLocation loc, IdPtr identifierInfo, LabelStmtPtr stmt)
+		LabelDecl(DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, LabelStmtPtr stmt)
 			: NamedDecl{ Label, context, loc, std::move(identifierInfo) }, m_Stmt{ std::move(stmt) }
 		{
 		}
@@ -111,7 +110,7 @@ namespace NatsuLang::Declaration
 		: public NamedDecl, public DeclContext
 	{
 	public:
-		ModuleDecl(DeclContext* context, SourceLocation idLoc, IdPtr identifierInfo, SourceLocation startLoc)
+		ModuleDecl(DeclContext* context, SourceLocation idLoc, Identifier::IdPtr identifierInfo, SourceLocation startLoc)
 			: NamedDecl{ Module, context, idLoc, std::move(identifierInfo) }, DeclContext{ Module }, m_Start{ startLoc }
 		{
 		}
@@ -146,7 +145,7 @@ namespace NatsuLang::Declaration
 		: public NamedDecl
 	{
 	public:
-		ValueDecl(DeclType declType, DeclContext* context, SourceLocation loc, IdPtr identifierInfo, Type::TypePtr valueType)
+		ValueDecl(DeclType declType, DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType)
 			: NamedDecl{ declType, context, loc, std::move(identifierInfo) }, m_ValueType{ std::move(valueType) }
 		{
 		}
@@ -171,7 +170,7 @@ namespace NatsuLang::Declaration
 		: public ValueDecl
 	{
 	public:
-		DeclaratorDecl(DeclType declType, DeclContext* context, SourceLocation loc, IdPtr identifierInfo, Type::TypePtr valueType, SourceLocation startLoc)
+		DeclaratorDecl(DeclType declType, DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, SourceLocation startLoc)
 			: ValueDecl{ declType, context, loc, std::move(identifierInfo), std::move(valueType) }, m_StartLoc{ startLoc }
 		{
 		}
@@ -191,7 +190,7 @@ namespace NatsuLang::Declaration
 		: public DeclaratorDecl
 	{
 	public:
-		VarDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass)
+		VarDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass)
 			: DeclaratorDecl{ declType, context, idLoc, std::move(identifierInfo), std::move(valueType), startLoc }, m_StorageClass{ storageClass }
 		{
 		}
@@ -235,7 +234,7 @@ namespace NatsuLang::Declaration
 			Other
 		};
 
-		ImplicitParamDecl(DeclContext* context, SourceLocation loc, IdPtr identifierInfo, Type::TypePtr valueType, ImplicitParamType paramType)
+		ImplicitParamDecl(DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, ImplicitParamType paramType)
 			: VarDecl{ ImplicitParam, context, loc, loc, std::move(identifierInfo), std::move(valueType), Specifier::StorageClass::None }, m_ParamType{ paramType }
 		{
 		}
@@ -255,7 +254,7 @@ namespace NatsuLang::Declaration
 		: public VarDecl
 	{
 	public:
-		ParmVarDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass, Expression::ExprPtr defValue)
+		ParmVarDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass, Expression::ExprPtr defValue)
 			: VarDecl{ declType, context, startLoc, idLoc, std::move(identifierInfo), std::move(valueType), storageClass }
 		{
 			SetInitializer(std::move(defValue));
@@ -268,7 +267,7 @@ namespace NatsuLang::Declaration
 		: public VarDecl, public DeclContext
 	{
 	public:
-		FunctionDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass)
+		FunctionDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass)
 			: VarDecl{ declType, context, startLoc, idLoc, std::move(identifierInfo), std::move(valueType), storageClass }, DeclContext{ declType }
 		{
 		}
@@ -302,7 +301,7 @@ namespace NatsuLang::Declaration
 		: public FunctionDecl
 	{
 	public:
-		MethodDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass)
+		MethodDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass)
 			: FunctionDecl{ declType, context, startLoc, idLoc, std::move(identifierInfo), std::move(valueType), storageClass }
 		{
 		}
@@ -314,7 +313,7 @@ namespace NatsuLang::Declaration
 		: public DeclaratorDecl
 	{
 	public:
-		FieldDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, IdPtr identifierInfo, Type::TypePtr valueType)
+		FieldDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType)
 			: DeclaratorDecl{ declType, context, idLoc, std::move(identifierInfo), std::move(valueType), startLoc }
 		{
 		}
@@ -326,7 +325,7 @@ namespace NatsuLang::Declaration
 		: public ValueDecl
 	{
 	public:
-		EnumConstantDecl(DeclContext* context, SourceLocation loc, IdPtr identifierInfo, Type::TypePtr valueType, Expression::ExprPtr init, nuLong val)
+		EnumConstantDecl(DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, Expression::ExprPtr init, nuLong val)
 			: ValueDecl{ EnumConstant, context, loc, std::move(identifierInfo), std::move(valueType) }, m_Init{ std::move(init) }, m_Value{ val }
 		{
 		}
@@ -362,7 +361,7 @@ namespace NatsuLang::Declaration
 		: public NamedDecl
 	{
 	public:
-		TypeDecl(DeclType type, DeclContext* context, SourceLocation loc, IdPtr identifierInfo, SourceLocation startLoc = {})
+		TypeDecl(DeclType type, DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, SourceLocation startLoc = {})
 			: NamedDecl{ type, context, loc, std::move(identifierInfo) }, m_StartLoc{ startLoc }
 		{
 		}
@@ -398,7 +397,7 @@ namespace NatsuLang::Declaration
 		: public TypeDecl, public DeclContext
 	{
 	public:
-		TagDecl(DeclType type, Type::TagType::TagTypeClass tagTypeClass, DeclContext* context, SourceLocation loc, IdPtr identifierInfo, SourceLocation startLoc)
+		TagDecl(DeclType type, Type::TagType::TagTypeClass tagTypeClass, DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, SourceLocation startLoc)
 			: TypeDecl{ type, context, loc, std::move(identifierInfo), startLoc }, DeclContext{ type }, m_TagTypeClass{ tagTypeClass }
 		{
 		}
@@ -423,7 +422,7 @@ namespace NatsuLang::Declaration
 		: public TagDecl
 	{
 	public:
-		EnumDecl(DeclContext* context, SourceLocation loc, IdPtr identifierInfo, SourceLocation startLoc)
+		EnumDecl(DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, SourceLocation startLoc)
 			: TagDecl{ Enum, Type::TagType::TagTypeClass::Enum, context, loc, std::move(identifierInfo), startLoc }
 		{
 		}
@@ -437,7 +436,7 @@ namespace NatsuLang::Declaration
 		: public TagDecl
 	{
 	public:
-		RecordDecl(DeclType declType, Type::TagType::TagTypeClass tagTypeClass, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, IdPtr identifierInfo)
+		RecordDecl(DeclType declType, Type::TagType::TagTypeClass tagTypeClass, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo)
 			: TagDecl{ declType, tagTypeClass, context, idLoc, std::move(identifierInfo), startLoc }
 		{
 		}
@@ -483,7 +482,7 @@ namespace NatsuLang::Declaration
 		: public MethodDecl
 	{
 	public:
-		ConstructorDecl(NatsuLib::natRefPointer<RecordDecl> recordDecl, SourceLocation startLoc, IdPtr identifierInfo, Type::TypePtr type)
+		ConstructorDecl(NatsuLib::natRefPointer<RecordDecl> recordDecl, SourceLocation startLoc, Identifier::IdPtr identifierInfo, Type::TypePtr type)
 			: MethodDecl{ Constructor, static_cast<DeclContext*>(recordDecl.Get()), startLoc, {}, std::move(identifierInfo), std::move(type), Specifier::StorageClass::None }
 		{
 		}
