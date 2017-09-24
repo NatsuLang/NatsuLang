@@ -1061,6 +1061,7 @@ void Parser::ParseArrayType(Declaration::Declarator& decl)
 
 // initializer:
 //	= expression
+//	= { expression-list }
 //	compound-statement
 void Parser::ParseInitializer(Declaration::Declarator& decl)
 {

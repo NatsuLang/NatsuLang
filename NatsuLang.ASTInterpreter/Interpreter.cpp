@@ -126,7 +126,7 @@ void Interpreter::InterpreterDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEng
 		}
 	}
 
-	m_Errored = Diag::DiagnosticsEngine::IsUnrecoverableLevel(level);
+	m_Errored |= Diag::DiagnosticsEngine::IsUnrecoverableLevel(level);
 }
 
 Interpreter::InterpreterASTConsumer::InterpreterASTConsumer(Interpreter& interpreter)
@@ -346,6 +346,12 @@ void Interpreter::InterpreterExprVisitor::VisitThrowExpr(natRefPointer<Expressio
 
 void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression::CallExpr> const& expr)
 {
+	const auto callee = static_cast<natRefPointer<Expression::DeclRefExpr>>(expr->GetCallee());
+	if (!callee)
+	{
+		nat_Throw(InterpreterException, u8"被调用者错误");
+	}
+
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
@@ -383,25 +389,25 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 				{
 					m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [&value](auto& storage)
 					{
-						storage = static_cast<nuLong>(value);
-					}, Expected<nuLong>);
-				}, Expected<nuLong>);
+						storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
+					}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>);
+				}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>);
 			}
 			else if (const auto intLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
 			{
 				const auto value = intLiteralOperand->GetValue();
 				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
 				{
-					storage = value;
-				}, Expected<nuLong>);
+					storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
+				}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>);
 			}
 			else if (const auto floatLiteralOperand = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
 			{
-				const auto value = static_cast<nuLong>(floatLiteralOperand->GetValue());
+				const auto value = floatLiteralOperand->GetValue();
 				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
 				{
-					storage = value;
-				}, Expected<nuLong>);
+					storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
+				}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>);
 			}
 		}
 		else if (castToType->IsFloatingType())
@@ -448,7 +454,7 @@ void Interpreter::InterpreterExprVisitor::VisitMemberExpr(natRefPointer<Expressi
 
 void Interpreter::InterpreterExprVisitor::VisitParenExpr(natRefPointer<Expression::ParenExpr> const& expr)
 {
-	m_LastVisitedExpr = expr->GetInnerExpr();
+	Visit(expr->GetInnerExpr());
 }
 
 void Interpreter::InterpreterExprVisitor::VisitStmtExpr(natRefPointer<Expression::StmtExpr> const& expr)
@@ -468,11 +474,105 @@ void Interpreter::InterpreterExprVisitor::VisitConditionalOperator(natRefPointer
 
 void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> const& expr)
 {
+	const auto opCode = expr->GetOpcode();
+	Visit(expr->GetLeftOperand());
+	const auto leftOperand = std::move(m_LastVisitedExpr);
+	Visit(expr->GetRightOperand());
+	const auto rightOperand = std::move(m_LastVisitedExpr);
+
+	const auto leftDeclExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(leftOperand),
+		rightDeclExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(rightOperand);
+
+	switch (opCode)
+	{
+	case Expression::BinaryOperationType::Mul:
+		break;
+	case Expression::BinaryOperationType::Div:
+		break;
+	case Expression::BinaryOperationType::Mod:
+		break;
+	case Expression::BinaryOperationType::Add:
+		break;
+	case Expression::BinaryOperationType::Sub:
+		break;
+	case Expression::BinaryOperationType::Shl:
+		break;
+	case Expression::BinaryOperationType::Shr:
+		break;
+	case Expression::BinaryOperationType::LT:
+		break;
+	case Expression::BinaryOperationType::GT:
+		break;
+	case Expression::BinaryOperationType::LE:
+		break;
+	case Expression::BinaryOperationType::GE:
+		break;
+	case Expression::BinaryOperationType::EQ:
+		break;
+	case Expression::BinaryOperationType::NE:
+		break;
+	case Expression::BinaryOperationType::And:
+		break;
+	case Expression::BinaryOperationType::Xor:
+		break;
+	case Expression::BinaryOperationType::Or:
+		break;
+	case Expression::BinaryOperationType::LAnd:
+		break;
+	case Expression::BinaryOperationType::LOr:
+		break;
+	default:
+		assert(!"Invalid opcode.");
+		[[fallthrough]];
+	case Expression::BinaryOperationType::Invalid:
+		break;
+	}
+
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
 void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPointer<Expression::CompoundAssignOperator> const& expr)
 {
+	const auto opCode = expr->GetOpcode();
+	Visit(expr->GetLeftOperand());
+	const auto leftOperand = std::move(m_LastVisitedExpr);
+	Visit(expr->GetRightOperand());
+	const auto rightOperand = std::move(m_LastVisitedExpr);
+
+	const auto leftDeclExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(leftOperand),
+		rightDeclExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(rightOperand);
+
+	switch (opCode)
+	{
+	case Expression::BinaryOperationType::Assign:
+		break;
+	case Expression::BinaryOperationType::MulAssign:
+		break;
+	case Expression::BinaryOperationType::DivAssign:
+		break;
+	case Expression::BinaryOperationType::RemAssign:
+		break;
+	case Expression::BinaryOperationType::AddAssign:
+		break;
+	case Expression::BinaryOperationType::SubAssign:
+		break;
+	case Expression::BinaryOperationType::ShlAssign:
+		break;
+	case Expression::BinaryOperationType::ShrAssign:
+		break;
+	case Expression::BinaryOperationType::AndAssign:
+		break;
+	case Expression::BinaryOperationType::XorAssign:
+		break;
+	case Expression::BinaryOperationType::OrAssign:
+		break;
+	default:
+		assert(!"Invalid opcode.");
+		[[fallthrough]];
+	case Expression::BinaryOperationType::Invalid:
+		break;
+	}
+
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
@@ -600,11 +700,130 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 				return;
 			}
 		}
+		else
+		{
+			auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(m_LastVisitedExpr->GetExprType());
+			if (const auto intLiteral = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
+			{
+				const auto value = intLiteral->GetValue();
+				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
+				{
+					storage = static_cast<std::remove_reference_t<decltype(storage)>>(
+						std::remove_reference_t<decltype(storage)>{} - static_cast<std::remove_reference_t<decltype(storage)>>(value));
+				}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>);
+				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, m_LastVisitedExpr->GetExprType());
+				return;
+			}
+			
+			if (const auto floatingLiteral = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
+			{
+				const auto value = floatingLiteral->GetValue();
+				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
+			    {
+				    storage = static_cast<std::remove_reference_t<decltype(storage)>>(
+					    std::remove_reference_t<decltype(storage)>{} - static_cast<std::remove_reference_t<decltype(storage)>>(value));
+			    }, Expected<nFloat, nDouble>);
+				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, m_LastVisitedExpr->GetExprType());
+				return;
+			}
+		}
 		break;
 	case Expression::UnaryOperationType::Not:
+		if (declExpr)
+		{
+			const auto decl = declExpr->GetDecl();
+			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &decl](auto value)
+			{
+				auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(decl->GetValueType());
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& tmpValue)
+				{
+					tmpValue = static_cast<decltype(value)>(~value);
+				}, Expected<decltype(value)>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+
+				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
+			}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>))
+			{
+				return;
+			}
+		}
+		else
+		{
+			auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(m_LastVisitedExpr->GetExprType());
+			if (const auto intLiteral = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
+			{
+				const auto value = intLiteral->GetValue();
+				if (m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
+					{
+						storage = static_cast<std::remove_reference_t<decltype(storage)>>(~static_cast<std::remove_reference_t<decltype(storage)>>(value));
+					}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>))
+				{
+					m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, m_LastVisitedExpr->GetExprType());
+					return;
+				}
+			}
+		}
 		break;
 	case Expression::UnaryOperationType::LNot:
+	{
+		const auto boolType = m_Interpreter.m_AstContext.GetBuiltinType(Type::BuiltinType::Bool);
+		auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(boolType);
+		if (declExpr)
+		{
+			const auto decl = declExpr->GetDecl();
+			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &decl, tempObjDef = std::move(tempObjDef)](auto value)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& tmpValue)
+					{
+						tmpValue = !value;
+					}, Expected<nBool>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+
+				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
+			}))
+			{
+				return;
+			}
+		}
+		else
+		{
+			if (const auto boolLiteral = static_cast<natRefPointer<Expression::BooleanLiteral>>(m_LastVisitedExpr))
+			{
+				const auto value = boolLiteral->GetValue();
+				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
+				{
+					storage = !value;
+				}, Expected<nBool>);
+				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, boolType);
+				return;
+			}
+			if (const auto intLiteral = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
+			{
+				const auto value = intLiteral->GetValue();
+				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
+				{
+					storage = !value;
+				}, Expected<nBool>);
+				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, boolType);
+				return;
+			}
+			if (const auto floatingLiteral = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
+			{
+				const auto value = floatingLiteral->GetValue();
+				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
+			    {
+				    storage = !value;
+			    }, Expected<nBool>);
+				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, boolType);
+				return;
+			}
+		}
 		break;
+	}
 	case Expression::UnaryOperationType::Invalid:
 	default:
 		break;
@@ -767,6 +986,31 @@ void Interpreter::InterpreterStmtVisitor::VisitGotoStmt(natRefPointer<Statement:
 
 void Interpreter::InterpreterStmtVisitor::VisitIfStmt(natRefPointer<Statement::IfStmt> const& stmt)
 {
+	auto condExpr = stmt->GetCond();
+	if (!condExpr)
+	{
+		nat_Throw(InterpreterException, u8"条件表达式错误");
+	}
+
+	InterpreterExprVisitor visitor{ m_Interpreter };
+	visitor.Visit(condExpr);
+	// TODO: 求值应当委托给 InterpreterExprVisitor
+	condExpr = visitor.GetLastVisitedExpr();
+
+	if (const auto boolLiteral = static_cast<natRefPointer<Expression::BooleanLiteral>>(condExpr))
+	{
+		if (boolLiteral->GetValue())
+		{
+			Visit(stmt->GetThen());
+		}
+		else
+		{
+			Visit(stmt->GetElse());
+		}
+
+		return;
+	}
+
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
@@ -775,9 +1019,8 @@ void Interpreter::InterpreterStmtVisitor::VisitLabelStmt(natRefPointer<Statement
 	Visit(stmt->GetSubStmt());
 }
 
-void Interpreter::InterpreterStmtVisitor::VisitNullStmt(natRefPointer<Statement::NullStmt> const& stmt)
+void Interpreter::InterpreterStmtVisitor::VisitNullStmt(natRefPointer<Statement::NullStmt> const& /*stmt*/)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitReturnStmt(natRefPointer<Statement::ReturnStmt> const& stmt)
@@ -863,7 +1106,7 @@ std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRef
 
 void Interpreter::InterpreterDeclStorage::RemoveDecl(natRefPointer<Declaration::ValueDecl> const& decl)
 {
-	// TODO: 是否需要将声明从所在的域中移除？
+	decl->GetContext()->RemoveDecl(decl);
 	m_DeclStorage.erase(decl);
 }
 

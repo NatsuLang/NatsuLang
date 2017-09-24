@@ -652,7 +652,8 @@ NatsuLang::Statement::StmtPtr Sema::ActOnCompoundStmt(std::vector<Statement::Stm
 NatsuLang::Statement::StmtPtr Sema::ActOnIfStmt(SourceLocation ifLoc, Expression::ExprPtr condExpr,
 	Statement::StmtPtr thenStmt, SourceLocation elseLoc, Statement::StmtPtr elseStmt)
 {
-	return make_ref<Statement::IfStmt>(ifLoc, std::move(condExpr), std::move(thenStmt), elseLoc, std::move(elseStmt));
+	const auto boolType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
+	return make_ref<Statement::IfStmt>(ifLoc, ImpCastExprToType(std::move(condExpr), boolType, getCastType(condExpr, boolType)), std::move(thenStmt), elseLoc, std::move(elseStmt));
 }
 
 NatsuLang::Statement::StmtPtr Sema::ActOnWhileStmt(SourceLocation loc, Expression::ExprPtr cond,
@@ -1211,7 +1212,7 @@ NatsuLang::Expression::ExprPtr Sema::ImpCastExprToType(Expression::ExprPtr expr,
 	return make_ref<Expression::ImplicitCastExpr>(std::move(type), castType, std::move(expr));
 }
 
-NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr operand, Type::TypePtr toType)
+NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType)
 {
 	toType = Type::Type::GetUnderlyingType(toType);
 	auto fromType = Type::Type::GetUnderlyingType(operand->GetExprType());

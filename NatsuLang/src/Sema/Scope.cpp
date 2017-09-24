@@ -4,14 +4,14 @@ using namespace NatsuLang::Semantic;
 
 void Scope::SetFlags(NatsuLib::natRefPointer<Scope> parent, ScopeFlags flags) noexcept
 {
-	m_Parent = parent;
+	m_Parent = std::move(parent);
 	m_Flags = flags;
 	m_Entity = nullptr;
 
-	if (parent && (flags & ScopeFlags::FunctionScope) == ScopeFlags::None)
+	if (m_Parent && (flags & ScopeFlags::FunctionScope) == ScopeFlags::None)
 	{
-		m_BreakParent = parent->m_BreakParent;
-		m_ContinueParent = parent->m_ContinueParent;
+		m_BreakParent = m_Parent->m_BreakParent;
+		m_ContinueParent = m_Parent->m_ContinueParent;
 	}
 	else
 	{
@@ -19,11 +19,11 @@ void Scope::SetFlags(NatsuLib::natRefPointer<Scope> parent, ScopeFlags flags) no
 		m_ContinueParent.Reset();
 	}
 
-	if (parent)
+	if (m_Parent)
 	{
-		m_Depth = parent->m_Depth + 1;
-		m_BlockParent = parent->m_BlockParent;
-		m_FunctionParent = parent->m_FunctionParent;
+		m_Depth = m_Parent->m_Depth + 1;
+		m_BlockParent = m_Parent->m_BlockParent;
+		m_FunctionParent = m_Parent->m_FunctionParent;
 	}
 	else
 	{

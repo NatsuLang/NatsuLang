@@ -191,7 +191,7 @@ namespace NatsuLang::Semantic
 		// m_CurrentDeclContext必须为nullptr或者可以转换到DeclContext*，不保存DeclContext*是为了保留对Decl的强引用
 		Declaration::DeclPtr m_CurrentDeclContext;
 
-		Expression::CastType getCastType(Expression::ExprPtr operand, Type::TypePtr toType);
+		Expression::CastType getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType);
 
 		Type::TypePtr handleIntegerConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType);
 		Type::TypePtr handleFloatConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType);
