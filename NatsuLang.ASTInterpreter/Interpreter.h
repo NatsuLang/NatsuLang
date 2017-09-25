@@ -34,6 +34,51 @@ namespace NatsuLang
 
 		template <typename... ExceptedTypes>
 		constexpr Excepted_t<ExceptedTypes...> Excepted{};
+
+		// 返回值将会被丢弃
+		template <typename Callable, typename Arg, typename... ExpectedTypes>
+		constexpr nBool InvokeIfSatisfied(Callable&& callableObj, Arg&& arg, Expected_t<ExpectedTypes...>)
+		{
+			if constexpr (!sizeof...(ExpectedTypes) ||
+				std::disjunction_v<
+					std::is_same<
+						std::remove_cv_t<std::remove_reference_t<Arg>>,
+						std::remove_cv_t<std::remove_reference_t<ExpectedTypes>>
+					>...
+				>)
+			{
+				if constexpr (std::is_invocable_v<decltype(callableObj), decltype(arg)>)
+				{
+					std::invoke(std::forward<Callable>(callableObj), std::forward<Arg>(arg));
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		template <typename Callable, typename Arg, typename... ExceptedTypes>
+		constexpr nBool InvokeIfSatisfied(Callable&& callableObj, Arg&& arg, Excepted_t<ExceptedTypes...>)
+		{
+			if constexpr (!sizeof...(ExceptedTypes) ||
+				std::conjunction_v<
+					std::negation<
+						std::is_same<
+							std::remove_cv_t<std::remove_reference_t<Arg>>,
+							std::remove_cv_t<std::remove_reference_t<ExceptedTypes>>
+						>
+					>...
+				>)
+			{
+				if constexpr (std::is_invocable_v<decltype(callableObj), decltype(arg)>)
+				{
+					std::invoke(std::forward<Callable>(callableObj), std::forward<Arg>(arg));
+					return true;
+				}
+			}
+
+			return false;
+		}
 	}
 
 	class Interpreter final
@@ -95,6 +140,77 @@ namespace NatsuLang
 		class InterpreterExprVisitor
 			: public NatsuLib::natRefObjImpl<InterpreterExprVisitor, StmtVisitor>
 		{
+			template <typename ValueVisitor, typename ExpectedOrExcepted>
+			class InterpreterExprEvaluator
+				: public natRefObjImpl<InterpreterExprEvaluator<ValueVisitor, ExpectedOrExcepted>, StmtVisitor>
+			{
+			public:
+				explicit InterpreterExprEvaluator(Interpreter& interpreter, ValueVisitor const& visitor)
+					: m_Interpreter{ interpreter }, m_Visitor { visitor }, m_LastEvaluationSucceed{ false }
+				{
+				}
+
+				explicit InterpreterExprEvaluator(Interpreter& interpreter, ValueVisitor&& visitor)
+					: m_Interpreter{ interpreter }, m_Visitor{ std::move(visitor) }, m_LastEvaluationSucceed{ false }
+				{
+				}
+
+				~InterpreterExprEvaluator()
+				{
+				}
+
+				nBool IsLastEvaluationSucceed() const noexcept
+				{
+					return m_LastEvaluationSucceed;
+				}
+
+				void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& /*stmt*/) override
+				{
+					nat_Throw(InterpreterException, u8"语句无法求值");
+				}
+
+				void VisitExpr(NatsuLib::natRefPointer<Expression::Expr> const& /*expr*/) override
+				{
+					nat_Throw(InterpreterException, u8"此表达式无法被求值");
+				}
+
+				void VisitBooleanLiteral(NatsuLib::natRefPointer<Expression::BooleanLiteral> const& expr) override
+				{
+					m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
+				}
+
+				void VisitCharacterLiteral(NatsuLib::natRefPointer<Expression::CharacterLiteral> const& expr) override
+				{
+					m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nByte>(expr->GetCodePoint()), ExpectedOrExcepted{});
+				}
+
+				void VisitDeclRefExpr(NatsuLib::natRefPointer<Expression::DeclRefExpr> const& expr) override
+				{
+					m_LastEvaluationSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(expr->GetDecl(), m_Visitor, ExpectedOrExcepted{});
+				}
+
+				void VisitFloatingLiteral(NatsuLib::natRefPointer<Expression::FloatingLiteral> const& expr) override
+				{
+					// TODO: 根据实际类型进行转换以便匹配到正确的类型
+					m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
+				}
+
+				void VisitIntegerLiteral(NatsuLib::natRefPointer<Expression::IntegerLiteral> const& expr) override
+				{
+					m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
+				}
+
+				void VisitStringLiteral(NatsuLib::natRefPointer<Expression::StringLiteral> const& expr) override
+				{
+					m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
+				}
+
+			private:
+				Interpreter& m_Interpreter;
+				ValueVisitor m_Visitor;
+				nBool m_LastEvaluationSucceed;
+			};
+
 		public:
 			explicit InterpreterExprVisitor(Interpreter& interpreter);
 			~InterpreterExprVisitor();
@@ -102,6 +218,20 @@ namespace NatsuLang
 			void Clear() noexcept;
 			void PrintExpr(NatsuLib::natRefPointer<Expression::Expr> const& expr);
 			Expression::ExprPtr GetLastVisitedExpr() const noexcept;
+
+			template <typename ValueVisitor, typename ExpectedOrExcepted = Detail::Expected_t<>>
+			nBool Evaluate(NatsuLib::natRefPointer<Expression::Expr> const& expr, ValueVisitor&& visitor, ExpectedOrExcepted condition = {})
+			{
+				if (!expr)
+				{
+					return false;
+				}
+
+				Visit(expr);
+				InterpreterExprEvaluator<ValueVisitor, ExpectedOrExcepted> evaluator{ m_Interpreter, std::forward<ValueVisitor>(visitor) };
+				evaluator.Visit(m_LastVisitedExpr);
+				return evaluator.IsLastEvaluationSucceed();
+			}
 
 			void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) override;
 			void VisitExpr(NatsuLib::natRefPointer<Expression::Expr> const& expr) override;
@@ -173,36 +303,6 @@ namespace NatsuLang
 
 		class InterpreterDeclStorage
 		{
-			template <typename Callable, typename RealType, typename... ExpectedTypes>
-			nBool VisitInvokeHelper(Callable&& visitor, RealType& realValue, Detail::Expected_t<ExpectedTypes...>)
-			{
-				if constexpr (!sizeof...(ExpectedTypes) || std::disjunction_v<std::is_same<RealType, ExpectedTypes>...>)
-				{
-					if constexpr (std::is_invocable_v<decltype(visitor), RealType&>)
-					{
-						std::invoke(std::forward<Callable>(visitor), realValue);
-						return true;
-					}
-				}
-
-				return false;
-			}
-
-			template <typename Callable, typename RealType, typename... ExceptedTypes>
-			nBool VisitInvokeHelper(Callable&& visitor, RealType& realValue, Detail::Excepted_t<ExceptedTypes...>)
-			{
-				if constexpr (!sizeof...(ExceptedTypes) || std::conjunction_v<std::negation<std::is_same<RealType, ExceptedTypes>>...>)
-				{
-					if constexpr (std::is_invocable_v<decltype(visitor), RealType&>)
-					{
-						std::invoke(std::forward<Callable>(visitor), realValue);
-						return true;
-					}
-				}
-
-				return false;
-			}
-
 			template <typename Callable, typename ExpectedOrExcepted>
 			nBool VisitStorage(Type::TypePtr const& type, nData storage, Callable&& visitor, ExpectedOrExcepted condition)
 			{
@@ -218,30 +318,30 @@ namespace NatsuLang
 					switch (builtinType->GetBuiltinClass())
 					{
 					case Type::BuiltinType::Bool:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nBool&>(storageRef), condition);
+						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nBool&>(storageRef), condition);
 					case Type::BuiltinType::Char:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nByte&>(storageRef), condition);
+						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nByte&>(storageRef), condition);
 					case Type::BuiltinType::UShort:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuShort&>(storageRef), condition);
+						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nuShort&>(storageRef), condition);
 					case Type::BuiltinType::UInt:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuInt&>(storageRef), condition);
+						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nuInt&>(storageRef), condition);
 						// TODO: 区分Long类型
 					case Type::BuiltinType::ULong:
 					case Type::BuiltinType::ULongLong:
 					case Type::BuiltinType::UInt128:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nuLong&>(storageRef), condition);
+						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nuLong&>(storageRef), condition);
 					case Type::BuiltinType::Short:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nShort&>(storageRef), condition);
+						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nShort&>(storageRef), condition);
 					case Type::BuiltinType::Int:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nInt&>(storageRef), condition);
+						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nInt&>(storageRef), condition);
 					case Type::BuiltinType::Long:
 					case Type::BuiltinType::LongLong:
 					case Type::BuiltinType::Int128:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nLong&>(storageRef), condition);
+						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nLong&>(storageRef), condition);
 					case Type::BuiltinType::Float:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nFloat&>(storageRef), condition);
+						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nFloat&>(storageRef), condition);
 					case Type::BuiltinType::Double:
-						return VisitInvokeHelper(std::forward<Callable>(visitor), reinterpret_cast<nDouble&>(storageRef), condition);
+						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nDouble&>(storageRef), condition);
 					case Type::BuiltinType::LongDouble:
 					case Type::BuiltinType::Float128:
 						nat_Throw(InterpreterException, u8"此功能尚未实现");
@@ -303,6 +403,11 @@ namespace NatsuLang
 			template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
 			nBool VisitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Callable&& visitor, ExpectedOrExcepted condition = {})
 			{
+				if (!decl)
+				{
+					return false;
+				}
+
 				const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
 
 				const auto [addedDecl, storagePointer] = GetOrAddDecl(decl);

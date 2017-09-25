@@ -536,44 +536,130 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 	const auto opCode = expr->GetOpcode();
 	Visit(expr->GetLeftOperand());
 	const auto leftOperand = std::move(m_LastVisitedExpr);
-	Visit(expr->GetRightOperand());
-	const auto rightOperand = std::move(m_LastVisitedExpr);
+	const auto rightOperand = expr->GetRightOperand();
 
-	const auto leftDeclExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(leftOperand),
-		rightDeclExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(rightOperand);
+	const auto leftDeclExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(leftOperand);
+
+	natRefPointer<Declaration::ValueDecl> decl;
+	if (!leftDeclExpr || !((decl = leftDeclExpr->GetDecl())) || !decl->GetIdentifierInfo())
+	{
+		nat_Throw(InterpreterException, u8"左操作数必须是对非临时对象的定义的引用");
+	}
+
+	nBool visitSucceed, evalSucceed;
 
 	switch (opCode)
 	{
 	case Expression::BinaryOperationType::Assign:
+		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
+		{
+			evalSucceed = Evaluate(rightOperand, [&storage](auto value)
+			{
+				storage = value;
+			}, Expected<std::remove_reference_t<decltype(storage)>>);
+		});
 		break;
 	case Expression::BinaryOperationType::MulAssign:
+		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
+		{
+			evalSucceed = Evaluate(rightOperand, [&storage](auto value)
+			{
+				storage *= value;
+			}, Expected<std::remove_reference_t<decltype(storage)>>);
+		}, Excepted<nBool>);
 		break;
 	case Expression::BinaryOperationType::DivAssign:
+		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
+		{
+			evalSucceed = Evaluate(rightOperand, [&storage](auto value)
+			{
+				storage /= value;
+			}, Expected<std::remove_reference_t<decltype(storage)>>);
+		}, Excepted<nBool>);
 		break;
 	case Expression::BinaryOperationType::RemAssign:
+		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
+		{
+			evalSucceed = Evaluate(rightOperand, [&storage](auto value)
+			{
+				storage %= value;
+			}, Expected<std::remove_reference_t<decltype(storage)>>);
+		}, Excepted<nBool, nFloat, nDouble>);
 		break;
 	case Expression::BinaryOperationType::AddAssign:
+		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
+		{
+			evalSucceed = Evaluate(rightOperand, [&storage](auto value)
+			{
+				storage += value;
+			}, Expected<std::remove_reference_t<decltype(storage)>>);
+		}, Excepted<nBool>);
 		break;
 	case Expression::BinaryOperationType::SubAssign:
+		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
+		{
+			evalSucceed = Evaluate(rightOperand, [&storage](auto value)
+			{
+				storage -= value;
+			}, Expected<std::remove_reference_t<decltype(storage)>>);
+		}, Excepted<nBool>);
 		break;
 	case Expression::BinaryOperationType::ShlAssign:
+		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
+		{
+			evalSucceed = Evaluate(rightOperand, [&storage](auto value)
+			{
+				storage <<= value;
+			}, Expected<std::remove_reference_t<decltype(storage)>>);
+		}, Excepted<nBool, nFloat, nDouble>);
 		break;
 	case Expression::BinaryOperationType::ShrAssign:
+		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
+		{
+			evalSucceed = Evaluate(rightOperand, [&storage](auto value)
+			{
+				storage >>= value;
+			}, Expected<std::remove_reference_t<decltype(storage)>>);
+		}, Excepted<nBool, nFloat, nDouble>);
 		break;
 	case Expression::BinaryOperationType::AndAssign:
+		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
+		{
+			evalSucceed = Evaluate(rightOperand, [&storage](auto value)
+			{
+				storage &= value;
+			}, Expected<std::remove_reference_t<decltype(storage)>>);
+		}, Excepted<nBool, nFloat, nDouble>);
 		break;
 	case Expression::BinaryOperationType::XorAssign:
+		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
+		{
+			evalSucceed = Evaluate(rightOperand, [&storage](auto value)
+			{
+				storage ^= value;
+			}, Expected<std::remove_reference_t<decltype(storage)>>);
+		}, Excepted<nBool, nFloat, nDouble>);
 		break;
 	case Expression::BinaryOperationType::OrAssign:
+		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
+		{
+			evalSucceed = Evaluate(rightOperand, [&storage](auto value)
+			{
+				storage |= value;
+			}, Expected<std::remove_reference_t<decltype(storage)>>);
+		}, Excepted<nBool, nFloat, nDouble>);
 		break;
-	default:
-		assert(!"Invalid opcode.");
-		[[fallthrough]];
 	case Expression::BinaryOperationType::Invalid:
-		break;
+	default:
+		nat_Throw(InterpreterException, u8"错误的操作");
 	}
 
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	if (!visitSucceed || !evalSucceed)
+	{
+		nat_Throw(InterpreterException, u8"操作失败");
+	}
+
+	m_LastVisitedExpr = std::move(leftDeclExpr);
 }
 
 // TODO: 在规范中定义对象被销毁的时机
@@ -891,80 +977,18 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 
 		if (auto varDecl = static_cast<natRefPointer<Declaration::VarDecl>>(decl))
 		{
-			// TODO: 修改为通用的实现
-			InterpreterExprVisitor visitor{ m_Interpreter };
-			const auto initializer = varDecl->GetInitializer();
-			if (!initializer)
+			auto succeed = false;
+			if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [this, initializer = varDecl->GetInitializer(), &succeed](auto& storage)
 			{
-				continue;
-			}
-
-			visitor.Visit(initializer);
-			const auto initExpr = visitor.GetLastVisitedExpr();
-
-			if (auto declExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(initExpr))
+				InterpreterExprVisitor visitor{ m_Interpreter };
+				succeed = visitor.Evaluate(initializer, [&storage](auto value)
+				{
+					storage = value;
+				}, Expected<std::remove_reference_t<decltype(storage)>>);
+			}) || !succeed)
 			{
-				auto succeed = false;
-				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [this, &succeed, declExpr = std::move(declExpr)](auto& storage)
-				{
-					succeed = m_Interpreter.m_DeclStorage.VisitDeclStorage(declExpr->GetDecl(), [&storage](auto& opStorage)
-					{
-						storage = opStorage;
-					}, Expected<std::remove_reference_t<decltype(storage)>>);
-				}) || !succeed)
-				{
-					nat_Throw(InterpreterException, u8"无法访问存储");
-				}
-
-				continue;
+				nat_Throw(InterpreterException, u8"无法创建声明的存储");
 			}
-			
-			if (const auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(initExpr->GetExprType()))
-			{
-				if (const auto intLiteral = static_cast<natRefPointer<Expression::IntegerLiteral>>(initExpr))
-				{
-					const auto value = intLiteral->GetValue();
-					if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [value](auto& storage)
-				                                                  {
-					                                                  storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
-				                                                  }, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>))
-					{
-						nat_Throw(InterpreterException, u8"无法访问存储");
-					}
-
-					continue;
-				}
-				
-				if (const auto floatingLiteral = static_cast<natRefPointer<Expression::FloatingLiteral>>(initExpr))
-				{
-					const auto value = floatingLiteral->GetValue();
-					if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [value](auto& storage)
-				                                                  {
-					                                                  storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
-				                                                  }, Expected<nFloat, nDouble>))
-					{
-						nat_Throw(InterpreterException, u8"无法访问存储");
-					}
-
-					continue;
-				}
-				
-				if (const auto boolLiteral = static_cast<natRefPointer<Expression::BooleanLiteral>>(initExpr))
-				{
-					const auto value = boolLiteral->GetValue();
-					if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [value](auto& storage)
-				                                                  {
-					                                                  storage = value;
-				                                                  }, Expected<nBool>))
-					{
-						nat_Throw(InterpreterException, u8"无法访问存储");
-					}
-
-					continue;
-				}
-			}
-
-			nat_Throw(InterpreterException, u8"此功能尚未实现");
 		}
 	}
 }
@@ -986,32 +1010,24 @@ void Interpreter::InterpreterStmtVisitor::VisitGotoStmt(natRefPointer<Statement:
 
 void Interpreter::InterpreterStmtVisitor::VisitIfStmt(natRefPointer<Statement::IfStmt> const& stmt)
 {
-	auto condExpr = stmt->GetCond();
-	if (!condExpr)
+	InterpreterExprVisitor visitor{ m_Interpreter };
+	nBool condition;
+	if (!visitor.Evaluate(stmt->GetCond(), [&condition](nBool value)
+	{
+		condition = value;
+	}, Expected<nBool>))
 	{
 		nat_Throw(InterpreterException, u8"条件表达式错误");
 	}
 
-	InterpreterExprVisitor visitor{ m_Interpreter };
-	visitor.Visit(condExpr);
-	// TODO: 求值应当委托给 InterpreterExprVisitor
-	condExpr = visitor.GetLastVisitedExpr();
-
-	if (const auto boolLiteral = static_cast<natRefPointer<Expression::BooleanLiteral>>(condExpr))
+	if (condition)
 	{
-		if (boolLiteral->GetValue())
-		{
-			Visit(stmt->GetThen());
-		}
-		else
-		{
-			Visit(stmt->GetElse());
-		}
-
-		return;
+		Visit(stmt->GetThen());
 	}
-
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	else
+	{
+		Visit(stmt->GetElse());
+	}
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitLabelStmt(natRefPointer<Statement::LabelStmt> const& stmt)
