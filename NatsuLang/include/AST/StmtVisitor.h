@@ -24,7 +24,7 @@ namespace NatsuLang
 	{
 		virtual ~StmtVisitor() = 0;
 
-		void Visit(NatsuLib::natRefPointer<Statement::Stmt> const& stmt);
+		virtual void Visit(NatsuLib::natRefPointer<Statement::Stmt> const& stmt);
 
 #define STMT(Type, Base) virtual void Visit##Type(NatsuLib::natRefPointer<Statement::Type> const& stmt);
 #define EXPR(Type, Base) virtual void Visit##Type(NatsuLib::natRefPointer<Expression::Type> const& expr);

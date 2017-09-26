@@ -346,10 +346,62 @@ void Interpreter::InterpreterExprVisitor::VisitThrowExpr(natRefPointer<Expressio
 
 void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression::CallExpr> const& expr)
 {
-	const auto callee = static_cast<natRefPointer<Expression::DeclRefExpr>>(expr->GetCallee());
+	Visit(expr->GetCallee());
+	const auto callee = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr);
 	if (!callee)
 	{
 		nat_Throw(InterpreterException, u8"被调用者错误");
+	}
+
+	if (const auto calleeDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(callee->GetDecl()))
+	{
+		m_Interpreter.m_Sema.PushScope(Semantic::ScopeFlags::BlockScope |
+			Semantic::ScopeFlags::CompoundStmtScope |
+			Semantic::ScopeFlags::DeclarableScope |
+			Semantic::ScopeFlags::FunctionScope);
+		m_Interpreter.m_Sema.PushDeclContext(m_Interpreter.m_Sema.GetCurrentScope(), calleeDecl.Get());
+		m_Interpreter.m_CurrentScope = m_Interpreter.m_Sema.GetCurrentScope();
+
+		const auto scope = make_scope([this]
+		{
+			m_Interpreter.m_Sema.PopDeclContext();
+			m_Interpreter.m_Sema.PopScope();
+			m_Interpreter.m_CurrentScope = m_Interpreter.m_Sema.GetCurrentScope();
+		});
+
+		// TODO: 允许默认参数
+		assert(expr->GetArgCount() == calleeDecl->GetParamCount());
+
+		for (auto&& param : calleeDecl->GetParams().zip(expr->GetArgs()))
+		{
+			if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(param.first, [this, &param](auto& storage)
+			{
+				if (!Evaluate(param.second, [&storage](auto value)
+				{
+					storage = value;
+				}, Expected<std::remove_reference_t<decltype(storage)>>))
+				{
+					nat_Throw(InterpreterException, u8"无法对操作数求值");
+				}
+			}))
+			{
+				nat_Throw(InterpreterException, u8"无法为参数的定义分配存储");
+			}
+		}
+
+		InterpreterStmtVisitor stmtVisitor{ m_Interpreter };
+		stmtVisitor.Visit(calleeDecl->GetBody());
+		m_LastVisitedExpr = stmtVisitor.GetReturnedExpr();
+		if (!m_LastVisitedExpr)
+		{
+			const auto retType = static_cast<natRefPointer<Type::BuiltinType>>(static_cast<natRefPointer<Type::FunctionType>>(calleeDecl->GetValueType())->GetResultType());
+			if (!retType || retType->GetBuiltinClass() != Type::BuiltinType::Void)
+			{
+				nat_Throw(InterpreterException, u8"要求返回值的函数在控制流离开后未返回任何值");
+			}
+		}
+
+		return;
 	}
 
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
@@ -1125,12 +1177,33 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 }
 
 Interpreter::InterpreterStmtVisitor::InterpreterStmtVisitor(Interpreter& interpreter)
-	: m_Interpreter{ interpreter }
+	: m_Interpreter{ interpreter }, m_Returned{ false }
 {
 }
 
 Interpreter::InterpreterStmtVisitor::~InterpreterStmtVisitor()
 {
+}
+
+Expression::ExprPtr Interpreter::InterpreterStmtVisitor::GetReturnedExpr() const noexcept
+{
+	return m_ReturnedExpr;
+}
+
+void Interpreter::InterpreterStmtVisitor::ResetReturnedExpr() noexcept
+{
+	m_Returned = false;
+	m_ReturnedExpr.Reset();
+}
+
+void Interpreter::InterpreterStmtVisitor::Visit(natRefPointer<Statement::Stmt> const& stmt)
+{
+	if (m_Returned || m_ReturnedExpr)
+	{
+		return;
+	}
+
+	StmtVisitor::Visit(stmt);
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitStmt(natRefPointer<Statement::Stmt> const& stmt)
@@ -1183,6 +1256,12 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 
 		if (auto varDecl = static_cast<natRefPointer<Declaration::VarDecl>>(decl))
 		{
+			// 不需要分配存储
+			if (varDecl->IsFunction())
+			{
+				continue;
+			}
+
 			auto succeed = false;
 			if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [this, initializer = varDecl->GetInitializer(), &succeed](auto& storage)
 			{
@@ -1247,7 +1326,14 @@ void Interpreter::InterpreterStmtVisitor::VisitNullStmt(natRefPointer<Statement:
 
 void Interpreter::InterpreterStmtVisitor::VisitReturnStmt(natRefPointer<Statement::ReturnStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	if (const auto retExpr = stmt->GetReturnExpr())
+	{
+		InterpreterExprVisitor visitor{ m_Interpreter };
+		visitor.Visit(retExpr);
+		m_ReturnedExpr = visitor.GetLastVisitedExpr();
+	}
+
+	m_Returned = true;
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitCaseStmt(natRefPointer<Statement::CaseStmt> const& stmt)
@@ -1397,6 +1483,7 @@ void Interpreter::Run(nStrView content)
 	}
 
 	m_Visitor->Visit(stmt);
+	m_Visitor->ResetReturnedExpr();
 	m_DeclStorage.GarbageCollect();
 }
 

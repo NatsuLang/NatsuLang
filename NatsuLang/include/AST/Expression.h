@@ -428,6 +428,11 @@ namespace NatsuLang::Expression
 			m_Function = std::move(value);
 		}
 
+		std::size_t GetArgCount() const noexcept
+		{
+			return m_Args.size();
+		}
+
 		NatsuLib::Linq<NatsuLib::Valued<ExprPtr>> GetArgs() const noexcept;
 		void SetArgs(NatsuLib::Linq<NatsuLib::Valued<ExprPtr>> const& value);
 

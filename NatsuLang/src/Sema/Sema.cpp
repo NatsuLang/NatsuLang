@@ -465,6 +465,11 @@ NatsuLang::Type::TypePtr Sema::ActOnTypeName(natRefPointer<Scope> const& scope, 
 	return decl.GetType();
 }
 
+Type::TypePtr Sema::ActOnTypeOfType(natRefPointer<Expression::Expr> expr, Type::TypePtr underlyingType)
+{
+	return make_ref<Type::TypeOfType>(std::move(expr), std::move(underlyingType));
+}
+
 natRefPointer<NatsuLang::Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
 {
 	auto id = decl.GetIdentifier();
@@ -491,7 +496,7 @@ natRefPointer<NatsuLang::Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(na
 natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 	natRefPointer<Scope> const& scope, Declaration::Declarator const& decl, Declaration::DeclContext* dc)
 {
-	auto type = decl.GetType();
+	auto type = Type::Type::GetUnderlyingType(decl.GetType());
 	auto id = decl.GetIdentifier();
 	auto initExpr = static_cast<natRefPointer<Expression::Expr>>(decl.GetInitializer());
 
@@ -513,6 +518,7 @@ natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 		type = initExpr->GetExprType();
 	}
 
+	// TODO: 对于嵌套的类型会出现误判
 	if (initExpr->GetExprType() != type)
 	{
 		initExpr = ImpCastExprToType(std::move(initExpr), type, getCastType(initExpr, type));
@@ -929,18 +935,18 @@ NatsuLang::Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& s
 	{
 		return nullptr;
 	}
-	auto refFn = fn->GetDecl();
+	const auto refFn = fn->GetDecl();
 	if (!refFn)
 	{
 		return nullptr;
 	}
-	auto fnType = static_cast<natRefPointer<Type::FunctionType>>(refFn->GetValueType());
+	const auto fnType = static_cast<natRefPointer<Type::FunctionType>>(refFn->GetValueType());
 	if (!fnType)
 	{
 		return nullptr;
 	}
 
-	return make_ref<Expression::CallExpr>(refFn, argExprs, fnType->GetResultType(), rloc);
+	return make_ref<Expression::CallExpr>(std::move(fn), argExprs, fnType->GetResultType(), rloc);
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation periodLoc, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id)

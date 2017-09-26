@@ -899,7 +899,7 @@ void Parser::ParseType(Declaration::Declarator& decl)
 	}
 	case TokenType::Kw_typeof:
 	{
-		// TODO: typeof
+		ParseTypeOfType(decl);
 
 		break;
 	}
@@ -924,6 +924,26 @@ void Parser::ParseType(Declaration::Declarator& decl)
 
 	// 即使类型不是数组尝试Parse也不会错误
 	ParseArrayType(decl);
+}
+
+void Parser::ParseTypeOfType(Declaration::Declarator& decl)
+{
+	assert(m_CurrentToken.Is(TokenType::Kw_typeof));
+	ConsumeToken();
+	if (!m_CurrentToken.Is(TokenType::LeftParen))
+	{
+		// TODO: 报告错误
+		return;
+	}
+
+	auto expr = ParseParenExpression();
+	if (!expr)
+	{
+		// TODO: 报告错误
+		return;
+	}
+
+	decl.SetType(m_Sema.ActOnTypeOfType(std::move(expr), expr->GetExprType()));
 }
 
 void Parser::ParseParenType(Declaration::Declarator& decl)

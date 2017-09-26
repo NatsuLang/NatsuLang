@@ -242,6 +242,7 @@ namespace NatsuLang::Syntax
 		void ParseSpecifier(Declaration::Declarator& decl);
 
 		void ParseType(Declaration::Declarator& decl);
+		void ParseTypeOfType(Declaration::Declarator& decl);
 		void ParseParenType(Declaration::Declarator& decl);
 		void ParseFunctionType(Declaration::Declarator& decl);
 		void ParseArrayType(Declaration::Declarator& decl);

@@ -328,6 +328,11 @@ namespace NatsuLang
 			explicit InterpreterStmtVisitor(Interpreter& interpreter);
 			~InterpreterStmtVisitor();
 
+			Expression::ExprPtr GetReturnedExpr() const noexcept;
+			void ResetReturnedExpr() noexcept;
+
+			void Visit(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) override;
+
 			void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) override;
 			void VisitExpr(NatsuLib::natRefPointer<Expression::Expr> const& expr) override;
 
@@ -351,12 +356,22 @@ namespace NatsuLang
 
 		private:
 			Interpreter& m_Interpreter;
+			nBool m_Returned;
+			Expression::ExprPtr m_ReturnedExpr;
 		};
 
 		class InterpreterDeclStorage
 		{
+		public:
+			// TODO: 设计 MemberAccessor
+			struct MemberAccessor
+			{
+
+			};
+
+		private:
 			template <typename Callable, typename ExpectedOrExcepted>
-			nBool VisitStorage(Type::TypePtr const& type, nData storage, Callable&& visitor, ExpectedOrExcepted condition)
+			nBool visitStorage(Type::TypePtr const& type, nData storage, Callable&& visitor, ExpectedOrExcepted condition)
 			{
 				auto& storageRef = *storage;
 
@@ -444,14 +459,6 @@ namespace NatsuLang
 
 			static NatsuLib::natRefPointer<Declaration::ValueDecl> CreateTemporaryObjectDecl(Type::TypePtr type, SourceLocation loc = {});
 
-			// TODO: 设计 MemberAccessor
-			struct MemberAccessor
-			{
-
-			};
-
-			// TODO: 添加函数
-
 			template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
 			nBool VisitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Callable&& visitor, ExpectedOrExcepted condition = {})
 			{
@@ -472,7 +479,7 @@ namespace NatsuLang
 					}
 				});
 
-				visitSucceed = VisitStorage(type, storagePointer, std::forward<Callable>(visitor), condition);
+				visitSucceed = visitStorage(type, storagePointer, std::forward<Callable>(visitor), condition);
 				return visitSucceed;
 			}
 
