@@ -552,7 +552,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		ImplicitCastExpr(Type::TypePtr type, CastType castType, ExprPtr operand)
-			: CastExpr{ ImplicitCastExprClass, std::move(type), castType, std::move(operand) }
+			: CastExpr{ ImplicitCastExprClass, std::move(type), castType, operand }
 		{
 			Stmt::SetStartLoc(operand->GetStartLoc());
 			Stmt::SetEndLoc(operand->GetEndLoc());
@@ -568,7 +568,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		AsTypeExpr(Type::TypePtr type, CastType castType, ExprPtr operand)
-			: CastExpr{ AsTypeExprClass, std::move(type), castType, std::move(operand) }
+			: CastExpr{ AsTypeExprClass, std::move(type), castType, operand }
 		{
 			Stmt::SetStartLoc(operand->GetStartLoc());
 			Stmt::SetEndLoc(operand->GetEndLoc());

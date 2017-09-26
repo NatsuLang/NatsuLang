@@ -191,13 +191,65 @@ namespace NatsuLang
 
 				void VisitFloatingLiteral(NatsuLib::natRefPointer<Expression::FloatingLiteral> const& expr) override
 				{
-					// TODO: 根据实际类型进行转换以便匹配到正确的类型
-					m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
+					const auto exprType = expr->GetExprType();
+
+					if (const auto builtinType = static_cast<NatsuLib::natRefPointer<Type::BuiltinType>>(exprType))
+					{
+						switch (builtinType->GetBuiltinClass())
+						{
+						case Type::BuiltinType::Float:
+							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nFloat>(expr->GetValue()), ExpectedOrExcepted{});
+							return;
+						case Type::BuiltinType::Double:
+							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
+							return;
+						case Type::BuiltinType::LongDouble:
+						case Type::BuiltinType::Float128:
+							break;
+						default:
+							nat_Throw(InterpreterException, u8"浮点字面量不应具有此类型");
+						}
+					}
+
+					nat_Throw(InterpreterException, u8"此功能尚未实现");
 				}
 
 				void VisitIntegerLiteral(NatsuLib::natRefPointer<Expression::IntegerLiteral> const& expr) override
 				{
-					m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
+					const auto exprType = expr->GetExprType();
+
+					if (const auto builtinType = static_cast<NatsuLib::natRefPointer<Type::BuiltinType>>(exprType))
+					{
+						switch (builtinType->GetBuiltinClass())
+						{
+						case Type::BuiltinType::UShort:
+							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nuShort>(expr->GetValue()), ExpectedOrExcepted{});
+							return;
+						case Type::BuiltinType::UInt:
+							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nuInt>(expr->GetValue()), ExpectedOrExcepted{});
+							return;
+						case Type::BuiltinType::ULong:
+						case Type::BuiltinType::ULongLong:
+						case Type::BuiltinType::UInt128:
+							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
+							return;
+						case Type::BuiltinType::Short:
+							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nShort>(expr->GetValue()), ExpectedOrExcepted{});
+							return;
+						case Type::BuiltinType::Int:
+							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nInt>(expr->GetValue()), ExpectedOrExcepted{});
+							return;
+						case Type::BuiltinType::Long:
+						case Type::BuiltinType::LongLong:
+						case Type::BuiltinType::Int128:
+							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nLong>(expr->GetValue()), ExpectedOrExcepted{});
+							return;
+						default:
+							nat_Throw(InterpreterException, u8"整数字面量不应具有此类型");
+						}
+					}
+
+					nat_Throw(InterpreterException, u8"此功能尚未实现");
 				}
 
 				void VisitStringLiteral(NatsuLib::natRefPointer<Expression::StringLiteral> const& expr) override

@@ -367,6 +367,27 @@ void Interpreter::InterpreterExprVisitor::VisitCastExpr(natRefPointer<Expression
 
 void Interpreter::InterpreterExprVisitor::VisitAsTypeExpr(natRefPointer<Expression::AsTypeExpr> const& expr)
 {
+	Visit(expr->GetOperand());
+
+	auto castToType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetExprType());
+	auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(castToType);
+	const auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, castToType);
+
+	if (Evaluate(m_LastVisitedExpr, [this, tempObjDef = std::move(tempObjDef)](auto value)
+	{
+		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(tempObjDef), [value](auto& storage)
+		{
+			storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
+		}, Expected<nBool, nShort, nuShort, nInt, nuInt, nLong, nuLong, nFloat, nDouble>))
+		{
+			nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+		}
+	}, Expected<nBool, nShort, nuShort, nInt, nuInt, nLong, nuLong, nFloat, nDouble>))
+	{
+		m_LastVisitedExpr = std::move(declRefExpr);
+		return;
+	}
+
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
@@ -374,76 +395,25 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 {
 	Visit(expr->GetOperand());
 
-	// TODO
 	auto castToType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetExprType());
 	auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(castToType);
 	const auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, castToType);
 
-	if (castToType)
+	if (Evaluate(m_LastVisitedExpr, [this, tempObjDef = std::move(tempObjDef)](auto value)
 	{
-		if (castToType->IsIntegerType())
+		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(tempObjDef), [value](auto& storage)
 		{
-			if (const auto declOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr))
-			{
-				m_Interpreter.m_DeclStorage.VisitDeclStorage(declOperand->GetDecl(), [this, &tempObjDef](auto const& value)
-				{
-					m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [&value](auto& storage)
-					{
-						storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
-					}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>);
-				}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>);
-			}
-			else if (const auto intLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
-			{
-				const auto value = intLiteralOperand->GetValue();
-				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
-				{
-					storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
-				}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>);
-			}
-			else if (const auto floatLiteralOperand = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
-			{
-				const auto value = floatLiteralOperand->GetValue();
-				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
-				{
-					storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
-				}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>);
-			}
-		}
-		else if (castToType->IsFloatingType())
+			storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
+		}, Expected<nBool, nShort, nuShort, nInt, nuInt, nLong, nuLong, nFloat, nDouble>))
 		{
-			if (const auto declOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr))
-			{
-				m_Interpreter.m_DeclStorage.VisitDeclStorage(declOperand->GetDecl(), [this, &tempObjDef](auto const& value)
-				{
-					m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [&value](auto& storage)
-					{
-						storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
-					}, Expected<nFloat, nDouble>);
-				}, Expected<nFloat, nDouble>);
-			}
-			else if (const auto intLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
-			{
-				const auto value = static_cast<nDouble>(intLiteralOperand->GetValue());
-				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
-				{
-					storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
-				}, Expected<nFloat, nDouble>);
-			}
-			else if (const auto floatLiteralOperand = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
-			{
-				const auto value = floatLiteralOperand->GetValue();
-				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
-				{
-					storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
-				}, Expected<nFloat, nDouble>);
-			}
+			nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
 		}
-
-		m_LastVisitedExpr = declRefExpr;
+	}, Expected<nBool, nShort, nuShort, nInt, nuInt, nLong, nuLong, nFloat, nDouble>))
+	{
+		m_LastVisitedExpr = std::move(declRefExpr);
 		return;
 	}
-	
+
 	nat_Throw(InterpreterException, u8"此功能尚未实现");
 }
 
@@ -480,46 +450,363 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 	Visit(expr->GetRightOperand());
 	const auto rightOperand = std::move(m_LastVisitedExpr);
 
-	const auto leftDeclExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(leftOperand),
-		rightDeclExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(rightOperand);
+	auto tempObjDecl = InterpreterDeclStorage::CreateTemporaryObjectDecl(expr->GetExprType());
+
+	auto evalSucceed = false;
 
 	switch (opCode)
 	{
 	case Expression::BinaryOperationType::Mul:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue * rightValue;
+				}, Expected<decltype(leftValue)>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::Div:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!rightValue)
+				{
+					nat_Throw(InterpreterException, u8"被0除");
+				}
+
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue / rightValue;
+				}, Expected<decltype(leftValue)>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::Mod:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!rightValue)
+				{
+					nat_Throw(InterpreterException, u8"被0除");
+				}
+
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue % rightValue;
+				}, Expected<decltype(leftValue)>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::Add:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue + rightValue;
+				}, Expected<decltype(leftValue)>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::Sub:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue - rightValue;
+				}, Expected<decltype(leftValue)>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::Shl:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue << rightValue;
+				}, Expected<decltype(leftValue)>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::Shr:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue >> rightValue;
+				}, Expected<decltype(leftValue)>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::LT:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](nBool& storage)
+				{
+					storage = leftValue < rightValue;
+				}, Expected<nBool>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::GT:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue > rightValue;
+				}, Expected<nBool>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::LE:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue <= rightValue;
+				}, Expected<nBool>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::GE:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue >= rightValue;
+				}, Expected<nBool>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::EQ:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue == rightValue;
+				}, Expected<nBool>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::NE:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue != rightValue;
+				}, Expected<nBool>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::And:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue & rightValue;
+				}, Expected<decltype(leftValue)>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nByte, nStrView, nFloat, nDouble>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::Xor:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue ^ rightValue;
+				}, Expected<decltype(leftValue)>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nByte, nStrView, nFloat, nDouble>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::Or:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
+				{
+					storage = leftValue | rightValue;
+				}, Expected<decltype(leftValue)>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nByte, nStrView, nFloat, nDouble>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::LAnd:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](nBool& storage)
+				{
+					storage = leftValue && rightValue;
+				}, Expected<nBool>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nByte, nStrView>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	case Expression::BinaryOperationType::LOr:
+		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
+		{
+			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)
+			{
+				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](nBool& storage)
+				{
+					storage = leftValue || rightValue;
+				}, Expected<nBool>))
+				{
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+				}
+			}, Expected<decltype(leftValue)>);
+		}, Excepted<nByte, nStrView>) && evalSucceed)
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			return;
+		}
 		break;
 	default:
 		assert(!"Invalid opcode.");

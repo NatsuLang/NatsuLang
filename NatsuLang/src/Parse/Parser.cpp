@@ -814,20 +814,20 @@ void Parser::ParseDeclarator(Declaration::Declarator& decl)
 		decl.SetIdentifier(m_CurrentToken.GetIdentifierInfo());
 		ConsumeToken();
 	}
-	else if (context != Declaration::Context::Prototype)
+	else if (context != Declaration::Context::Prototype && context != Declaration::Context::TypeName)
 	{
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
 		return;
 	}
 
 	// (: int)也可以？
-	if (m_CurrentToken.Is(TokenType::Colon) || (context == Declaration::Context::Prototype && !decl.GetIdentifier()))
+	if (m_CurrentToken.Is(TokenType::Colon) || ((context == Declaration::Context::Prototype || context == Declaration::Context::TypeName) && !decl.GetIdentifier()))
 	{
 		ParseSpecifier(decl);
 	}
 
 	// 声明函数原型时也可以指定initializer？
-	if (m_CurrentToken.IsAnyOf({ TokenType::Equal, TokenType::LeftBrace }))
+	if (context != Declaration::Context::TypeName && m_CurrentToken.IsAnyOf({ TokenType::Equal, TokenType::LeftBrace }))
 	{
 		ParseInitializer(decl);
 	}
@@ -852,7 +852,7 @@ void Parser::ParseType(Declaration::Declarator& decl)
 
 	if (!m_CurrentToken.Is(TokenType::Colon))
 	{
-		if (context != Declaration::Context::Prototype)
+		if (context != Declaration::Context::Prototype && context != Declaration::Context::TypeName)
 		{
 			// 在非声明函数原型的上下文中不显式写出类型，视为隐含auto
 			// auto的声明符在指定initializer之后决定实际类型

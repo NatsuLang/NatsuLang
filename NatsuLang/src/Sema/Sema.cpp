@@ -493,6 +493,7 @@ natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 {
 	auto type = decl.GetType();
 	auto id = decl.GetIdentifier();
+	auto initExpr = static_cast<natRefPointer<Expression::Expr>>(decl.GetInitializer());
 
 	if (!id)
 	{
@@ -503,7 +504,6 @@ natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 	if (!type)
 	{
 		// 隐含 auto 或者出现错误
-		const auto initExpr = static_cast<natRefPointer<Expression::Expr>>(decl.GetInitializer());
 		if (!initExpr)
 		{
 			// TODO: 报告错误
@@ -513,9 +513,15 @@ natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 		type = initExpr->GetExprType();
 	}
 
+	if (initExpr->GetExprType() != type)
+	{
+		initExpr = ImpCastExprToType(std::move(initExpr), type, getCastType(initExpr, type));
+	}
+
 	auto varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl.GetRange().GetBegin(),
 		SourceLocation{}, std::move(id), std::move(type), Specifier::StorageClass::None);
-	varDecl->SetInitializer(decl.GetInitializer());
+
+	varDecl->SetInitializer(initExpr);
 
 	return varDecl;
 }
