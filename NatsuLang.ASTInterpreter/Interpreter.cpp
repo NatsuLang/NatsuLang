@@ -1053,148 +1053,67 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 	case Expression::UnaryOperationType::Plus:
 		return;
 	case Expression::UnaryOperationType::Minus:
-		if (declExpr)
+	{
+		auto type = m_LastVisitedExpr->GetExprType();
+		auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(type);
+		if (m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [this, expr = std::move(m_LastVisitedExpr)](auto& tmpValue)
 		{
-			const auto decl = declExpr->GetDecl();
-			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &decl](auto value)
+			if (!Evaluate(expr, [&tmpValue](auto value)
 			{
-				auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(decl->GetValueType());
-				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& tmpValue)
-				{
-					tmpValue = decltype(value){} - value;
-				}, Expected<decltype(value)>))
-				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
-				}
+				tmpValue = decltype(value){} - value;
+			}, Expected<std::remove_reference_t<decltype(tmpValue)>>))
+			{
+				nat_Throw(InterpreterException, u8"无法对操作数求值");
+			}
+		}, Excepted<nStrView, nBool>))
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(type));
+			return;
+		}
 
-				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
-			}, Excepted<nBool>))
-			{
-				return;
-			}
-		}
-		else
-		{
-			auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(m_LastVisitedExpr->GetExprType());
-			if (const auto intLiteral = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
-			{
-				const auto value = intLiteral->GetValue();
-				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
-				{
-					storage = static_cast<std::remove_reference_t<decltype(storage)>>(
-						std::remove_reference_t<decltype(storage)>{} - static_cast<std::remove_reference_t<decltype(storage)>>(value));
-				}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>);
-				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, m_LastVisitedExpr->GetExprType());
-				return;
-			}
-			
-			if (const auto floatingLiteral = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
-			{
-				const auto value = floatingLiteral->GetValue();
-				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
-			    {
-				    storage = static_cast<std::remove_reference_t<decltype(storage)>>(
-					    std::remove_reference_t<decltype(storage)>{} - static_cast<std::remove_reference_t<decltype(storage)>>(value));
-			    }, Expected<nFloat, nDouble>);
-				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, m_LastVisitedExpr->GetExprType());
-				return;
-			}
-		}
 		break;
+	}
 	case Expression::UnaryOperationType::Not:
-		if (declExpr)
+	{
+		auto type = m_LastVisitedExpr->GetExprType();
+		auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(type);
+		if (m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [this, expr = std::move(m_LastVisitedExpr)](auto& tmpValue)
 		{
-			const auto decl = declExpr->GetDecl();
-			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &decl](auto value)
+			if (!Evaluate(expr, [&tmpValue](auto value)
 			{
-				auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(decl->GetValueType());
-				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& tmpValue)
-				{
-					tmpValue = static_cast<decltype(value)>(~value);
-				}, Expected<decltype(value)>))
-				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
-				}
+				tmpValue = ~value;
+			}, Expected<std::remove_reference_t<decltype(tmpValue)>>))
+			{
+				nat_Throw(InterpreterException, u8"无法对操作数求值");
+			}
+		}, Excepted<nStrView, nBool, nFloat, nDouble>))
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(type));
+			return;
+		}
 
-				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
-			}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>))
-			{
-				return;
-			}
-		}
-		else
-		{
-			auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(m_LastVisitedExpr->GetExprType());
-			if (const auto intLiteral = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
-			{
-				const auto value = intLiteral->GetValue();
-				if (m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
-					{
-						storage = static_cast<std::remove_reference_t<decltype(storage)>>(~static_cast<std::remove_reference_t<decltype(storage)>>(value));
-					}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>))
-				{
-					m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, m_LastVisitedExpr->GetExprType());
-					return;
-				}
-			}
-		}
 		break;
+	}
 	case Expression::UnaryOperationType::LNot:
 	{
-		const auto boolType = m_Interpreter.m_AstContext.GetBuiltinType(Type::BuiltinType::Bool);
+		auto boolType = m_Interpreter.m_AstContext.GetBuiltinType(Type::BuiltinType::Bool);
+		auto type = m_LastVisitedExpr->GetExprType();
 		auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(boolType);
-		if (declExpr)
+		if (m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [this, expr = std::move(m_LastVisitedExpr)](auto& tmpValue)
 		{
-			const auto decl = declExpr->GetDecl();
-			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &decl, tempObjDef = std::move(tempObjDef)](auto value)
+			if (!Evaluate(expr, [&tmpValue](auto value)
 			{
-				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& tmpValue)
-					{
-						tmpValue = !value;
-					}, Expected<nBool>))
-				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
-				}
+				tmpValue = !value;
+			}, Excepted<nStrView>))
+			{
+				nat_Throw(InterpreterException, u8"无法对操作数求值");
+			}
+		}, Expected<nBool>))
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(boolType));
+			return;
+		}
 
-				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
-			}))
-			{
-				return;
-			}
-		}
-		else
-		{
-			if (const auto boolLiteral = static_cast<natRefPointer<Expression::BooleanLiteral>>(m_LastVisitedExpr))
-			{
-				const auto value = boolLiteral->GetValue();
-				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
-				{
-					storage = !value;
-				}, Expected<nBool>);
-				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, boolType);
-				return;
-			}
-			if (const auto intLiteral = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
-			{
-				const auto value = intLiteral->GetValue();
-				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
-				{
-					storage = !value;
-				}, Expected<nBool>);
-				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, boolType);
-				return;
-			}
-			if (const auto floatingLiteral = static_cast<natRefPointer<Expression::FloatingLiteral>>(m_LastVisitedExpr))
-			{
-				const auto value = floatingLiteral->GetValue();
-				m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [value](auto& storage)
-			    {
-				    storage = !value;
-			    }, Expected<nBool>);
-				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, boolType);
-				return;
-			}
-		}
 		break;
 	}
 	case Expression::UnaryOperationType::Invalid:

@@ -18,7 +18,6 @@ int main(int argc, char* argv[])
 
 	logger.UseDefaultAction(console);
 
-	// TODO: 添加诊断信息文件
 	Interpreter theInterpreter{ make_ref<natStreamReader<nStrView::UsingStringType>>(make_ref<natFileStream>("DiagIdMap.txt", true, false)), logger };
 
 	try
