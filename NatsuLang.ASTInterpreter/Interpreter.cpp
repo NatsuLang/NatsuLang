@@ -1414,7 +1414,12 @@ std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRef
 
 void Interpreter::InterpreterDeclStorage::RemoveDecl(natRefPointer<Declaration::ValueDecl> const& decl)
 {
-	decl->GetContext()->RemoveDecl(decl);
+	const auto context = decl->GetContext();
+	if (context)
+	{
+		context->RemoveDecl(decl);
+	}
+
 	m_DeclStorage.erase(decl);
 }
 

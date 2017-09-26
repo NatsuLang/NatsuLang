@@ -187,7 +187,7 @@ Sema::~Sema()
 void Sema::PushDeclContext(natRefPointer<Scope> const& scope, Declaration::DeclContext* dc)
 {
 	assert(dc);
-	auto declPtr = Declaration::Decl::CastFromDeclContext(dc)->ForkRef();
+	const auto declPtr = Declaration::Decl::CastFromDeclContext(dc)->ForkRef();
 	assert(declPtr->GetContext() == Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()));
 	m_CurrentDeclContext = declPtr;
 	scope->SetEntity(dc);
@@ -1027,19 +1027,23 @@ NatsuLang::Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Ex
 	case Expression::BinaryOperationType::Sub:
 	case Expression::BinaryOperationType::Shl:
 	case Expression::BinaryOperationType::Shr:
+	case Expression::BinaryOperationType::And:
+	case Expression::BinaryOperationType::Xor:
+	case Expression::BinaryOperationType::Or:
+	{
+		auto resultType = UsualArithmeticConversions(leftOperand, rightOperand);
+		return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType, std::move(resultType), loc);
+	}
 	case Expression::BinaryOperationType::LT:
 	case Expression::BinaryOperationType::GT:
 	case Expression::BinaryOperationType::LE:
 	case Expression::BinaryOperationType::GE:
 	case Expression::BinaryOperationType::EQ:
 	case Expression::BinaryOperationType::NE:
-	case Expression::BinaryOperationType::And:
-	case Expression::BinaryOperationType::Xor:
-	case Expression::BinaryOperationType::Or:
 	case Expression::BinaryOperationType::LAnd:
 	case Expression::BinaryOperationType::LOr:
 	{
-		auto resultType = UsualArithmeticConversions(leftOperand, rightOperand);
+		auto resultType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
 		return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType, std::move(resultType), loc);
 	}
 	case Expression::BinaryOperationType::Assign:
