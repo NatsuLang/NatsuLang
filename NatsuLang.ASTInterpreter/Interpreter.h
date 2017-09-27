@@ -83,6 +83,17 @@ namespace NatsuLang
 		}
 	}
 
+	enum class DeclStorageLevelFlag
+	{
+		None = 0x00,
+
+		AvailableForLookup = 0x01,
+		AvailableForCreateStorage = 0x02,
+		CreateStorageIfNotFound = 0x04,
+	};
+
+	MAKE_ENUM_CLASS_BITMASK_TYPE(DeclStorageLevelFlag);
+
 	class Interpreter final
 	{
 		class InterpreterDiagIdMap
@@ -147,13 +158,15 @@ namespace NatsuLang
 				: public natRefObjImpl<InterpreterExprEvaluator<ValueVisitor, ExpectedOrExcepted>, StmtVisitor>
 			{
 			public:
-				explicit InterpreterExprEvaluator(Interpreter& interpreter, ValueVisitor const& visitor)
-					: m_Interpreter{ interpreter }, m_Visitor { visitor }, m_LastEvaluationSucceed{ false }
+				explicit InterpreterExprEvaluator(Interpreter& interpreter, ValueVisitor const& visitor, nBool onlyThisLevel = false, nBool toOuterStorage = false)
+					: m_Interpreter{ interpreter }, m_Visitor { visitor },
+					  m_LastEvaluationSucceed{ false }
 				{
 				}
 
 				explicit InterpreterExprEvaluator(Interpreter& interpreter, ValueVisitor&& visitor)
-					: m_Interpreter{ interpreter }, m_Visitor{ std::move(visitor) }, m_LastEvaluationSucceed{ false }
+					: m_Interpreter{ interpreter }, m_Visitor{ std::move(visitor) },
+					  m_LastEvaluationSucceed{ false }
 				{
 				}
 
@@ -274,7 +287,7 @@ namespace NatsuLang
 			Expression::ExprPtr GetLastVisitedExpr() const noexcept;
 
 			template <typename ValueVisitor, typename ExpectedOrExcepted = Detail::Expected_t<>>
-			nBool Evaluate(NatsuLib::natRefPointer<Expression::Expr> const& expr, ValueVisitor&& visitor, ExpectedOrExcepted condition = {})
+			nBool Evaluate(NatsuLib::natRefPointer<Expression::Expr> const& expr, ValueVisitor&& visitor, ExpectedOrExcepted = {})
 			{
 				if (!expr)
 				{
@@ -453,19 +466,24 @@ namespace NatsuLang
 			explicit InterpreterDeclStorage(Interpreter& interpreter);
 
 			// 返回值：是否新增了声明，声明的存储
-			std::pair<nBool, nData> GetOrAddDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, nBool toOuterStorage = false);
+			std::pair<nBool, nData> GetOrAddDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> decl);
 			void RemoveDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl);
 			nBool DoesDeclExist(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl) const noexcept;
 
-			void PushStorage();
+			void PushStorage(DeclStorageLevelFlag flags = DeclStorageLevelFlag::AvailableForLookup | DeclStorageLevelFlag::AvailableForCreateStorage);
 			void PopStorage();
+
+			void MergeStorage();
+
+			DeclStorageLevelFlag GetTopStorageFlag() const noexcept;
+			void SetTopStorageFlag(DeclStorageLevelFlag flags);
 
 			void GarbageCollect();
 
 			static NatsuLib::natRefPointer<Declaration::ValueDecl> CreateTemporaryObjectDecl(Type::TypePtr type, SourceLocation loc = {});
 
 			template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
-			nBool VisitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Callable&& visitor, ExpectedOrExcepted condition = {}, nBool toOuterStorage = false)
+			nBool VisitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Callable&& visitor, ExpectedOrExcepted condition = {})
 			{
 				if (!decl)
 				{
@@ -474,7 +492,7 @@ namespace NatsuLang
 
 				const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
 
-				const auto [addedDecl, storagePointer] = GetOrAddDecl(decl, toOuterStorage);
+				const auto [addedDecl, storagePointer] = GetOrAddDecl(decl);
 				auto visitSucceed = false;
 				const auto scope = NatsuLib::make_scope([this, addedDecl, &visitSucceed, decl = std::move(decl)]
 				{
@@ -490,7 +508,7 @@ namespace NatsuLang
 
 		private:
 			Interpreter& m_Interpreter;
-			std::vector<std::unique_ptr<std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, std::unique_ptr<nByte[], StorageDeleter>>>> m_DeclStorage;
+			std::vector<std::pair<DeclStorageLevelFlag, std::unique_ptr<std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, std::unique_ptr<nByte[], StorageDeleter>>>>> m_DeclStorage;
 		};
 
 	public:

@@ -1,5 +1,8 @@
 ﻿#include "Interpreter.h"
 
+#undef min
+#undef max
+
 using namespace NatsuLib;
 using namespace NatsuLang;
 using namespace NatsuLang::Detail;
@@ -57,7 +60,7 @@ Interpreter::InterpreterDiagIdMap::~InterpreterDiagIdMap()
 nString Interpreter::InterpreterDiagIdMap::GetText(Diag::DiagnosticsEngine::DiagID id)
 {
 	const auto iter = m_IdMap.find(id);
-	return iter == m_IdMap.cend() ? "(No available text)" : iter->second;
+	return iter == m_IdMap.cend() ? u8"(No available text)"_nv : iter->second;
 }
 
 Interpreter::InterpreterDiagConsumer::InterpreterDiagConsumer(Interpreter& interpreter)
@@ -122,7 +125,7 @@ void Interpreter::InterpreterDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEng
 			}
 
 			m_Interpreter.m_Logger.Log(levelId, fileContent.Slice(static_cast<ptrdiff_t>(offset), nextNewLine == nStrView::npos ? -1 : static_cast<ptrdiff_t>(nextNewLine)));
-			m_Interpreter.m_Logger.Log(levelId, "^");
+			m_Interpreter.m_Logger.Log(levelId, u8"^"_nv);
 		}
 	}
 
@@ -144,16 +147,16 @@ void Interpreter::InterpreterASTConsumer::Initialize(ASTContext& /*context*/)
 
 void Interpreter::InterpreterASTConsumer::HandleTranslationUnit(ASTContext& context)
 {
-	const auto iter = m_NamedDecls.find("Main");
+	const auto iter = m_NamedDecls.find(u8"Main"_nv);
 	natRefPointer<Declaration::FunctionDecl> mainDecl;
 	if (iter == m_NamedDecls.cend() || !((mainDecl = iter->second)))
 	{
-		nat_Throw(InterpreterException, u8"无法找到名为 Main 的函数");
+		nat_Throw(InterpreterException, u8"无法找到名为 Main 的函数"_nv);
 	}
 
 	if (mainDecl->Decl::GetType() != Declaration::Decl::Function)
 	{
-		nat_Throw(InterpreterException, u8"找到了名为 Main 的方法，但需要一个函数");
+		nat_Throw(InterpreterException, u8"找到了名为 Main 的方法，但需要一个函数"_nv);
 	}
 
 	m_Interpreter.m_Visitor->Visit(mainDecl->GetBody());
@@ -208,7 +211,7 @@ Expression::ExprPtr Interpreter::InterpreterExprVisitor::GetLastVisitedExpr() co
 
 void Interpreter::InterpreterExprVisitor::VisitStmt(natRefPointer<Statement::Stmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此表达式无法被访问");
+	nat_Throw(InterpreterException, u8"此表达式无法被访问"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitExpr(natRefPointer<Expression::Expr> const& expr)
@@ -221,7 +224,7 @@ void Interpreter::InterpreterExprVisitor::VisitBooleanLiteral(natRefPointer<Expr
 	VisitExpr(expr);
 	if (m_ShouldPrint)
 	{
-		m_Interpreter.m_Logger.LogMsg("(表达式) {0}", expr->GetValue() ? "true" : "false");
+		m_Interpreter.m_Logger.LogMsg(u8"(表达式) {0}"_nv, expr->GetValue() ? u8"true"_nv : u8"false"_nv);
 	}
 }
 
@@ -230,7 +233,7 @@ void Interpreter::InterpreterExprVisitor::VisitCharacterLiteral(natRefPointer<Ex
 	VisitExpr(expr);
 	if (m_ShouldPrint)
 	{
-		m_Interpreter.m_Logger.LogMsg("(表达式) '{0}'", U32StringView{ static_cast<U32StringView::CharType>(expr->GetCodePoint()) });
+		m_Interpreter.m_Logger.LogMsg(u8"(表达式) '{0}'"_nv, U32StringView{ static_cast<U32StringView::CharType>(expr->GetCodePoint()) });
 	}
 }
 
@@ -242,12 +245,12 @@ void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Express
 		const auto decl = expr->GetDecl();
 		if (!m_Interpreter.m_DeclStorage.DoesDeclExist(decl))
 		{
-			nat_Throw(InterpreterException, u8"表达式引用了一个不存在的值定义");
+			nat_Throw(InterpreterException, u8"表达式引用了一个不存在的值定义"_nv);
 		}
 
 		m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [this, id = decl->GetIdentifierInfo()](auto value)
 		{
-			m_Interpreter.m_Logger.LogMsg("(声明 : {0}) {1}", id ? id->GetName() : u8"(临时对象)"_nv, value);
+			m_Interpreter.m_Logger.LogMsg("(声明 : {0}) {1}"_nv, id ? id->GetName() : u8"(临时对象)"_nv, value);
 		});
 	}
 }
@@ -257,7 +260,7 @@ void Interpreter::InterpreterExprVisitor::VisitFloatingLiteral(natRefPointer<Exp
 	VisitExpr(expr);
 	if (m_ShouldPrint)
 	{
-		m_Interpreter.m_Logger.LogMsg("(表达式) {0}", expr->GetValue());
+		m_Interpreter.m_Logger.LogMsg(u8"(表达式) {0}"_nv, expr->GetValue());
 	}
 }
 
@@ -266,7 +269,7 @@ void Interpreter::InterpreterExprVisitor::VisitIntegerLiteral(natRefPointer<Expr
 	VisitExpr(expr);
 	if (m_ShouldPrint)
 	{
-		m_Interpreter.m_Logger.LogMsg("(表达式) {0}", expr->GetValue());
+		m_Interpreter.m_Logger.LogMsg(u8"(表达式) {0}"_nv, expr->GetValue());
 	}
 }
 
@@ -275,7 +278,7 @@ void Interpreter::InterpreterExprVisitor::VisitStringLiteral(natRefPointer<Expre
 	VisitExpr(expr);
 	if (m_ShouldPrint)
 	{
-		m_Interpreter.m_Logger.LogMsg("(表达式) \"{0}\"", expr->GetValue());
+		m_Interpreter.m_Logger.LogMsg(u8"(表达式) \"{0}\""_nv, expr->GetValue());
 	}
 }
 
@@ -293,7 +296,7 @@ void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<
 
 	if (!baseOperand || !baseDecl || !baseType)
 	{
-		nat_Throw(InterpreterException, u8"基础操作数无法被计算为有效的定义引用表达式");
+		nat_Throw(InterpreterException, u8"基础操作数无法被计算为有效的定义引用表达式"_nv);
 	}
 	
 	Visit(expr->GetRightOperand());
@@ -303,7 +306,7 @@ void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<
 		auto decl = indexDeclOperand->GetDecl();
 		if (!m_Interpreter.m_DeclStorage.DoesDeclExist(decl))
 		{
-			nat_Throw(InterpreterException, u8"下标操作数引用了一个不存在的值定义");
+			nat_Throw(InterpreterException, u8"下标操作数引用了一个不存在的值定义"_nv);
 		}
 
 		m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [&indexValue](auto value)
@@ -316,32 +319,32 @@ void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<
 		indexValue = indexLiteralOperand->GetValue();
 	}
 
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitConstructExpr(natRefPointer<Expression::ConstructExpr> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitDeleteExpr(natRefPointer<Expression::DeleteExpr> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitNewExpr(natRefPointer<Expression::NewExpr> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitThisExpr(natRefPointer<Expression::ThisExpr> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitThrowExpr(natRefPointer<Expression::ThrowExpr> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression::CallExpr> const& expr)
@@ -350,12 +353,12 @@ void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression
 	const auto callee = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr);
 	if (!callee)
 	{
-		nat_Throw(InterpreterException, u8"被调用者错误");
+		nat_Throw(InterpreterException, u8"被调用者错误"_nv);
 	}
 
 	if (const auto calleeDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(callee->GetDecl()))
 	{
-		m_Interpreter.m_DeclStorage.PushStorage();
+		m_Interpreter.m_DeclStorage.PushStorage(DeclStorageLevelFlag::AvailableForCreateStorage | DeclStorageLevelFlag::CreateStorageIfNotFound);
 
 		const auto scope = make_scope([this]
 		{
@@ -369,18 +372,29 @@ void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression
 		{
 			if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(param.first, [this, &param](auto& storage)
 			{
-				if (!Evaluate(param.second, [&storage](auto value)
+				m_Interpreter.m_DeclStorage.SetTopStorageFlag(DeclStorageLevelFlag::None);
+				m_Interpreter.m_DeclStorage.PushStorage();
+				const auto scope2 = make_scope([this]
+				{
+					m_Interpreter.m_DeclStorage.GarbageCollect();
+					m_Interpreter.m_DeclStorage.MergeStorage();
+					m_Interpreter.m_DeclStorage.SetTopStorageFlag(DeclStorageLevelFlag::AvailableForCreateStorage | DeclStorageLevelFlag::CreateStorageIfNotFound);
+				});
+
+				if (!Evaluate(param.second, [this, &storage](auto value)
 				{
 					storage = value;
 				}, Expected<std::remove_reference_t<decltype(storage)>>))
 				{
-					nat_Throw(InterpreterException, u8"无法对操作数求值");
+					nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);
 				}
 			}))
 			{
-				nat_Throw(InterpreterException, u8"无法为参数的定义分配存储");
+				nat_Throw(InterpreterException, u8"无法为参数的定义分配存储"_nv);
 			}
 		}
+
+		m_Interpreter.m_DeclStorage.SetTopStorageFlag(DeclStorageLevelFlag::AvailableForCreateStorage | DeclStorageLevelFlag::AvailableForLookup);
 
 		InterpreterStmtVisitor stmtVisitor{ m_Interpreter };
 		stmtVisitor.Visit(calleeDecl->GetBody());
@@ -390,24 +404,24 @@ void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression
 			const auto retType = static_cast<natRefPointer<Type::BuiltinType>>(static_cast<natRefPointer<Type::FunctionType>>(calleeDecl->GetValueType())->GetResultType());
 			if (!retType || retType->GetBuiltinClass() != Type::BuiltinType::Void)
 			{
-				nat_Throw(InterpreterException, u8"要求返回值的函数在控制流离开后未返回任何值");
+				nat_Throw(InterpreterException, u8"要求返回值的函数在控制流离开后未返回任何值"_nv);
 			}
 		}
 
 		return;
 	}
 
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitMemberCallExpr(natRefPointer<Expression::MemberCallExpr> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitCastExpr(natRefPointer<Expression::CastExpr> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitAsTypeExpr(natRefPointer<Expression::AsTypeExpr> const& expr)
@@ -425,7 +439,7 @@ void Interpreter::InterpreterExprVisitor::VisitAsTypeExpr(natRefPointer<Expressi
 			storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
 		}, Expected<nBool, nShort, nuShort, nInt, nuInt, nLong, nuLong, nFloat, nDouble>))
 		{
-			nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+			nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 		}
 	}, Expected<nBool, nShort, nuShort, nInt, nuInt, nLong, nuLong, nFloat, nDouble>))
 	{
@@ -433,7 +447,7 @@ void Interpreter::InterpreterExprVisitor::VisitAsTypeExpr(natRefPointer<Expressi
 		return;
 	}
 
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Expression::ImplicitCastExpr> const& expr)
@@ -451,7 +465,7 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 			storage = static_cast<std::remove_reference_t<decltype(storage)>>(value);
 		}, Expected<nBool, nShort, nuShort, nInt, nuInt, nLong, nuLong, nFloat, nDouble>))
 		{
-			nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+			nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 		}
 	}, Expected<nBool, nShort, nuShort, nInt, nuInt, nLong, nuLong, nFloat, nDouble>))
 	{
@@ -459,12 +473,12 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 		return;
 	}
 
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitMemberExpr(natRefPointer<Expression::MemberExpr> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitParenExpr(natRefPointer<Expression::ParenExpr> const& expr)
@@ -474,17 +488,17 @@ void Interpreter::InterpreterExprVisitor::VisitParenExpr(natRefPointer<Expressio
 
 void Interpreter::InterpreterExprVisitor::VisitStmtExpr(natRefPointer<Expression::StmtExpr> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitUnaryExprOrTypeTraitExpr(natRefPointer<Expression::UnaryExprOrTypeTraitExpr> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitConditionalOperator(natRefPointer<Expression::ConditionalOperator> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> const& expr)
@@ -511,7 +525,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue * rightValue;
 				}, Expected<decltype(leftValue)>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
@@ -527,7 +541,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			{
 				if (!rightValue)
 				{
-					nat_Throw(InterpreterException, u8"被0除");
+					nat_Throw(InterpreterException, u8"被0除"_nv);
 				}
 
 				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
@@ -535,7 +549,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue / rightValue;
 				}, Expected<decltype(leftValue)>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
@@ -551,7 +565,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			{
 				if (!rightValue)
 				{
-					nat_Throw(InterpreterException, u8"被0除");
+					nat_Throw(InterpreterException, u8"被0除"_nv);
 				}
 
 				if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [leftValue, rightValue](auto& storage)
@@ -559,7 +573,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue % rightValue;
 				}, Expected<decltype(leftValue)>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble>) && evalSucceed)
@@ -578,7 +592,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue + rightValue;
 				}, Expected<decltype(leftValue)>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
@@ -597,7 +611,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue - rightValue;
 				}, Expected<decltype(leftValue)>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
@@ -616,7 +630,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue << rightValue;
 				}, Expected<decltype(leftValue)>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble>) && evalSucceed)
@@ -635,7 +649,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue >> rightValue;
 				}, Expected<decltype(leftValue)>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble>) && evalSucceed)
@@ -654,7 +668,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue < rightValue;
 				}, Expected<nBool>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
@@ -673,7 +687,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue > rightValue;
 				}, Expected<nBool>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
@@ -692,7 +706,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue <= rightValue;
 				}, Expected<nBool>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
@@ -711,7 +725,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue >= rightValue;
 				}, Expected<nBool>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
@@ -730,7 +744,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue == rightValue;
 				}, Expected<nBool>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
@@ -749,7 +763,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue != rightValue;
 				}, Expected<nBool>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
@@ -768,7 +782,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue & rightValue;
 				}, Expected<decltype(leftValue)>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nByte, nStrView, nFloat, nDouble>) && evalSucceed)
@@ -787,7 +801,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue ^ rightValue;
 				}, Expected<decltype(leftValue)>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nByte, nStrView, nFloat, nDouble>) && evalSucceed)
@@ -806,7 +820,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue | rightValue;
 				}, Expected<decltype(leftValue)>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nByte, nStrView, nFloat, nDouble>) && evalSucceed)
@@ -825,7 +839,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue && rightValue;
 				}, Expected<nBool>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nByte, nStrView>) && evalSucceed)
@@ -844,7 +858,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					storage = leftValue || rightValue;
 				}, Expected<nBool>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nByte, nStrView>) && evalSucceed)
@@ -860,7 +874,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 		break;
 	}
 
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPointer<Expression::CompoundAssignOperator> const& expr)
@@ -875,7 +889,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 	natRefPointer<Declaration::ValueDecl> decl;
 	if (!leftDeclExpr || !((decl = leftDeclExpr->GetDecl())) || !decl->GetIdentifierInfo())
 	{
-		nat_Throw(InterpreterException, u8"左操作数必须是对非临时对象的定义的引用");
+		nat_Throw(InterpreterException, u8"左操作数必须是对非临时对象的定义的引用"_nv);
 	}
 
 	nBool visitSucceed, evalSucceed;
@@ -983,12 +997,12 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 		break;
 	case Expression::BinaryOperationType::Invalid:
 	default:
-		nat_Throw(InterpreterException, u8"错误的操作");
+		nat_Throw(InterpreterException, u8"错误的操作"_nv);
 	}
 
 	if (!visitSucceed || !evalSucceed)
 	{
-		nat_Throw(InterpreterException, u8"操作失败");
+		nat_Throw(InterpreterException, u8"操作失败"_nv);
 	}
 
 	m_LastVisitedExpr = std::move(leftDeclExpr);
@@ -1009,7 +1023,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			const auto decl = declExpr->GetDecl();
 			if (!decl->GetIdentifierInfo())
 			{
-				nat_Throw(InterpreterException, u8"不允许修改临时对象");
+				nat_Throw(InterpreterException, u8"不允许修改临时对象"_nv);
 			}
 
 			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &decl](auto& value)
@@ -1020,7 +1034,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 							tmpValue = value;
 						}, Expected<std::remove_reference_t<decltype(value)>>))
 					{
-						nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+						nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 					}
 
 					m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
@@ -1037,7 +1051,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			const auto decl = declExpr->GetDecl();
 			if (!decl->GetIdentifierInfo())
 			{
-				nat_Throw(InterpreterException, u8"不允许修改临时对象");
+				nat_Throw(InterpreterException, u8"不允许修改临时对象"_nv);
 			}
 
 			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &decl](auto& value)
@@ -1048,7 +1062,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 					tmpValue = value;
 				}, Expected<std::remove_reference_t<decltype(value)>>))
 				{
-					nat_Throw(InterpreterException, u8"无法创建临时对象的存储");
+					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 
 				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
@@ -1065,7 +1079,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			const auto decl = declExpr->GetDecl();
 			if (!decl->GetIdentifierInfo())
 			{
-				nat_Throw(InterpreterException, u8"不允许修改临时对象");
+				nat_Throw(InterpreterException, u8"不允许修改临时对象"_nv);
 			}
 
 			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [](auto& value)
@@ -1083,7 +1097,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			const auto decl = declExpr->GetDecl();
 			if (!decl->GetIdentifierInfo())
 			{
-				nat_Throw(InterpreterException, u8"不允许修改临时对象");
+				nat_Throw(InterpreterException, u8"不允许修改临时对象"_nv);
 			}
 
 			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [](auto& value)
@@ -1108,7 +1122,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 				tmpValue = decltype(value){} - value;
 			}, Expected<std::remove_reference_t<decltype(tmpValue)>>))
 			{
-				nat_Throw(InterpreterException, u8"无法对操作数求值");
+				nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);
 			}
 		}, Excepted<nStrView, nBool>))
 		{
@@ -1129,7 +1143,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 				tmpValue = ~value;
 			}, Expected<std::remove_reference_t<decltype(tmpValue)>>))
 			{
-				nat_Throw(InterpreterException, u8"无法对操作数求值");
+				nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);
 			}
 		}, Excepted<nStrView, nBool, nFloat, nDouble>))
 		{
@@ -1151,7 +1165,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 				tmpValue = !value;
 			}, Excepted<nStrView>))
 			{
-				nat_Throw(InterpreterException, u8"无法对操作数求值");
+				nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);
 			}
 		}, Expected<nBool>))
 		{
@@ -1166,7 +1180,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 		break;
 	}
 
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 Interpreter::InterpreterStmtVisitor::InterpreterStmtVisitor(Interpreter& interpreter)
@@ -1201,7 +1215,7 @@ void Interpreter::InterpreterStmtVisitor::Visit(natRefPointer<Statement::Stmt> c
 
 void Interpreter::InterpreterStmtVisitor::VisitStmt(natRefPointer<Statement::Stmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此语句无法被访问");
+	nat_Throw(InterpreterException, u8"此语句无法被访问"_nv);
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitExpr(natRefPointer<Expression::Expr> const& expr)
@@ -1212,30 +1226,35 @@ void Interpreter::InterpreterStmtVisitor::VisitExpr(natRefPointer<Expression::Ex
 
 void Interpreter::InterpreterStmtVisitor::VisitBreakStmt(natRefPointer<Statement::BreakStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitCatchStmt(natRefPointer<Statement::CatchStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitTryStmt(natRefPointer<Statement::TryStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitCompoundStmt(natRefPointer<Statement::CompoundStmt> const& stmt)
 {
 	for (auto&& item : stmt->GetChildrens())
 	{
+		if (m_Returned)
+		{
+			return;
+		}
+
 		Visit(item);
 	}
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitContinueStmt(natRefPointer<Statement::ContinueStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStmt> const& stmt)
@@ -1244,7 +1263,7 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 	{
 		if (!decl)
 		{
-			nat_Throw(InterpreterException, u8"错误的声明");
+			nat_Throw(InterpreterException, u8"错误的声明"_nv);
 		}
 
 		if (auto varDecl = static_cast<natRefPointer<Declaration::VarDecl>>(decl))
@@ -1265,7 +1284,7 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 				}, Expected<std::remove_reference_t<decltype(storage)>>);
 			}) || !succeed)
 			{
-				nat_Throw(InterpreterException, u8"无法创建声明的存储");
+				nat_Throw(InterpreterException, u8"无法创建声明的存储"_nv);
 			}
 		}
 	}
@@ -1273,17 +1292,17 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 
 void Interpreter::InterpreterStmtVisitor::VisitDoStmt(natRefPointer<Statement::DoStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitForStmt(natRefPointer<Statement::ForStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitGotoStmt(natRefPointer<Statement::GotoStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitIfStmt(natRefPointer<Statement::IfStmt> const& stmt)
@@ -1295,7 +1314,7 @@ void Interpreter::InterpreterStmtVisitor::VisitIfStmt(natRefPointer<Statement::I
 		condition = value;
 	}, Expected<nBool>))
 	{
-		nat_Throw(InterpreterException, u8"条件表达式错误");
+		nat_Throw(InterpreterException, u8"条件表达式错误"_nv);
 	}
 
 	if (condition)
@@ -1325,13 +1344,16 @@ void Interpreter::InterpreterStmtVisitor::VisitReturnStmt(natRefPointer<Statemen
 		visitor.Visit(retExpr);
 		retExpr = visitor.GetLastVisitedExpr();
 		auto tempObjDecl = InterpreterDeclStorage::CreateTemporaryObjectDecl(retExpr->GetExprType());
+		// 禁止当前层创建存储，以保证返回值创建在上层
+		m_Interpreter.m_DeclStorage.SetTopStorageFlag(DeclStorageLevelFlag::AvailableForLookup);
 		m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [this, &visitor, &retExpr](auto& storage)
 		{
+			// 由于之前已经访问过，所以不会再创建临时对象及对应的存储
 			visitor.Evaluate(retExpr, [&storage](auto value)
 			{
 				storage = value;
 			}, Expected<std::remove_reference_t<decltype(storage)>>);
-		}, Expected<>, true);
+		}, Expected<>);
 		m_ReturnedExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDecl, SourceLocation{}, retExpr->GetExprType());
 	}
 
@@ -1340,22 +1362,22 @@ void Interpreter::InterpreterStmtVisitor::VisitReturnStmt(natRefPointer<Statemen
 
 void Interpreter::InterpreterStmtVisitor::VisitCaseStmt(natRefPointer<Statement::CaseStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitDefaultStmt(natRefPointer<Statement::DefaultStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitSwitchStmt(natRefPointer<Statement::SwitchStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitWhileStmt(natRefPointer<Statement::WhileStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现");
+	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
 void Interpreter::InterpreterDeclStorage::StorageDeleter::operator()(nData data) const noexcept
@@ -1377,18 +1399,34 @@ Interpreter::InterpreterDeclStorage::InterpreterDeclStorage(Interpreter& interpr
 	PushStorage();
 }
 
-std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRefPointer<Declaration::ValueDecl> decl, nBool toOuterStorage)
+std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRefPointer<Declaration::ValueDecl> decl)
 {
 	const auto type = decl->GetValueType();
 	assert(type);
 	const auto typeInfo = m_Interpreter.m_AstContext.GetTypeInfo(type);
 
-	for (auto& curStorage : make_range(m_DeclStorage.rbegin(), m_DeclStorage.rend()))
+	auto topestAvailableForCreateStorageIndex = std::numeric_limits<std::size_t>::max();
+
+	for (auto storageIter = m_DeclStorage.rbegin(); storageIter != m_DeclStorage.rend(); ++storageIter)
 	{
-		const auto iter = curStorage->find(decl);
-		if (iter != curStorage->cend())
+		if ((storageIter->first & DeclStorageLevelFlag::AvailableForLookup) != DeclStorageLevelFlag::None)
 		{
-			return { false, iter->second.get() };
+			const auto iter = storageIter->second->find(decl);
+			if (iter != storageIter->second->cend())
+			{
+				return { false, iter->second.get() };
+			}
+		}
+
+		if (topestAvailableForCreateStorageIndex == std::numeric_limits<std::size_t>::max() &&
+			(storageIter->first & DeclStorageLevelFlag::AvailableForCreateStorage) != DeclStorageLevelFlag::None)
+		{
+			topestAvailableForCreateStorageIndex = std::distance(m_DeclStorage.begin(), storageIter.base()) - 1;
+		}
+
+		if ((storageIter->first & DeclStorageLevelFlag::CreateStorageIfNotFound) != DeclStorageLevelFlag::None)
+		{
+			break;
 		}
 	}
 
@@ -1405,13 +1443,10 @@ std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRef
 
 	if (storagePointer)
 	{
-		auto storageIter = m_DeclStorage.rbegin();
-		if (toOuterStorage && m_DeclStorage.size() > 1)
-		{
-			++storageIter;
-		}
+		assert(topestAvailableForCreateStorageIndex != std::numeric_limits<std::size_t>::max());
+		const auto storageIter = std::next(m_DeclStorage.begin(), topestAvailableForCreateStorageIndex);
 
-		const auto [iter, succeed] = (*storageIter)->emplace(std::move(decl), std::unique_ptr<nByte[], StorageDeleter>{ storagePointer });
+		const auto [iter, succeed] = storageIter->second->try_emplace(std::move(decl), std::unique_ptr<nByte[], StorageDeleter>{ storagePointer });
 
 		if (succeed)
 		{
@@ -1420,7 +1455,7 @@ std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRef
 		}
 	}
 
-	nat_Throw(InterpreterException, "无法为此声明创建存储");
+	nat_Throw(InterpreterException, u8"无法为此声明创建存储"_nv);
 }
 
 void Interpreter::InterpreterDeclStorage::RemoveDecl(natRefPointer<Declaration::ValueDecl> const& decl)
@@ -1431,14 +1466,14 @@ void Interpreter::InterpreterDeclStorage::RemoveDecl(natRefPointer<Declaration::
 		context->RemoveDecl(decl);
 	}
 
-	m_DeclStorage.back()->erase(decl);
+	m_DeclStorage.back().second->erase(decl);
 }
 
 nBool Interpreter::InterpreterDeclStorage::DoesDeclExist(natRefPointer<Declaration::ValueDecl> const& decl) const noexcept
 {
 	for (auto& curStorage : make_range(m_DeclStorage.crbegin(), m_DeclStorage.crend()))
 	{
-		if (curStorage->find(decl) != curStorage->cend())
+		if (curStorage.second->find(decl) != curStorage.second->cend())
 		{
 			return true;
 		}
@@ -1447,9 +1482,12 @@ nBool Interpreter::InterpreterDeclStorage::DoesDeclExist(natRefPointer<Declarati
 	return false;
 }
 
-void Interpreter::InterpreterDeclStorage::PushStorage()
+void Interpreter::InterpreterDeclStorage::PushStorage(DeclStorageLevelFlag flags)
 {
-	m_DeclStorage.emplace_back(std::make_unique<std::unordered_map<natRefPointer<Declaration::ValueDecl>, std::unique_ptr<nByte[], StorageDeleter>>>());
+	assert((flags & DeclStorageLevelFlag::AvailableForCreateStorage) != DeclStorageLevelFlag::None ||
+		(flags & DeclStorageLevelFlag::CreateStorageIfNotFound) == DeclStorageLevelFlag::None);
+
+	m_DeclStorage.emplace_back(flags, std::make_unique<std::unordered_map<natRefPointer<Declaration::ValueDecl>, std::unique_ptr<nByte[], StorageDeleter>>>());
 }
 
 void Interpreter::InterpreterDeclStorage::PopStorage()
@@ -1457,16 +1495,51 @@ void Interpreter::InterpreterDeclStorage::PopStorage()
 	m_DeclStorage.pop_back();
 }
 
+void Interpreter::InterpreterDeclStorage::MergeStorage()
+{
+	if (m_DeclStorage.size() > 2)
+	{
+		auto iter = m_DeclStorage.rbegin();
+		++iter;
+		for (; iter != m_DeclStorage.rend(); ++iter)
+		{
+			if ((iter->first & DeclStorageLevelFlag::AvailableForCreateStorage) != DeclStorageLevelFlag::None)
+			{
+				break;
+			}
+		}
+
+		auto& target = *iter->second;
+
+		for (auto&& item : *m_DeclStorage.rbegin()->second)
+		{
+			target.insert_or_assign(item.first, move(item.second));
+		}
+
+		PopStorage();
+	}
+}
+
+DeclStorageLevelFlag Interpreter::InterpreterDeclStorage::GetTopStorageFlag() const noexcept
+{
+	return m_DeclStorage.back().first;
+}
+
+void Interpreter::InterpreterDeclStorage::SetTopStorageFlag(DeclStorageLevelFlag flags)
+{
+	m_DeclStorage.back().first = flags;
+}
+
 void Interpreter::InterpreterDeclStorage::GarbageCollect()
 {
 	for (auto& curStorage : make_range(m_DeclStorage.rbegin(), m_DeclStorage.rend()))
 	{
-		for (auto iter = curStorage->cbegin(); iter != curStorage->cend();)
+		for (auto iter = curStorage.second->cbegin(); iter != curStorage.second->cend();)
 		{
 			// 没有外部引用了，回收这个声明及占用的存储
 			if (iter->first->IsUnique())
 			{
-				iter = curStorage->erase(iter);
+				iter = curStorage.second->erase(iter);
 			}
 			else
 			{
@@ -1516,7 +1589,7 @@ void Interpreter::Run(nStrView content)
 	if (!stmt || m_DiagConsumer->IsErrored())
 	{
 		m_DiagConsumer->Reset();
-		nat_Throw(InterpreterException, "编译语句 \"{0}\" 失败", content);
+		nat_Throw(InterpreterException, u8"编译语句 \"{0}\" 失败"_nv, content);
 	}
 
 	m_Visitor->Visit(stmt);
