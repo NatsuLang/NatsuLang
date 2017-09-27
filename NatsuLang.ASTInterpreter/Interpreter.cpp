@@ -355,18 +355,11 @@ void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression
 
 	if (const auto calleeDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(callee->GetDecl()))
 	{
-		m_Interpreter.m_Sema.PushScope(Semantic::ScopeFlags::BlockScope |
-			Semantic::ScopeFlags::CompoundStmtScope |
-			Semantic::ScopeFlags::DeclarableScope |
-			Semantic::ScopeFlags::FunctionScope);
-		m_Interpreter.m_Sema.PushDeclContext(m_Interpreter.m_Sema.GetCurrentScope(), calleeDecl.Get());
-		m_Interpreter.m_CurrentScope = m_Interpreter.m_Sema.GetCurrentScope();
+		m_Interpreter.m_DeclStorage.PushStorage();
 
 		const auto scope = make_scope([this]
 		{
-			m_Interpreter.m_Sema.PopDeclContext();
-			m_Interpreter.m_Sema.PopScope();
-			m_Interpreter.m_CurrentScope = m_Interpreter.m_Sema.GetCurrentScope();
+			m_Interpreter.m_DeclStorage.PopStorage();
 		});
 
 		// TODO: 允许默认参数
@@ -1326,11 +1319,20 @@ void Interpreter::InterpreterStmtVisitor::VisitNullStmt(natRefPointer<Statement:
 
 void Interpreter::InterpreterStmtVisitor::VisitReturnStmt(natRefPointer<Statement::ReturnStmt> const& stmt)
 {
-	if (const auto retExpr = stmt->GetReturnExpr())
+	if (auto retExpr = stmt->GetReturnExpr())
 	{
 		InterpreterExprVisitor visitor{ m_Interpreter };
 		visitor.Visit(retExpr);
-		m_ReturnedExpr = visitor.GetLastVisitedExpr();
+		retExpr = visitor.GetLastVisitedExpr();
+		auto tempObjDecl = InterpreterDeclStorage::CreateTemporaryObjectDecl(retExpr->GetExprType());
+		m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [this, &visitor, &retExpr](auto& storage)
+		{
+			visitor.Evaluate(retExpr, [&storage](auto value)
+			{
+				storage = value;
+			}, Expected<std::remove_reference_t<decltype(storage)>>);
+		}, Expected<>, true);
+		m_ReturnedExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDecl, SourceLocation{}, retExpr->GetExprType());
 	}
 
 	m_Returned = true;
@@ -1370,20 +1372,24 @@ void Interpreter::InterpreterDeclStorage::StorageDeleter::operator()(nData data)
 }
 
 Interpreter::InterpreterDeclStorage::InterpreterDeclStorage(Interpreter& interpreter)
-	: m_Interpreter{ interpreter }
+	: m_Interpreter{ interpreter }, m_DeclStorage{}
 {
+	PushStorage();
 }
 
-std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRefPointer<Declaration::ValueDecl> decl)
+std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRefPointer<Declaration::ValueDecl> decl, nBool toOuterStorage)
 {
 	const auto type = decl->GetValueType();
 	assert(type);
 	const auto typeInfo = m_Interpreter.m_AstContext.GetTypeInfo(type);
 
-	auto iter = m_DeclStorage.find(decl);
-	if (iter != m_DeclStorage.cend())
+	for (auto& curStorage : make_range(m_DeclStorage.rbegin(), m_DeclStorage.rend()))
 	{
-		return { false, iter->second.get() };
+		const auto iter = curStorage->find(decl);
+		if (iter != curStorage->cend())
+		{
+			return { false, iter->second.get() };
+		}
 	}
 
 	const auto storagePointer =
@@ -1399,8 +1405,13 @@ std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRef
 
 	if (storagePointer)
 	{
-		nBool succeed;
-		tie(iter, succeed) = m_DeclStorage.emplace(std::move(decl), std::unique_ptr<nByte[], StorageDeleter>{ storagePointer });
+		auto storageIter = m_DeclStorage.rbegin();
+		if (toOuterStorage && m_DeclStorage.size() > 1)
+		{
+			++storageIter;
+		}
+
+		const auto [iter, succeed] = (*storageIter)->emplace(std::move(decl), std::unique_ptr<nByte[], StorageDeleter>{ storagePointer });
 
 		if (succeed)
 		{
@@ -1420,26 +1431,47 @@ void Interpreter::InterpreterDeclStorage::RemoveDecl(natRefPointer<Declaration::
 		context->RemoveDecl(decl);
 	}
 
-	m_DeclStorage.erase(decl);
+	m_DeclStorage.back()->erase(decl);
 }
 
 nBool Interpreter::InterpreterDeclStorage::DoesDeclExist(natRefPointer<Declaration::ValueDecl> const& decl) const noexcept
 {
-	return m_DeclStorage.find(decl) != m_DeclStorage.cend();
+	for (auto& curStorage : make_range(m_DeclStorage.crbegin(), m_DeclStorage.crend()))
+	{
+		if (curStorage->find(decl) != curStorage->cend())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void Interpreter::InterpreterDeclStorage::PushStorage()
+{
+	m_DeclStorage.emplace_back(std::make_unique<std::unordered_map<natRefPointer<Declaration::ValueDecl>, std::unique_ptr<nByte[], StorageDeleter>>>());
+}
+
+void Interpreter::InterpreterDeclStorage::PopStorage()
+{
+	m_DeclStorage.pop_back();
 }
 
 void Interpreter::InterpreterDeclStorage::GarbageCollect()
 {
-	for (auto iter = m_DeclStorage.begin(); iter != m_DeclStorage.end();)
+	for (auto& curStorage : make_range(m_DeclStorage.rbegin(), m_DeclStorage.rend()))
 	{
-		// 没有外部引用了，回收这个声明及占用的存储
-		if (iter->first->IsUnique())
+		for (auto iter = curStorage->cbegin(); iter != curStorage->cend();)
 		{
-			iter = m_DeclStorage.erase(iter);
-		}
-		else
-		{
-			++iter;
+			// 没有外部引用了，回收这个声明及占用的存储
+			if (iter->first->IsUnique())
+			{
+				iter = curStorage->erase(iter);
+			}
+			else
+			{
+				++iter;
+			}
 		}
 	}
 }

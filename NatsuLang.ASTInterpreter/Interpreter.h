@@ -1,4 +1,6 @@
 ﻿#pragma once
+#include <stack>
+
 #include <AST/StmtVisitor.h>
 #include <AST/ASTConsumer.h>
 #include <AST/Expression.h>
@@ -451,16 +453,19 @@ namespace NatsuLang
 			explicit InterpreterDeclStorage(Interpreter& interpreter);
 
 			// 返回值：是否新增了声明，声明的存储
-			std::pair<nBool, nData> GetOrAddDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> decl);
+			std::pair<nBool, nData> GetOrAddDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, nBool toOuterStorage = false);
 			void RemoveDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl);
 			nBool DoesDeclExist(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl) const noexcept;
+
+			void PushStorage();
+			void PopStorage();
 
 			void GarbageCollect();
 
 			static NatsuLib::natRefPointer<Declaration::ValueDecl> CreateTemporaryObjectDecl(Type::TypePtr type, SourceLocation loc = {});
 
 			template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
-			nBool VisitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Callable&& visitor, ExpectedOrExcepted condition = {})
+			nBool VisitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Callable&& visitor, ExpectedOrExcepted condition = {}, nBool toOuterStorage = false)
 			{
 				if (!decl)
 				{
@@ -469,7 +474,7 @@ namespace NatsuLang
 
 				const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
 
-				const auto [addedDecl, storagePointer] = GetOrAddDecl(decl);
+				const auto [addedDecl, storagePointer] = GetOrAddDecl(decl, toOuterStorage);
 				auto visitSucceed = false;
 				const auto scope = NatsuLib::make_scope([this, addedDecl, &visitSucceed, decl = std::move(decl)]
 				{
@@ -485,7 +490,7 @@ namespace NatsuLang
 
 		private:
 			Interpreter& m_Interpreter;
-			std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, std::unique_ptr<nByte[], StorageDeleter>> m_DeclStorage;
+			std::vector<std::unique_ptr<std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, std::unique_ptr<nByte[], StorageDeleter>>>> m_DeclStorage;
 		};
 
 	public:
