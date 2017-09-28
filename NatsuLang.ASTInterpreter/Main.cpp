@@ -1,5 +1,4 @@
 ﻿#include "Interpreter.h"
-#include <natConsole.h>
 
 using namespace NatsuLib;
 using namespace NatsuLang;

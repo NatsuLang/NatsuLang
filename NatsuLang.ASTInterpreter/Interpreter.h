@@ -1,17 +1,4 @@
 ﻿#pragma once
-#include <stack>
-
-#include <AST/StmtVisitor.h>
-#include <AST/ASTConsumer.h>
-#include <AST/Expression.h>
-#include <Basic/FileManager.h>
-#include <Parse/Parser.h>
-#include <Sema/Sema.h>
-#include <Sema/Scope.h>
-
-#include <natStream.h>
-#include <natText.h>
-#include <natLog.h>
 
 namespace NatsuLang
 {
@@ -51,7 +38,7 @@ namespace NatsuLang
 			{
 				if constexpr (std::is_invocable_v<decltype(callableObj), decltype(arg)>)
 				{
-					std::invoke(std::forward<Callable>(callableObj), std::forward<Arg>(arg));
+					static_cast<void>(std::invoke(std::forward<Callable>(callableObj), std::forward<Arg>(arg)));
 					return true;
 				}
 			}
@@ -74,7 +61,7 @@ namespace NatsuLang
 			{
 				if constexpr (std::is_invocable_v<decltype(callableObj), decltype(arg)>)
 				{
-					std::invoke(std::forward<Callable>(callableObj), std::forward<Arg>(arg));
+					static_cast<void>(std::invoke(std::forward<Callable>(callableObj), std::forward<Arg>(arg)));
 					return true;
 				}
 			}

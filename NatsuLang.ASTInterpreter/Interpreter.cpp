@@ -1110,7 +1110,26 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 		}
 		break;
 	case Expression::UnaryOperationType::Plus:
-		return;
+	{
+		auto type = m_LastVisitedExpr->GetExprType();
+		auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(type);
+		if (m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [this, expr = std::move(m_LastVisitedExpr)](auto& tmpValue)
+		{
+			if (!Evaluate(expr, [&tmpValue](auto value)
+			{
+				tmpValue = value;
+			}, Expected<std::remove_reference_t<decltype(tmpValue)>>))
+			{
+				nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);
+			}
+		}, Excepted<nStrView, nBool>))
+		{
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(type));
+			return;
+		}
+
+		break;
+	}
 	case Expression::UnaryOperationType::Minus:
 	{
 		auto type = m_LastVisitedExpr->GetExprType();
@@ -1527,6 +1546,9 @@ DeclStorageLevelFlag Interpreter::InterpreterDeclStorage::GetTopStorageFlag() co
 
 void Interpreter::InterpreterDeclStorage::SetTopStorageFlag(DeclStorageLevelFlag flags)
 {
+	assert((flags & DeclStorageLevelFlag::AvailableForCreateStorage) != DeclStorageLevelFlag::None ||
+		(flags & DeclStorageLevelFlag::CreateStorageIfNotFound) == DeclStorageLevelFlag::None);
+
 	m_DeclStorage.back().first = flags;
 }
 
