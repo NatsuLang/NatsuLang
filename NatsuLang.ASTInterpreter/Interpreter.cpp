@@ -250,7 +250,7 @@ void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Express
 
 		m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [this, id = decl->GetIdentifierInfo()](auto value)
 		{
-			m_Interpreter.m_Logger.LogMsg("(声明 : {0}) {1}"_nv, id ? id->GetName() : u8"(临时对象)"_nv, value);
+			m_Interpreter.m_Logger.LogMsg(u8"(声明 : {0}) {1}"_nv, id ? id->GetName() : u8"(临时对象)"_nv, value);
 		});
 	}
 }
