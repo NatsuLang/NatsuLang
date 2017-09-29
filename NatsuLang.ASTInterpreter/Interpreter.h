@@ -68,6 +68,106 @@ namespace NatsuLang
 
 			return false;
 		}
+
+		template <Type::BuiltinType::BuiltinClass BuiltinClass>
+		struct BuiltinTypeMap;
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::Bool>
+		{
+			using type = nBool;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::Char>
+		{
+			using type = nByte;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::UShort>
+		{
+			using type = nuShort;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::UInt>
+		{
+			using type = nuInt;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::ULong>
+		{
+			using type = nuLong;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::ULongLong>
+		{
+			using type = nuLong;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::UInt128>
+		{
+			using type = nuLong;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::Short>
+		{
+			using type = nShort;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::Int>
+		{
+			using type = nInt;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::Long>
+		{
+			using type = nLong;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::LongLong>
+		{
+			using type = nLong;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::Int128>
+		{
+			using type = nLong;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::Float>
+		{
+			using type = nFloat;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::Double>
+		{
+			using type = nDouble;
+		};
+
+		// TODO: 需要修改
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::LongDouble>
+		{
+			using type = nDouble;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::Float128>
+		{
+			using type = nDouble;
+		};
 	}
 
 	enum class DeclStorageLevelFlag
@@ -386,42 +486,13 @@ namespace NatsuLang
 
 					switch (builtinType->GetBuiltinClass())
 					{
-					case Type::BuiltinType::Bool:
-						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nBool&>(storageRef), condition);
-					case Type::BuiltinType::Char:
-						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nByte&>(storageRef), condition);
-					case Type::BuiltinType::UShort:
-						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nuShort&>(storageRef), condition);
-					case Type::BuiltinType::UInt:
-						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nuInt&>(storageRef), condition);
-						// TODO: 区分Long类型
-					case Type::BuiltinType::ULong:
-					case Type::BuiltinType::ULongLong:
-					case Type::BuiltinType::UInt128:
-						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nuLong&>(storageRef), condition);
-					case Type::BuiltinType::Short:
-						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nShort&>(storageRef), condition);
-					case Type::BuiltinType::Int:
-						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nInt&>(storageRef), condition);
-					case Type::BuiltinType::Long:
-					case Type::BuiltinType::LongLong:
-					case Type::BuiltinType::Int128:
-						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nLong&>(storageRef), condition);
-					case Type::BuiltinType::Float:
-						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nFloat&>(storageRef), condition);
-					case Type::BuiltinType::Double:
-						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<nDouble&>(storageRef), condition);
-					case Type::BuiltinType::LongDouble:
-					case Type::BuiltinType::Float128:
-						nat_Throw(InterpreterException, u8"此功能尚未实现");
+#define BUILTIN_TYPE(Id, Name)
+#define SIGNED_TYPE(Id, Name) case Type::BuiltinType::Id: return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<typename Detail::BuiltinTypeMap<Type::BuiltinType::Id>::type&>(storageRef), condition);
+#define UNSIGNED_TYPE(Id, Name) case Type::BuiltinType::Id: return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<typename Detail::BuiltinTypeMap<Type::BuiltinType::Id>::type&>(storageRef), condition);
+#define FLOATING_TYPE(Id, Name) case Type::BuiltinType::Id: return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<typename Detail::BuiltinTypeMap<Type::BuiltinType::Id>::type&>(storageRef), condition);
+#define PLACEHOLDER_TYPE(Id, Name)
+#include <Basic/BuiltinTypesDef.h>
 					default:
-						assert(!"Invalid type.");
-						[[fallthrough]];
-					case Type::BuiltinType::Invalid:
-					case Type::BuiltinType::Void:
-					case Type::BuiltinType::BoundMember:
-					case Type::BuiltinType::BuiltinFn:
-					case Type::BuiltinType::Overload:
 						nat_Throw(InterpreterException, u8"此功能尚未实现");
 					}
 				}

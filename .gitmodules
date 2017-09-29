@@ -1,5 +1,5 @@
 [submodule "NatsuLib"]
-	path = NatsuLib
+	path = Extern/NatsuLib
 	url = git@github.com:akemimadoka/NatsuLib.git
 [submodule "Extern/Catch"]
 	path = Extern/Catch

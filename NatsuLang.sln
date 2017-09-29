@@ -8,7 +8,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NatsuLang", "NatsuLang\Nats
 		{E4F66019-9964-4B86-B538-E10F66124689} = {E4F66019-9964-4B86-B538-E10F66124689}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NatsuLib", "NatsuLib\NatsuLib\NatsuLib.vcxproj", "{E4F66019-9964-4B86-B538-E10F66124689}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NatsuLib", "Extern\NatsuLib\NatsuLib\NatsuLib.vcxproj", "{E4F66019-9964-4B86-B538-E10F66124689}"
 	ProjectSection(ProjectDependencies) = postProject
 		{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B} = {0BFBD1A8-5638-4B35-BA03-8DB47F921B9B}
 	EndProjectSection
@@ -21,7 +21,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NatsuLang.JITCompiler", "Na
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Extern", "Extern", "{E7D5F552-9833-40C8-AA8F-1F7EFB036D17}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zlib", "..\NatsuLib\NatsuLib\extern\zlib\zlib.vcxproj", "{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zlib", "Extern\NatsuLib\NatsuLib\extern\zlib\zlib.vcxproj", "{0BFBD1A8-5638-4B35-BA03-8DB47F921B9B}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NatsuLang.Tests", "NatsuLang.Tests\NatsuLang.Tests.vcxproj", "{8764FF3A-53E4-40F5-8B92-13FE14178983}"
 EndProject

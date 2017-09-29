@@ -97,7 +97,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>NATSULIB_UTF8_SOURCE;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)Extern\NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/bigobj</AdditionalOptions>
       <PrecompiledHeaderFile>Pch.h</PrecompiledHeaderFile>
@@ -106,7 +106,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>NatsuLang.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -117,7 +117,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>NATSULIB_UTF8_SOURCE;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)Extern\NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/bigobj</AdditionalOptions>
       <PrecompiledHeaderFile>Pch.h</PrecompiledHeaderFile>
@@ -126,7 +126,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>NatsuLang.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -139,7 +139,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NATSULIB_UTF8_SOURCE;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)Extern\NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/bigobj</AdditionalOptions>
       <PrecompiledHeaderFile>Pch.h</PrecompiledHeaderFile>
@@ -150,7 +150,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>NatsuLang.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -163,7 +163,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NATSULIB_UTF8_SOURCE;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)Extern\NatsuLib\NatsuLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/bigobj</AdditionalOptions>
       <PrecompiledHeaderFile>Pch.h</PrecompiledHeaderFile>
@@ -174,7 +174,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>NatsuLang.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -192,7 +192,7 @@
     <ProjectReference Include="..\NatsuLang\NatsuLang.vcxproj">
       <Project>{5306b493-f4e5-4a93-b487-d6a4a3561019}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\NatsuLib\NatsuLib\NatsuLib.vcxproj">
+    <ProjectReference Include="$(SolutionDir)\Extern\NatsuLib\NatsuLib\NatsuLib.vcxproj">
       <Project>{e4f66019-9964-4b86-b538-e10f66124689}</Project>
     </ProjectReference>
   </ItemGroup>
