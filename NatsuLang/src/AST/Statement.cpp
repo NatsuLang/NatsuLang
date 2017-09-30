@@ -152,6 +152,10 @@ StmtEnumerable ReturnStmt::GetChildrens()
 	return Stmt::GetChildrens();
 }
 
+TryStmt::~TryStmt()
+{
+}
+
 CatchStmt::~CatchStmt()
 {
 }

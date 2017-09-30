@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 3.8)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -25,7 +24,7 @@ add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${NatsuLib_INCLUDE_DIRS})
 
-set(${PROJECT_NAME}_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/include")
+set(${PROJECT_NAME}_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/${PROJECT_NAME}/include")
 target_include_directories(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_INCLUDE_DIRS})
 
 target_link_libraries(${PROJECT_NAME} NatsuLib)

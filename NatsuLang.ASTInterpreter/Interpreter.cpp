@@ -60,7 +60,7 @@ Interpreter::InterpreterDiagIdMap::~InterpreterDiagIdMap()
 nString Interpreter::InterpreterDiagIdMap::GetText(Diag::DiagnosticsEngine::DiagID id)
 {
 	const auto iter = m_IdMap.find(id);
-	return iter == m_IdMap.cend() ? u8"(No available text)"_nv : iter->second;
+	return iter == m_IdMap.cend() ? u8"(No available text)"_nv : iter->second.GetView();
 }
 
 Interpreter::InterpreterDiagConsumer::InterpreterDiagConsumer(Interpreter& interpreter)
@@ -1457,7 +1457,7 @@ std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRef
 		static_cast<nData>(_aligned_malloc_dbg(typeInfo.Size, typeInfo.Align, __FILE__, __LINE__));
 #	endif
 #else
-		static_cast<nData>(std::aligned_alloc(typeInfo.Align, typeInfo.Size));
+		static_cast<nData>(aligned_alloc(typeInfo.Align, typeInfo.Size));
 #endif
 
 	if (storagePointer)
