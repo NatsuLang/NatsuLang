@@ -21,8 +21,14 @@ set(HeaderFiles
 	Interpreter.h)
 
 set(SourceFiles
+	ASTConsumer.cpp
+	DeclStorage.cpp
+	DiagConsumer.cpp
+	DiagIdMap.cpp
+	ExprVisitor.cpp
 	Interpreter.cpp
-	Main.cpp)
+	Main.cpp
+	StmtVisitor.cpp)
 
 set(SOURCE_FILES
 	${PrecompiledHeader}
@@ -76,8 +82,7 @@ endif()
 set(DIAGIDMAP_FILE_NAME DiagIdMap.txt)
 set(DIAGIDMAP_FILE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${DIAGIDMAP_FILE_NAME}")
 add_custom_command(
-	OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${DIAGIDMAP_FILE_NAME}"
+	TARGET "NatsuLang.ASTInterpreter"
 	COMMAND "${CMAKE_COMMAND}" -E copy "${DIAGIDMAP_FILE_PATH}" "${CMAKE_CURRENT_BINARY_DIR}/${DIAGIDMAP_FILE_NAME}"
-	DEPENDS "${DIAGIDMAP_FILE_PATH}"
 	COMMENT "Copying DiagIdMap"
 	)
