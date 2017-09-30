@@ -524,7 +524,7 @@ namespace NatsuLang
 			explicit InterpreterDeclStorage(Interpreter& interpreter);
 
 			// 返回值：是否新增了声明，声明的存储
-			std::pair<nBool, nData> GetOrAddDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> decl);
+			std::pair<nBool, nData> GetOrAddDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Type::TypePtr type = nullptr);
 			void RemoveDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl);
 			nBool DoesDeclExist(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl) const noexcept;
 
