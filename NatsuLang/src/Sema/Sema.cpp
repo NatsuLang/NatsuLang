@@ -313,14 +313,14 @@ NatsuLang::Declaration::DeclPtr Sema::ActOnStartOfFunctionDef(natRefPointer<Scop
 	{
 		PushDeclContext(scope, funcDecl.Get());
 
-		for (auto& d : funcDecl->GetDecls().select([](Declaration::DeclPtr const& td)
+		for (auto&& d : funcDecl->GetDecls().select([](Declaration::DeclPtr const& td)
 			{
 				return static_cast<natRefPointer<Declaration::NamedDecl>>(td);
 			}).where([](auto&& arg) -> nBool { return arg; }))
 		{
 			if (d->GetIdentifierInfo())
 			{
-				PushOnScopeChains(d, scope, false);
+				PushOnScopeChains(std::move(d), scope, false);
 			}
 		}
 

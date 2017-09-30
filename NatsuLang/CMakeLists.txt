@@ -26,9 +26,8 @@ add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${NatsuLib_INCLUDE_DIRS})
 
 set(${PROJECT_NAME}_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/include")
-target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_NAME}_INCLUDE_DIRS)
+target_include_directories(${PROJECT_NAME} PUBLIC ${${PROJECT_NAME}_INCLUDE_DIRS})
 
 target_link_libraries(${PROJECT_NAME} NatsuLib)
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC NATSULIB_UTF8_SOURCE)
-

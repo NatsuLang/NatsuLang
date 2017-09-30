@@ -2,6 +2,8 @@
 #include "Basic/CharInfo.h"
 #include "Basic/Identifier.h"
 
+#include <cmath>
+
 #undef min
 #undef max
 
@@ -38,17 +40,17 @@ namespace
 
 		if (NatsuLang::CharInfo::IsDigit(c))
 		{
-			return static_cast<nuInt>(c - unsigned char{ '0' });
+			return static_cast<nuInt>(c - static_cast<unsigned char>('0'));
 		}
 
 		if (c > 'a')
 		{
-			return static_cast<nuInt>(c - unsigned char{ 'a' } + 10);
+			return static_cast<nuInt>(c - static_cast<unsigned char>('a') + 10);
 		}
 
 		if (c > 'A')
 		{
-			return static_cast<nuInt>(c - unsigned char{ 'A' } + 10);
+			return static_cast<nuInt>(c - static_cast<unsigned char>('A') + 10);
 		}
 
 		// 错误，这个字符不是可用的数字字面量字符
@@ -265,7 +267,7 @@ nBool NumericLiteralParser::GetFloatValue(nDouble& result) const noexcept
 
 	if (periodPos)
 	{
-		result += partAfterPeriod * pow(m_Radix, periodPos - m_SuffixBegin + 1);
+		result += partAfterPeriod * std::pow(m_Radix, periodPos - m_SuffixBegin + 1);
 	}
 	
 	// TODO: 检查是否溢出
