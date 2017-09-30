@@ -519,7 +519,7 @@ natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 	}
 
 	// TODO: 对于嵌套的类型会出现误判
-	if (initExpr->GetExprType() != type)
+	if (initExpr && initExpr->GetExprType() != type)
 	{
 		initExpr = ImpCastExprToType(std::move(initExpr), type, getCastType(initExpr, type));
 	}
