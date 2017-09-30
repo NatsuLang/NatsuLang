@@ -1296,6 +1296,11 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 			auto succeed = false;
 			if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [this, initializer = varDecl->GetInitializer(), &succeed](auto& storage)
 			{
+				if (!initializer)
+				{
+					return;
+				}
+
 				InterpreterExprVisitor visitor{ m_Interpreter };
 				succeed = visitor.Evaluate(initializer, [&storage](auto value)
 				{

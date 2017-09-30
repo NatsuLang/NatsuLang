@@ -665,7 +665,8 @@ NatsuLang::Statement::StmtPtr Sema::ActOnIfStmt(SourceLocation ifLoc, Expression
 	Statement::StmtPtr thenStmt, SourceLocation elseLoc, Statement::StmtPtr elseStmt)
 {
 	const auto boolType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
-	return make_ref<Statement::IfStmt>(ifLoc, ImpCastExprToType(std::move(condExpr), boolType, getCastType(condExpr, boolType)), std::move(thenStmt), elseLoc, std::move(elseStmt));
+	const auto castType = getCastType(condExpr, boolType);
+	return make_ref<Statement::IfStmt>(ifLoc, ImpCastExprToType(std::move(condExpr), std::move(boolType), castType), std::move(thenStmt), elseLoc, std::move(elseStmt));
 }
 
 NatsuLang::Statement::StmtPtr Sema::ActOnWhileStmt(SourceLocation loc, Expression::ExprPtr cond,
@@ -1072,13 +1073,15 @@ NatsuLang::Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Ex
 				Expression::CastType::IntegralToFloating : Expression::CastType::FloatingCast;
 		}
 
-		return make_ref<Expression::CompoundAssignOperator>(std::move(leftOperand), ImpCastExprToType(std::move(rightOperand), rightOperand->GetExprType(), castType), binOpType, leftOperand->GetExprType(), loc);
+		auto leftType = leftOperand->GetExprType(), rightType = rightOperand->GetExprType();
+		return make_ref<Expression::CompoundAssignOperator>(std::move(leftOperand), ImpCastExprToType(std::move(rightOperand), std::move(rightType), castType), binOpType, std::move(leftType), loc);
 	}
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnConditionalOp(SourceLocation questionLoc, SourceLocation colonLoc, Expression::ExprPtr condExpr, Expression::ExprPtr leftExpr, Expression::ExprPtr rightExpr)
 {
-	return make_ref<Expression::ConditionalOperator>(std::move(condExpr), questionLoc, std::move(leftExpr), colonLoc, std::move(rightExpr), getCommonType(leftExpr->GetExprType(), rightExpr->GetExprType()));
+	const auto leftType = leftExpr->GetExprType(), rightType = rightExpr->GetExprType();
+	return make_ref<Expression::ConditionalOperator>(std::move(condExpr), questionLoc, std::move(leftExpr), colonLoc, std::move(rightExpr), getCommonType(leftType, rightType));
 }
 
 NatsuLang::Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, natRefPointer<Declaration::NamedDecl> decl)
@@ -1090,7 +1093,8 @@ NatsuLang::Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<Nest
 		return nullptr;
 	}
 
-	return BuildDeclRefExpr(std::move(valueDecl), valueDecl->GetValueType(), std::move(id), nns);
+	auto type = valueDecl->GetValueType();
+	return BuildDeclRefExpr(std::move(valueDecl), std::move(type), std::move(id), nns);
 }
 
 NatsuLang::Expression::ExprPtr Sema::BuildDeclRefExpr(natRefPointer<Declaration::ValueDecl> decl, Type::TypePtr type, Identifier::IdPtr id, natRefPointer<NestedNameSpecifier> const& nns)
