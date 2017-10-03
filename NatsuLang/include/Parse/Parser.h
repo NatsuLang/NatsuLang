@@ -176,6 +176,7 @@ namespace NatsuLang::Syntax
 		Statement::StmtPtr ParseCompoundStatement(Semantic::ScopeFlags flags);
 		Statement::StmtPtr ParseIfStatement();
 		Statement::StmtPtr ParseWhileStatement();
+		Statement::StmtPtr ParseForStatement();
 
 		Statement::StmtPtr ParseContinueStatement();
 		Statement::StmtPtr ParseBreakStatement();

@@ -124,7 +124,34 @@ void Interpreter::InterpreterStmtVisitor::VisitDoStmt(natRefPointer<Statement::D
 
 void Interpreter::InterpreterStmtVisitor::VisitForStmt(natRefPointer<Statement::ForStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
+	InterpreterExprVisitor visitor{ m_Interpreter };
+
+	Visit(stmt->GetInit());
+
+	nBool shouldContinue;
+	while (true)
+	{
+		if (!visitor.Evaluate(stmt->GetCond(), [&shouldContinue](nBool value)
+		{
+			shouldContinue = value;
+		}, Expected<nBool>))
+		{
+			nat_Throw(InterpreterException, u8"条件表达式不能被计算为有效的 bool 值"_nv);
+		}
+
+		if (!shouldContinue)
+		{
+			return;
+		}
+
+		Visit(stmt->GetBody());
+		if (m_Returned)
+		{
+			return;
+		}
+
+		visitor.Visit(stmt->GetInc());
+	}
 }
 
 void Interpreter::InterpreterStmtVisitor::VisitGotoStmt(natRefPointer<Statement::GotoStmt> const& stmt)
@@ -141,7 +168,7 @@ void Interpreter::InterpreterStmtVisitor::VisitIfStmt(natRefPointer<Statement::I
 		condition = value;
 	}, Expected<nBool>))
 	{
-		nat_Throw(InterpreterException, u8"条件表达式错误"_nv);
+		nat_Throw(InterpreterException, u8"条件表达式不能被计算为有效的 bool 值"_nv);
 	}
 
 	if (condition)
@@ -204,5 +231,28 @@ void Interpreter::InterpreterStmtVisitor::VisitSwitchStmt(natRefPointer<Statemen
 
 void Interpreter::InterpreterStmtVisitor::VisitWhileStmt(natRefPointer<Statement::WhileStmt> const& stmt)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
+	InterpreterExprVisitor visitor{ m_Interpreter };
+
+	nBool shouldContinue;
+	while (true)
+	{
+		if (!visitor.Evaluate(stmt->GetCond(), [&shouldContinue](nBool value)
+		{
+			shouldContinue = value;
+		}, Expected<nBool>))
+		{
+			nat_Throw(InterpreterException, u8"条件表达式不能被计算为有效的 bool 值"_nv);
+		}
+
+		if (!shouldContinue)
+		{
+			return;
+		}
+
+		Visit(stmt->GetBody());
+		if (m_Returned)
+		{
+			return;
+		}
+	}
 }

@@ -141,9 +141,10 @@ namespace NatsuLang::Semantic
 		Statement::StmtPtr ActOnCompoundStmt(std::vector<Statement::StmtPtr> stmtVec, SourceLocation begin, SourceLocation end);
 		Statement::StmtPtr ActOnIfStmt(SourceLocation ifLoc, Expression::ExprPtr condExpr, Statement::StmtPtr thenStmt, SourceLocation elseLoc, Statement::StmtPtr elseStmt);
 		Statement::StmtPtr ActOnWhileStmt(SourceLocation loc, Expression::ExprPtr cond, Statement::StmtPtr body);
+		Statement::StmtPtr ActOnForStmt(SourceLocation forLoc, SourceLocation leftParenLoc, Statement::StmtPtr init, Expression::ExprPtr cond, Expression::ExprPtr third, SourceLocation rightParenLoc, Statement::StmtPtr body);
 
-		Statement::StmtPtr ActOnContinueStatement(SourceLocation loc, NatsuLib::natRefPointer<Scope> const& scope);
-		Statement::StmtPtr ActOnBreakStatement(SourceLocation loc, NatsuLib::natRefPointer<Scope> const& scope);
+		Statement::StmtPtr ActOnContinueStmt(SourceLocation loc, NatsuLib::natRefPointer<Scope> const& scope);
+		Statement::StmtPtr ActOnBreakStmt(SourceLocation loc, NatsuLib::natRefPointer<Scope> const& scope);
 		Statement::StmtPtr ActOnReturnStmt(SourceLocation loc, Expression::ExprPtr returnedExpr, NatsuLib::natRefPointer<Scope> const& scope);
 
 		Statement::StmtPtr ActOnExprStmt(Expression::ExprPtr expr);

@@ -672,10 +672,20 @@ NatsuLang::Statement::StmtPtr Sema::ActOnIfStmt(SourceLocation ifLoc, Expression
 NatsuLang::Statement::StmtPtr Sema::ActOnWhileStmt(SourceLocation loc, Expression::ExprPtr cond,
 	Statement::StmtPtr body)
 {
-	return make_ref<Statement::WhileStmt>(loc, std::move(cond), std::move(body));
+	const auto boolType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
+	const auto castType = getCastType(cond, boolType);
+	return make_ref<Statement::WhileStmt>(loc, ImpCastExprToType(std::move(cond), std::move(boolType), castType), std::move(body));
 }
 
-NatsuLang::Statement::StmtPtr Sema::ActOnContinueStatement(SourceLocation loc, natRefPointer<Scope> const& scope)
+Statement::StmtPtr Sema::ActOnForStmt(SourceLocation forLoc, SourceLocation leftParenLoc, Statement::StmtPtr init,
+	Expression::ExprPtr cond, Expression::ExprPtr third, SourceLocation rightParenLoc, Statement::StmtPtr body)
+{
+	const auto boolType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
+	const auto castType = getCastType(cond, boolType);
+	return make_ref<Statement::ForStmt>(std::move(init), ImpCastExprToType(std::move(cond), std::move(boolType), castType), std::move(third), std::move(body), forLoc, leftParenLoc, rightParenLoc);
+}
+
+NatsuLang::Statement::StmtPtr Sema::ActOnContinueStmt(SourceLocation loc, natRefPointer<Scope> const& scope)
 {
 	if (!scope->GetContinueParent())
 	{
@@ -686,7 +696,7 @@ NatsuLang::Statement::StmtPtr Sema::ActOnContinueStatement(SourceLocation loc, n
 	return make_ref<Statement::ContinueStmt>(loc);
 }
 
-NatsuLang::Statement::StmtPtr Sema::ActOnBreakStatement(SourceLocation loc, natRefPointer<Scope> const& scope)
+NatsuLang::Statement::StmtPtr Sema::ActOnBreakStmt(SourceLocation loc, natRefPointer<Scope> const& scope)
 {
 	if (!scope->GetBreakParent())
 	{

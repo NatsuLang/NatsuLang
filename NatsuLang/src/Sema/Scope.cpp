@@ -47,3 +47,20 @@ void Scope::SetFlags(NatsuLib::natRefPointer<Scope> parent, ScopeFlags flags) no
 		m_ContinueParent = ForkWeakRef();
 	}
 }
+
+void Scope::AddFlags(ScopeFlags flags) noexcept
+{
+	if ((flags & ScopeFlags::BreakableScope) != ScopeFlags::None)
+	{
+		assert((m_Flags & ScopeFlags::BreakableScope) == ScopeFlags::None);
+		m_BreakParent = ForkWeakRef();
+	}
+
+	if ((flags & ScopeFlags::ContinuableScope) != ScopeFlags::None)
+	{
+		assert((m_Flags & ScopeFlags::ContinuableScope) == ScopeFlags::None);
+		m_ContinueParent = ForkWeakRef();
+	}
+
+	m_Flags |= flags;
+}

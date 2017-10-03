@@ -49,6 +49,8 @@ namespace NatsuLang::Semantic
 
 		void SetFlags(NatsuLib::natRefPointer<Scope> parent, ScopeFlags flags) noexcept;
 
+		void AddFlags(ScopeFlags flags) noexcept;
+
 		nuInt GetDepth() const noexcept
 		{
 			return m_Depth;

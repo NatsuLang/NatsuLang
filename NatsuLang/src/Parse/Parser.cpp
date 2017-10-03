@@ -242,7 +242,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 	case TokenType::Kw_while:
 		return ParseWhileStatement();
 	case TokenType::Kw_for:
-		break;
+		return ParseForStatement();
 	case TokenType::Kw_goto:
 		break;
 	case TokenType::Kw_continue:
@@ -411,12 +411,81 @@ NatsuLang::Statement::StmtPtr Parser::ParseWhileStatement()
 	return m_Sema.ActOnWhileStmt(whileLoc, std::move(cond), std::move(body));
 }
 
+NatsuLang::Statement::StmtPtr Parser::ParseForStatement()
+{
+	assert(m_CurrentToken.Is(TokenType::Kw_for));
+	const auto forLoc = m_CurrentToken.GetLocation();
+	ConsumeToken();
+
+	if (!m_CurrentToken.Is(TokenType::LeftParen))
+	{
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::LeftParen)
+			.AddArgument(m_CurrentToken.GetType());
+		return ParseStmtError();
+	}
+
+	ParseScope forScope{ this, Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::ControlScope };
+
+	SourceLocation leftParenLoc, rightParenLoc;
+	Statement::StmtPtr initPart;
+	Expression::ExprPtr condPart;
+	Expression::ExprPtr thirdPart;
+
+	{
+		leftParenLoc = m_CurrentToken.GetLocation();
+		ConsumeParen();
+
+		if (!m_CurrentToken.Is(TokenType::Semi))
+		{
+			// TODO: 不能知道是否吃掉过分号，分号是必要的吗？
+			// 由于如果下一个是分号的话会被吃掉，所以至少不需要担心误判空语句
+			initPart = ParseStatement();
+		}
+
+		// 从这里开始可以 break 和 continue 了
+		m_Sema.GetCurrentScope()->AddFlags(Semantic::ScopeFlags::BreakableScope | Semantic::ScopeFlags::ContinuableScope);
+		if (!m_CurrentToken.Is(TokenType::Semi))
+		{
+			condPart = ParseExpression();
+			if (m_CurrentToken.Is(TokenType::Semi))
+			{
+				ConsumeToken();
+			}
+		}
+
+		if (!m_CurrentToken.Is(TokenType::RightParen))
+		{
+			thirdPart = ParseExpression();
+		}
+
+		if (!m_CurrentToken.Is(TokenType::RightParen))
+		{
+			return ParseStmtError();
+		}
+
+		rightParenLoc = m_CurrentToken.GetLocation();
+		ConsumeParen();
+	}
+
+	Statement::StmtPtr body;
+
+	{
+		ParseScope innerScope{ this, Semantic::ScopeFlags::DeclarableScope };
+		body = ParseStatement();
+	}
+	
+	forScope.ExplicitExit();
+
+	return m_Sema.ActOnForStmt(forLoc, leftParenLoc, std::move(initPart), std::move(condPart), std::move(thirdPart), rightParenLoc, std::move(body));
+}
+
 NatsuLang::Statement::StmtPtr Parser::ParseContinueStatement()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_continue));
 	const auto loc = m_CurrentToken.GetLocation();
 	ConsumeToken();
-	return m_Sema.ActOnContinueStatement(loc, m_Sema.GetCurrentScope());
+	return m_Sema.ActOnContinueStmt(loc, m_Sema.GetCurrentScope());
 }
 
 NatsuLang::Statement::StmtPtr Parser::ParseBreakStatement()
@@ -424,7 +493,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseBreakStatement()
 	assert(m_CurrentToken.Is(TokenType::Kw_break));
 	const auto loc = m_CurrentToken.GetLocation();
 	ConsumeToken();
-	return m_Sema.ActOnBreakStatement(loc, m_Sema.GetCurrentScope());
+	return m_Sema.ActOnBreakStmt(loc, m_Sema.GetCurrentScope());
 }
 
 NatsuLang::Statement::StmtPtr Parser::ParseReturnStatement()
