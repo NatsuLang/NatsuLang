@@ -1,8 +1,10 @@
 ﻿#pragma once
 
+using namespace NatsuLib::StringLiterals;
+
 namespace NatsuLang
 {
-	DeclareException(InterpreterException, NatsuLib::natException, u8"由解释器生成的异常");
+	DeclareException(InterpreterException, NatsuLib::natException, u8"由解释器生成的异常"_nv);
 
 	namespace Detail
 	{
@@ -245,7 +247,7 @@ namespace NatsuLang
 				: public natRefObjImpl<InterpreterExprEvaluator<ValueVisitor, ExpectedOrExcepted>, StmtVisitor>
 			{
 			public:
-				explicit InterpreterExprEvaluator(Interpreter& interpreter, ValueVisitor const& visitor, nBool onlyThisLevel = false, nBool toOuterStorage = false)
+				explicit InterpreterExprEvaluator(Interpreter& interpreter, ValueVisitor const& visitor)
 					: m_Interpreter{ interpreter }, m_Visitor { visitor },
 					  m_LastEvaluationSucceed{ false }
 				{
@@ -268,12 +270,12 @@ namespace NatsuLang
 
 				void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& /*stmt*/) override
 				{
-					nat_Throw(InterpreterException, u8"语句无法求值");
+					nat_Throw(InterpreterException, u8"语句无法求值"_nv);
 				}
 
 				void VisitExpr(NatsuLib::natRefPointer<Expression::Expr> const& /*expr*/) override
 				{
-					nat_Throw(InterpreterException, u8"此表达式无法被求值");
+					nat_Throw(InterpreterException, u8"此表达式无法被求值"_nv);
 				}
 
 				void VisitBooleanLiteral(NatsuLib::natRefPointer<Expression::BooleanLiteral> const& expr) override
@@ -309,11 +311,11 @@ namespace NatsuLang
 						case Type::BuiltinType::Float128:
 							break;
 						default:
-							nat_Throw(InterpreterException, u8"浮点字面量不应具有此类型");
+							nat_Throw(InterpreterException, u8"浮点字面量不应具有此类型"_nv);
 						}
 					}
 
-					nat_Throw(InterpreterException, u8"此功能尚未实现");
+					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				}
 
 				void VisitIntegerLiteral(NatsuLib::natRefPointer<Expression::IntegerLiteral> const& expr) override
@@ -347,11 +349,11 @@ namespace NatsuLang
 							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nLong>(expr->GetValue()), ExpectedOrExcepted{});
 							return;
 						default:
-							nat_Throw(InterpreterException, u8"整数字面量不应具有此类型");
+							nat_Throw(InterpreterException, u8"整数字面量不应具有此类型"_nv);
 						}
 					}
 
-					nat_Throw(InterpreterException, u8"此功能尚未实现");
+					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				}
 
 				void VisitStringLiteral(NatsuLib::natRefPointer<Expression::StringLiteral> const& expr) override
@@ -493,17 +495,17 @@ namespace NatsuLang
 #define PLACEHOLDER_TYPE(Id, Name)
 #include <Basic/BuiltinTypesDef.h>
 					default:
-						nat_Throw(InterpreterException, u8"此功能尚未实现");
+						nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 					}
 				}
 				case Type::Type::Array:
-					nat_Throw(InterpreterException, u8"此功能尚未实现");
+					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				case Type::Type::Function:
-					nat_Throw(InterpreterException, u8"此功能尚未实现");
+					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				case Type::Type::Record:
-					nat_Throw(InterpreterException, u8"此功能尚未实现");
+					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				case Type::Type::Enum:
-					nat_Throw(InterpreterException, u8"此功能尚未实现");
+					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				default:
 					assert(!"Invalid type.");
 					[[fallthrough]];
