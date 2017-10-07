@@ -63,6 +63,8 @@ namespace NatsuLang::Lex
 		nStrView::iterator skipOctalDigits(nStrView::iterator cur) const noexcept;
 		nStrView::iterator skipDigits(nStrView::iterator cur) const noexcept;
 		nStrView::iterator skipBinaryDigits(nStrView::iterator cur) const noexcept;
+
+		nStrView::iterator skipPeriodAndExponent(nStrView::iterator cur) noexcept;
 	};
 
 	class CharLiteralParser

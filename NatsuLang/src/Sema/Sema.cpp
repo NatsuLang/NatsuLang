@@ -664,25 +664,19 @@ NatsuLang::Statement::StmtPtr Sema::ActOnCompoundStmt(std::vector<Statement::Stm
 NatsuLang::Statement::StmtPtr Sema::ActOnIfStmt(SourceLocation ifLoc, Expression::ExprPtr condExpr,
 	Statement::StmtPtr thenStmt, SourceLocation elseLoc, Statement::StmtPtr elseStmt)
 {
-	const auto boolType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
-	const auto castType = getCastType(condExpr, boolType);
-	return make_ref<Statement::IfStmt>(ifLoc, ImpCastExprToType(std::move(condExpr), std::move(boolType), castType), std::move(thenStmt), elseLoc, std::move(elseStmt));
+	return make_ref<Statement::IfStmt>(ifLoc, ActOnConditionExpr(std::move(condExpr)), std::move(thenStmt), elseLoc, std::move(elseStmt));
 }
 
 NatsuLang::Statement::StmtPtr Sema::ActOnWhileStmt(SourceLocation loc, Expression::ExprPtr cond,
 	Statement::StmtPtr body)
 {
-	const auto boolType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
-	const auto castType = getCastType(cond, boolType);
-	return make_ref<Statement::WhileStmt>(loc, ImpCastExprToType(std::move(cond), std::move(boolType), castType), std::move(body));
+	return make_ref<Statement::WhileStmt>(loc, ActOnConditionExpr(std::move(cond)), std::move(body));
 }
 
 Statement::StmtPtr Sema::ActOnForStmt(SourceLocation forLoc, SourceLocation leftParenLoc, Statement::StmtPtr init,
 	Expression::ExprPtr cond, Expression::ExprPtr third, SourceLocation rightParenLoc, Statement::StmtPtr body)
 {
-	const auto boolType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
-	const auto castType = getCastType(cond, boolType);
-	return make_ref<Statement::ForStmt>(std::move(init), ImpCastExprToType(std::move(cond), std::move(boolType), castType), std::move(third), std::move(body), forLoc, leftParenLoc, rightParenLoc);
+	return make_ref<Statement::ForStmt>(std::move(init), ActOnConditionExpr(std::move(cond)), std::move(third), std::move(body), forLoc, leftParenLoc, rightParenLoc);
 }
 
 NatsuLang::Statement::StmtPtr Sema::ActOnContinueStmt(SourceLocation loc, natRefPointer<Scope> const& scope)
@@ -847,6 +841,18 @@ NatsuLang::Expression::ExprPtr Sema::ActOnStringLiteral(Lex::Token const& token)
 	// TODO: 缓存字符串字面量以便重用
 	auto value = literalParser.GetValue();
 	return make_ref<Expression::StringLiteral>(value, m_Context.GetArrayType(m_Context.GetBuiltinType(Type::BuiltinType::Char), value.GetSize()), token.GetLocation());
+}
+
+NatsuLang::Expression::ExprPtr Sema::ActOnConditionExpr(Expression::ExprPtr expr)
+{
+	if (!expr)
+	{
+		return nullptr;
+	}
+
+	const auto boolType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
+	const auto castType = getCastType(expr, boolType);
+	return ImpCastExprToType(std::move(expr), std::move(boolType), castType);
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr)

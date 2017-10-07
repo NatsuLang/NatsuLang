@@ -173,14 +173,7 @@ NumericLiteralParser::NumericLiteralParser(nStrView buffer, SourceLocation loc, 
 		m_Radix = 10;
 		m_Current = skipDigits(m_Current);
 
-		if (*m_Current == '.')
-		{
-			++m_Current;
-			m_SawPeriod = true;
-			m_Current = skipDigits(m_Current);
-		}
-
-		// TODO: 完成读取指数部分
+		m_Current = skipPeriodAndExponent(m_Current);
 	}
 
 	// TODO: 读取后缀
@@ -313,7 +306,7 @@ void NumericLiteralParser::parseNumberStartingWithZero(SourceLocation loc) noexc
 	m_DigitBegin = m_Current;
 	m_Current = skipOctalDigits(m_Current);
 
-	// TODO: 八进制的浮点数字面量
+	m_Current = skipPeriodAndExponent(m_Current);
 }
 
 nStrView::iterator NumericLiteralParser::skipHexDigits(nStrView::iterator cur) const noexcept
@@ -356,6 +349,23 @@ nStrView::iterator NumericLiteralParser::skipBinaryDigits(nStrView::iterator cur
 	{
 		++cur;
 	}
+
+	return cur;
+}
+
+nStrView::iterator NumericLiteralParser::skipPeriodAndExponent(nStrView::iterator cur) noexcept
+{
+	assert(m_Radix == 8 || m_Radix == 10);
+
+	if (*cur == '.')
+	{
+		++cur;
+		m_SawPeriod = true;
+		m_Radix = 10;
+		cur = skipDigits(cur);
+	}
+
+	// TODO: 完成读取指数部分
 
 	return cur;
 }

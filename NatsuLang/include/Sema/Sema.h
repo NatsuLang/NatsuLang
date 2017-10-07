@@ -154,6 +154,8 @@ namespace NatsuLang::Semantic
 		Expression::ExprPtr ActOnCharLiteral(Lex::Token const& token) const;
 		Expression::ExprPtr ActOnStringLiteral(Lex::Token const& token);
 
+		Expression::ExprPtr ActOnConditionExpr(Expression::ExprPtr expr);
+
 		Expression::ExprPtr ActOnThrow(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr);
 
 		Expression::ExprPtr ActOnIdExpr(NatsuLib::natRefPointer<Scope> const& scope, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen);

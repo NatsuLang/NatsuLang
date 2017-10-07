@@ -126,12 +126,19 @@ void Interpreter::InterpreterStmtVisitor::VisitForStmt(natRefPointer<Statement::
 {
 	InterpreterExprVisitor visitor{ m_Interpreter };
 
-	Visit(stmt->GetInit());
+	if (const auto init = stmt->GetInit())
+	{
+		Visit(init);
+	}
 
-	nBool shouldContinue;
+	const auto cond = stmt->GetCond();
+	const auto inc = stmt->GetInc();
+	const auto body = stmt->GetBody();
+
+	auto shouldContinue = true;
 	while (true)
 	{
-		if (!visitor.Evaluate(stmt->GetCond(), [&shouldContinue](nBool value)
+		if (cond && !visitor.Evaluate(cond, [&shouldContinue](nBool value)
 		{
 			shouldContinue = value;
 		}, Expected<nBool>))
@@ -144,13 +151,20 @@ void Interpreter::InterpreterStmtVisitor::VisitForStmt(natRefPointer<Statement::
 			return;
 		}
 
-		Visit(stmt->GetBody());
+		if (body)
+		{
+			Visit(body);
+		}
+
 		if (m_Returned)
 		{
 			return;
 		}
 
-		visitor.Visit(stmt->GetInc());
+		if (inc)
+		{
+			visitor.Visit(inc);
+		}
 	}
 }
 

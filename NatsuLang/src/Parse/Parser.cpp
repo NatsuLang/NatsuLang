@@ -442,6 +442,10 @@ NatsuLang::Statement::StmtPtr Parser::ParseForStatement()
 			// 由于如果下一个是分号的话会被吃掉，所以至少不需要担心误判空语句
 			initPart = ParseStatement();
 		}
+		else
+		{
+			ConsumeToken();
+		}
 
 		// 从这里开始可以 break 和 continue 了
 		m_Sema.GetCurrentScope()->AddFlags(Semantic::ScopeFlags::BreakableScope | Semantic::ScopeFlags::ContinuableScope);
@@ -452,6 +456,10 @@ NatsuLang::Statement::StmtPtr Parser::ParseForStatement()
 			{
 				ConsumeToken();
 			}
+		}
+		else
+		{
+			ConsumeToken();
 		}
 
 		if (!m_CurrentToken.Is(TokenType::RightParen))
