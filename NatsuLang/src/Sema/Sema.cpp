@@ -210,6 +210,7 @@ void Sema::PopScope()
 {
 	assert(m_CurrentScope);
 
+	// TODO: 将范围内的声明弹出
 	m_CurrentScope = m_CurrentScope->GetParent();
 }
 
@@ -376,26 +377,26 @@ nBool Sema::LookupQualifiedName(LookupResult& result, Declaration::DeclContext* 
 	switch (lookupType)
 	{
 	case LookupNameType::LookupTagName:
-		query = query.where([](natRefPointer<Declaration::NamedDecl> const& decl)
+		query = query.where([](natRefPointer<Declaration::NamedDecl> const& decl) -> nBool
 		{
 			return static_cast<natRefPointer<Declaration::TagDecl>>(decl);
 		});
 		break;
 	case LookupNameType::LookupLabel:
-		query = query.where([](natRefPointer<Declaration::NamedDecl> const& decl)
+		query = query.where([](natRefPointer<Declaration::NamedDecl> const& decl) -> nBool
 		{
 			return static_cast<natRefPointer<Declaration::LabelDecl>>(decl);
 		});
 		break;
 	case LookupNameType::LookupMemberName:
-		query = query.where([](natRefPointer<Declaration::NamedDecl> const& decl)
+		query = query.where([](natRefPointer<Declaration::NamedDecl> const& decl) -> nBool
 		{
 			const auto type = decl->GetType();
 			return type == Declaration::Decl::Method || type == Declaration::Decl::Field;
 		});
 		break;
 	case LookupNameType::LookupModuleName:
-		query = query.where([](natRefPointer<Declaration::NamedDecl> const& decl)
+		query = query.where([](natRefPointer<Declaration::NamedDecl> const& decl) -> nBool
 		{
 			return static_cast<natRefPointer<Declaration::ModuleDecl>>(decl);
 		});

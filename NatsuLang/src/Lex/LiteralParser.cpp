@@ -96,11 +96,12 @@ namespace
 		{
 			auto overflowed = false;
 
+			++cur;
 			chr = 0;
-			for (; cur != end; ++cur)
+			nuInt curChr;
+			for (; cur != end && CharInfo::IsHexDigit(curChr = static_cast<nuInt>(*cur)); ++cur)
 			{
-				const auto curChr = *cur;
-				const auto curValue = DigitValue(static_cast<nuInt>(curChr));
+				const auto curValue = DigitValue(curChr);
 				if (chr & 0xF0000000)
 				{
 					overflowed = true;
@@ -126,8 +127,6 @@ namespace
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7':
 		{
-			--cur;
-
 			chr = 0;
 			nuInt charCount = 0;
 			do
