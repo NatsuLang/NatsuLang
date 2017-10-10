@@ -123,6 +123,7 @@ void Interpreter::InterpreterDeclStorage::PushStorage(DeclStorageLevelFlag flags
 
 void Interpreter::InterpreterDeclStorage::PopStorage()
 {
+	assert(m_DeclStorage.size() > 1);
 	m_DeclStorage.pop_back();
 }
 

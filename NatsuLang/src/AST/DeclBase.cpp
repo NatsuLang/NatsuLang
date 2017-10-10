@@ -151,7 +151,7 @@ nBool DeclContext::ContainsDecl(DeclPtr const& decl)
 NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<NamedDecl>>> DeclContext::Lookup(
 	natRefPointer<Identifier::IdentifierInfo> const& info) const
 {
-	return GetDecls().where([&info] (DeclPtr const& decl)
+	return GetDecls().where([info] (DeclPtr const& decl)
 	{
 		const auto namedDecl = static_cast<natRefPointer<NamedDecl>>(decl);
 		if (!namedDecl)

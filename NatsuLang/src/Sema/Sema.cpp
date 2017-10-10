@@ -228,7 +228,7 @@ void Sema::PushOnScopeChains(natRefPointer<Declaration::NamedDecl> decl, natRefP
 
 void Sema::ActOnTranslationUnitScope(natRefPointer<Scope> scope)
 {
-	m_TranslationUnitScope = scope;
+	m_TranslationUnitScope = std::move(scope);
 	PushDeclContext(m_TranslationUnitScope, m_Context.GetTranslationUnit().Get());
 }
 
@@ -354,17 +354,65 @@ NatsuLang::Declaration::DeclPtr Sema::ActOnFinishFunctionBody(Declaration::DeclP
 
 nBool Sema::LookupName(LookupResult& result, natRefPointer<Scope> scope) const
 {
+	auto found = false;
+	const auto id = result.GetLookupId();
+	const auto lookupType = result.GetLookupType();
+
 	for (; scope; scope = scope->GetParent())
 	{
-		const auto context = scope->GetEntity();
-		if (context && LookupQualifiedName(result, context))
+		Linq<Valued<natRefPointer<Declaration::NamedDecl>>> query = scope->GetDecls().select([](natRefPointer<Declaration::NamedDecl> const& namedDecl)
 		{
-			return true;
+			return namedDecl;
+		}).where([&id](natRefPointer<Declaration::NamedDecl> const& namedDecl)
+		{
+			return namedDecl && namedDecl->GetIdentifierInfo() == id;
+		});
+
+		switch (lookupType)
+		{
+		case LookupNameType::LookupTagName:
+			query = query.where([](natRefPointer<Declaration::NamedDecl> const& decl) -> nBool
+			{
+				return static_cast<natRefPointer<Declaration::TagDecl>>(decl);
+			});
+			break;
+		case LookupNameType::LookupLabel:
+			query = query.where([](natRefPointer<Declaration::NamedDecl> const& decl) -> nBool
+			{
+				return static_cast<natRefPointer<Declaration::LabelDecl>>(decl);
+			});
+			break;
+		case LookupNameType::LookupMemberName:
+			query = query.where([](natRefPointer<Declaration::NamedDecl> const& decl) -> nBool
+			{
+				const auto type = decl->GetType();
+				return type == Declaration::Decl::Method || type == Declaration::Decl::Field;
+			});
+			break;
+		case LookupNameType::LookupModuleName:
+			query = query.where([](natRefPointer<Declaration::NamedDecl> const& decl) -> nBool
+			{
+				return static_cast<natRefPointer<Declaration::ModuleDecl>>(decl);
+			});
+			break;
+		default:
+			assert(!"Invalid lookupType");
+			[[fallthrough]];
+		case LookupNameType::LookupOrdinaryName:
+		case LookupNameType::LookupAnyName:
+			break;
+		}
+
+		auto queryResult{ query.Cast<std::vector<natRefPointer<Declaration::NamedDecl>>>() };
+		if (!queryResult.empty())
+		{
+			result.AddDecl(from(queryResult));
+			found = true;
 		}
 	}
 
 	result.ResolveResultType();
-	return false;
+	return found;
 }
 
 nBool Sema::LookupQualifiedName(LookupResult& result, Declaration::DeclContext* context) const
