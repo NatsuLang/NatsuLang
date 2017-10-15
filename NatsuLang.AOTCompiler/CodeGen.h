@@ -12,6 +12,11 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
 
+namespace llvm
+{
+	class raw_pwrite_stream;
+}
+
 using namespace NatsuLib::StringLiterals;
 
 namespace NatsuLang::Compiler
@@ -115,10 +120,13 @@ namespace NatsuLang::Compiler
 			void VisitWhileStmt(NatsuLib::natRefPointer<Statement::WhileStmt> const& stmt) override;
 			void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) override;
 
+			void StartVisit();
+			llvm::Function* GetFunction() const noexcept;
+
 		private:
 			AotCompiler& m_Compiler;
 			NatsuLib::natRefPointer<Declaration::FunctionDecl> m_CurrentFunction;
-			llvm::Value* m_CurrentFunctionValue;
+			llvm::Function* m_CurrentFunctionValue;
 			std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, llvm::Value*> m_DeclMap;
 			llvm::Value* m_LastVisitedValue;
 		};
@@ -126,7 +134,8 @@ namespace NatsuLang::Compiler
 		AotCompiler(NatsuLib::natLog& logger);
 		~AotCompiler();
 
-		std::unique_ptr<llvm::Module> Compile(NatsuLib::Uri const& uri);
+		void Compile(NatsuLib::Uri const& uri, llvm::raw_pwrite_stream& stream);
+		void Compile(nStrView const& content, nStrView const& name, llvm::raw_pwrite_stream& stream);
 
 	private:
 		NatsuLib::natRefPointer<AotDiagConsumer> m_DiagConsumer;
@@ -144,5 +153,7 @@ namespace NatsuLang::Compiler
 		llvm::LLVMContext m_LLVMContext;
 		std::unique_ptr<llvm::Module> m_Module;
 		llvm::IRBuilder<> m_IRBuilder;
+
+		llvm::Type* getCorrespondingType(Type::TypePtr const& type);
 	};
 }

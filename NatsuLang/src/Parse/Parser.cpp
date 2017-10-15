@@ -1020,7 +1020,8 @@ void Parser::ParseTypeOfType(Declaration::Declarator& decl)
 		return;
 	}
 
-	decl.SetType(m_Sema.ActOnTypeOfType(std::move(expr), expr->GetExprType()));
+	auto exprType = expr->GetExprType();
+	decl.SetType(m_Sema.ActOnTypeOfType(std::move(expr), std::move(exprType)));
 }
 
 void Parser::ParseParenType(Declaration::Declarator& decl)

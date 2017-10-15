@@ -5,6 +5,8 @@
 #include <llvm/Support/Host.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
+#include <llvm/IR/Verifier.h>
+#include <llvm/IR/LegacyPassManager.h>
 
 using namespace NatsuLib;
 using namespace NatsuLang;
@@ -33,7 +35,8 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 	{
 		if (const auto funcDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(decl))
 		{
-
+			AotStmtVisitor visitor{ m_Compiler, funcDecl };
+			visitor.StartVisit();
 		}
 	}
 
@@ -41,9 +44,26 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 }
 
 AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer<Declaration::FunctionDecl> funcDecl)
-	: m_Compiler{ compiler }, m_CurrentFunction{ std::move(funcDecl) }, m_CurrentFunctionValue{ nullptr },
+	: m_Compiler{ compiler }, m_CurrentFunction{ std::move(funcDecl) },
 	  m_LastVisitedValue{ nullptr }
 {
+	const auto functionType = m_Compiler.getCorrespondingType(funcDecl->GetValueType());
+	const auto functionName = funcDecl->GetIdentifierInfo()->GetName();
+
+	m_CurrentFunctionValue = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
+		// TODO: 修改链接性
+		llvm::GlobalVariable::ExternalLinkage,
+		std::string(functionName.cbegin(), functionName.cend()),
+		m_Compiler.m_Module.get());
+
+	for (auto& arg : from(m_CurrentFunctionValue->args()).zip(funcDecl->GetParams()))
+	{
+		const auto name = arg.second->GetIdentifierInfo()->GetName();
+		arg.first.setName(std::string{ name.cbegin(), name.cend() });
+	}
+
+	const auto block = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "Entry", m_CurrentFunctionValue);
+	m_Compiler.m_IRBuilder.SetInsertPoint(block);
 }
 
 AotCompiler::AotStmtVisitor::~AotStmtVisitor()
@@ -207,7 +227,7 @@ void AotCompiler::AotStmtVisitor::VisitMemberExpr(natRefPointer<Expression::Memb
 
 void AotCompiler::AotStmtVisitor::VisitParenExpr(natRefPointer<Expression::ParenExpr> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	Visit(expr->GetInnerExpr());
 }
 
 void AotCompiler::AotStmtVisitor::VisitStmtExpr(natRefPointer<Expression::StmtExpr> const& expr)
@@ -292,7 +312,6 @@ void AotCompiler::AotStmtVisitor::VisitLabelStmt(natRefPointer<Statement::LabelS
 
 void AotCompiler::AotStmtVisitor::VisitNullStmt(natRefPointer<Statement::NullStmt> const& stmt)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
 }
 
 void AotCompiler::AotStmtVisitor::VisitReturnStmt(natRefPointer<Statement::ReturnStmt> const& stmt)
@@ -330,6 +349,23 @@ void AotCompiler::AotStmtVisitor::VisitStmt(natRefPointer<Statement::Stmt> const
 	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
 }
 
+void AotCompiler::AotStmtVisitor::StartVisit()
+{
+	Visit(m_CurrentFunction->GetBody());
+}
+
+llvm::Function* AotCompiler::AotStmtVisitor::GetFunction() const noexcept
+{
+	std::string verifyInfo;
+	llvm::raw_string_ostream os{ verifyInfo };
+	if (verifyFunction(*m_CurrentFunctionValue, &os))
+	{
+		nat_Throw(AotCompilerException, u8"函数验证错误，信息为 {0}"_nv, verifyInfo);
+	}
+
+	return m_CurrentFunctionValue;
+}
+
 AotCompiler::AotCompiler(natLog& logger)
 	: m_DiagConsumer{ make_ref<AotDiagConsumer>(*this) },
 	m_Diag{ make_ref<AotDiagIdMap>(), m_DiagConsumer },
@@ -353,7 +389,7 @@ AotCompiler::~AotCompiler()
 {
 }
 
-std::unique_ptr<llvm::Module> AotCompiler::Compile(Uri const& uri)
+void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 {
 	const auto path = uri.GetPath();
 	m_Module = std::make_unique<llvm::Module>(std::string(path.begin(), path.end()), m_LLVMContext);
@@ -364,7 +400,7 @@ std::unique_ptr<llvm::Module> AotCompiler::Compile(Uri const& uri)
 	if (!target)
 	{
 		m_Logger.LogErr(u8"{0}"_nv, error);
-		return nullptr;
+		return;
 	}
 
 	const llvm::TargetOptions opt;
@@ -372,6 +408,84 @@ std::unique_ptr<llvm::Module> AotCompiler::Compile(Uri const& uri)
 	const auto machine = target->createTargetMachine(targetTriple, "generic", "", opt, RM, llvm::None, llvm::CodeGenOpt::Default);
 	m_Module->setDataLayout(machine->createDataLayout());
 
-	// TODO
-	nat_Throw(NotImplementedException);
+	ParseAST(m_Parser);
+
+	llvm::legacy::PassManager passManager;
+	machine->addPassesToEmitFile(passManager, stream, llvm::TargetMachine::CGFT_ObjectFile);
+	passManager.run(*m_Module);
+}
+
+llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
+{
+	const auto underlyingType = Type::Type::GetUnderlyingType(type);
+	const auto typeClass = underlyingType->GetType();
+
+	switch (typeClass)
+	{
+	case Type::Type::Builtin:
+	{
+		const auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(underlyingType);
+		switch (builtinType->GetBuiltinClass())
+		{
+		case Type::BuiltinType::Void:
+			return llvm::Type::getVoidTy(m_LLVMContext);
+		case Type::BuiltinType::Bool:
+			return llvm::Type::getInt1Ty(m_LLVMContext);
+		case Type::BuiltinType::Char:
+		case Type::BuiltinType::UShort:
+		case Type::BuiltinType::UInt:
+		case Type::BuiltinType::ULong:
+		case Type::BuiltinType::ULongLong:
+		case Type::BuiltinType::UInt128:
+		case Type::BuiltinType::Short:
+		case Type::BuiltinType::Int:
+		case Type::BuiltinType::Long:
+		case Type::BuiltinType::LongLong:
+		case Type::BuiltinType::Int128:
+			return llvm::IntegerType::get(m_LLVMContext, m_AstContext.GetTypeInfo(builtinType).Size * 8);
+		case Type::BuiltinType::Float:
+			return llvm::Type::getFloatTy(m_LLVMContext);
+		case Type::BuiltinType::Double:
+			return llvm::Type::getDoubleTy(m_LLVMContext);
+		case Type::BuiltinType::LongDouble:
+		case Type::BuiltinType::Float128:
+			return llvm::Type::getFP128Ty(m_LLVMContext);
+		case Type::BuiltinType::Overload:
+		case Type::BuiltinType::BoundMember:
+		case Type::BuiltinType::BuiltinFn:
+		default:
+			assert(!"Invalid BuiltinClass");
+			[[fallthrough]];
+		case Type::BuiltinType::Invalid:
+			nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+		}
+	}
+	case Type::Type::Array:
+	{
+		const auto arrayType = static_cast<natRefPointer<Type::ArrayType>>(underlyingType);
+		return llvm::ArrayType::get(getCorrespondingType(arrayType->GetElementType()), static_cast<std::uint64_t>(arrayType->GetSize()));
+	}
+	case Type::Type::Function:
+	{
+		const auto functionType = static_cast<natRefPointer<Type::FunctionType>>(underlyingType);
+		const auto args{ functionType->GetParameterTypes().select([this](Type::TypePtr const& argType)
+		{
+			return getCorrespondingType(argType);
+		}).Cast<std::vector<llvm::Type*>>() };
+
+		return llvm::FunctionType::get(getCorrespondingType(functionType->GetResultType()), args, false);
+	}
+	case Type::Type::Record:
+		nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	case Type::Type::Enum:
+		nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	default:
+		assert(!"Invalid type");
+		[[fallthrough]];
+	case Type::Type::Paren:
+	case Type::Type::TypeOf:
+	case Type::Type::Auto:
+		assert(!"Should never happen, check NatsuLang::Type::Type::GetUnderlyingType");
+		nat_Throw(AotCompilerException, u8"错误的类型"_nv);
+	}
 }
