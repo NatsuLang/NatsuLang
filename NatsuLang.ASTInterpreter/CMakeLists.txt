@@ -63,9 +63,16 @@ else()
 
 	# TODO: 替换掉脏实现
 	add_custom_command(
-		OUTPUT "${PCH_PATH}"
-		COMMAND "${CMAKE_CXX_COMPILER}" -std=gnu++17 -I${NatsuLib_INCLUDE_DIRS} -I${NatsuLang_INCLUDE_DIRS} -o "${PCH_PATH}" "${CMAKE_CURRENT_SOURCE_DIR}/${PrecompiledHeader}"
+		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${PrecompiledHeader}"
+		COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_SOURCE_DIR}/${PrecompiledHeader}" "${CMAKE_CURRENT_BINARY_DIR}/${PrecompiledHeader}"
 		DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${PrecompiledHeader}"
+		COMMENT "Copying pch"
+		)
+
+	add_custom_command(
+		OUTPUT "${PCH_PATH}"
+		COMMAND "${CMAKE_CXX_COMPILER}" -std=gnu++17 -I${NatsuLib_INCLUDE_DIRS} -I${NatsuLang_INCLUDE_DIRS} -x c++-header -o "${PCH_PATH}" "${CMAKE_CURRENT_BINARY_DIR}/${PrecompiledHeader}"
+		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${PrecompiledHeader}"
 		COMMENT "Generating gch"
 		)
 
@@ -73,7 +80,7 @@ else()
 		set_source_files_properties(
 			${src_file}
 			PROPERTIES
-			COMPILE_FLAGS "-include ${CMAKE_CURRENT_SOURCE_DIR}/${PrecompiledHeader}"
+			COMPILE_FLAGS "-include ${CMAKE_CURRENT_BINARY_DIR}/${PrecompiledHeader}"
 			OBJECT_DEPENDS "${PCH_PATH}"
 			)
 	endforeach()
@@ -82,7 +89,8 @@ endif()
 set(DIAGIDMAP_FILE_NAME DiagIdMap.txt)
 set(DIAGIDMAP_FILE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${DIAGIDMAP_FILE_NAME}")
 add_custom_command(
-	TARGET "NatsuLang.ASTInterpreter"
+	OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${DIAGIDMAP_FILE_NAME}"
 	COMMAND "${CMAKE_COMMAND}" -E copy "${DIAGIDMAP_FILE_PATH}" "${CMAKE_CURRENT_BINARY_DIR}/${DIAGIDMAP_FILE_NAME}"
+	DEPENDS "${DIAGIDMAP_FILE_PATH}"
 	COMMENT "Copying DiagIdMap"
 	)

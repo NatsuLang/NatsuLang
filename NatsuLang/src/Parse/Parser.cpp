@@ -1260,6 +1260,7 @@ void NatsuLang::ParseAST(Parser& parser)
 
 	std::vector<Declaration::DeclPtr> decls;
 
+	parser.ConsumeToken();
 	for (auto atEof = parser.ParseTopLevelDecl(decls); !atEof; atEof = parser.ParseTopLevelDecl(decls))
 	{
 		if (!consumer->HandleTopLevelDecl(from(decls)))

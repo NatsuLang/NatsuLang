@@ -96,16 +96,17 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)Extern\NatsuLib\NatsuLib;$(SolutionDir)Extern\llvm\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <DisableSpecificWarnings>4146;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\llvm\libs\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;LLVMCore.lib;LLVMCodeGen.lib;LLVMScalarOpts.lib;LLVMProfileData.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMDemangle.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMX86Desc.lib;LLVMX86CodeGen.lib;LLVMX86Disassembler.lib;LLVMAsmParser.lib;LLVMAsmPrinter.lib;LLVMMCDisassembler.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMAnalysis.lib;LLVMDebugInfoCodeView.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -114,16 +115,17 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)Extern\NatsuLib\NatsuLib;$(SolutionDir)Extern\llvm\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <DisableSpecificWarnings>4146;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\llvm\libs\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;LLVMCore.lib;LLVMCodeGen.lib;LLVMScalarOpts.lib;LLVMProfileData.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMDemangle.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMX86Desc.lib;LLVMX86CodeGen.lib;LLVMX86Disassembler.lib;LLVMAsmParser.lib;LLVMAsmPrinter.lib;LLVMMCDisassembler.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMAnalysis.lib;LLVMDebugInfoCodeView.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -134,10 +136,11 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)Extern\NatsuLib\NatsuLib;$(SolutionDir)Extern\llvm\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <DisableSpecificWarnings>4146;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -145,7 +148,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\llvm\libs\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;LLVMCore.lib;LLVMCodeGen.lib;LLVMScalarOpts.lib;LLVMProfileData.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMDemangle.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMX86Desc.lib;LLVMX86CodeGen.lib;LLVMX86Disassembler.lib;LLVMAsmParser.lib;LLVMAsmPrinter.lib;LLVMMCDisassembler.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMAnalysis.lib;LLVMDebugInfoCodeView.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -156,10 +159,11 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)Extern\NatsuLib\NatsuLib;$(SolutionDir)Extern\llvm\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
+      <DisableSpecificWarnings>4146;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -167,7 +171,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\llvm\libs\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;LLVMCore.lib;LLVMCodeGen.lib;LLVMScalarOpts.lib;LLVMProfileData.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMDemangle.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMX86Desc.lib;LLVMX86CodeGen.lib;LLVMX86Disassembler.lib;LLVMAsmParser.lib;LLVMAsmPrinter.lib;LLVMMCDisassembler.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMAnalysis.lib;LLVMDebugInfoCodeView.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -1,0 +1,4 @@
+def Main:()->void
+{
+	return;
+}

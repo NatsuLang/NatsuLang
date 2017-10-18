@@ -8,6 +8,7 @@
 #include <Basic/SourceManager.h>
 #include <Parse/Parser.h>
 #include <Sema/Sema.h>
+#include <Sema/Scope.h>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
@@ -46,8 +47,8 @@ namespace NatsuLang::Compiler
 			AotDiagConsumer();
 			~AotDiagConsumer();
 
-
 			void HandleDiagnostic(Diag::DiagnosticsEngine::Level level, Diag::DiagnosticsEngine::Diagnostic const& diag) override;
+
 		private:
 
 		};
@@ -121,7 +122,12 @@ namespace NatsuLang::Compiler
 			void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) override;
 
 			void StartVisit();
-			llvm::Function* GetFunction() const noexcept;
+			llvm::Function* GetFunction() const;
+
+			void EmitBranch(llvm::BasicBlock* target);
+			void EmitBlock(llvm::BasicBlock* block, nBool finished = false);
+
+			void EvaluateAsModifiableValue(Expression::ExprPtr const& expr);
 
 		private:
 			AotCompiler& m_Compiler;
@@ -129,9 +135,10 @@ namespace NatsuLang::Compiler
 			llvm::Function* m_CurrentFunctionValue;
 			std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, llvm::Value*> m_DeclMap;
 			llvm::Value* m_LastVisitedValue;
+			nBool m_RequiredModifiableValue;
 		};
 
-		AotCompiler(NatsuLib::natLog& logger);
+		explicit AotCompiler(NatsuLib::natLog& logger);
 		~AotCompiler();
 
 		void Compile(NatsuLib::Uri const& uri, llvm::raw_pwrite_stream& stream);
@@ -148,7 +155,6 @@ namespace NatsuLang::Compiler
 		NatsuLib::natRefPointer<AotAstConsumer> m_Consumer;
 		Semantic::Sema m_Sema;
 		Syntax::Parser m_Parser;
-		NatsuLib::natRefPointer<AotStmtVisitor> m_Visitor;
 
 		llvm::LLVMContext m_LLVMContext;
 		std::unique_ptr<llvm::Module> m_Module;

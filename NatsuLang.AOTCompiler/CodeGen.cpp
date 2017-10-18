@@ -12,6 +12,31 @@ using namespace NatsuLib;
 using namespace NatsuLang;
 using namespace Compiler;
 
+AotCompiler::AotDiagIdMap::AotDiagIdMap()
+{
+}
+
+AotCompiler::AotDiagIdMap::~AotDiagIdMap()
+{
+}
+
+nString AotCompiler::AotDiagIdMap::GetText(Diag::DiagnosticsEngine::DiagID id)
+{
+	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+}
+
+AotCompiler::AotDiagConsumer::AotDiagConsumer()
+{
+}
+
+AotCompiler::AotDiagConsumer::~AotDiagConsumer()
+{
+}
+
+void AotCompiler::AotDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEngine::Level level, Diag::DiagnosticsEngine::Diagnostic const& diag)
+{
+}
+
 AotCompiler::AotAstConsumer::AotAstConsumer(AotCompiler& compiler)
 	: m_Compiler{ compiler }
 {
@@ -45,21 +70,25 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 
 AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer<Declaration::FunctionDecl> funcDecl)
 	: m_Compiler{ compiler }, m_CurrentFunction{ std::move(funcDecl) },
-	  m_LastVisitedValue{ nullptr }
+	  m_LastVisitedValue{ nullptr }, m_RequiredModifiableValue{ false }
 {
-	const auto functionType = m_Compiler.getCorrespondingType(funcDecl->GetValueType());
-	const auto functionName = funcDecl->GetIdentifierInfo()->GetName();
+	const auto functionType = m_Compiler.getCorrespondingType(m_CurrentFunction->GetValueType());
+	const auto functionName = m_CurrentFunction->GetIdentifierInfo()->GetName();
 
 	m_CurrentFunctionValue = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
-		// TODO: 修改链接性
-		llvm::GlobalVariable::ExternalLinkage,
-		std::string(functionName.cbegin(), functionName.cend()),
-		m_Compiler.m_Module.get());
+	                                                // TODO: 修改链接性
+	                                                llvm::GlobalVariable::ExternalLinkage,
+	                                                std::string(functionName.cbegin(), functionName.cend()),
+	                                                m_Compiler.m_Module.get());
 
-	for (auto& arg : from(m_CurrentFunctionValue->args()).zip(funcDecl->GetParams()))
+	auto argIter = m_CurrentFunctionValue->arg_begin();
+	const auto argEnd = m_CurrentFunctionValue->arg_end();
+	auto paramIter = m_CurrentFunction->GetParams().begin();
+	const auto paramEnd = m_CurrentFunction->GetParams().end();
+	for (; argIter != argEnd && paramIter != paramEnd; ++argIter, (void)++paramIter)
 	{
-		const auto name = arg.second->GetIdentifierInfo()->GetName();
-		arg.first.setName(std::string{ name.cbegin(), name.cend() });
+		const auto name = (*paramIter)->GetIdentifierInfo()->GetName();
+		argIter->setName(std::string { name.cbegin(), name.cend() });
 	}
 
 	const auto block = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "Entry", m_CurrentFunctionValue);
@@ -100,7 +129,43 @@ void AotCompiler::AotStmtVisitor::VisitContinueStmt(natRefPointer<Statement::Con
 
 void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStmt> const& stmt)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	for (auto decl : stmt->GetDecls())
+	{
+		if (!decl)
+		{
+			nat_Throw(AotCompilerException, u8"错误的声明"_nv);
+		}
+
+		if (auto varDecl = static_cast<natRefPointer<Declaration::VarDecl>>(decl))
+		{
+			if (varDecl->IsFunction())
+			{
+				continue;
+			}
+
+			const auto type = varDecl->GetValueType();
+			llvm::Value* arraySize = nullptr;
+			if (const auto arrayType = static_cast<natRefPointer<Type::ArrayType>>(type))
+			{
+				arraySize = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Compiler.m_LLVMContext), arrayType->GetSize());
+			}
+			const auto varName = varDecl->GetName();
+			const auto storage = m_Compiler.m_IRBuilder.CreateAlloca(m_Compiler.getCorrespondingType(type), arraySize, std::string(varName.cbegin(), varName.cend()));
+
+			if (const auto initExpr = varDecl->GetInitializer())
+			{
+				Visit(initExpr);
+				const auto initializer = m_LastVisitedValue;
+				m_Compiler.m_IRBuilder.CreateStore(initializer, storage);
+			}
+			else
+			{
+				// 初始化为全 0
+			}
+
+			m_DeclMap.emplace(varDecl, storage);
+		}
+	}
 }
 
 void AotCompiler::AotStmtVisitor::VisitDoStmt(natRefPointer<Statement::DoStmt> const& stmt)
@@ -130,12 +195,50 @@ void AotCompiler::AotStmtVisitor::VisitBinaryOperator(natRefPointer<Expression::
 
 void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expression::CompoundAssignOperator> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	EvaluateAsModifiableValue(expr->GetLeftOperand());
+	const auto leftOperand = m_LastVisitedValue;
+
+	Visit(expr->GetRightOperand());
+	const auto rightOperand = m_LastVisitedValue;
+
+	const auto opCode = expr->GetOpcode();
+	llvm::Value* value = nullptr;
+
+	switch (opCode)
+	{
+	case Expression::BinaryOperationType::Assign:
+		break;
+	case Expression::BinaryOperationType::MulAssign:
+		break;
+	case Expression::BinaryOperationType::DivAssign:
+		break;
+	case Expression::BinaryOperationType::RemAssign:
+		break;
+	case Expression::BinaryOperationType::AddAssign:
+		break;
+	case Expression::BinaryOperationType::SubAssign:
+		break;
+	case Expression::BinaryOperationType::ShlAssign:
+		break;
+	case Expression::BinaryOperationType::ShrAssign:
+		break;
+	case Expression::BinaryOperationType::AndAssign:
+		break;
+	case Expression::BinaryOperationType::XorAssign:
+		break;
+	case Expression::BinaryOperationType::OrAssign:
+		break;
+	default:
+		assert(!"Invalid Opcode");
+		nat_Throw(AotCompilerException, u8"无效的 Opcode"_nv);
+	}
+
+	m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateStore(rightOperand, leftOperand);
 }
 
 void AotCompiler::AotStmtVisitor::VisitBooleanLiteral(natRefPointer<Expression::BooleanLiteral> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	m_LastVisitedValue = llvm::ConstantInt::get(llvm::Type::getInt1Ty(m_Compiler.m_LLVMContext), expr->GetValue());
 }
 
 void AotCompiler::AotStmtVisitor::VisitConstructExpr(natRefPointer<Expression::ConstructExpr> const& expr)
@@ -195,7 +298,10 @@ void AotCompiler::AotStmtVisitor::VisitCharacterLiteral(natRefPointer<Expression
 
 void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::DeclRefExpr> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	const auto iter = m_DeclMap.find(expr->GetDecl());
+	assert(iter != m_DeclMap.end());
+
+	m_LastVisitedValue = m_RequiredModifiableValue ? iter->second : m_Compiler.m_IRBuilder.CreateLoad(iter->second);
 }
 
 void AotCompiler::AotStmtVisitor::VisitFloatingLiteral(natRefPointer<Expression::FloatingLiteral> const& expr)
@@ -217,7 +323,7 @@ void AotCompiler::AotStmtVisitor::VisitIntegerLiteral(natRefPointer<Expression::
 	const auto intType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetExprType());
 	const auto typeInfo = m_Compiler.m_AstContext.GetTypeInfo(intType);
 
-	m_LastVisitedValue = llvm::ConstantInt::get(m_Compiler.m_LLVMContext, llvm::APInt{ typeInfo.Size * 8, expr->GetValue(), intType->IsSigned() });
+	m_LastVisitedValue = llvm::ConstantInt::get(m_Compiler.m_LLVMContext, llvm::APInt{static_cast<unsigned>(typeInfo.Size * 8), expr->GetValue(), intType->IsSigned() });
 }
 
 void AotCompiler::AotStmtVisitor::VisitMemberExpr(natRefPointer<Expression::MemberExpr> const& expr)
@@ -302,12 +408,36 @@ void AotCompiler::AotStmtVisitor::VisitGotoStmt(natRefPointer<Statement::GotoStm
 
 void AotCompiler::AotStmtVisitor::VisitIfStmt(natRefPointer<Statement::IfStmt> const& stmt)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	Visit(stmt->GetCond());
+	const auto condExpr = m_LastVisitedValue;
+
+	const auto thenStmt = stmt->GetThen();
+	const auto elseStmt = stmt->GetElse();
+
+	const auto trueBranch = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "");
+	const auto endBranch = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "");
+	const auto falseBranch = elseStmt ? llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "") : endBranch;
+
+	m_Compiler.m_IRBuilder.CreateCondBr(condExpr, trueBranch, falseBranch);
+
+	EmitBlock(trueBranch);
+	Visit(thenStmt);
+	EmitBranch(endBranch);
+
+	if (elseStmt)
+	{
+		EmitBlock(falseBranch);
+		Visit(elseStmt);
+		EmitBranch(endBranch);
+	}
+
+	EmitBlock(endBranch, true);
 }
 
 void AotCompiler::AotStmtVisitor::VisitLabelStmt(natRefPointer<Statement::LabelStmt> const& stmt)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	// TODO: 添加标签
+	Visit(stmt->GetSubStmt());
 }
 
 void AotCompiler::AotStmtVisitor::VisitNullStmt(natRefPointer<Statement::NullStmt> const& stmt)
@@ -316,7 +446,15 @@ void AotCompiler::AotStmtVisitor::VisitNullStmt(natRefPointer<Statement::NullStm
 
 void AotCompiler::AotStmtVisitor::VisitReturnStmt(natRefPointer<Statement::ReturnStmt> const& stmt)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	if (const auto retExpr = stmt->GetReturnExpr())
+	{
+		Visit(retExpr);
+		m_Compiler.m_IRBuilder.CreateRet(m_LastVisitedValue);
+	}
+	else
+	{
+		m_Compiler.m_IRBuilder.CreateRetVoid();
+	}
 }
 
 void AotCompiler::AotStmtVisitor::VisitSwitchCase(natRefPointer<Statement::SwitchCase> const& stmt)
@@ -354,7 +492,7 @@ void AotCompiler::AotStmtVisitor::StartVisit()
 	Visit(m_CurrentFunction->GetBody());
 }
 
-llvm::Function* AotCompiler::AotStmtVisitor::GetFunction() const noexcept
+llvm::Function* AotCompiler::AotStmtVisitor::GetFunction() const
 {
 	std::string verifyInfo;
 	llvm::raw_string_ostream os{ verifyInfo };
@@ -366,8 +504,57 @@ llvm::Function* AotCompiler::AotStmtVisitor::GetFunction() const noexcept
 	return m_CurrentFunctionValue;
 }
 
+void AotCompiler::AotStmtVisitor::EmitBranch(llvm::BasicBlock* target)
+{
+	const auto curBlock = m_Compiler.m_IRBuilder.GetInsertBlock();
+
+	if (curBlock && !curBlock->getTerminator())
+	{
+		m_Compiler.m_IRBuilder.CreateBr(target);
+	}
+
+	m_Compiler.m_IRBuilder.ClearInsertionPoint();
+}
+
+void AotCompiler::AotStmtVisitor::EmitBlock(llvm::BasicBlock* block, nBool finished)
+{
+	const auto curBlock = m_Compiler.m_IRBuilder.GetInsertBlock();
+
+	EmitBranch(block);
+
+	if (finished && block->use_empty())
+	{
+		delete block;
+		return;
+	}
+
+	if (curBlock && curBlock->getParent())
+	{
+		m_CurrentFunctionValue->getBasicBlockList().insertAfter(curBlock->getIterator(), block);
+	}
+	else
+	{
+		m_CurrentFunctionValue->getBasicBlockList().push_back(block);
+	}
+
+	m_Compiler.m_IRBuilder.SetInsertPoint(block);
+}
+
+void AotCompiler::AotStmtVisitor::EvaluateAsModifiableValue(Expression::ExprPtr const& expr)
+{
+	assert(expr);
+
+	m_RequiredModifiableValue = true;
+	const auto scope = make_scope([this]
+	{
+		m_RequiredModifiableValue = false;
+	});
+
+	Visit(expr);
+}
+
 AotCompiler::AotCompiler(natLog& logger)
-	: m_DiagConsumer{ make_ref<AotDiagConsumer>(*this) },
+	: m_DiagConsumer{ make_ref<AotDiagConsumer>() },
 	m_Diag{ make_ref<AotDiagIdMap>(), m_DiagConsumer },
 	m_Logger{ logger },
 	m_SourceManager{ m_Diag, m_FileManager },
@@ -375,7 +562,6 @@ AotCompiler::AotCompiler(natLog& logger)
 	m_Consumer{ make_ref<AotAstConsumer>(*this) },
 	m_Sema{ m_Preprocessor, m_AstContext, m_Consumer },
 	m_Parser{ m_Preprocessor, m_Sema },
-	m_Visitor{ make_ref<AotStmtVisitor>(*this) },
 	m_IRBuilder{ m_LLVMContext }
 {
 	LLVMInitializeX86TargetInfo();
@@ -408,11 +594,26 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	const auto machine = target->createTargetMachine(targetTriple, "generic", "", opt, RM, llvm::None, llvm::CodeGenOpt::Default);
 	m_Module->setDataLayout(machine->createDataLayout());
 
+	const auto [succeed, content] = m_SourceManager.GetFileContent(m_SourceManager.GetFileID(uri));
+	if (!succeed)
+	{
+		nat_Throw(AotCompilerException, u8""_nv);
+	}
+
+	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(content, m_Preprocessor));
 	ParseAST(m_Parser);
+
+#ifndef NDEBUG
+	std::string buffer;
+	llvm::raw_string_ostream os{ buffer };
+	m_Module->print(os, nullptr);
+	m_Logger.LogMsg("Result IR:\n{0}", buffer);
+#endif // NDEBUG
 
 	llvm::legacy::PassManager passManager;
 	machine->addPassesToEmitFile(passManager, stream, llvm::TargetMachine::CGFT_ObjectFile);
 	passManager.run(*m_Module);
+	stream.flush();
 }
 
 llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
