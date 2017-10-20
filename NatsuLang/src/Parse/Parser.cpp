@@ -112,6 +112,8 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 		return ParseDeclaration(Declaration::Context::Global, declEnd);
 	}
 	default:
+		// 吃掉 1 个 Token 以保证不会死循环
+		ConsumeToken();
 		// TODO: 报告错误
 		return {};
 	}
@@ -1260,7 +1262,6 @@ void NatsuLang::ParseAST(Parser& parser)
 
 	std::vector<Declaration::DeclPtr> decls;
 
-	parser.ConsumeToken();
 	for (auto atEof = parser.ParseTopLevelDecl(decls); !atEof; atEof = parser.ParseTopLevelDecl(decls))
 	{
 		if (!consumer->HandleTopLevelDecl(from(decls)))

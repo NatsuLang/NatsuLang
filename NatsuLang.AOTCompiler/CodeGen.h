@@ -128,6 +128,10 @@ namespace NatsuLang::Compiler
 			void EmitBlock(llvm::BasicBlock* block, nBool finished = false);
 
 			void EvaluateAsModifiableValue(Expression::ExprPtr const& expr);
+			void EvaluateAsBool(Expression::ExprPtr const& expr);
+
+			llvm::Value* ConvertScalarTo(llvm::Value* from, Type::TypePtr fromType, Type::TypePtr toType);
+			llvm::Value* ConvertScalarToBool(llvm::Value* from, NatsuLib::natRefPointer<Type::BuiltinType> const& fromType);
 
 		private:
 			AotCompiler& m_Compiler;

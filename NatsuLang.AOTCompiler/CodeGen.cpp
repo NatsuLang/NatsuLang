@@ -5,6 +5,7 @@
 #include <llvm/Support/Host.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
+#include <llvm/IR/CFG.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/IR/LegacyPassManager.h>
 
@@ -190,7 +191,202 @@ void AotCompiler::AotStmtVisitor::VisitArraySubscriptExpr(natRefPointer<Expressi
 
 void AotCompiler::AotStmtVisitor::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	const auto builtinLeftOperandType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetLeftOperand()->GetExprType());
+	Visit(expr->GetLeftOperand());
+	const auto leftOperand = m_LastVisitedValue;
+
+	const auto builtinRightOperandType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetRightOperand()->GetExprType());
+	Visit(expr->GetRightOperand());
+	const auto rightOperand = m_LastVisitedValue;
+
+	const auto opCode = expr->GetOpcode();
+	const auto resultType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetExprType());
+
+	switch (opCode)
+	{
+	case Expression::BinaryOperationType::Mul:
+		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateMul(leftOperand, rightOperand, "mul");
+		break;
+	case Expression::BinaryOperationType::Div:
+		if (resultType->IsSigned())
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateSDiv(leftOperand, rightOperand, "div");
+		}
+		else
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateUDiv(leftOperand, rightOperand, "div");
+		}
+		break;
+	case Expression::BinaryOperationType::Mod:
+		if (resultType->IsSigned())
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateSRem(leftOperand, rightOperand, "mod");
+		}
+		else
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateURem(leftOperand, rightOperand, "mod");
+		}
+		break;
+	case Expression::BinaryOperationType::Add:
+		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateAdd(leftOperand, rightOperand, "add");
+		break;
+	case Expression::BinaryOperationType::Sub:
+		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateSub(leftOperand, rightOperand, "sub");
+		break;
+	case Expression::BinaryOperationType::Shl:
+		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateShl(leftOperand, rightOperand, "shl");
+		break;
+	case Expression::BinaryOperationType::Shr:
+		if (resultType->IsSigned())
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateAShr(leftOperand, rightOperand, "shr");
+		}
+		else
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateLShr(leftOperand, rightOperand, "shr");
+		}
+		break;
+	case Expression::BinaryOperationType::LT:
+		if (resultType->IsFloatingType())
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFCmpOLT(leftOperand, rightOperand, "cmp");
+		}
+		else if (resultType->IsSigned())
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpSLT(leftOperand, rightOperand, "cmp");
+		}
+		else
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpULT(leftOperand, rightOperand, "cmp");
+		}
+		break;
+	case Expression::BinaryOperationType::GT:
+		if (resultType->IsFloatingType())
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFCmpOGT(leftOperand, rightOperand, "cmp");
+		}
+		else if (resultType->IsSigned())
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpSGT(leftOperand, rightOperand, "cmp");
+		}
+		else
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpUGT(leftOperand, rightOperand, "cmp");
+		}
+		break;
+	case Expression::BinaryOperationType::LE:
+		if (resultType->IsFloatingType())
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFCmpOLE(leftOperand, rightOperand, "cmp");
+		}
+		else if (resultType->IsSigned())
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpSLE(leftOperand, rightOperand, "cmp");
+		}
+		else
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpULE(leftOperand, rightOperand, "cmp");
+		}
+		break;
+	case Expression::BinaryOperationType::GE:
+		if (resultType->IsFloatingType())
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFCmpOGE(leftOperand, rightOperand, "cmp");
+		}
+		else if (resultType->IsSigned())
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpSGE(leftOperand, rightOperand, "cmp");
+		}
+		else
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpUGE(leftOperand, rightOperand, "cmp");
+		}
+		break;
+	case Expression::BinaryOperationType::EQ:
+		if (resultType->IsFloatingType())
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFCmpOEQ(leftOperand, rightOperand, "cmp");
+		}
+		else
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpEQ(leftOperand, rightOperand, "cmp");
+		}
+		break;
+	case Expression::BinaryOperationType::NE:
+		if (resultType->IsFloatingType())
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFCmpUNE(leftOperand, rightOperand, "cmp");
+		}
+		else
+		{
+			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpNE(leftOperand, rightOperand, "cmp");
+		}
+		break;
+	case Expression::BinaryOperationType::And:
+		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateAnd(leftOperand, rightOperand, "and");
+		break;
+	case Expression::BinaryOperationType::Xor:
+		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateXor(leftOperand, rightOperand, "xor");
+		break;
+	case Expression::BinaryOperationType::Or:
+		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateOr(leftOperand, rightOperand, "or");
+		break;
+	case Expression::BinaryOperationType::LAnd:
+	{
+		auto rhsBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "land.rhs");
+		const auto endBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "land.end");
+
+		m_Compiler.m_IRBuilder.CreateCondBr(leftOperand, rhsBlock, endBlock);
+
+		const auto phiNode = llvm::PHINode::Create(llvm::Type::getInt1Ty(m_Compiler.m_LLVMContext), 2, "", endBlock);
+
+		for (auto i = llvm::pred_begin(endBlock), end = llvm::pred_end(endBlock); i != end; ++i)
+		{
+			phiNode->addIncoming(llvm::ConstantInt::getFalse(m_Compiler.m_LLVMContext), *i);
+		}
+
+		EmitBlock(rhsBlock);
+		const auto rhsCond = ConvertScalarToBool(rightOperand, m_Compiler.m_AstContext.GetBuiltinType(Type::BuiltinType::Bool));
+
+		rhsBlock = m_Compiler.m_IRBuilder.GetInsertBlock();
+
+		EmitBlock(endBlock);
+		phiNode->addIncoming(rhsCond, rhsBlock);
+
+		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateZExtOrBitCast(phiNode, m_Compiler.getCorrespondingType(expr->GetExprType()));
+
+		break;
+	}
+	case Expression::BinaryOperationType::LOr:
+	{
+		auto rhsBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "lor.rhs");
+		const auto endBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "lor.end");
+
+		m_Compiler.m_IRBuilder.CreateCondBr(leftOperand, endBlock, rhsBlock);
+
+		const auto phiNode = llvm::PHINode::Create(llvm::Type::getInt1Ty(m_Compiler.m_LLVMContext), 2, "", endBlock);
+
+		for (auto i = llvm::pred_begin(endBlock), end = llvm::pred_end(endBlock); i != end; ++i)
+		{
+			phiNode->addIncoming(llvm::ConstantInt::getTrue(m_Compiler.m_LLVMContext), *i);
+		}
+
+		EmitBlock(rhsBlock);
+		const auto rhsCond = ConvertScalarToBool(rightOperand, m_Compiler.m_AstContext.GetBuiltinType(Type::BuiltinType::Bool));
+
+		rhsBlock = m_Compiler.m_IRBuilder.GetInsertBlock();
+
+		EmitBlock(endBlock);
+		phiNode->addIncoming(rhsCond, rhsBlock);
+
+		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateZExtOrBitCast(phiNode, m_Compiler.getCorrespondingType(expr->GetExprType()));
+
+		break;
+	}
+	default:
+		assert(!"Invalid Opcode");
+		nat_Throw(AotCompilerException, u8"无效的 Opcode"_nv);
+	}
 }
 
 void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expression::CompoundAssignOperator> const& expr)
@@ -278,17 +474,20 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 
 void AotCompiler::AotStmtVisitor::VisitCastExpr(natRefPointer<Expression::CastExpr> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	Visit(expr);
+	m_LastVisitedValue = ConvertScalarTo(m_LastVisitedValue, expr->GetOperand()->GetExprType(), expr->GetExprType());
 }
 
 void AotCompiler::AotStmtVisitor::VisitAsTypeExpr(natRefPointer<Expression::AsTypeExpr> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	Visit(expr);
+	m_LastVisitedValue = ConvertScalarTo(m_LastVisitedValue, expr->GetOperand()->GetExprType(), expr->GetExprType());
 }
 
 void AotCompiler::AotStmtVisitor::VisitImplicitCastExpr(natRefPointer<Expression::ImplicitCastExpr> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	Visit(expr);
+	m_LastVisitedValue = ConvertScalarTo(m_LastVisitedValue, expr->GetOperand()->GetExprType(), expr->GetExprType());
 }
 
 void AotCompiler::AotStmtVisitor::VisitCharacterLiteral(natRefPointer<Expression::CharacterLiteral> const& expr)
@@ -551,6 +750,103 @@ void AotCompiler::AotStmtVisitor::EvaluateAsModifiableValue(Expression::ExprPtr 
 	});
 
 	Visit(expr);
+}
+
+void AotCompiler::AotStmtVisitor::EvaluateAsBool(Expression::ExprPtr const& expr)
+{
+	assert(expr);
+
+	Visit(expr);
+
+
+}
+
+llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarTo(llvm::Value* from, Type::TypePtr fromType, Type::TypePtr toType)
+{
+	fromType = Type::Type::GetUnderlyingType(fromType);
+	toType = Type::Type::GetUnderlyingType(toType);
+
+	if (fromType == toType)
+	{
+		return from;
+	}
+
+	const auto builtinFromType = static_cast<natRefPointer<Type::BuiltinType>>(fromType), builtinToType = static_cast<natRefPointer<Type::BuiltinType>>(toType);
+
+	if (!builtinFromType || !builtinToType)
+	{
+		// TODO: 报告错误
+		return nullptr;
+	}
+
+	if (builtinToType->GetBuiltinClass() == Type::BuiltinType::Void)
+	{
+		return nullptr;
+	}
+
+	if (builtinToType->GetBuiltinClass() == Type::BuiltinType::Bool)
+	{
+		return ConvertScalarToBool(from, builtinFromType);
+	}
+
+	const auto llvmFromType = m_Compiler.getCorrespondingType(fromType), llvmToType = m_Compiler.getCorrespondingType(toType);
+
+	if (llvmFromType == llvmToType)
+	{
+		return from;
+	}
+
+	if (builtinFromType->IsIntegerType())
+	{
+		const auto fromSigned = builtinFromType->IsSigned();
+
+		if (builtinToType->IsIntegerType())
+		{
+			return m_Compiler.m_IRBuilder.CreateIntCast(from, llvmToType, fromSigned, "scalarconv");
+		}
+		
+		if (fromSigned)
+		{
+			return m_Compiler.m_IRBuilder.CreateSIToFP(from, llvmToType, "scalarconv");
+		}
+		
+		return m_Compiler.m_IRBuilder.CreateUIToFP(from, llvmToType, "scalarconv");
+	}
+	
+	if (builtinToType->IsIntegerType())
+	{
+		if (builtinToType->IsSigned())
+		{
+			return m_Compiler.m_IRBuilder.CreateFPToSI(from, llvmToType, "scalarconv");
+		}
+
+		return m_Compiler.m_IRBuilder.CreateFPToUI(from, llvmToType, "scalarconv");
+	}
+
+	nInt result;
+	const auto succeed = builtinFromType->CompareRankTo(builtinToType, result);
+	assert(succeed);
+
+	if (result > 0)
+	{
+		return m_Compiler.m_IRBuilder.CreateFPTrunc(from, llvmToType, "scalarconv");
+	}
+
+	return m_Compiler.m_IRBuilder.CreateFPExt(from, llvmToType, "scalarconv");
+}
+
+llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarToBool(llvm::Value* from, natRefPointer<Type::BuiltinType> const& fromType)
+{
+	assert(from && fromType);
+
+	if (fromType->IsFloatingType())
+	{
+		const auto floatingZero = llvm::ConstantFP::getNullValue(from->getType());
+		return m_Compiler.m_IRBuilder.CreateFCmpUNE(from, floatingZero, "floatingtobool");
+	}
+
+	assert(fromType->IsIntegerType());
+	return m_Compiler.m_IRBuilder.CreateIsNotNull(from, "inttobool");
 }
 
 AotCompiler::AotCompiler(natLog& logger)
