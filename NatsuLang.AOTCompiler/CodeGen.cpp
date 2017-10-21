@@ -208,9 +208,11 @@ void AotCompiler::AotStmtVisitor::VisitBinaryOperator(natRefPointer<Expression::
 	const auto rightOperand = m_LastVisitedValue;
 
 	const auto opCode = expr->GetOpcode();
+	// 左右操作数类型应当相同
+	const auto commonType = expr->GetLeftOperand()->GetExprType();
 	const auto resultType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetExprType());
 
-	m_LastVisitedValue = EmitBinOp(leftOperand, rightOperand, opCode, resultType);
+	m_LastVisitedValue = EmitBinOp(leftOperand, rightOperand, opCode, commonType, resultType);
 }
 
 void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expression::CompoundAssignOperator> const& expr)
@@ -232,34 +234,34 @@ void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expr
 		value = rightOperand;
 		break;
 	case Expression::BinaryOperationType::MulAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Mul, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Mul, resultType, resultType);
 		break;
 	case Expression::BinaryOperationType::DivAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Div, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Div, resultType, resultType);
 		break;
 	case Expression::BinaryOperationType::RemAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Mod, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Mod, resultType, resultType);
 		break;
 	case Expression::BinaryOperationType::AddAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Add, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Add, resultType, resultType);
 		break;
 	case Expression::BinaryOperationType::SubAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Sub, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Sub, resultType, resultType);
 		break;
 	case Expression::BinaryOperationType::ShlAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Shl, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Shl, resultType, resultType);
 		break;
 	case Expression::BinaryOperationType::ShrAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Shr, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Shr, resultType, resultType);
 		break;
 	case Expression::BinaryOperationType::AndAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::And, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::And, resultType, resultType);
 		break;
 	case Expression::BinaryOperationType::XorAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Xor, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Xor, resultType, resultType);
 		break;
 	case Expression::BinaryOperationType::OrAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Or, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Or, resultType, resultType);
 		break;
 	default:
 		assert(!"Invalid Opcode");
@@ -579,21 +581,21 @@ void AotCompiler::AotStmtVisitor::EmitBlock(llvm::BasicBlock* block, nBool finis
 	m_Compiler.m_IRBuilder.SetInsertPoint(block);
 }
 
-llvm::Value* AotCompiler::AotStmtVisitor::EmitBinOp(llvm::Value* leftOperand, llvm::Value* rightOperand, Expression::BinaryOperationType opCode, natRefPointer<Type::BuiltinType> const& resultType)
+llvm::Value* AotCompiler::AotStmtVisitor::EmitBinOp(llvm::Value* leftOperand, llvm::Value* rightOperand, Expression::BinaryOperationType opCode, natRefPointer<Type::BuiltinType> const& commonType, natRefPointer<Type::BuiltinType> const& resultType)
 {
 	switch (opCode)
 	{
 	case Expression::BinaryOperationType::Mul:
 		return m_Compiler.m_IRBuilder.CreateMul(leftOperand, rightOperand, "mul");
 	case Expression::BinaryOperationType::Div:
-		if (resultType->IsSigned())
+		if (commonType->IsSigned())
 		{
 			return m_Compiler.m_IRBuilder.CreateSDiv(leftOperand, rightOperand, "div");
 		}
 
 		return m_Compiler.m_IRBuilder.CreateUDiv(leftOperand, rightOperand, "div");
 	case Expression::BinaryOperationType::Mod:
-		if (resultType->IsSigned())
+		if (commonType->IsSigned())
 		{
 			return m_Compiler.m_IRBuilder.CreateSRem(leftOperand, rightOperand, "mod");
 		}
@@ -606,69 +608,69 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitBinOp(llvm::Value* leftOperand, ll
 	case Expression::BinaryOperationType::Shl:
 		return m_Compiler.m_IRBuilder.CreateShl(leftOperand, rightOperand, "shl");
 	case Expression::BinaryOperationType::Shr:
-		if (resultType->IsSigned())
+		if (commonType->IsSigned())
 		{
 			return m_Compiler.m_IRBuilder.CreateAShr(leftOperand, rightOperand, "shr");
 		}
 
 		return m_Compiler.m_IRBuilder.CreateLShr(leftOperand, rightOperand, "shr");
 	case Expression::BinaryOperationType::LT:
-		if (resultType->IsFloatingType())
+		if (commonType->IsFloatingType())
 		{
 			return m_Compiler.m_IRBuilder.CreateFCmpOLT(leftOperand, rightOperand, "cmp");
 		}
 
-		if (resultType->IsSigned())
+		if (commonType->IsSigned())
 		{
 			return m_Compiler.m_IRBuilder.CreateICmpSLT(leftOperand, rightOperand, "cmp");
 		}
 
 		return m_Compiler.m_IRBuilder.CreateICmpULT(leftOperand, rightOperand, "cmp");
 	case Expression::BinaryOperationType::GT:
-		if (resultType->IsFloatingType())
+		if (commonType->IsFloatingType())
 		{
 			return m_Compiler.m_IRBuilder.CreateFCmpOGT(leftOperand, rightOperand, "cmp");
 		}
 
-		if (resultType->IsSigned())
+		if (commonType->IsSigned())
 		{
 			return m_Compiler.m_IRBuilder.CreateICmpSGT(leftOperand, rightOperand, "cmp");
 		}
 
 		return m_Compiler.m_IRBuilder.CreateICmpUGT(leftOperand, rightOperand, "cmp");
 	case Expression::BinaryOperationType::LE:
-		if (resultType->IsFloatingType())
+		if (commonType->IsFloatingType())
 		{
 			return m_Compiler.m_IRBuilder.CreateFCmpOLE(leftOperand, rightOperand, "cmp");
 		}
 
-		if (resultType->IsSigned())
+		if (commonType->IsSigned())
 		{
 			return m_Compiler.m_IRBuilder.CreateICmpSLE(leftOperand, rightOperand, "cmp");
 		}
 
 		return m_Compiler.m_IRBuilder.CreateICmpULE(leftOperand, rightOperand, "cmp");
 	case Expression::BinaryOperationType::GE:
-		if (resultType->IsFloatingType())
+		if (commonType->IsFloatingType())
 		{
 			return m_Compiler.m_IRBuilder.CreateFCmpOGE(leftOperand, rightOperand, "cmp");
 		}
 
-		if (resultType->IsSigned())
+		if (commonType->IsSigned())
 		{
 			return m_Compiler.m_IRBuilder.CreateICmpSGE(leftOperand, rightOperand, "cmp");
 		}
 
 		return m_Compiler.m_IRBuilder.CreateICmpUGE(leftOperand, rightOperand, "cmp");
 	case Expression::BinaryOperationType::EQ:
-		if (resultType->IsFloatingType())
+		if (commonType->IsFloatingType())
 		{
 			return m_Compiler.m_IRBuilder.CreateFCmpOEQ(leftOperand, rightOperand, "cmp");
 		}
 
 		return m_Compiler.m_IRBuilder.CreateICmpEQ(leftOperand, rightOperand, "cmp");
 	case Expression::BinaryOperationType::NE:
-		if (resultType->IsFloatingType())
+		if (commonType->IsFloatingType())
 		{
 			return m_Compiler.m_IRBuilder.CreateFCmpUNE(leftOperand, rightOperand, "cmp");
 		}

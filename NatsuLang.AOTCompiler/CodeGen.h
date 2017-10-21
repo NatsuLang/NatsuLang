@@ -129,6 +129,7 @@ namespace NatsuLang::Compiler
 
 			llvm::Value* EmitBinOp(llvm::Value* leftOperand, llvm::Value* rightOperand,
 				Expression::BinaryOperationType opCode,
+				NatsuLib::natRefPointer<Type::BuiltinType> const& commonType,
 				NatsuLib::natRefPointer<Type::BuiltinType> const& resultType);
 
 			llvm::Value* EmitIncDec(llvm::Value* operand, NatsuLib::natRefPointer<Type::BuiltinType> const& opType, nBool isInc, nBool isPre);
