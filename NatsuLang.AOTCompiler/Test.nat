@@ -1,7 +1,19 @@
-def Fib : (arg : int) -> int
+/*def Fib : (arg : int) -> int
 {
 	if (arg < 2)
 		return 1;
 	else
 		return Fib(arg - 2) + Fib(arg - 1);
+}*/
+
+def Func : (arg : int) -> int
+{
+	if (arg < 0)
+	{
+		return -arg
+	}
+	else
+	{
+		return arg * 2
+	}
 }

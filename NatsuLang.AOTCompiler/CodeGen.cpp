@@ -86,14 +86,22 @@ AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer
 	const auto argEnd = m_CurrentFunctionValue->arg_end();
 	auto paramIter = m_CurrentFunction->GetParams().begin();
 	const auto paramEnd = m_CurrentFunction->GetParams().end();
-	for (; argIter != argEnd && paramIter != paramEnd; ++argIter, (void)++paramIter)
-	{
-		const auto name = (*paramIter)->GetIdentifierInfo()->GetName();
-		argIter->setName(std::string { name.cbegin(), name.cend() });
-	}
 
 	const auto block = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "Entry", m_CurrentFunctionValue);
 	m_Compiler.m_IRBuilder.SetInsertPoint(block);
+
+	for (; argIter != argEnd && paramIter != paramEnd; ++argIter, static_cast<void>(++paramIter))
+	{
+		const auto name = (*paramIter)->GetIdentifierInfo()->GetName();
+		const std::string nameStr{ name.cbegin(), name.cend() };
+		argIter->setName(nameStr);
+
+		llvm::IRBuilder<> entryIRBuilder{ &m_CurrentFunctionValue->getEntryBlock(), m_CurrentFunctionValue->getEntryBlock().begin() };
+		const auto arg = entryIRBuilder.CreateAlloca(argIter->getType(), nullptr, nameStr);
+		m_Compiler.m_IRBuilder.CreateStore(&*argIter, arg);
+
+		m_DeclMap.emplace(*paramIter, arg);
+	}
 }
 
 AotCompiler::AotStmtVisitor::~AotStmtVisitor()
@@ -202,195 +210,13 @@ void AotCompiler::AotStmtVisitor::VisitBinaryOperator(natRefPointer<Expression::
 	const auto opCode = expr->GetOpcode();
 	const auto resultType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetExprType());
 
-	switch (opCode)
-	{
-	case Expression::BinaryOperationType::Mul:
-		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateMul(leftOperand, rightOperand, "mul");
-		break;
-	case Expression::BinaryOperationType::Div:
-		if (resultType->IsSigned())
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateSDiv(leftOperand, rightOperand, "div");
-		}
-		else
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateUDiv(leftOperand, rightOperand, "div");
-		}
-		break;
-	case Expression::BinaryOperationType::Mod:
-		if (resultType->IsSigned())
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateSRem(leftOperand, rightOperand, "mod");
-		}
-		else
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateURem(leftOperand, rightOperand, "mod");
-		}
-		break;
-	case Expression::BinaryOperationType::Add:
-		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateAdd(leftOperand, rightOperand, "add");
-		break;
-	case Expression::BinaryOperationType::Sub:
-		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateSub(leftOperand, rightOperand, "sub");
-		break;
-	case Expression::BinaryOperationType::Shl:
-		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateShl(leftOperand, rightOperand, "shl");
-		break;
-	case Expression::BinaryOperationType::Shr:
-		if (resultType->IsSigned())
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateAShr(leftOperand, rightOperand, "shr");
-		}
-		else
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateLShr(leftOperand, rightOperand, "shr");
-		}
-		break;
-	case Expression::BinaryOperationType::LT:
-		if (resultType->IsFloatingType())
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFCmpOLT(leftOperand, rightOperand, "cmp");
-		}
-		else if (resultType->IsSigned())
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpSLT(leftOperand, rightOperand, "cmp");
-		}
-		else
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpULT(leftOperand, rightOperand, "cmp");
-		}
-		break;
-	case Expression::BinaryOperationType::GT:
-		if (resultType->IsFloatingType())
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFCmpOGT(leftOperand, rightOperand, "cmp");
-		}
-		else if (resultType->IsSigned())
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpSGT(leftOperand, rightOperand, "cmp");
-		}
-		else
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpUGT(leftOperand, rightOperand, "cmp");
-		}
-		break;
-	case Expression::BinaryOperationType::LE:
-		if (resultType->IsFloatingType())
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFCmpOLE(leftOperand, rightOperand, "cmp");
-		}
-		else if (resultType->IsSigned())
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpSLE(leftOperand, rightOperand, "cmp");
-		}
-		else
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpULE(leftOperand, rightOperand, "cmp");
-		}
-		break;
-	case Expression::BinaryOperationType::GE:
-		if (resultType->IsFloatingType())
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFCmpOGE(leftOperand, rightOperand, "cmp");
-		}
-		else if (resultType->IsSigned())
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpSGE(leftOperand, rightOperand, "cmp");
-		}
-		else
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpUGE(leftOperand, rightOperand, "cmp");
-		}
-		break;
-	case Expression::BinaryOperationType::EQ:
-		if (resultType->IsFloatingType())
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFCmpOEQ(leftOperand, rightOperand, "cmp");
-		}
-		else
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpEQ(leftOperand, rightOperand, "cmp");
-		}
-		break;
-	case Expression::BinaryOperationType::NE:
-		if (resultType->IsFloatingType())
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFCmpUNE(leftOperand, rightOperand, "cmp");
-		}
-		else
-		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateICmpNE(leftOperand, rightOperand, "cmp");
-		}
-		break;
-	case Expression::BinaryOperationType::And:
-		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateAnd(leftOperand, rightOperand, "and");
-		break;
-	case Expression::BinaryOperationType::Xor:
-		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateXor(leftOperand, rightOperand, "xor");
-		break;
-	case Expression::BinaryOperationType::Or:
-		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateOr(leftOperand, rightOperand, "or");
-		break;
-	case Expression::BinaryOperationType::LAnd:
-	{
-		auto rhsBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "land.rhs");
-		const auto endBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "land.end");
-
-		m_Compiler.m_IRBuilder.CreateCondBr(leftOperand, rhsBlock, endBlock);
-
-		const auto phiNode = llvm::PHINode::Create(llvm::Type::getInt1Ty(m_Compiler.m_LLVMContext), 2, "", endBlock);
-
-		for (auto i = llvm::pred_begin(endBlock), end = llvm::pred_end(endBlock); i != end; ++i)
-		{
-			phiNode->addIncoming(llvm::ConstantInt::getFalse(m_Compiler.m_LLVMContext), *i);
-		}
-
-		EmitBlock(rhsBlock);
-		const auto rhsCond = ConvertScalarToBool(rightOperand, m_Compiler.m_AstContext.GetBuiltinType(Type::BuiltinType::Bool));
-
-		rhsBlock = m_Compiler.m_IRBuilder.GetInsertBlock();
-
-		EmitBlock(endBlock);
-		phiNode->addIncoming(rhsCond, rhsBlock);
-
-		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateZExtOrBitCast(phiNode, m_Compiler.getCorrespondingType(expr->GetExprType()));
-
-		break;
-	}
-	case Expression::BinaryOperationType::LOr:
-	{
-		auto rhsBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "lor.rhs");
-		const auto endBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "lor.end");
-
-		m_Compiler.m_IRBuilder.CreateCondBr(leftOperand, endBlock, rhsBlock);
-
-		const auto phiNode = llvm::PHINode::Create(llvm::Type::getInt1Ty(m_Compiler.m_LLVMContext), 2, "", endBlock);
-
-		for (auto i = llvm::pred_begin(endBlock), end = llvm::pred_end(endBlock); i != end; ++i)
-		{
-			phiNode->addIncoming(llvm::ConstantInt::getTrue(m_Compiler.m_LLVMContext), *i);
-		}
-
-		EmitBlock(rhsBlock);
-		const auto rhsCond = ConvertScalarToBool(rightOperand, m_Compiler.m_AstContext.GetBuiltinType(Type::BuiltinType::Bool));
-
-		rhsBlock = m_Compiler.m_IRBuilder.GetInsertBlock();
-
-		EmitBlock(endBlock);
-		phiNode->addIncoming(rhsCond, rhsBlock);
-
-		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateZExtOrBitCast(phiNode, m_Compiler.getCorrespondingType(expr->GetExprType()));
-
-		break;
-	}
-	default:
-		assert(!"Invalid Opcode");
-		nat_Throw(AotCompilerException, u8"无效的 Opcode"_nv);
-	}
+	m_LastVisitedValue = EmitBinOp(leftOperand, rightOperand, opCode, resultType);
 }
 
 void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expression::CompoundAssignOperator> const& expr)
 {
+	const auto resultType = expr->GetLeftOperand()->GetExprType();
+
 	EvaluateAsModifiableValue(expr->GetLeftOperand());
 	const auto leftOperand = m_LastVisitedValue;
 
@@ -398,38 +224,50 @@ void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expr
 	const auto rightOperand = m_LastVisitedValue;
 
 	const auto opCode = expr->GetOpcode();
-	llvm::Value* value = nullptr;
+	llvm::Value* value;
 
 	switch (opCode)
 	{
 	case Expression::BinaryOperationType::Assign:
+		value = rightOperand;
 		break;
 	case Expression::BinaryOperationType::MulAssign:
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Mul, resultType);
 		break;
 	case Expression::BinaryOperationType::DivAssign:
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Div, resultType);
 		break;
 	case Expression::BinaryOperationType::RemAssign:
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Mod, resultType);
 		break;
 	case Expression::BinaryOperationType::AddAssign:
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Add, resultType);
 		break;
 	case Expression::BinaryOperationType::SubAssign:
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Sub, resultType);
 		break;
 	case Expression::BinaryOperationType::ShlAssign:
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Shl, resultType);
 		break;
 	case Expression::BinaryOperationType::ShrAssign:
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Shr, resultType);
 		break;
 	case Expression::BinaryOperationType::AndAssign:
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::And, resultType);
 		break;
 	case Expression::BinaryOperationType::XorAssign:
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Xor, resultType);
 		break;
 	case Expression::BinaryOperationType::OrAssign:
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Or, resultType);
 		break;
 	default:
 		assert(!"Invalid Opcode");
 		nat_Throw(AotCompilerException, u8"无效的 Opcode"_nv);
 	}
 
-	m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateStore(rightOperand, leftOperand);
+	m_Compiler.m_IRBuilder.CreateStore(value, leftOperand);
+	m_LastVisitedValue = leftOperand;
 }
 
 void AotCompiler::AotStmtVisitor::VisitBooleanLiteral(natRefPointer<Expression::BooleanLiteral> const& expr)
@@ -552,40 +390,42 @@ void AotCompiler::AotStmtVisitor::VisitUnaryExprOrTypeTraitExpr(natRefPointer<Ex
 
 void AotCompiler::AotStmtVisitor::VisitUnaryOperator(natRefPointer<Expression::UnaryOperator> const& expr)
 {
-	Visit(expr->GetOperand());
-
-	const auto input = m_LastVisitedValue;
-	// TODO: 加载 input
-	auto value = input;
-
+	const auto operand = expr->GetOperand();
+	const auto opType = operand->GetExprType();
 	const auto opCode = expr->GetOpcode();
 
 	switch (opCode)
 	{
 	case Expression::UnaryOperationType::PostInc:
+		EvaluateAsModifiableValue(operand);
+		m_LastVisitedValue = EmitIncDec(m_LastVisitedValue, opType, true, false);
+		break;
 	case Expression::UnaryOperationType::PreInc:
-		value = m_Compiler.m_IRBuilder.CreateAdd(value, llvm::ConstantInt::get(value->getType(), 1));
-		m_LastVisitedValue = opCode == Expression::UnaryOperationType::PostInc ? value : input;
+		EvaluateAsModifiableValue(operand);
+		m_LastVisitedValue = EmitIncDec(m_LastVisitedValue, opType, true, true);
 		break;
 	case Expression::UnaryOperationType::PostDec:
+		EvaluateAsModifiableValue(operand);
+		m_LastVisitedValue = EmitIncDec(m_LastVisitedValue, opType, false, false);
+		break;
 	case Expression::UnaryOperationType::PreDec:
-		value = m_Compiler.m_IRBuilder.CreateAdd(value, llvm::ConstantInt::get(value->getType(), -1));
-		m_LastVisitedValue = opCode == Expression::UnaryOperationType::PostInc ? value : input;
+		EvaluateAsModifiableValue(operand);
+		m_LastVisitedValue = EmitIncDec(m_LastVisitedValue, opType, false, true);
 		break;
 	case Expression::UnaryOperationType::Plus:
-		m_LastVisitedValue = value;
+		Visit(operand);
 		break;
 	case Expression::UnaryOperationType::Minus:
-		value = m_Compiler.m_IRBuilder.CreateNeg(value);
-		m_LastVisitedValue = value;
+		Visit(operand);
+		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateNeg(m_LastVisitedValue);
 		break;
 	case Expression::UnaryOperationType::Not:
-		value = m_Compiler.m_IRBuilder.CreateNot(value);
-		m_LastVisitedValue = value;
+		Visit(operand);
+		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateNot(m_LastVisitedValue);
 		break;
 	case Expression::UnaryOperationType::LNot:
-		value = m_Compiler.m_IRBuilder.CreateNot(value);
-		m_LastVisitedValue = value;
+		EvaluateAsBool(operand);
+		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateIsNull(m_LastVisitedValue);
 		break;
 	default:
 		assert(!"Invalid opCode");
@@ -739,6 +579,178 @@ void AotCompiler::AotStmtVisitor::EmitBlock(llvm::BasicBlock* block, nBool finis
 	m_Compiler.m_IRBuilder.SetInsertPoint(block);
 }
 
+llvm::Value* AotCompiler::AotStmtVisitor::EmitBinOp(llvm::Value* leftOperand, llvm::Value* rightOperand, Expression::BinaryOperationType opCode, natRefPointer<Type::BuiltinType> const& resultType)
+{
+	switch (opCode)
+	{
+	case Expression::BinaryOperationType::Mul:
+		return m_Compiler.m_IRBuilder.CreateMul(leftOperand, rightOperand, "mul");
+	case Expression::BinaryOperationType::Div:
+		if (resultType->IsSigned())
+		{
+			return m_Compiler.m_IRBuilder.CreateSDiv(leftOperand, rightOperand, "div");
+		}
+
+		return m_Compiler.m_IRBuilder.CreateUDiv(leftOperand, rightOperand, "div");
+	case Expression::BinaryOperationType::Mod:
+		if (resultType->IsSigned())
+		{
+			return m_Compiler.m_IRBuilder.CreateSRem(leftOperand, rightOperand, "mod");
+		}
+
+		return m_Compiler.m_IRBuilder.CreateURem(leftOperand, rightOperand, "mod");
+	case Expression::BinaryOperationType::Add:
+		return m_Compiler.m_IRBuilder.CreateAdd(leftOperand, rightOperand, "add");
+	case Expression::BinaryOperationType::Sub:
+		return m_Compiler.m_IRBuilder.CreateSub(leftOperand, rightOperand, "sub");
+	case Expression::BinaryOperationType::Shl:
+		return m_Compiler.m_IRBuilder.CreateShl(leftOperand, rightOperand, "shl");
+	case Expression::BinaryOperationType::Shr:
+		if (resultType->IsSigned())
+		{
+			return m_Compiler.m_IRBuilder.CreateAShr(leftOperand, rightOperand, "shr");
+		}
+
+		return m_Compiler.m_IRBuilder.CreateLShr(leftOperand, rightOperand, "shr");
+	case Expression::BinaryOperationType::LT:
+		if (resultType->IsFloatingType())
+		{
+			return m_Compiler.m_IRBuilder.CreateFCmpOLT(leftOperand, rightOperand, "cmp");
+		}
+
+		if (resultType->IsSigned())
+		{
+			return m_Compiler.m_IRBuilder.CreateICmpSLT(leftOperand, rightOperand, "cmp");
+		}
+
+		return m_Compiler.m_IRBuilder.CreateICmpULT(leftOperand, rightOperand, "cmp");
+	case Expression::BinaryOperationType::GT:
+		if (resultType->IsFloatingType())
+		{
+			return m_Compiler.m_IRBuilder.CreateFCmpOGT(leftOperand, rightOperand, "cmp");
+		}
+
+		if (resultType->IsSigned())
+		{
+			return m_Compiler.m_IRBuilder.CreateICmpSGT(leftOperand, rightOperand, "cmp");
+		}
+
+		return m_Compiler.m_IRBuilder.CreateICmpUGT(leftOperand, rightOperand, "cmp");
+	case Expression::BinaryOperationType::LE:
+		if (resultType->IsFloatingType())
+		{
+			return m_Compiler.m_IRBuilder.CreateFCmpOLE(leftOperand, rightOperand, "cmp");
+		}
+
+		if (resultType->IsSigned())
+		{
+			return m_Compiler.m_IRBuilder.CreateICmpSLE(leftOperand, rightOperand, "cmp");
+		}
+
+		return m_Compiler.m_IRBuilder.CreateICmpULE(leftOperand, rightOperand, "cmp");
+	case Expression::BinaryOperationType::GE:
+		if (resultType->IsFloatingType())
+		{
+			return m_Compiler.m_IRBuilder.CreateFCmpOGE(leftOperand, rightOperand, "cmp");
+		}
+
+		if (resultType->IsSigned())
+		{
+			return m_Compiler.m_IRBuilder.CreateICmpSGE(leftOperand, rightOperand, "cmp");
+		}
+
+		return m_Compiler.m_IRBuilder.CreateICmpUGE(leftOperand, rightOperand, "cmp");
+	case Expression::BinaryOperationType::EQ:
+		if (resultType->IsFloatingType())
+		{
+			return m_Compiler.m_IRBuilder.CreateFCmpOEQ(leftOperand, rightOperand, "cmp");
+		}
+
+		return m_Compiler.m_IRBuilder.CreateICmpEQ(leftOperand, rightOperand, "cmp");
+	case Expression::BinaryOperationType::NE:
+		if (resultType->IsFloatingType())
+		{
+			return m_Compiler.m_IRBuilder.CreateFCmpUNE(leftOperand, rightOperand, "cmp");
+		}
+
+		return m_Compiler.m_IRBuilder.CreateICmpNE(leftOperand, rightOperand, "cmp");
+	case Expression::BinaryOperationType::And:
+		return m_Compiler.m_IRBuilder.CreateAnd(leftOperand, rightOperand, "and");
+	case Expression::BinaryOperationType::Xor:
+		return m_Compiler.m_IRBuilder.CreateXor(leftOperand, rightOperand, "xor");
+	case Expression::BinaryOperationType::Or:
+		return m_Compiler.m_IRBuilder.CreateOr(leftOperand, rightOperand, "or");
+	case Expression::BinaryOperationType::LAnd:
+	{
+		auto rhsBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "land.rhs");
+		const auto endBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "land.end");
+
+		m_Compiler.m_IRBuilder.CreateCondBr(leftOperand, rhsBlock, endBlock);
+
+		const auto phiNode = llvm::PHINode::Create(llvm::Type::getInt1Ty(m_Compiler.m_LLVMContext), 2, "", endBlock);
+
+		for (auto i = llvm::pred_begin(endBlock), end = llvm::pred_end(endBlock); i != end; ++i)
+		{
+			phiNode->addIncoming(llvm::ConstantInt::getFalse(m_Compiler.m_LLVMContext), *i);
+		}
+
+		EmitBlock(rhsBlock);
+		const auto rhsCond = ConvertScalarToBool(rightOperand, m_Compiler.m_AstContext.GetBuiltinType(Type::BuiltinType::Bool));
+
+		rhsBlock = m_Compiler.m_IRBuilder.GetInsertBlock();
+
+		EmitBlock(endBlock);
+		phiNode->addIncoming(rhsCond, rhsBlock);
+
+		return m_Compiler.m_IRBuilder.CreateZExtOrBitCast(phiNode, m_Compiler.getCorrespondingType(resultType));
+	}
+	case Expression::BinaryOperationType::LOr:
+	{
+		auto rhsBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "lor.rhs");
+		const auto endBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "lor.end");
+
+		m_Compiler.m_IRBuilder.CreateCondBr(leftOperand, endBlock, rhsBlock);
+
+		const auto phiNode = llvm::PHINode::Create(llvm::Type::getInt1Ty(m_Compiler.m_LLVMContext), 2, "", endBlock);
+
+		for (auto i = llvm::pred_begin(endBlock), end = llvm::pred_end(endBlock); i != end; ++i)
+		{
+			phiNode->addIncoming(llvm::ConstantInt::getTrue(m_Compiler.m_LLVMContext), *i);
+		}
+
+		EmitBlock(rhsBlock);
+		const auto rhsCond = ConvertScalarToBool(rightOperand, m_Compiler.m_AstContext.GetBuiltinType(Type::BuiltinType::Bool));
+
+		rhsBlock = m_Compiler.m_IRBuilder.GetInsertBlock();
+
+		EmitBlock(endBlock);
+		phiNode->addIncoming(rhsCond, rhsBlock);
+
+		return m_Compiler.m_IRBuilder.CreateZExtOrBitCast(phiNode, m_Compiler.getCorrespondingType(resultType));
+	}
+	default:
+		assert(!"Invalid Opcode");
+		nat_Throw(AotCompilerException, u8"无效的 Opcode"_nv);
+	}
+}
+
+llvm::Value* AotCompiler::AotStmtVisitor::EmitIncDec(llvm::Value* operand, natRefPointer<Type::BuiltinType> const& opType, nBool isInc, nBool isPre)
+{
+	llvm::Value* value = m_Compiler.m_IRBuilder.CreateLoad(operand);
+
+	if (opType->IsFloatingType())
+	{
+		value = m_Compiler.m_IRBuilder.CreateFAdd(value, llvm::ConstantFP::get(m_Compiler.getCorrespondingType(opType), isInc ? 1.0 : -1.0));
+	}
+	else
+	{
+		value = m_Compiler.m_IRBuilder.CreateAdd(value, llvm::ConstantInt::get(m_Compiler.getCorrespondingType(opType), isInc ? 1 : -1, opType->IsSigned()));
+	}
+
+	m_Compiler.m_IRBuilder.CreateStore(value, operand);
+	return isPre ? operand : value;
+}
+
 void AotCompiler::AotStmtVisitor::EvaluateAsModifiableValue(Expression::ExprPtr const& expr)
 {
 	assert(expr);
@@ -758,7 +770,7 @@ void AotCompiler::AotStmtVisitor::EvaluateAsBool(Expression::ExprPtr const& expr
 
 	Visit(expr);
 
-
+	m_LastVisitedValue = ConvertScalarToBool(m_LastVisitedValue, expr->GetExprType());
 }
 
 llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarTo(llvm::Value* from, Type::TypePtr fromType, Type::TypePtr toType)

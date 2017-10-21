@@ -127,6 +127,12 @@ namespace NatsuLang::Compiler
 			void EmitBranch(llvm::BasicBlock* target);
 			void EmitBlock(llvm::BasicBlock* block, nBool finished = false);
 
+			llvm::Value* EmitBinOp(llvm::Value* leftOperand, llvm::Value* rightOperand,
+				Expression::BinaryOperationType opCode,
+				NatsuLib::natRefPointer<Type::BuiltinType> const& resultType);
+
+			llvm::Value* EmitIncDec(llvm::Value* operand, NatsuLib::natRefPointer<Type::BuiltinType> const& opType, nBool isInc, nBool isPre);
+
 			void EvaluateAsModifiableValue(Expression::ExprPtr const& expr);
 			void EvaluateAsBool(Expression::ExprPtr const& expr);
 
@@ -163,6 +169,8 @@ namespace NatsuLang::Compiler
 		llvm::LLVMContext m_LLVMContext;
 		std::unique_ptr<llvm::Module> m_Module;
 		llvm::IRBuilder<> m_IRBuilder;
+
+		std::unordered_map<NatsuLib::natRefPointer<Declaration::FunctionDecl>, llvm::Function*> m_FunctionMap;
 
 		llvm::Type* getCorrespondingType(Type::TypePtr const& type);
 	};
