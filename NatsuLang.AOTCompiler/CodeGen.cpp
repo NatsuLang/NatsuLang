@@ -102,6 +102,8 @@ AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer
 
 		m_DeclMap.emplace(*paramIter, arg);
 	}
+
+	m_Compiler.m_FunctionMap.emplace(m_CurrentFunction, m_CurrentFunctionValue);
 }
 
 AotCompiler::AotStmtVisitor::~AotStmtVisitor()
@@ -304,7 +306,27 @@ void AotCompiler::AotStmtVisitor::VisitThrowExpr(natRefPointer<Expression::Throw
 
 void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallExpr> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	Visit(expr->GetCallee());
+	const auto callee = llvm::dyn_cast<llvm::Function>(m_LastVisitedValue);
+	assert(callee);
+
+	if (callee->arg_size() != expr->GetArgCount())
+	{
+		nat_Throw(AotCompilerException, u8"参数数量不匹配，这可能是默认参数功能未实现导致的"_nv);
+	}
+
+	std::vector<llvm::Value*> args;
+	args.reserve(expr->GetArgCount());
+
+	// TODO: 实现默认参数
+	for (auto&& arg : expr->GetArgs())
+	{
+		Visit(arg);
+		assert(m_LastVisitedValue);
+		args.emplace_back(m_LastVisitedValue);
+	}
+
+	m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateCall(callee, args, "call");
 }
 
 void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::MemberCallExpr> const& expr)
@@ -332,15 +354,31 @@ void AotCompiler::AotStmtVisitor::VisitImplicitCastExpr(natRefPointer<Expression
 
 void AotCompiler::AotStmtVisitor::VisitCharacterLiteral(natRefPointer<Expression::CharacterLiteral> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	m_LastVisitedValue = llvm::ConstantInt::get(m_Compiler.getCorrespondingType(expr->GetExprType()), expr->GetCodePoint());
 }
 
 void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::DeclRefExpr> const& expr)
 {
-	const auto iter = m_DeclMap.find(expr->GetDecl());
-	assert(iter != m_DeclMap.end());
+	const auto decl = expr->GetDecl();
 
-	m_LastVisitedValue = m_RequiredModifiableValue ? iter->second : m_Compiler.m_IRBuilder.CreateLoad(iter->second);
+	const auto declIter = m_DeclMap.find(decl);
+	if (declIter != m_DeclMap.end())
+	{
+		m_LastVisitedValue = m_RequiredModifiableValue ? declIter->second : m_Compiler.m_IRBuilder.CreateLoad(declIter->second);
+		return;
+	}
+
+	if (!m_RequiredModifiableValue)
+	{
+		const auto funcIter = m_Compiler.m_FunctionMap.find(decl);
+		if (funcIter != m_Compiler.m_FunctionMap.end())
+		{
+			m_LastVisitedValue = funcIter->second;
+			return;
+		}
+	}
+
+	nat_Throw(AotCompilerException, u8"定义引用表达式引用了不存在或不合法的定义"_nv);
 }
 
 void AotCompiler::AotStmtVisitor::VisitFloatingLiteral(natRefPointer<Expression::FloatingLiteral> const& expr)
@@ -913,7 +951,7 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(content, m_Preprocessor));
 	ParseAST(m_Parser);
 
-#ifndef NDEBUG
+#if !defined(NDEBUG)
 	std::string buffer;
 	llvm::raw_string_ostream os{ buffer };
 	m_Module->print(os, nullptr);

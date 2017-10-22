@@ -408,6 +408,7 @@ nBool Sema::LookupName(LookupResult& result, natRefPointer<Scope> scope) const
 		{
 			result.AddDecl(from(queryResult));
 			found = true;
+			break;
 		}
 	}
 
