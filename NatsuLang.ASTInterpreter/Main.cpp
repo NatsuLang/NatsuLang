@@ -77,6 +77,19 @@ int main(int argc, char* argv[])
 
 	Interpreter theInterpreter{ make_ref<natStreamReader<nStrView::UsingStringType>>(make_ref<natFileStream>("DiagIdMap.txt", true, false)), logger };
 
+	theInterpreter.RegisterFunction("Print",
+		theInterpreter.GetASTContext().GetBuiltinType(Type::BuiltinType::Void),
+		{ theInterpreter.GetASTContext().GetBuiltinType(Type::BuiltinType::Int) },
+		[&theInterpreter](std::vector<natRefPointer<Declaration::ValueDecl>> const& args) -> natRefPointer<Declaration::ValueDecl>
+		{
+			theInterpreter.GetDeclStorage().VisitDeclStorage(args.at(0), [](nInt value)
+			{
+				std::cout << value << std::endl;
+			}, NatsuLang::Detail::Expected<nInt>);
+
+			return nullptr;
+		});
+
 	try
 	{
 		if (argc == 1)

@@ -39,7 +39,7 @@ void Interpreter::InterpreterDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEng
 	const auto loc = diag.GetSourceLocation();
 	if (loc.GetFileID())
 	{
-		auto[succeed, fileContent] = m_Interpreter.m_SourceManager.GetFileContent(loc.GetFileID());
+		const auto [succeed, fileContent] = m_Interpreter.m_SourceManager.GetFileContent(loc.GetFileID());
 		if (const auto line = loc.GetLineInfo(); succeed && line)
 		{
 			size_t offset{};

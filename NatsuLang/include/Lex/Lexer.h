@@ -17,12 +17,16 @@ namespace NatsuLang
 
 			nBool Lex(Lex::Token& result);
 
+			nuInt GetFileID() const noexcept;
+			void SetFileID(nuInt value) noexcept;
+
 		private:
 			using Iterator = nStrView::const_iterator;
 			using CharType = nStrView::CharType;
 
 			Preprocessor& m_Preprocessor;
 
+			SourceLocation m_CurLoc;
 			nStrView m_Buffer;
 			// 当前处理的指针，指向下一次被处理的字符
 			Iterator m_Current;

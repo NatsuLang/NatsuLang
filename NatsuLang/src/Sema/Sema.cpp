@@ -831,7 +831,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnNumericLiteral(Lex::Token const& token
 		nDouble value;
 		if (literalParser.GetFloatValue(value))
 		{
-			// TODO: 报告溢出
+			m_Diag.Report(Diag::DiagnosticsEngine::DiagID::WarnOverflowed, token.GetLocation());
 		}
 
 		return make_ref<Expression::FloatingLiteral>(value, std::move(type), token.GetLocation());
@@ -919,8 +919,20 @@ NatsuLang::Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scop
 NatsuLang::Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen)
 {
 	LookupResult result{ *this, id, {}, LookupNameType::LookupOrdinaryName };
-	if (!LookupNestedName(result, scope, nns) || result.GetResultType() == LookupResult::LookupResultType::Ambiguous)
+	if (!LookupNestedName(result, scope, nns))
 	{
+		switch (result.GetResultType())
+		{
+		case LookupResult::LookupResultType::NotFound:
+			m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrUndefinedIdentifier).AddArgument(id);
+			break;
+		case LookupResult::LookupResultType::Ambiguous:
+			// TODO: 报告二义性
+			break;
+		default:
+			assert(!"Invalid result type.");
+			break;
+		}
 		return nullptr;
 	}
 
@@ -931,12 +943,6 @@ NatsuLang::Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& sco
 	if (size == 1)
 	{
 		return BuildDeclarationNameExpr(nns, std::move(id), result.GetDecls().first());
-	}
-	
-	if (!size)
-	{
-		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrUndefinedIdentifier).AddArgument(id);
-		return nullptr;
 	}
 
 	// TODO: 只有重载函数可以在此找到多个声明，否则报错

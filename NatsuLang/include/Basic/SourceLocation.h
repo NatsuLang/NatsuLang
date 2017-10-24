@@ -21,6 +21,11 @@ namespace NatsuLang
 			return m_FileID;
 		}
 
+		constexpr void SetFileID(nuInt value) noexcept
+		{
+			m_FileID = value;
+		}
+
 		constexpr nBool HasLineInfo() const noexcept
 		{
 			return m_Line;
@@ -31,6 +36,11 @@ namespace NatsuLang
 			return m_Line;
 		}
 
+		constexpr void SetLineInfo(nuInt value) noexcept
+		{
+			m_Line = value;
+		}
+
 		constexpr nBool HasColumnInfo() const noexcept
 		{
 			return m_Column;
@@ -39,6 +49,11 @@ namespace NatsuLang
 		constexpr nuInt GetColumnInfo() const noexcept
 		{
 			return m_Column;
+		}
+
+		constexpr void SetColumnInfo(nuInt value) noexcept
+		{
+			m_Column = value;
 		}
 
 	private:

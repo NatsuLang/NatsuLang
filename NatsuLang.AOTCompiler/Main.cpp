@@ -14,7 +14,7 @@ int main(int argc, char* argv[])
 
 	if (argc == 2)
 	{
-		AotCompiler compiler{ logger };
+		AotCompiler compiler{ make_ref<natStreamReader<nStrView::UsingStringType>>(make_ref<natFileStream>("DiagIdMap.txt", true, false)), logger };
 
 		Uri uri{ argv[1] };
 

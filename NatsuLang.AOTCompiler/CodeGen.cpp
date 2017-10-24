@@ -13,8 +13,51 @@ using namespace NatsuLib;
 using namespace NatsuLang;
 using namespace Compiler;
 
-AotCompiler::AotDiagIdMap::AotDiagIdMap()
+AotCompiler::AotDiagIdMap::AotDiagIdMap(NatsuLib::natRefPointer<NatsuLib::TextReader<NatsuLib::StringType::Utf8>> const& reader)
 {
+	using DiagIDUnderlyingType = std::underlying_type_t<Diag::DiagnosticsEngine::DiagID>;
+
+	std::unordered_map<nStrView, Diag::DiagnosticsEngine::DiagID> idNameMap;
+	for (auto id = static_cast<DiagIDUnderlyingType>(Diag::DiagnosticsEngine::DiagID::Invalid) + 1;
+		id < static_cast<DiagIDUnderlyingType>(Diag::DiagnosticsEngine::DiagID::EndOfDiagID); ++id)
+	{
+		if (auto idName = Diag::DiagnosticsEngine::GetDiagIDName(static_cast<Diag::DiagnosticsEngine::DiagID>(id)))
+		{
+			idNameMap.emplace(idName, static_cast<Diag::DiagnosticsEngine::DiagID>(id));
+		}
+	}
+
+	nString diagIDName;
+	while (true)
+	{
+		auto curLine = reader->ReadLine();
+
+		if (diagIDName.IsEmpty())
+		{
+			if (curLine.IsEmpty())
+			{
+				break;
+			}
+
+			diagIDName = std::move(curLine);
+		}
+		else
+		{
+			const auto iter = idNameMap.find(diagIDName);
+			if (iter == idNameMap.cend())
+			{
+				// TODO: 报告错误的 ID
+				break;
+			}
+
+			if (!m_IdMap.try_emplace(iter->second, std::move(curLine)).second)
+			{
+				// TODO: 报告重复的 ID
+			}
+
+			diagIDName.Clear();
+		}
+	}
 }
 
 AotCompiler::AotDiagIdMap::~AotDiagIdMap()
@@ -23,10 +66,12 @@ AotCompiler::AotDiagIdMap::~AotDiagIdMap()
 
 nString AotCompiler::AotDiagIdMap::GetText(Diag::DiagnosticsEngine::DiagID id)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	const auto iter = m_IdMap.find(id);
+	return iter == m_IdMap.cend() ? u8"(No available text)"_nv : iter->second.GetView();
 }
 
-AotCompiler::AotDiagConsumer::AotDiagConsumer()
+AotCompiler::AotDiagConsumer::AotDiagConsumer(AotCompiler& compiler)
+	: m_Compiler{ compiler }, m_Errored{ false }
 {
 }
 
@@ -36,6 +81,61 @@ AotCompiler::AotDiagConsumer::~AotDiagConsumer()
 
 void AotCompiler::AotDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEngine::Level level, Diag::DiagnosticsEngine::Diagnostic const& diag)
 {
+	nuInt levelId;
+
+	switch (level)
+	{
+	case Diag::DiagnosticsEngine::Level::Ignored:
+	case Diag::DiagnosticsEngine::Level::Note:
+	case Diag::DiagnosticsEngine::Level::Remark:
+		levelId = natLog::Msg;
+		break;
+	case Diag::DiagnosticsEngine::Level::Warning:
+		levelId = natLog::Warn;
+		break;
+	case Diag::DiagnosticsEngine::Level::Error:
+	case Diag::DiagnosticsEngine::Level::Fatal:
+	default:
+		levelId = natLog::Err;
+		break;
+	}
+
+	m_Compiler.m_Logger.Log(levelId, diag.GetDiagMessage());
+
+	const auto loc = diag.GetSourceLocation();
+	if (loc.GetFileID())
+	{
+		const auto [succeed, fileContent] = m_Compiler.m_SourceManager.GetFileContent(loc.GetFileID());
+		if (const auto line = loc.GetLineInfo(); succeed && line)
+		{
+			size_t offset{};
+			for (nuInt i = 1; i < line; ++i)
+			{
+				offset = fileContent.Find(Environment::GetNewLine(), static_cast<ptrdiff_t>(offset));
+				if (offset == nStrView::npos)
+				{
+					// TODO: 无法定位到源文件
+					return;
+				}
+
+				offset += Environment::GetNewLine().GetSize();
+			}
+
+			const auto nextNewLine = fileContent.Find(Environment::GetNewLine(), static_cast<ptrdiff_t>(offset));
+			const auto column = loc.GetColumnInfo();
+			offset += column ? column - 1 : 0;
+			if (nextNewLine <= offset)
+			{
+				// TODO: 无法定位到源文件
+				return;
+			}
+
+			m_Compiler.m_Logger.Log(levelId, fileContent.Slice(static_cast<ptrdiff_t>(offset), nextNewLine == nStrView::npos ? -1 : static_cast<ptrdiff_t>(nextNewLine)));
+			m_Compiler.m_Logger.Log(levelId, u8"^"_nv);
+		}
+	}
+
+	m_Errored |= Diag::DiagnosticsEngine::IsUnrecoverableLevel(level);
 }
 
 AotCompiler::AotAstConsumer::AotAstConsumer(AotCompiler& compiler)
@@ -946,9 +1046,9 @@ llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarToBool(llvm::Value* from,
 	return m_Compiler.m_IRBuilder.CreateIsNotNull(from, "inttobool");
 }
 
-AotCompiler::AotCompiler(natLog& logger)
-	: m_DiagConsumer{ make_ref<AotDiagConsumer>() },
-	m_Diag{ make_ref<AotDiagIdMap>(), m_DiagConsumer },
+AotCompiler::AotCompiler(natRefPointer<TextReader<StringType::Utf8>> const& diagIdMapFile, natLog& logger)
+	: m_DiagConsumer{ make_ref<AotDiagConsumer>(*this) },
+	m_Diag{ make_ref<AotDiagIdMap>(diagIdMapFile), m_DiagConsumer },
 	m_Logger{ logger },
 	m_SourceManager{ m_Diag, m_FileManager },
 	m_Preprocessor{ m_Diag, m_SourceManager },
@@ -987,14 +1087,23 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	const auto machine = target->createTargetMachine(targetTriple, "generic", "", opt, RM, llvm::None, llvm::CodeGenOpt::Default);
 	m_Module->setDataLayout(machine->createDataLayout());
 
-	const auto [succeed, content] = m_SourceManager.GetFileContent(m_SourceManager.GetFileID(uri));
+	const auto fileId = m_SourceManager.GetFileID(uri);
+	const auto [succeed, content] = m_SourceManager.GetFileContent(fileId);
 	if (!succeed)
 	{
-		nat_Throw(AotCompilerException, u8""_nv);
+		nat_Throw(AotCompilerException, u8"无法取得文件 \"{0}\" 的内容"_nv, uri.GetUnderlyingString());
 	}
 
-	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(content, m_Preprocessor));
+	auto lexer = make_ref<Lex::Lexer>(content, m_Preprocessor);
+	lexer->SetFileID(fileId);
+	m_Preprocessor.SetLexer(std::move(lexer));
 	ParseAST(m_Parser);
+
+	if (m_DiagConsumer->IsErrored())
+	{
+		m_Logger.LogErr(u8"编译文件 \"{0}\" 失败"_nv, uri.GetUnderlyingString());
+		return;
+	}
 
 #if !defined(NDEBUG)
 	std::string buffer;

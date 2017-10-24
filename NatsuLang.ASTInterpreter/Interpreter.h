@@ -580,6 +580,14 @@ namespace NatsuLang
 
 		NatsuLib::natRefPointer<Semantic::Scope> GetScope() const noexcept;
 
+		InterpreterDeclStorage& GetDeclStorage() noexcept;
+
+		using Function = std::function<NatsuLib::natRefPointer<Declaration::ValueDecl>(std::vector<NatsuLib::natRefPointer<Declaration::ValueDecl>> const&)>;
+
+		void RegisterFunction(nStrView name, Type::TypePtr resultType, std::initializer_list<Type::TypePtr> argTypes, Function const& func);
+
+		ASTContext& GetASTContext() noexcept;
+
 	private:
 		NatsuLib::natRefPointer<InterpreterDiagConsumer> m_DiagConsumer;
 		Diag::DiagnosticsEngine m_Diag;
@@ -595,5 +603,7 @@ namespace NatsuLang
 
 		NatsuLib::natRefPointer<Semantic::Scope> m_CurrentScope;
 		InterpreterDeclStorage m_DeclStorage;
+
+		std::unordered_map<NatsuLib::natRefPointer<Declaration::FunctionDecl>, Function> m_FunctionMap;
 	};
 }

@@ -183,6 +183,9 @@ void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression
 
 	if (const auto calleeDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(callee->GetDecl()))
 	{
+		const auto args = expr->GetArgs();
+		const auto params = calleeDecl->GetParams();
+
 		m_Interpreter.m_DeclStorage.PushStorage(DeclStorageLevelFlag::AvailableForCreateStorage | DeclStorageLevelFlag::CreateStorageIfNotFound);
 
 		const auto scope = make_scope([this]
@@ -193,7 +196,7 @@ void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression
 		// TODO: 允许默认参数
 		assert(expr->GetArgCount() == calleeDecl->GetParamCount());
 
-		for (auto&& param : calleeDecl->GetParams().zip(expr->GetArgs()))
+		for (auto&& param : params.zip(args))
 		{
 			if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(param.first, [this, &param](auto& storage)
 			{
@@ -221,15 +224,23 @@ void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression
 
 		m_Interpreter.m_DeclStorage.SetTopStorageFlag(DeclStorageLevelFlag::AvailableForCreateStorage | DeclStorageLevelFlag::AvailableForLookup);
 
-		InterpreterStmtVisitor stmtVisitor{ m_Interpreter };
-		stmtVisitor.Visit(calleeDecl->GetBody());
-		m_LastVisitedExpr = stmtVisitor.GetReturnedExpr();
-		if (!m_LastVisitedExpr)
+		const auto iter = m_Interpreter.m_FunctionMap.find(calleeDecl);
+		if (iter != m_Interpreter.m_FunctionMap.end())
 		{
-			const auto retType = static_cast<natRefPointer<Type::BuiltinType>>(static_cast<natRefPointer<Type::FunctionType>>(calleeDecl->GetValueType())->GetResultType());
-			if (!retType || retType->GetBuiltinClass() != Type::BuiltinType::Void)
+			m_LastVisitedExpr = iter->second({ params.begin(), params.end() });
+		}
+		else
+		{
+			InterpreterStmtVisitor stmtVisitor{ m_Interpreter };
+			stmtVisitor.Visit(calleeDecl->GetBody());
+			m_LastVisitedExpr = stmtVisitor.GetReturnedExpr();
+			if (!m_LastVisitedExpr)
 			{
-				nat_Throw(InterpreterException, u8"要求返回值的函数在控制流离开后未返回任何值"_nv);
+				const auto retType = static_cast<natRefPointer<Type::BuiltinType>>(static_cast<natRefPointer<Type::FunctionType>>(calleeDecl->GetValueType())->GetResultType());
+				if (!retType || retType->GetBuiltinClass() != Type::BuiltinType::Void)
+				{
+					nat_Throw(InterpreterException, u8"要求返回值的函数在控制流离开后未返回任何值"_nv);
+				}
 			}
 		}
 

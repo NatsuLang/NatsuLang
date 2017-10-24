@@ -364,9 +364,20 @@ NextToken:
 	
 	cur += charCount;
 	result.SetLength(static_cast<nuInt>(cur - m_Current));
+	result.SetLocation(m_CurLoc);
 
 	m_Current = cur;
 	return false;
+}
+
+nuInt Lexer::GetFileID() const noexcept
+{
+	return m_CurLoc.GetFileID();
+}
+
+void Lexer::SetFileID(nuInt value) noexcept
+{
+	m_CurLoc = SourceLocation{ value, 1, 1 };
 }
 
 nBool Lexer::skipWhitespace(Lex::Token& result, Iterator cur)
@@ -375,6 +386,12 @@ nBool Lexer::skipWhitespace(Lex::Token& result, Iterator cur)
 
 	while (cur != end && IsWhitespace(*cur))
 	{
+		if (m_CurLoc.IsValid() && IsVerticalWhitespace(*cur))
+		{
+			m_CurLoc.SetLineInfo(m_CurLoc.GetLineInfo() + 1);
+			m_CurLoc.SetColumnInfo(1);
+		}
+
 		++cur;
 	}
 
@@ -408,6 +425,13 @@ nBool Lexer::skipBlockComment(Lex::Token& result, Iterator cur)
 			cur += 2;
 			break;
 		}
+
+		if (m_CurLoc.IsValid() && IsVerticalWhitespace(*cur))
+		{
+			m_CurLoc.SetLineInfo(m_CurLoc.GetLineInfo() + 1);
+			m_CurLoc.SetColumnInfo(1);
+		}
+
 		++cur;
 	}
 

@@ -50,3 +50,39 @@ natRefPointer<Semantic::Scope> Interpreter::GetScope() const noexcept
 {
 	return m_CurrentScope;
 }
+
+Interpreter::InterpreterDeclStorage& Interpreter::GetDeclStorage() noexcept
+{
+	return m_DeclStorage;
+}
+
+void Interpreter::RegisterFunction(nStrView name, Type::TypePtr resultType, std::initializer_list<Type::TypePtr> argTypes, Function const& func)
+{
+	Lex::Token dummyToken;
+	const auto id = m_Parser.GetPreprocessor().FindIdentifierInfo(name, dummyToken);
+	
+	auto scope = m_Sema.GetCurrentScope();
+	for (; scope->GetParent(); scope = scope->GetParent()) {}
+
+	const auto dc = scope->GetEntity();
+
+	auto funcType = make_ref<Type::FunctionType>(from(argTypes), resultType);
+	auto funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
+		SourceLocation{}, SourceLocation{}, id, funcType, Specifier::StorageClass::Extern);
+
+	Declaration::DeclContext* const funcDc = funcDecl.Get();
+
+	funcDecl->SetParams(from(argTypes).select([funcDc](Type::TypePtr const& argType)
+	{
+		return make_ref<Declaration::ParmVarDecl>(Declaration::Decl::ParmVar, funcDc,
+			SourceLocation{}, SourceLocation{}, nullptr, argType, Specifier::StorageClass::None, nullptr);
+	}));
+
+	m_Sema.PushOnScopeChains(funcDecl, scope);
+	m_FunctionMap.emplace(std::move(funcDecl), func);
+}
+
+ASTContext& Interpreter::GetASTContext() noexcept
+{
+	return m_AstContext;
+}
