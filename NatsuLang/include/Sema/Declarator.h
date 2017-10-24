@@ -81,6 +81,16 @@ namespace NatsuLang::Declaration
 			m_Context = context;
 		}
 
+		Specifier::StorageClass GetStorageClass() const noexcept
+		{
+			return m_StorageClass;
+		}
+
+		void SetStorageClass(Specifier::StorageClass value) noexcept
+		{
+			m_StorageClass = value;
+		}
+
 		Type::TypePtr GetType() const noexcept
 		{
 			return m_Type;
@@ -129,6 +139,7 @@ namespace NatsuLang::Declaration
 	private:
 		SourceRange m_Range;
 		Context m_Context;
+		Specifier::StorageClass m_StorageClass;
 		Identifier::IdPtr m_Identifier;
 		Type::TypePtr m_Type;
 		Statement::StmtPtr m_Initializer;

@@ -12,4 +12,6 @@ DIAG(ErrExpected, Level::Error, 1)
 DIAG(ErrExpectedGot, Level::Error, 2)
 DIAG(ErrExtraneousClosingBrace, Level::Error, 0)
 
+DIAG(WarnOverflowed, Level::Warning, 0)
+
 #undef DIAG

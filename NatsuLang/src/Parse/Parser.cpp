@@ -165,7 +165,7 @@ nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::Id
 // declaration:
 //	simple-declaration
 // simple-declaration:
-//	def declarator [;]
+//	def [specifier] declarator [;]
 std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context context, NatsuLang::SourceLocation& declEnd)
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_def));
@@ -173,6 +173,8 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseDeclaration(Declaratio
 	ConsumeToken();
 
 	Declaration::Declarator decl{ context };
+	// 这不意味着 specifier 是 declarator 的一部分
+	ParseSpecifier(decl);
 	ParseDeclarator(decl);
 	if (m_CurrentToken.Is(TokenType::Semi))
 	{
@@ -884,7 +886,7 @@ nBool Parser::ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::
 }
 
 // declarator:
-//	[identifier] [specifier-seq] [initializer] [;]
+//	[identifier] [: type] [initializer] [;]
 void Parser::ParseDeclarator(Declaration::Declarator& decl)
 {
 	const auto context = decl.GetContext();
@@ -902,7 +904,7 @@ void Parser::ParseDeclarator(Declaration::Declarator& decl)
 	// (: int)也可以？
 	if (m_CurrentToken.Is(TokenType::Colon) || ((context == Declaration::Context::Prototype || context == Declaration::Context::TypeName) && !decl.GetIdentifier()))
 	{
-		ParseSpecifier(decl);
+		ParseType(decl);
 	}
 
 	// 声明函数原型时也可以指定initializer？
@@ -915,10 +917,24 @@ void Parser::ParseDeclarator(Declaration::Declarator& decl)
 // specifier-seq:
 //	specifier-seq specifier
 // specifier:
-//	type-specifier
+//	storage-class-specifier
 void Parser::ParseSpecifier(Declaration::Declarator& decl)
 {
-	ParseType(decl);
+	switch (m_CurrentToken.GetType())
+	{
+	case TokenType::Kw_extern:
+		decl.SetStorageClass(Specifier::StorageClass::Extern);
+		ConsumeToken();
+		break;
+	case TokenType::Kw_static:
+		decl.SetStorageClass(Specifier::StorageClass::Static);
+		ConsumeToken();
+		break;
+	default:
+		// 不是错误
+		decl.SetStorageClass(Specifier::StorageClass::None);
+		break;
+	}
 }
 
 // type-specifier:

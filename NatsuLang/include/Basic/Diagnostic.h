@@ -45,7 +45,7 @@ namespace NatsuLang::Diag
 				return "Fatal";
 			default:
 				assert(!"Invalid level.");
-				return nullptr;
+				return "";
 			}
 		}
 
@@ -173,11 +173,6 @@ namespace NatsuLang::Diag
 				return m_Diag;
 			}
 
-			nuInt GetArgCount() const noexcept
-			{
-				return static_cast<nuInt>(m_Diag->m_Arguments.size());
-			}
-
 			SourceLocation GetSourceLocation() const noexcept
 			{
 				return m_Diag->m_CurrentSourceLocation;
@@ -191,6 +186,8 @@ namespace NatsuLang::Diag
 		};
 
 	public:
+		std::size_t GetArgumentCount() const noexcept;
+		std::pair<ArgumentType, Argument> const& GetArgument(std::size_t i) const;
 		DiagnosticBuilder Report(DiagID id, SourceLocation sourceLocation = {});
 	};
 

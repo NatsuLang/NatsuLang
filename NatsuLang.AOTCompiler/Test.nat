@@ -1,3 +1,5 @@
+def extern Interop : (arg : float) -> double;
+
 def Fib : (arg : int) -> int
 {
 	if (arg < 2)
@@ -14,6 +16,6 @@ def Func : (arg : int) -> int
 	}
 	else
 	{
-		return arg * 2
+		return (Interop(arg) as int) * 2
 	}
 }

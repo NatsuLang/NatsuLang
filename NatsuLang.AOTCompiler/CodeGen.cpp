@@ -61,8 +61,44 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 	{
 		if (const auto funcDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(decl))
 		{
-			AotStmtVisitor visitor{ m_Compiler, funcDecl };
-			visitor.StartVisit();
+			switch (funcDecl->GetStorageClass())
+			{
+			case Specifier::StorageClass::None:
+			{
+				AotStmtVisitor visitor{ m_Compiler, funcDecl };
+				visitor.StartVisit();
+				break;
+			}
+			case Specifier::StorageClass::Extern:
+			{
+				const auto functionType = m_Compiler.getCorrespondingType(funcDecl->GetValueType());
+				const auto functionName = funcDecl->GetIdentifierInfo()->GetName();
+
+				const auto funcValue = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
+					// TODO: 修改链接性
+					llvm::GlobalVariable::ExternalLinkage,
+					std::string(functionName.cbegin(), functionName.cend()),
+					m_Compiler.m_Module.get());
+
+				auto argIter = funcValue->arg_begin();
+				const auto argEnd = funcValue->arg_end();
+				auto paramIter = funcDecl->GetParams().begin();
+				const auto paramEnd = funcDecl->GetParams().end();
+
+				for (; argIter != argEnd && paramIter != paramEnd; ++argIter, static_cast<void>(++paramIter))
+				{
+					const auto name = (*paramIter)->GetIdentifierInfo()->GetName();
+					const std::string nameStr{ name.cbegin(), name.cend() };
+					argIter->setName(nameStr);
+				}
+
+				m_Compiler.m_FunctionMap.emplace(std::move(funcDecl), funcValue);
+
+				break;
+			}
+			default:
+				break;
+			}
 		}
 	}
 
@@ -151,6 +187,7 @@ void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStm
 		{
 			if (varDecl->IsFunction())
 			{
+				// 目前只能在顶层声明函数
 				continue;
 			}
 
@@ -161,20 +198,25 @@ void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStm
 				arraySize = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Compiler.m_LLVMContext), arrayType->GetSize());
 			}
 			const auto varName = varDecl->GetName();
-			const auto storage = m_Compiler.m_IRBuilder.CreateAlloca(m_Compiler.getCorrespondingType(type), arraySize, std::string(varName.cbegin(), varName.cend()));
+			const auto valueType = m_Compiler.getCorrespondingType(type);
 
-			if (const auto initExpr = varDecl->GetInitializer())
+			if (varDecl->GetStorageClass() == Specifier::StorageClass::None)
 			{
-				Visit(initExpr);
-				const auto initializer = m_LastVisitedValue;
-				m_Compiler.m_IRBuilder.CreateStore(initializer, storage);
-			}
-			else
-			{
-				// 初始化为全 0
-			}
+				const auto storage = m_Compiler.m_IRBuilder.CreateAlloca(valueType, arraySize, std::string(varName.cbegin(), varName.cend()));
 
-			m_DeclMap.emplace(varDecl, storage);
+				if (const auto initExpr = varDecl->GetInitializer())
+				{
+					Visit(initExpr);
+					const auto initializer = m_LastVisitedValue;
+					m_Compiler.m_IRBuilder.CreateStore(initializer, storage);
+				}
+				else
+				{
+					m_Compiler.m_IRBuilder.CreateStore(llvm::Constant::getNullValue(valueType), storage);
+				}
+
+				m_DeclMap.emplace(varDecl, storage);
+			}
 		}
 	}
 }
@@ -336,20 +378,23 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 
 void AotCompiler::AotStmtVisitor::VisitCastExpr(natRefPointer<Expression::CastExpr> const& expr)
 {
-	Visit(expr);
-	m_LastVisitedValue = ConvertScalarTo(m_LastVisitedValue, expr->GetOperand()->GetExprType(), expr->GetExprType());
+	const auto operand = expr->GetOperand();
+	Visit(operand);
+	m_LastVisitedValue = ConvertScalarTo(m_LastVisitedValue, operand->GetExprType(), expr->GetExprType());
 }
 
 void AotCompiler::AotStmtVisitor::VisitAsTypeExpr(natRefPointer<Expression::AsTypeExpr> const& expr)
 {
-	Visit(expr);
-	m_LastVisitedValue = ConvertScalarTo(m_LastVisitedValue, expr->GetOperand()->GetExprType(), expr->GetExprType());
+	const auto operand = expr->GetOperand();
+	Visit(operand);
+	m_LastVisitedValue = ConvertScalarTo(m_LastVisitedValue, operand->GetExprType(), expr->GetExprType());
 }
 
 void AotCompiler::AotStmtVisitor::VisitImplicitCastExpr(natRefPointer<Expression::ImplicitCastExpr> const& expr)
 {
-	Visit(expr);
-	m_LastVisitedValue = ConvertScalarTo(m_LastVisitedValue, expr->GetOperand()->GetExprType(), expr->GetExprType());
+	const auto operand = expr->GetOperand();
+	Visit(operand);
+	m_LastVisitedValue = ConvertScalarTo(m_LastVisitedValue, operand->GetExprType(), expr->GetExprType());
 }
 
 void AotCompiler::AotStmtVisitor::VisitCharacterLiteral(natRefPointer<Expression::CharacterLiteral> const& expr)
@@ -962,6 +1007,8 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	machine->addPassesToEmitFile(passManager, stream, llvm::TargetMachine::CGFT_ObjectFile);
 	passManager.run(*m_Module);
 	stream.flush();
+
+	m_Module.reset();
 }
 
 llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)

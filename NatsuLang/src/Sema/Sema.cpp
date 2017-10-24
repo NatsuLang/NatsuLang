@@ -575,7 +575,7 @@ natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 	}
 
 	auto varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl.GetRange().GetBegin(),
-		SourceLocation{}, std::move(id), std::move(type), Specifier::StorageClass::None);
+		SourceLocation{}, std::move(id), std::move(type), decl.GetStorageClass());
 
 	varDecl->SetInitializer(initExpr);
 
@@ -601,7 +601,7 @@ natRefPointer<NatsuLang::Declaration::FunctionDecl> Sema::ActOnFunctionDeclarato
 	}
 
 	auto funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
-		SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), Specifier::StorageClass::None);
+		SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), decl.GetStorageClass());
 
 	for (auto const& param : decl.GetParams())
 	{
@@ -857,7 +857,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnNumericLiteral(Lex::Token const& token
 	nuLong value;
 	if (literalParser.GetIntegerValue(value))
 	{
-		// TODO: 报告溢出
+		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::WarnOverflowed, token.GetLocation());
 	}
 
 	return make_ref<Expression::IntegerLiteral>(value, std::move(type), token.GetLocation());
@@ -927,11 +927,18 @@ NatsuLang::Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& sco
 	// TODO: 对以函数调用形式引用的标识符采取特殊的处理
 	static_cast<void>(hasTraillingLParen);
 
-	if (result.GetDeclSize() == 1)
+	const auto size = result.GetDeclSize();
+	if (size == 1)
 	{
 		return BuildDeclarationNameExpr(nns, std::move(id), result.GetDecls().first());
 	}
 	
+	if (!size)
+	{
+		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrUndefinedIdentifier).AddArgument(id);
+		return nullptr;
+	}
+
 	// TODO: 只有重载函数可以在此找到多个声明，否则报错
 	nat_Throw(NotImplementedException);
 }
@@ -988,7 +995,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnArraySubscriptExpr(natRefPointer<Scope
 	return make_ref<Expression::ArraySubscriptExpr>(base, index, baseType->GetElementType(), rloc);
 }
 
-NatsuLang::Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr func, SourceLocation lloc, Linq<NatsuLib::Valued<Expression::ExprPtr>> argExprs, SourceLocation rloc)
+NatsuLang::Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr func, SourceLocation lloc, Linq<Valued<Expression::ExprPtr>> argExprs, SourceLocation rloc)
 {
 	// TODO: 完成重载部分
 
@@ -1013,7 +1020,11 @@ NatsuLang::Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& s
 		return nullptr;
 	}
 
-	return make_ref<Expression::CallExpr>(std::move(fn), argExprs, fnType->GetResultType(), rloc);
+	// TODO: 处理有默认参数的情况
+	return make_ref<Expression::CallExpr>(std::move(fn), argExprs.zip(fnType->GetParameterTypes()).select([this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
+	{
+		return ImpCastExprToType(pair.first, pair.second, getCastType(pair.first, pair.second));
+	}), fnType->GetResultType(), rloc);
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation periodLoc, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id)
@@ -1281,7 +1292,7 @@ NatsuLang::Type::TypePtr Sema::UsualArithmeticConversions(Expression::ExprPtr& l
 NatsuLang::Expression::ExprPtr Sema::ImpCastExprToType(Expression::ExprPtr expr, Type::TypePtr type, Expression::CastType castType)
 {
 	const auto exprType = expr->GetExprType();
-	if (exprType == type)
+	if (exprType == type || castType == Expression::CastType::NoOp)
 	{
 		return std::move(expr);
 	}

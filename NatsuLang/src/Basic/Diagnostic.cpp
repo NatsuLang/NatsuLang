@@ -91,9 +91,9 @@ const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::Diagn
 	return *this;
 }
 
-const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::DiagnosticBuilder::AddArgument(NatsuLib::natRefPointer<Identifier::IdentifierInfo> identifierInfo) const
+const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::DiagnosticBuilder::AddArgument(natRefPointer<Identifier::IdentifierInfo> identifierInfo) const
 {
-	m_Diags.m_Arguments.emplace_back(ArgumentType::TokenType, Argument{ std::in_place_index<5>, std::move(identifierInfo) });
+	m_Diags.m_Arguments.emplace_back(ArgumentType::IdentifierInfo, Argument{ std::in_place_index<5>, std::move(identifierInfo) });
 	return *this;
 }
 
@@ -142,6 +142,16 @@ nString Diag::DiagnosticsEngine::Diagnostic::GetDiagMessage() const
 	}
 
 	return result;
+}
+
+std::size_t Diag::DiagnosticsEngine::GetArgumentCount() const noexcept
+{
+	return m_Arguments.size();
+}
+
+std::pair<Diag::DiagnosticsEngine::ArgumentType, Diag::DiagnosticsEngine::Argument> const& Diag::DiagnosticsEngine::GetArgument(std::size_t i) const
+{
+	return m_Arguments.at(i);
 }
 
 Diag::DiagnosticsEngine::DiagnosticBuilder Diag::DiagnosticsEngine::Report(DiagID id, SourceLocation sourceLocation)
