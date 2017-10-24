@@ -1109,7 +1109,7 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	std::string buffer;
 	llvm::raw_string_ostream os{ buffer };
 	m_Module->print(os, nullptr);
-	m_Logger.LogMsg("Result IR:\n{0}", buffer);
+	m_Logger.LogMsg(u8"编译成功，生成的 IR:\n{0}"_nv, buffer);
 #endif // NDEBUG
 
 	llvm::legacy::PassManager passManager;
