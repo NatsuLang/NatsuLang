@@ -5,6 +5,7 @@
 DIAG(ErrUndefinedIdentifier, Level::Error, 1)
 DIAG(ErrMultiCharInLiteral, Level::Error, 0)
 DIAG(ErrUnexpectEOF, Level::Error, 0)
+DIAG(ErrUnexpect, Level::Error, 1)
 DIAG(ErrExpectedIdentifier, Level::Error, 0)
 DIAG(ErrExpectedTypeSpecifierGot, Level::Error, 1)
 DIAG(ErrExpectedDeclarator, Level::Error, 0)

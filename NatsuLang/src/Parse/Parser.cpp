@@ -100,11 +100,11 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 		ConsumeToken();
 		return {};
 	case TokenType::RightBrace:
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExtraneousClosingBrace);
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExtraneousClosingBrace, m_CurrentToken.GetLocation());
 		ConsumeBrace();
 		return {};
 	case TokenType::Eof:
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF);
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF, m_CurrentToken.GetLocation());
 		return {};
 	case TokenType::Kw_def:
 	{
@@ -112,9 +112,11 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 		return ParseDeclaration(Declaration::Context::Global, declEnd);
 	}
 	default:
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
+			.AddArgument(m_CurrentToken.GetType());
+
 		// 吃掉 1 个 Token 以保证不会死循环
 		ConsumeToken();
-		// TODO: 报告错误
 		return {};
 	}
 }
@@ -594,7 +596,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 	case TokenType::Kw_this:
 		return m_Sema.ActOnThis(m_CurrentToken.GetLocation());
 	case TokenType::Eof:
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF);
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF, m_CurrentToken.GetLocation());
 		[[fallthrough]];
 	default:
 		return ParseExprError();
@@ -819,7 +821,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseThrowExpression()
 	case TokenType::Comma:
 		return m_Sema.ActOnThrow(m_Sema.GetCurrentScope(), throwLocation, {});
 	case TokenType::Eof:
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF);
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF, m_CurrentToken.GetLocation());
 		return ParseExprError();
 	default:
 		auto expr = ParseAssignmentExpression();
@@ -908,7 +910,9 @@ void Parser::ParseDeclarator(Declaration::Declarator& decl)
 	}
 
 	// 声明函数原型时也可以指定initializer？
-	if (context != Declaration::Context::TypeName && m_CurrentToken.IsAnyOf({ TokenType::Equal, TokenType::LeftBrace }))
+	if (context != Declaration::Context::TypeName &&
+		decl.GetStorageClass() != Specifier::StorageClass::Extern &&
+		m_CurrentToken.IsAnyOf({ TokenType::Equal, TokenType::LeftBrace }))
 	{
 		ParseInitializer(decl);
 	}
@@ -969,6 +973,8 @@ void Parser::ParseType(Declaration::Declarator& decl)
 		auto type = m_Sema.GetTypeName(m_CurrentToken.GetIdentifierInfo(), m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nullptr);
 		if (!type)
 		{
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
+				.AddArgument(m_CurrentToken.GetIdentifierInfo());
 			return;
 		}
 
@@ -999,7 +1005,7 @@ void Parser::ParseType(Declaration::Declarator& decl)
 		break;
 	}
 	case TokenType::Eof:
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF);
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF, m_CurrentToken.GetLocation());
 		break;
 	default:
 	{
@@ -1058,7 +1064,7 @@ void Parser::ParseParenType(Declaration::Declarator& decl)
 			return;
 		}
 		
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedIdentifier);
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
 	}
 }
 

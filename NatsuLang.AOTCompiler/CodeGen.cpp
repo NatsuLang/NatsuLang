@@ -81,6 +81,8 @@ AotCompiler::AotDiagConsumer::~AotDiagConsumer()
 
 void AotCompiler::AotDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEngine::Level level, Diag::DiagnosticsEngine::Diagnostic const& diag)
 {
+	m_Errored |= Diag::DiagnosticsEngine::IsUnrecoverableLevel(level);
+
 	nuInt levelId;
 
 	switch (level)
@@ -134,8 +136,6 @@ void AotCompiler::AotDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEngine::Lev
 			m_Compiler.m_Logger.Log(levelId, u8"^"_nv);
 		}
 	}
-
-	m_Errored |= Diag::DiagnosticsEngine::IsUnrecoverableLevel(level);
 }
 
 AotCompiler::AotAstConsumer::AotAstConsumer(AotCompiler& compiler)
@@ -1097,6 +1097,7 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	auto lexer = make_ref<Lex::Lexer>(content, m_Preprocessor);
 	lexer->SetFileID(fileId);
 	m_Preprocessor.SetLexer(std::move(lexer));
+	m_Parser.ConsumeToken();
 	ParseAST(m_Parser);
 
 	if (m_DiagConsumer->IsErrored())

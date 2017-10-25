@@ -210,7 +210,6 @@ void Sema::PopScope()
 {
 	assert(m_CurrentScope);
 
-	// TODO: 将范围内的声明弹出
 	m_CurrentScope = m_CurrentScope->GetParent();
 }
 
@@ -983,7 +982,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnArraySubscriptExpr(natRefPointer<Scope
 	static_cast<void>(lloc);
 
 	// TODO: 当前仅支持对内建数组进行此操作
-	auto baseType = static_cast<natRefPointer<Type::ArrayType>>(base->GetExprType());
+	const auto baseType = static_cast<natRefPointer<Type::ArrayType>>(base->GetExprType());
 	if (!baseType)
 	{
 		// TODO: 报告基础操作数不是内建数组

@@ -427,12 +427,7 @@ StringLiteralParser::StringLiteralParser(nStrView buffer, SourceLocation loc, Di
 	{
 		if (*m_Current != '\\')
 		{
-			if (*m_Current == '"')
-			{
-				// TODO: 报告字符串过早结束
-				break;
-			}
-
+			assert(*m_Current != '"' && "Lexer::lexStringLiteral may be broken.");
 			m_Value.Append(*m_Current);
 		}
 		else

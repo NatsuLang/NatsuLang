@@ -15,6 +15,8 @@ Interpreter::InterpreterDiagConsumer::~InterpreterDiagConsumer()
 void Interpreter::InterpreterDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEngine::Level level,
 	Diag::DiagnosticsEngine::Diagnostic const& diag)
 {
+	m_Errored |= Diag::DiagnosticsEngine::IsUnrecoverableLevel(level);
+
 	nuInt levelId;
 
 	switch (level)
@@ -68,6 +70,4 @@ void Interpreter::InterpreterDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEng
 			m_Interpreter.m_Logger.Log(levelId, u8"^"_nv);
 		}
 	}
-
-	m_Errored |= Diag::DiagnosticsEngine::IsUnrecoverableLevel(level);
 }

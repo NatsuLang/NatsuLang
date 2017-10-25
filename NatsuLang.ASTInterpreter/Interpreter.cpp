@@ -24,6 +24,7 @@ Interpreter::~Interpreter()
 void Interpreter::Run(Uri const& uri)
 {
 	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(m_SourceManager.GetFileContent(m_SourceManager.GetFileID(uri)).second, m_Preprocessor));
+	m_Parser.ConsumeToken();
 	m_CurrentScope = m_Sema.GetCurrentScope();
 	ParseAST(m_Parser);
 	m_DeclStorage.GarbageCollect();

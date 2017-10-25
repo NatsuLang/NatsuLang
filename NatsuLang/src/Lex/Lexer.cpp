@@ -18,23 +18,17 @@ Lexer::Lexer(nStrView buffer, Preprocessor& preprocessor)
 
 nBool Lexer::Lex(Lex::Token& result)
 {
-	// TODO: 为token添加位置信息
 NextToken:
 	result.Reset();
 
 	auto cur = m_Current;
 	const auto end = m_Buffer.end();
 
-	// 跳过空白字符
-	while (cur != end && IsWhitespace(*cur))
-	{
-		++cur;
-	}
-
 	if (cur == end)
 	{
 		result.SetType(TokenType::Eof);
 		result.SetLength(0);
+		result.SetLocation(m_CurLoc);
 		return true;
 	}
 
@@ -46,6 +40,7 @@ NextToken:
 		case 0:
 			result.SetType(TokenType::Eof);
 			result.SetLength(0);
+			result.SetLocation(m_CurLoc);
 			return true;
 		case '\n':
 		case '\r':
@@ -363,8 +358,9 @@ NextToken:
 	}
 	
 	cur += charCount;
-	result.SetLength(static_cast<nuInt>(cur - m_Current));
 	result.SetLocation(m_CurLoc);
+	m_CurLoc.SetColumnInfo(static_cast<nuInt>(m_CurLoc.GetColumnInfo() + static_cast<nuInt>(cur - m_Current)));
+	result.SetLength(static_cast<nuInt>(cur - m_Current));
 
 	m_Current = cur;
 	return false;
@@ -391,6 +387,10 @@ nBool Lexer::skipWhitespace(Lex::Token& result, Iterator cur)
 			m_CurLoc.SetLineInfo(m_CurLoc.GetLineInfo() + 1);
 			m_CurLoc.SetColumnInfo(1);
 		}
+		else
+		{
+			m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
+		}
 
 		++cur;
 	}
@@ -408,6 +408,7 @@ nBool Lexer::skipLineComment(Lex::Token& result, Iterator cur)
 	while (cur != end && *cur != '\r' && *cur != '\n')
 	{
 		++cur;
+		m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 	}
 
 	m_Current = cur;
@@ -423,6 +424,7 @@ nBool Lexer::skipBlockComment(Lex::Token& result, Iterator cur)
 		if (*cur == '*' && *(cur + 1) == '/')
 		{
 			cur += 2;
+			m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 2);
 			break;
 		}
 
@@ -430,6 +432,10 @@ nBool Lexer::skipBlockComment(Lex::Token& result, Iterator cur)
 		{
 			m_CurLoc.SetLineInfo(m_CurLoc.GetLineInfo() + 1);
 			m_CurLoc.SetColumnInfo(1);
+		}
+		else
+		{
+			m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 		}
 
 		++cur;
@@ -446,6 +452,8 @@ nBool Lexer::lexNumericLiteral(Lex::Token& result, Iterator cur)
 
 	assert(IsNumericLiteralBody(curChar));
 
+	const auto startLoc = m_CurLoc;
+
 	while (cur != end && IsNumericLiteralBody(curChar))
 	{
 		prevChar = curChar;
@@ -457,6 +465,7 @@ nBool Lexer::lexNumericLiteral(Lex::Token& result, Iterator cur)
 		}
 
 		++cur;
+		m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 	}
 
 	// 科学计数法，例如1E+10
@@ -472,6 +481,7 @@ nBool Lexer::lexNumericLiteral(Lex::Token& result, Iterator cur)
 
 	result.SetType(TokenType::NumericLiteral);
 	result.SetLiteralContent({ start, cur });
+	result.SetLocation(startLoc);
 	m_Current = cur;
 	return true;
 }
@@ -479,7 +489,11 @@ nBool Lexer::lexNumericLiteral(Lex::Token& result, Iterator cur)
 nBool Lexer::lexIdentifier(Lex::Token& result, Iterator cur)
 {
 	const auto start = cur, end = m_Buffer.end();
+
+	const auto startLoc = m_CurLoc;
+
 	auto curChar = *cur++;
+	m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 
 	assert(IsIdentifierHead(curChar));
 
@@ -493,6 +507,7 @@ nBool Lexer::lexIdentifier(Lex::Token& result, Iterator cur)
 		}
 
 		++cur;
+		m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 	}
 
 	m_Current = cur;
@@ -500,6 +515,7 @@ nBool Lexer::lexIdentifier(Lex::Token& result, Iterator cur)
 	auto info = m_Preprocessor.FindIdentifierInfo(nStrView{ start, cur }, result);
 	// 不需要对info进行操作，因为已经在FindIdentifierInfo中处理完毕
 	static_cast<void>(info);
+	result.SetLocation(startLoc);
 
 	return true;
 }
@@ -510,9 +526,11 @@ nBool Lexer::lexCharLiteral(Lex::Token& result, Iterator cur)
 
 	const auto start = cur, end = m_Buffer.end();
 
+	const auto startLoc = m_CurLoc;
 	auto prevChar = *cur++;
 	while (cur != end)
 	{
+		m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 		if (*cur == '\'' && prevChar != '\\')
 		{
 			++cur;
@@ -524,6 +542,7 @@ nBool Lexer::lexCharLiteral(Lex::Token& result, Iterator cur)
 
 	result.SetType(TokenType::CharLiteral);
 	result.SetLiteralContent({ start, cur });
+	result.SetLocation(startLoc);
 
 	m_Current = cur;
 	return true;
@@ -535,9 +554,12 @@ nBool Lexer::lexStringLiteral(Lex::Token& result, Iterator cur)
 
 	const auto start = cur, end = m_Buffer.end();
 
+	const auto startLoc = m_CurLoc;
 	auto prevChar = *cur++;
+	m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 	while (cur != end)
 	{
+		m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 		if (*cur == '"' && prevChar != '\\')
 		{
 			++cur;
@@ -549,6 +571,7 @@ nBool Lexer::lexStringLiteral(Lex::Token& result, Iterator cur)
 
 	result.SetType(TokenType::StringLiteral);
 	result.SetLiteralContent({ start, cur });
+	result.SetLocation(startLoc);
 
 	m_Current = cur;
 	return true;

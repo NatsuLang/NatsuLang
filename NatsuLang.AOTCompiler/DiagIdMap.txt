@@ -4,6 +4,8 @@ ErrMultiCharInLiteral
 在字符字面量中出现多个字符
 ErrUnexpectEOF
 意外的文件结束
+ErrUnexpect
+意外的 {0}
 ErrExpectedIdentifier
 期望获得标识符
 ErrExpectedTypeSpecifierGot
