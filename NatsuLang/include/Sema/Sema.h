@@ -7,6 +7,7 @@
 #include "AST/Declaration.h"
 #include "AST/Type.h"
 #include "AST/OperationTypes.h"
+#include "CompilerAction.h"
 
 namespace NatsuLang
 {
@@ -110,6 +111,8 @@ namespace NatsuLang::Semantic
 
 		void PushOnScopeChains(NatsuLib::natRefPointer<Declaration::NamedDecl> decl, NatsuLib::natRefPointer<Scope> const& scope, nBool addToContext = true);
 
+		CompilerActionNamespace& GetTopLevelActionNamespace() noexcept;
+
 		void ActOnTranslationUnitScope(NatsuLib::natRefPointer<Scope> scope);
 
 		NatsuLib::natRefPointer<Declaration::Decl> ActOnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path);
@@ -194,6 +197,8 @@ namespace NatsuLang::Semantic
 
 		// m_CurrentDeclContext必须为nullptr或者可以转换到DeclContext*，不保存DeclContext*是为了保留对Decl的强引用
 		Declaration::DeclPtr m_CurrentDeclContext;
+
+		CompilerActionNamespace m_TopLevelActionNamespace;
 
 		Expression::CastType getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType);
 

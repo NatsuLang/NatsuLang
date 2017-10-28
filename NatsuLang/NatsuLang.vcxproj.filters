@@ -162,6 +162,15 @@
     <ClInclude Include="include\AST\ASTConsumer.h">
       <Filter>AST\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\Sema\CompilerAction.h">
+      <Filter>Sema\include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\AST\ASTNode.h">
+      <Filter>AST\include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Sema\DefaultActions.h">
+      <Filter>Sema\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">
@@ -232,6 +241,15 @@
     </ClCompile>
     <ClCompile Include="src\AST\StmtVisitor.cpp">
       <Filter>AST\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AST\ASTNode.cpp">
+      <Filter>AST\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Sema\CompilerAction.cpp">
+      <Filter>Sema\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Sema\DefaultActions.cpp">
+      <Filter>Sema\src</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

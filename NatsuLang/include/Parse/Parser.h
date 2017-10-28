@@ -6,6 +6,8 @@
 namespace NatsuLang
 {
 	class NestedNameSpecifier;
+	struct ICompilerAction;
+	struct ASTNode;
 }
 
 namespace NatsuLang::Identifier
@@ -161,6 +163,10 @@ namespace NatsuLang::Syntax
 		///	@return	是否遇到EOF
 		nBool ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls);
 		std::vector<Declaration::DeclPtr> ParseExternalDeclaration();
+
+		void ParseCompilerAction(std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output = {});
+		NatsuLib::natRefPointer<ICompilerAction> ParseCompilerActionName();
+		void ParseCompilerActionArgumentList(NatsuLib::natRefPointer<ICompilerAction> const& action);
 
 		std::vector<Declaration::DeclPtr> ParseModuleImport();
 		std::vector<Declaration::DeclPtr> ParseModuleDecl();

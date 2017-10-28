@@ -90,7 +90,7 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 		if (auto varDecl = static_cast<natRefPointer<Declaration::VarDecl>>(decl))
 		{
 			// 不需要分配存储
-			if (varDecl->IsFunction())
+			if (varDecl->IsFunction() || varDecl->GetStorageClass() == Specifier::StorageClass::Extern)
 			{
 				continue;
 			}

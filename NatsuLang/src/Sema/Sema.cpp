@@ -174,7 +174,7 @@ namespace
 
 Sema::Sema(Preprocessor& preprocessor, ASTContext& astContext, natRefPointer<ASTConsumer> astConsumer)
 	: m_Preprocessor{ preprocessor }, m_Context{ astContext }, m_Consumer{ std::move(astConsumer) }, m_Diag{ preprocessor.GetDiag() },
-	  m_SourceManager{ preprocessor.GetSourceManager() }
+	  m_SourceManager{ preprocessor.GetSourceManager() }, m_TopLevelActionNamespace{ u8""_nv }
 {
 	PushScope(ScopeFlags::DeclarableScope);
 	ActOnTranslationUnitScope(m_CurrentScope);
@@ -223,6 +223,11 @@ void Sema::PushOnScopeChains(natRefPointer<Declaration::NamedDecl> decl, natRefP
 	}
 
 	scope->AddDecl(decl);
+}
+
+CompilerActionNamespace& Sema::GetTopLevelActionNamespace() noexcept
+{
+	return m_TopLevelActionNamespace;
 }
 
 void Sema::ActOnTranslationUnitScope(natRefPointer<Scope> scope)

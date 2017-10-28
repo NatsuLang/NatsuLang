@@ -2,6 +2,7 @@
 #include "Sema/Sema.h"
 #include "Sema/Scope.h"
 #include "Sema/Declarator.h"
+#include "Sema/CompilerAction.h"
 #include "AST/Type.h"
 #include "AST/ASTContext.h"
 #include "AST/ASTConsumer.h"
@@ -83,6 +84,19 @@ nBool Parser::ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls)
 		return false;
 	case TokenType::Eof:
 		return true;
+	case TokenType::Dollar:
+		ParseCompilerAction([&decls](natRefPointer<ASTNode> const& astNode)
+		{
+			if (auto decl = static_cast<Declaration::DeclPtr>(astNode))
+			{
+				decls.emplace_back(std::move(decl));
+				return false;
+			}
+
+			// TODO: 报告错误：编译器动作插入了声明以外的 AST
+			return true;
+		});
+		return false;
 	default:
 		break;
 	}
@@ -118,6 +132,126 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 		// 吃掉 1 个 Token 以保证不会死循环
 		ConsumeToken();
 		return {};
+	}
+}
+
+void Parser::ParseCompilerAction(std::function<nBool(natRefPointer<ASTNode>)> const& output)
+{
+	assert(m_CurrentToken.Is(TokenType::Dollar));
+	ConsumeToken();
+
+	const auto action = ParseCompilerActionName();
+	assert(action);
+
+	if (!m_CurrentToken.Is(TokenType::LeftParen))
+	{
+		// TODO: 报告错误
+	}
+
+	action->StartAction(CompilerActionContext{ *this });
+	const auto scope = make_scope([action, &output]
+	{
+		action->EndAction(output);
+	});
+
+	ParseCompilerActionArgumentList(action);
+}
+
+natRefPointer<ICompilerAction> Parser::ParseCompilerActionName()
+{
+	nat_Throw(NotImplementedException);
+}
+
+void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> const& action)
+{
+	assert(m_CurrentToken.Is(TokenType::LeftParen));
+	ConsumeParen();
+
+	const auto requirement = action->GetArgumentRequirement();
+
+	std::size_t i = 0;
+	for (;; ++i)
+	{
+		const auto argType = requirement->GetExpectedArgumentType(i);
+
+		if (argType == CompilerActionArgumentType::None)
+		{
+			if (m_CurrentToken.Is(TokenType::RightParen))
+			{
+				ConsumeParen();
+			}
+
+			// TODO: 报告错误：参数过多
+			break;
+		}
+
+		if ((argType & CompilerActionArgumentType::Type) != CompilerActionArgumentType::None)
+		{
+			Declaration::Declarator typeDecl{ Declaration::Context::TypeName };
+			ParseType(typeDecl);
+			const auto type = typeDecl.GetType();
+			if (type)
+			{
+				action->AddArgument(type);
+				if (m_CurrentToken.Is(TokenType::Comma))
+				{
+					ConsumeToken();
+				}
+				continue;
+			}
+		}
+
+		if ((argType & CompilerActionArgumentType::Declaration) != CompilerActionArgumentType::None)
+		{
+			SourceLocation end;
+			// TODO: 修改 Context
+			const auto decl = ParseDeclaration(Declaration::Context::Global, end);
+			if (!decl.empty())
+			{
+				assert(decl.size() == 1);
+				action->AddArgument(decl.front());
+				if (m_CurrentToken.Is(TokenType::Comma))
+				{
+					ConsumeToken();
+				}
+				continue;
+			}
+		}
+
+		assert((argType & CompilerActionArgumentType::Statement) != CompilerActionArgumentType::None && "argType is only set flag Optional");
+		const auto stmt = ParseStatement();
+		if (stmt)
+		{
+			action->AddArgument(stmt);
+			if (m_CurrentToken.Is(TokenType::Comma))
+			{
+				ConsumeToken();
+			}
+			continue;
+		}
+
+		// 所有的类型都不符合，测试是否是可选的
+		if ((argType & CompilerActionArgumentType::Optional) == CompilerActionArgumentType::None)
+		{
+			// TODO: 并非可选的，报错
+		}
+
+		// 目前若一个参数是可选的，则之后的参数皆为可选
+		if (m_CurrentToken.Is(TokenType::Comma))
+		{
+			ConsumeToken();
+		}
+		else if (m_CurrentToken.Is(TokenType::RightParen))
+		{
+			ConsumeParen();
+			break;
+		}
+		else
+		{
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
+				.AddArgument(m_CurrentToken.GetType());
+			break;
+		}
 	}
 }
 

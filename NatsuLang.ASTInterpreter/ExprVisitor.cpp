@@ -183,6 +183,11 @@ void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression
 
 	if (const auto calleeDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(callee->GetDecl()))
 	{
+		if (!calleeDecl->GetBody())
+		{
+			nat_Throw(InterpreterException, u8"该函数无函数体，调用了声明为 extern 的函数？"_nv);
+		}
+
 		const auto args = expr->GetArgs();
 		const auto params = calleeDecl->GetParams();
 

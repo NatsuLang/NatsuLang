@@ -177,6 +177,7 @@
   <ItemGroup>
     <ClInclude Include="include\AST\ASTConsumer.h" />
     <ClInclude Include="include\AST\ASTContext.h" />
+    <ClInclude Include="include\AST\ASTNode.h" />
     <ClInclude Include="include\AST\Declaration.h" />
     <ClInclude Include="include\AST\DeclBase.h" />
     <ClInclude Include="include\AST\Expression.h" />
@@ -210,13 +211,16 @@
     <ClInclude Include="include\Lex\LiteralParser.h" />
     <ClInclude Include="include\Lex\Preprocessor.h" />
     <ClInclude Include="include\Parse\Parser.h" />
+    <ClInclude Include="include\Sema\CompilerAction.h" />
     <ClInclude Include="include\Sema\Declarator.h" />
+    <ClInclude Include="include\Sema\DefaultActions.h" />
     <ClInclude Include="include\Sema\Scope.h" />
     <ClInclude Include="include\Sema\Sema.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\AST\ASTConsumer.cpp" />
     <ClCompile Include="src\AST\ASTContext.cpp" />
+    <ClCompile Include="src\AST\ASTNode.cpp" />
     <ClCompile Include="src\AST\Declaration.cpp" />
     <ClCompile Include="src\AST\DeclBase.cpp" />
     <ClCompile Include="src\AST\Expression.cpp" />
@@ -236,6 +240,8 @@
     <ClCompile Include="src\Lex\LiteralParser.cpp" />
     <ClCompile Include="src\Lex\Preprocessor.cpp" />
     <ClCompile Include="src\Parse\Parser.cpp" />
+    <ClCompile Include="src\Sema\CompilerAction.cpp" />
+    <ClCompile Include="src\Sema\DefaultActions.cpp" />
     <ClCompile Include="src\Sema\Scope.cpp" />
     <ClCompile Include="src\Sema\Sema.cpp" />
   </ItemGroup>

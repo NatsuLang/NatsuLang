@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <natRefObj.h>
+#include "ASTNode.h"
 
 namespace NatsuLang::Lex
 {
@@ -16,7 +17,7 @@ namespace NatsuLang::Type
 	using TypePtr = NatsuLib::natRefPointer<Type>;
 
 	class Type
-		: public NatsuLib::natRefObjImpl<Type>
+		: public NatsuLib::natRefObjImpl<Type, ASTNode>
 	{
 	public:
 		enum TypeClass

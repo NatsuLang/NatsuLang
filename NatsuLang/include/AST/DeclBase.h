@@ -2,6 +2,7 @@
 #include <natMisc.h>
 #include <natRefObj.h>
 #include <natLinq.h>
+#include "ASTNode.h"
 #include "Basic/SourceLocation.h"
 
 namespace NatsuLang::Identifier
@@ -30,7 +31,7 @@ namespace NatsuLang::Declaration
 	class NamedDecl;
 
 	class Decl
-		: public NatsuLib::natRefObjImpl<Decl>
+		: public NatsuLib::natRefObjImpl<Decl, ASTNode>
 	{
 		friend class DeclContext;
 

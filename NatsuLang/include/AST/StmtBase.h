@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <natRefObj.h>
 #include <natLinq.h>
+#include "ASTNode.h"
 #include "Basic/SourceLocation.h"
 
 namespace NatsuLang
@@ -16,7 +17,7 @@ namespace NatsuLang::Statement
 	using StmtEnumerable = NatsuLib::Linq<NatsuLib::Valued<StmtPtr>>;
 
 	class Stmt
-		: public NatsuLib::natRefObjImpl<Stmt>
+		: public NatsuLib::natRefObjImpl<Stmt, ASTNode>
 	{
 	public:
 		enum StmtType
