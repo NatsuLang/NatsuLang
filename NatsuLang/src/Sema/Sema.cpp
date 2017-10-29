@@ -1324,7 +1324,10 @@ NatsuLang::Expression::ExprPtr Sema::ImpCastExprToType(Expression::ExprPtr expr,
 
 void Sema::prewarming()
 {
-	m_TopLevelActionNamespace->RegisterAction(make_ref<ActionDump>());
+	m_TopLevelActionNamespace->RegisterSubNamespace(u8"Compiler"_nv);
+	const auto compilerNamespace = m_TopLevelActionNamespace->GetSubNamespace(u8"Compiler"_nv);
+	assert(compilerNamespace);
+	compilerNamespace->RegisterAction(make_ref<ActionDump>());
 }
 
 NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType)
