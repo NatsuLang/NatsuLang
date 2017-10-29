@@ -1,0 +1,21 @@
+language: cpp
+sudo: required
+dist: xenial
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+      - llvm-toolchain-precise-3.6
+    packages:
+      - gcc-7
+      - g++-7
+env: 
+  - CMAKE_URL=http://cmake.org/files/v3.8/cmake-3.8.2-Linux-x86_64.tar.gz
+  - CMAKE_DIRNAME=cmake-3.8.2-Linux-x86_64
+compiler: gcc
+install:
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
+  - curl -L $CMAKE_URL | tar xz
+script:
+  - $CMAKE_DIRNAME/bin/cmake .
+  - make

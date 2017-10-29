@@ -34,7 +34,7 @@ namespace NatsuLang
 		virtual CompilerActionArgumentType GetExpectedArgumentType(std::size_t i) = 0;
 	};
 
-	class CompilerActionContext
+	class CompilerActionContext final
 	{
 	public:
 		constexpr explicit CompilerActionContext(Syntax::Parser& parser) noexcept
@@ -77,7 +77,8 @@ namespace NatsuLang
 		virtual void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) = 0;
 	};
 
-	class CompilerActionNamespace
+	class CompilerActionNamespace final
+		: public NatsuLib::natRefObjImpl<CompilerActionNamespace>
 	{
 	public:
 		explicit CompilerActionNamespace(nString name);
@@ -85,7 +86,7 @@ namespace NatsuLang
 
 		nStrView GetName() const noexcept;
 
-		CompilerActionNamespace* GetSubNamespace(nStrView name);
+		NatsuLib::natRefPointer<CompilerActionNamespace> GetSubNamespace(nStrView name);
 		NatsuLib::natRefPointer<ICompilerAction> GetAction(nStrView name);
 
 		nBool RegisterSubNamespace(nStrView name);
@@ -93,7 +94,7 @@ namespace NatsuLang
 
 	private:
 		const nString m_Name;
-		std::unordered_map<nString, CompilerActionNamespace> m_SubNamespace;
+		std::unordered_map<nStrView, NatsuLib::natRefPointer<CompilerActionNamespace>> m_SubNamespace;
 		std::unordered_map<nString, NatsuLib::natRefPointer<ICompilerAction>> m_Actions;
 	};
 }

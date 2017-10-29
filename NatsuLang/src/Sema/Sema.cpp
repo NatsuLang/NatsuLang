@@ -175,7 +175,7 @@ namespace
 
 Sema::Sema(Preprocessor& preprocessor, ASTContext& astContext, natRefPointer<ASTConsumer> astConsumer)
 	: m_Preprocessor{ preprocessor }, m_Context{ astContext }, m_Consumer{ std::move(astConsumer) }, m_Diag{ preprocessor.GetDiag() },
-	  m_SourceManager{ preprocessor.GetSourceManager() }, m_TopLevelActionNamespace{ u8""_nv }
+	  m_SourceManager{ preprocessor.GetSourceManager() }, m_TopLevelActionNamespace{ make_ref<CompilerActionNamespace>(u8""_nv) }
 {
 	prewarming();
 
@@ -228,7 +228,7 @@ void Sema::PushOnScopeChains(natRefPointer<Declaration::NamedDecl> decl, natRefP
 	scope->AddDecl(decl);
 }
 
-CompilerActionNamespace& Sema::GetTopLevelActionNamespace() noexcept
+natRefPointer<CompilerActionNamespace> Sema::GetTopLevelActionNamespace() noexcept
 {
 	return m_TopLevelActionNamespace;
 }
@@ -1324,7 +1324,7 @@ NatsuLang::Expression::ExprPtr Sema::ImpCastExprToType(Expression::ExprPtr expr,
 
 void Sema::prewarming()
 {
-	m_TopLevelActionNamespace.RegisterAction(make_ref<ActionDump>());
+	m_TopLevelActionNamespace->RegisterAction(make_ref<ActionDump>());
 }
 
 NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType)

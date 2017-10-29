@@ -25,12 +25,12 @@ nStrView CompilerActionNamespace::GetName() const noexcept
 	return m_Name;
 }
 
-CompilerActionNamespace* CompilerActionNamespace::GetSubNamespace(nStrView name)
+natRefPointer<CompilerActionNamespace> CompilerActionNamespace::GetSubNamespace(nStrView name)
 {
 	const auto iter = m_SubNamespace.find(name);
 	if (iter != m_SubNamespace.end())
 	{
-		return &iter->second;
+		return iter->second;
 	}
 
 	return nullptr;
@@ -49,7 +49,8 @@ natRefPointer<ICompilerAction> CompilerActionNamespace::GetAction(nStrView name)
 
 nBool CompilerActionNamespace::RegisterSubNamespace(nStrView name)
 {
-	return m_SubNamespace.emplace(name, name).second;
+	const auto subNamespace = make_ref<CompilerActionNamespace>(name);
+	return m_SubNamespace.emplace(subNamespace->GetName(), subNamespace).second;
 }
 
 nBool CompilerActionNamespace::RegisterAction(natRefPointer<ICompilerAction> const& action)

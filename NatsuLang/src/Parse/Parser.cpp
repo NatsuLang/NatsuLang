@@ -163,7 +163,7 @@ void Parser::ParseCompilerAction(std::function<nBool(natRefPointer<ASTNode>)> co
 
 natRefPointer<ICompilerAction> Parser::ParseCompilerActionName()
 {
-	auto actionNamespace = &m_Sema.GetTopLevelActionNamespace();
+	auto actionNamespace = m_Sema.GetTopLevelActionNamespace();
 
 	while (m_CurrentToken.Is(TokenType::Identifier))
 	{
