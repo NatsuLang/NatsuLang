@@ -788,10 +788,25 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 	}
 	case TokenType::Kw_this:
 		return m_Sema.ActOnThis(m_CurrentToken.GetLocation());
+	case TokenType::Dollar:
+		ParseCompilerAction([&result](natRefPointer<ASTNode> const& node)
+		{
+			if (result)
+			{
+				// 多个表达式是不允许的
+				return true;
+			}
+
+			result = node;
+			return false;
+		});
+		break;
 	case TokenType::Eof:
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF, m_CurrentToken.GetLocation());
-		[[fallthrough]];
+		return ParseExprError();
 	default:
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
+			.AddArgument(tokenType);
 		return ParseExprError();
 	}
 
