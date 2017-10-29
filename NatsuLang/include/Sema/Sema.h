@@ -200,6 +200,8 @@ namespace NatsuLang::Semantic
 
 		CompilerActionNamespace m_TopLevelActionNamespace;
 
+		void prewarming();
+
 		Expression::CastType getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType);
 
 		Type::TypePtr handleIntegerConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType);

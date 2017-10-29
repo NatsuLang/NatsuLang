@@ -22,6 +22,8 @@ CompilerActionArgumentType SimpleArgumentRequirement::GetExpectedArgumentType(st
 	return i < m_Types.size() ? m_Types[i] : CompilerActionArgumentType::None;
 }
 
+const natRefPointer<IArgumentRequirement> ActionDump::s_ArgumentRequirement{ make_ref<ActionDumpArgumentRequirement>() };
+
 ActionDump::ActionDump()
 {
 }
@@ -37,7 +39,7 @@ nString ActionDump::GetName() const noexcept
 
 natRefPointer<IArgumentRequirement> ActionDump::GetArgumentRequirement()
 {
-	return m_ArgumentRequirement;
+	return s_ArgumentRequirement;
 }
 
 void ActionDump::StartAction(CompilerActionContext const& /*context*/)

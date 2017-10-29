@@ -94,6 +94,9 @@ namespace NatsuLang::Diag
 		void Clear() noexcept;
 		nBool EmitDiag();
 
+		void EnableDiag(nBool value) noexcept;
+		nBool IsDiagEnabled() const noexcept;
+
 		NatsuLib::natRefPointer<DiagnosticConsumer> GetDiagConsumer() const noexcept
 		{
 			return m_Consumer;
@@ -105,6 +108,8 @@ namespace NatsuLang::Diag
 		std::vector<std::pair<ArgumentType, Argument>> m_Arguments;
 		NatsuLib::natRefPointer<Misc::TextProvider<DiagID>> m_IDMap;
 		NatsuLib::natRefPointer<DiagnosticConsumer> m_Consumer;
+
+		nBool m_Enabled;
 
 		DiagID m_CurrentID;
 		nuInt m_CurrentRequiredArgs;

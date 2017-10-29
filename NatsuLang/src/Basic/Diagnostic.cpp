@@ -6,7 +6,8 @@ using namespace NatsuLib;
 using namespace NatsuLang;
 
 Diag::DiagnosticsEngine::DiagnosticsEngine(natRefPointer<Misc::TextProvider<DiagID>> idMap, natRefPointer<DiagnosticConsumer> consumer)
-	: m_IDMap{ std::move(idMap) }, m_Consumer{ std::move(consumer) }, m_CurrentID{ DiagID::Invalid }, m_CurrentRequiredArgs{}
+	: m_IDMap{ std::move(idMap) }, m_Consumer{ std::move(consumer) }, m_Enabled{ true }, m_CurrentID{ DiagID::Invalid },
+	  m_CurrentRequiredArgs{}
 {
 }
 
@@ -24,7 +25,7 @@ void Diag::DiagnosticsEngine::Clear() noexcept
 
 nBool Diag::DiagnosticsEngine::EmitDiag()
 {
-	if (m_CurrentID != DiagID::Invalid && m_Arguments.size() >= m_CurrentRequiredArgs)
+	if (m_Enabled && m_CurrentID != DiagID::Invalid && m_Arguments.size() >= m_CurrentRequiredArgs)
 	{
 		m_Consumer->HandleDiagnostic(getDiagLevel(m_CurrentID), Diagnostic{ this, std::move(m_CurrentDiagDesc) });
 		Clear();
@@ -32,6 +33,16 @@ nBool Diag::DiagnosticsEngine::EmitDiag()
 	}
 
 	return false;
+}
+
+void Diag::DiagnosticsEngine::EnableDiag(nBool value) noexcept
+{
+	m_Enabled = value;
+}
+
+nBool Diag::DiagnosticsEngine::IsDiagEnabled() const noexcept
+{
+	return m_Enabled;
 }
 
 nString Diag::DiagnosticsEngine::convertArgumentToString(nuInt index) const

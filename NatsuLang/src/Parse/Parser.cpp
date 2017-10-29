@@ -141,7 +141,11 @@ void Parser::ParseCompilerAction(std::function<nBool(natRefPointer<ASTNode>)> co
 	ConsumeToken();
 
 	const auto action = ParseCompilerActionName();
-	assert(action);
+	
+	if (!action)
+	{
+		return;
+	}
 
 	if (!m_CurrentToken.Is(TokenType::LeftParen))
 	{
@@ -159,7 +163,35 @@ void Parser::ParseCompilerAction(std::function<nBool(natRefPointer<ASTNode>)> co
 
 natRefPointer<ICompilerAction> Parser::ParseCompilerActionName()
 {
-	nat_Throw(NotImplementedException);
+	auto actionNamespace = &m_Sema.GetTopLevelActionNamespace();
+
+	while (m_CurrentToken.Is(TokenType::Identifier))
+	{
+		const auto id = m_CurrentToken.GetIdentifierInfo();
+		ConsumeToken();
+		if (m_CurrentToken.Is(TokenType::Period))
+		{
+			actionNamespace = actionNamespace->GetSubNamespace(id->GetName());
+			if (!actionNamespace)
+			{
+				// TODO: 报告错误
+				return nullptr;
+			}
+			ConsumeToken();
+		}
+		else if (m_CurrentToken.Is(TokenType::LeftParen))
+		{
+			return actionNamespace->GetAction(id->GetName());
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
+		.AddArgument(m_CurrentToken.GetType());
+	return nullptr;
 }
 
 void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> const& action)
@@ -169,18 +201,32 @@ void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> cons
 
 	const auto requirement = action->GetArgumentRequirement();
 
+	// 禁止匹配过程中的错误报告
+	m_Diag.EnableDiag(false);
+	const auto scope = make_scope([this]
+	{
+		m_Diag.EnableDiag(true);
+	});
+
 	std::size_t i = 0;
 	for (;; ++i)
 	{
 		const auto argType = requirement->GetExpectedArgumentType(i);
 
-		if (argType == CompilerActionArgumentType::None)
+		if (m_CurrentToken.Is(TokenType::RightParen))
 		{
-			if (m_CurrentToken.Is(TokenType::RightParen))
+			if (argType == CompilerActionArgumentType::None || (argType & CompilerActionArgumentType::Optional) != CompilerActionArgumentType::None)
 			{
 				ConsumeParen();
+				break;
 			}
 
+			// TODO: 报告错误：参数过少
+			break;
+		}
+
+		if (argType == CompilerActionArgumentType::None)
+		{
 			// TODO: 报告错误：参数过多
 			break;
 		}
@@ -201,7 +247,7 @@ void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> cons
 			}
 		}
 
-		if ((argType & CompilerActionArgumentType::Declaration) != CompilerActionArgumentType::None)
+		if ((argType & CompilerActionArgumentType::Declaration) != CompilerActionArgumentType::None && m_CurrentToken.Is(TokenType::Kw_def))
 		{
 			SourceLocation end;
 			// TODO: 修改 Context
@@ -309,7 +355,7 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseDeclaration(Declaratio
 	ConsumeToken();
 
 	Declaration::Declarator decl{ context };
-	// 这不意味着 specifier 是 declarator 的一部分
+	// 这不意味着 specifier 是 declarator 的一部分，至少目前如此
 	ParseSpecifier(decl);
 	ParseDeclarator(decl);
 	if (m_CurrentToken.Is(TokenType::Semi))
@@ -395,6 +441,19 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 		break;
 	case TokenType::Kw_catch:
 		break;
+	case TokenType::Dollar:
+		ParseCompilerAction([&result](natRefPointer<ASTNode> const& node)
+		{
+			if (result)
+			{
+				// 多个语句是不允许的
+				return true;
+			}
+
+			result = node;
+			return false;
+		});
+		return result;
 	case TokenType::Identifier:
 	default:
 		return ParseExprStatement();
@@ -1107,7 +1166,7 @@ void Parser::ParseType(Declaration::Declarator& decl)
 		auto type = m_Sema.GetTypeName(m_CurrentToken.GetIdentifierInfo(), m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nullptr);
 		if (!type)
 		{
-			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
 				.AddArgument(m_CurrentToken.GetIdentifierInfo());
 			return;
 		}
@@ -1140,6 +1199,19 @@ void Parser::ParseType(Declaration::Declarator& decl)
 	}
 	case TokenType::Eof:
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF, m_CurrentToken.GetLocation());
+		break;
+	case TokenType::Dollar:
+		ParseCompilerAction([&decl](natRefPointer<ASTNode> const& node)
+		{
+			if (decl.GetType())
+			{
+				// 多个类型是不允许的
+				return true;
+			}
+
+			decl.SetType(node);
+			return false;
+		});
 		break;
 	default:
 	{

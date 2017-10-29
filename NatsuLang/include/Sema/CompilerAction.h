@@ -1,5 +1,7 @@
 ﻿#pragma once
-#include "Sema.h"
+#include <natMisc.h>
+
+#include "AST/ASTNode.h"
 
 namespace NatsuLang
 {
@@ -92,6 +94,6 @@ namespace NatsuLang
 	private:
 		const nString m_Name;
 		std::unordered_map<nString, CompilerActionNamespace> m_SubNamespace;
-		std::unordered_map<nStrView, NatsuLib::natRefPointer<ICompilerAction>> m_Actions;
+		std::unordered_map<nString, NatsuLib::natRefPointer<ICompilerAction>> m_Actions;
 	};
 }

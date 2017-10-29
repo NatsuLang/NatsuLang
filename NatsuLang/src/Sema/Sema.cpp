@@ -1,6 +1,7 @@
 ﻿#include "Sema/Sema.h"
 #include "Sema/Scope.h"
 #include "Sema/Declarator.h"
+#include "Sema/DefaultActions.h"
 #include "Lex/Preprocessor.h"
 #include "Lex/LiteralParser.h"
 #include "AST/Declaration.h"
@@ -176,6 +177,8 @@ Sema::Sema(Preprocessor& preprocessor, ASTContext& astContext, natRefPointer<AST
 	: m_Preprocessor{ preprocessor }, m_Context{ astContext }, m_Consumer{ std::move(astConsumer) }, m_Diag{ preprocessor.GetDiag() },
 	  m_SourceManager{ preprocessor.GetSourceManager() }, m_TopLevelActionNamespace{ u8""_nv }
 {
+	prewarming();
+
 	PushScope(ScopeFlags::DeclarableScope);
 	ActOnTranslationUnitScope(m_CurrentScope);
 }
@@ -1317,6 +1320,11 @@ NatsuLang::Expression::ExprPtr Sema::ImpCastExprToType(Expression::ExprPtr expr,
 	}
 
 	return make_ref<Expression::ImplicitCastExpr>(std::move(type), castType, std::move(expr));
+}
+
+void Sema::prewarming()
+{
+	m_TopLevelActionNamespace.RegisterAction(make_ref<ActionDump>());
 }
 
 NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType)

@@ -1,4 +1,6 @@
 #pragma once
+#include <natLinq.h>
+
 #include "CompilerAction.h"
 
 namespace NatsuLang
@@ -40,7 +42,7 @@ namespace NatsuLang
 			CompilerActionArgumentType GetExpectedArgumentType(std::size_t i) override;
 		};
 
-		NatsuLib::natRefPointer<SimpleArgumentRequirement> m_ArgumentRequirement;
+		static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
 		std::vector<NatsuLib::natRefPointer<ASTNode>> m_ResultNodes;
 	};
 }
