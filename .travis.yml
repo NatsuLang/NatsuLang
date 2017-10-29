@@ -1,6 +1,9 @@
 language: cpp
 sudo: required
 dist: trusty
+env:
+  global:
+    - DEPS_DIR=${TRAVIS_BUILD_DIR}/deps
 addons:
   apt:
     sources:
