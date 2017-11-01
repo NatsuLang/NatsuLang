@@ -323,7 +323,34 @@ void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStm
 
 void AotCompiler::AotStmtVisitor::VisitDoStmt(natRefPointer<Statement::DoStmt> const& stmt)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	const auto loopEnd = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "do.end");
+	const auto loopCond = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "do.cond");
+
+	const auto loopBody = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "do.body");
+	EmitBlock(loopBody);
+	Visit(stmt->GetBody());
+
+	EmitBlock(loopCond);
+
+	EvaluateAsBool(stmt->GetCond());
+	const auto cond = m_LastVisitedValue;
+
+	// do {} while (false) 较为常用，针对这个场景优化
+	auto alwaysFalse = false;
+	if (const auto val = llvm::dyn_cast<llvm::Constant>(cond))
+	{
+		if (val->isNullValue())
+		{
+			alwaysFalse = true;
+		}
+	}
+
+	if (!alwaysFalse)
+	{
+		m_Compiler.m_IRBuilder.CreateCondBr(cond, loopBody, loopEnd);
+	}
+
+	EmitBlock(loopEnd);
 }
 
 void AotCompiler::AotStmtVisitor::VisitExpr(natRefPointer<Expression::Expr> const& expr)
@@ -333,12 +360,60 @@ void AotCompiler::AotStmtVisitor::VisitExpr(natRefPointer<Expression::Expr> cons
 
 void AotCompiler::AotStmtVisitor::VisitConditionalOperator(natRefPointer<Expression::ConditionalOperator> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	auto lhsBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "cond.true");
+	auto rhsBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "cond.false");
+	const auto endBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "cond.end");
+
+	EvaluateAsBool(expr->GetCondition());
+	const auto cond = m_LastVisitedValue;
+
+	m_Compiler.m_IRBuilder.CreateCondBr(cond, lhsBlock, rhsBlock);
+
+	EmitBlock(lhsBlock);
+
+	Visit(expr->GetLeftOperand());
+	const auto lhs = m_LastVisitedValue;
+
+	lhsBlock = m_Compiler.m_IRBuilder.GetInsertBlock();
+
+	if (lhs)
+	{
+		m_Compiler.m_IRBuilder.CreateBr(endBlock);
+	}
+
+	EmitBlock(rhsBlock);
+
+	Visit(expr->GetRightOperand());
+	const auto rhs = m_LastVisitedValue;
+
+	rhsBlock = m_Compiler.m_IRBuilder.GetInsertBlock();
+
+	EmitBlock(endBlock);
+
+	if (lhs && rhs)
+	{
+		const auto phi = m_Compiler.m_IRBuilder.CreatePHI(m_Compiler.getCorrespondingType(expr->GetExprType()), 2, "condvalue");
+		phi->addIncoming(lhs, lhsBlock);
+		phi->addIncoming(rhs, rhsBlock);
+
+		m_LastVisitedValue = phi;
+	}
+	else
+	{
+		nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	}
 }
 
 void AotCompiler::AotStmtVisitor::VisitArraySubscriptExpr(natRefPointer<Expression::ArraySubscriptExpr> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	EvaluateAsModifiableValue(expr->GetLeftOperand());
+	const auto baseExpr = m_Compiler.m_IRBuilder.CreatePointerCast(m_LastVisitedValue,
+		m_Compiler.getCorrespondingType(expr->GetExprType())->getPointerElementType(), "decay");
+	Visit(expr->GetRightOperand());
+	const auto indexExpr = m_LastVisitedValue;
+
+	m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateGEP(baseExpr,
+		{ llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext), 0), indexExpr }, "arrayelem");
 }
 
 void AotCompiler::AotStmtVisitor::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> const& expr)
@@ -638,9 +713,9 @@ void AotCompiler::AotStmtVisitor::VisitIfStmt(natRefPointer<Statement::IfStmt> c
 	const auto thenStmt = stmt->GetThen();
 	const auto elseStmt = stmt->GetElse();
 
-	const auto trueBranch = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "");
-	const auto endBranch = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "");
-	const auto falseBranch = elseStmt ? llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "") : endBranch;
+	const auto trueBranch = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "if.then");
+	const auto endBranch = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "if.end");
+	const auto falseBranch = elseStmt ? llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "if.else") : endBranch;
 
 	m_Compiler.m_IRBuilder.CreateCondBr(condExpr, trueBranch, falseBranch);
 
@@ -664,7 +739,7 @@ void AotCompiler::AotStmtVisitor::VisitLabelStmt(natRefPointer<Statement::LabelS
 	Visit(stmt->GetSubStmt());
 }
 
-void AotCompiler::AotStmtVisitor::VisitNullStmt(natRefPointer<Statement::NullStmt> const& stmt)
+void AotCompiler::AotStmtVisitor::VisitNullStmt(natRefPointer<Statement::NullStmt> const& /*stmt*/)
 {
 }
 
@@ -703,7 +778,36 @@ void AotCompiler::AotStmtVisitor::VisitSwitchStmt(natRefPointer<Statement::Switc
 
 void AotCompiler::AotStmtVisitor::VisitWhileStmt(natRefPointer<Statement::WhileStmt> const& stmt)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	const auto loopHead = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "while.cond");
+	EmitBlock(loopHead);
+
+	const auto loopEnd = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "while.end");
+
+	EvaluateAsBool(stmt->GetCond());
+	const auto cond = m_LastVisitedValue;
+
+	// while (true) {} 较为常用，针对这个场景优化
+	auto alwaysTrue = false;
+	if (const auto val = llvm::dyn_cast<llvm::Constant>(cond))
+	{
+		if (!val->isNullValue())
+		{
+			alwaysTrue = true;
+		}
+	}
+
+	const auto loopBody = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "while.body");
+	if (!alwaysTrue)
+	{
+		m_Compiler.m_IRBuilder.CreateCondBr(cond, loopBody, loopEnd);
+	}
+
+	EmitBlock(loopBody);
+	Visit(stmt->GetBody());
+
+	EmitBranch(loopHead);
+
+	EmitBlock(loopEnd);
 }
 
 void AotCompiler::AotStmtVisitor::VisitStmt(natRefPointer<Statement::Stmt> const& stmt)
@@ -1035,6 +1139,11 @@ llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarTo(llvm::Value* from, Typ
 llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarToBool(llvm::Value* from, natRefPointer<Type::BuiltinType> const& fromType)
 {
 	assert(from && fromType);
+
+	if (fromType->GetBuiltinClass() == Type::BuiltinType::Bool)
+	{
+		return from;
+	}
 
 	if (fromType->IsFloatingType())
 	{

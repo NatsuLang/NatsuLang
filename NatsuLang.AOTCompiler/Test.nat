@@ -1,4 +1,9 @@
-def extern Interop : (arg : float) -> double;
+def extern Interop : (arg : float) -> double
+
+def Abs : (arg : int) -> int
+{
+	return arg > 0 ? arg : -arg;
+}
 
 def Fib : (arg : int) -> int
 {
@@ -18,4 +23,16 @@ def Func : (arg : int) -> int
 	{
 		return (Interop(arg) as int) * 2
 	}
+}
+
+def Gcd : (a : int, b : int) -> int
+{
+	while (b)
+	{
+		def t = b
+		b = a % b
+		a = t
+	}
+
+	return a;
 }

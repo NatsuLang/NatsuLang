@@ -339,7 +339,33 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryExprOrTypeTraitExpr(natRefPo
 
 void Interpreter::InterpreterExprVisitor::VisitConditionalOperator(natRefPointer<Expression::ConditionalOperator> const& expr)
 {
-	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
+	Visit(expr->GetCondition());
+	const auto cond = std::move(m_LastVisitedExpr);
+
+	nBool condValue;
+	if (Evaluate(cond, [&condValue](nBool value)
+	{
+		condValue = value;
+	}, Expected<nBool>))
+	{
+		auto retDecl = m_Interpreter.m_DeclStorage.CreateTemporaryObjectDecl(expr->GetExprType());
+		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(retDecl, [this, condValue, &expr](auto&& value)
+		{
+			Visit(condValue ? expr->GetLeftOperand() : expr->GetRightOperand());
+			if (!Evaluate(m_LastVisitedExpr, [&value](auto ret)
+			{
+				value = ret;
+			}, Expected<std::remove_reference_t<decltype(value)>>))
+			{
+				nat_Throw(InterpreterException, u8"无法对表达式求值"_nv);
+			}
+		}))
+		{
+			nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
+		}
+
+		m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(retDecl), SourceLocation{}, expr->GetExprType());
+	}
 }
 
 void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> const& expr)

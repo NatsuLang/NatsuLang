@@ -43,7 +43,7 @@ namespace
 		using NatsuLang::Type::BuiltinType;
 
 		if (!fromType || (!fromType->IsIntegerType() && !fromType->IsFloatingType()) ||
-			!toType || (!toType->IsIntegerType() && !toType->IsFloatingType()))
+			!toType || (!toType->IsIntegerType() && !toType->IsFloatingType() && toType->GetBuiltinClass() != BuiltinType::Void))
 		{
 			return CastType::Invalid;
 		}
@@ -51,6 +51,11 @@ namespace
 		if (fromType->GetBuiltinClass() == toType->GetBuiltinClass())
 		{
 			return CastType::NoOp;
+		}
+
+		if (toType->GetBuiltinClass() == BuiltinType::Void)
+		{
+			return CastType::ToVoid;
 		}
 
 		if (fromType->IsIntegerType())
@@ -75,6 +80,44 @@ namespace
 
 	NatsuLang::Type::TypePtr getCommonType(NatsuLang::Type::TypePtr const& type1, NatsuLang::Type::TypePtr const& type2)
 	{
+		if (type1 == type2)
+		{
+			return type1;
+		}
+
+		if (const auto builtinType1 = static_cast<natRefPointer<Type::BuiltinType>>(type1), builtinType2 = static_cast<natRefPointer<Type::BuiltinType>>(type2);
+			builtinType1 && builtinType2)
+		{
+			if (builtinType1->IsFloatingType())
+			{
+				if (builtinType2->IsFloatingType())
+				{
+					nInt result;
+					if (builtinType1->CompareRankTo(builtinType2, result))
+					{
+						return result > 0 ? builtinType1 : builtinType2;
+					}
+				}
+				else
+				{
+					return builtinType1;
+				}
+			}
+			else
+			{
+				if (builtinType2->IsFloatingType())
+				{
+					return builtinType2;
+				}
+
+				nInt result;
+				if (builtinType1->CompareRankTo(builtinType2, result))
+				{
+					return result > 0 ? builtinType1 : builtinType2;
+				}
+			}
+		}
+
 		nat_Throw(NotImplementedException);
 	}
 
@@ -1163,15 +1206,16 @@ NatsuLang::Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Ex
 				Expression::CastType::IntegralToFloating : Expression::CastType::FloatingCast;
 		}
 
-		auto leftType = leftOperand->GetExprType(), rightType = rightOperand->GetExprType();
-		return make_ref<Expression::CompoundAssignOperator>(std::move(leftOperand), ImpCastExprToType(std::move(rightOperand), std::move(rightType), castType), binOpType, std::move(leftType), loc);
+		return make_ref<Expression::CompoundAssignOperator>(std::move(leftOperand), ImpCastExprToType(std::move(rightOperand), builtinLHSType, castType), binOpType, builtinLHSType, loc);
 	}
 }
 
 NatsuLang::Expression::ExprPtr Sema::ActOnConditionalOp(SourceLocation questionLoc, SourceLocation colonLoc, Expression::ExprPtr condExpr, Expression::ExprPtr leftExpr, Expression::ExprPtr rightExpr)
 {
-	const auto leftType = leftExpr->GetExprType(), rightType = rightExpr->GetExprType();
-	return make_ref<Expression::ConditionalOperator>(std::move(condExpr), questionLoc, std::move(leftExpr), colonLoc, std::move(rightExpr), getCommonType(leftType, rightType));
+	const auto leftType = leftExpr->GetExprType(), rightType = rightExpr->GetExprType(), commonType = getCommonType(leftType, rightType);
+	return make_ref<Expression::ConditionalOperator>(std::move(condExpr), questionLoc,
+		ImpCastExprToType(leftExpr, commonType, getCastType(leftExpr, commonType)), colonLoc,
+		ImpCastExprToType(rightExpr, commonType, getCastType(rightExpr, commonType)), commonType);
 }
 
 NatsuLang::Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, natRefPointer<Declaration::NamedDecl> decl)
