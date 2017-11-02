@@ -168,7 +168,7 @@ void ActionDumpIf::AddArgument(natRefPointer<ASTNode> const& arg)
 	}
 }
 
-const natRefPointer<IArgumentRequirement> ActionIsDefined::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(CompilerActionArgumentType::Statement) };
+const natRefPointer<IArgumentRequirement> ActionIsDefined::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Statement }) };
 
 ActionIsDefined::ActionIsDefined()
 	: m_Sema{ nullptr }
