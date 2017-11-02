@@ -175,7 +175,6 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 				const auto functionName = funcDecl->GetIdentifierInfo()->GetName();
 
 				const auto funcValue = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
-					// TODO: 修改链接性
 					llvm::GlobalVariable::ExternalLinkage,
 					std::string(functionName.cbegin(), functionName.cend()),
 					m_Compiler.m_Module.get());

@@ -1372,6 +1372,7 @@ void Sema::prewarming()
 	const auto compilerNamespace = m_TopLevelActionNamespace->GetSubNamespace(u8"Compiler"_nv);
 	assert(compilerNamespace);
 	compilerNamespace->RegisterAction(make_ref<ActionDump>());
+	compilerNamespace->RegisterAction(make_ref<ActionDumpIf>());
 }
 
 NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType)

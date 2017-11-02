@@ -444,6 +444,8 @@ namespace NatsuLang::Declaration
 		~RecordDecl();
 
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<FieldDecl>>> GetFields() const noexcept;
+		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<MethodDecl>>> GetMethods() const noexcept;
+		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<RecordDecl>>> GetBases() const noexcept;
 	};
 
 	class ImportDecl

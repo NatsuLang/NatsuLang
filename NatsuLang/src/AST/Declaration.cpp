@@ -112,14 +112,33 @@ RecordDecl::~RecordDecl()
 Linq<Valued<natRefPointer<FieldDecl>>> RecordDecl::GetFields() const noexcept
 {
 	return from(GetDecls())
-		.where([](natRefPointer<Decl> const& decl)
-		{
-			return decl->GetType() == Field;
-		})
-			.select([](natRefPointer<Decl> const& decl)
+		.select([](natRefPointer<Decl> const& decl)
 		{
 			return static_cast<natRefPointer<FieldDecl>>(decl);
+		})
+		.where([](natRefPointer<FieldDecl> const& decl) -> nBool
+		{
+			return decl;
 		});
+}
+
+Linq<Valued<natRefPointer<MethodDecl>>> RecordDecl::GetMethods() const noexcept
+{
+	return from(GetDecls())
+		.select([](natRefPointer<Decl> const& decl)
+		{
+			return static_cast<natRefPointer<MethodDecl>>(decl);
+		})
+		.where([](natRefPointer<MethodDecl> const& decl) -> nBool
+		{
+			return decl;
+		});
+}
+
+Linq<Valued<natRefPointer<RecordDecl>>> RecordDecl::GetBases() const noexcept
+{
+	// TODO
+	std::terminate();
 }
 
 ImportDecl::~ImportDecl()

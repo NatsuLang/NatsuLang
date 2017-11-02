@@ -47,7 +47,7 @@ namespace NatsuLang::Declaration
 	{
 	public:
 		explicit Declarator(Context context)
-			: m_Context{ context }
+			: m_Context{ context }, m_StorageClass{ Specifier::StorageClass::None }
 		{
 		}
 
