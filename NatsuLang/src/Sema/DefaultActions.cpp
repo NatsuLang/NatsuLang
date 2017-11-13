@@ -36,7 +36,7 @@ ActionDump::~ActionDump()
 {
 }
 
-nString ActionDump::GetName() const noexcept
+nStrView ActionDump::GetName() const noexcept
 {
 	return "Dump";
 }
@@ -110,7 +110,7 @@ ActionDumpIf::~ActionDumpIf()
 {
 }
 
-nString ActionDumpIf::GetName() const noexcept
+nStrView ActionDumpIf::GetName() const noexcept
 {
 	return "DumpIf";
 }
@@ -179,7 +179,7 @@ ActionIsDefined::~ActionIsDefined()
 {
 }
 
-nString ActionIsDefined::GetName() const noexcept
+nStrView ActionIsDefined::GetName() const noexcept
 {
 	return "IsDefined";
 }

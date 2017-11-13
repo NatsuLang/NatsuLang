@@ -24,6 +24,9 @@ namespace NatsuLang
 			return m_SourceManager;
 		}
 
+		void SetCachedTokens(std::vector<Lex::Token> tokens);
+		void ClearCachedTokens();
+
 		NatsuLib::natRefPointer<Lex::Lexer> GetLexer() const noexcept
 		{
 			return m_Lexer;
@@ -34,16 +37,16 @@ namespace NatsuLang
 			m_Lexer = std::move(lexer);
 		}
 
-		nBool Lex(Lex::Token& result) const
-		{
-			return m_Lexer ? m_Lexer->Lex(result) : false;
-		}
+		nBool Lex(Lex::Token& result);
 
 	private:
 		mutable Identifier::IdentifierTable m_Table;
 		Diag::DiagnosticsEngine& m_Diag;
 		SourceManager& m_SourceManager;
 		NatsuLib::natRefPointer<Lex::Lexer> m_Lexer;
+
+		std::vector<Lex::Token> m_CachedTokens;
+		std::vector<Lex::Token>::const_iterator m_CurrentCachedToken;
 
 		void init() const;
 	};

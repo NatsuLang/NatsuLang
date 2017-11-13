@@ -125,6 +125,9 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 		SourceLocation declEnd;
 		return ParseDeclaration(Declaration::Context::Global, declEnd);
 	}
+	case TokenType::Kw_class:
+		// TODO
+		nat_Throw(NotImplementedException);
 	default:
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
 			.AddArgument(m_CurrentToken.GetType());
@@ -225,11 +228,27 @@ void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> cons
 			break;
 		}
 
+		if (m_CurrentToken.Is(TokenType::Comma))
+		{
+			if ((argType & CompilerActionArgumentType::Optional) != CompilerActionArgumentType::None)
+			{
+				action->AddArgument(nullptr);
+				ConsumeToken();
+				continue;
+			}
+
+			// TODO: 报告错误：未为非可选的参数提供值，假设这个逗号是多余的
+			ConsumeToken();
+		}
+
 		if (argType == CompilerActionArgumentType::None)
 		{
 			// TODO: 报告错误：参数过多
 			break;
 		}
+
+		// 记录状态以便匹配失败时还原
+		const auto memento = m_Preprocessor.GetLexer()->SaveToMemento();
 
 		if ((argType & CompilerActionArgumentType::Type) != CompilerActionArgumentType::None)
 		{
@@ -246,6 +265,9 @@ void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> cons
 				continue;
 			}
 		}
+
+		// 匹配类型失败了，还原 Lexer 状态
+		m_Preprocessor.GetLexer()->RestoreFromMemento(memento);
 
 		if ((argType & CompilerActionArgumentType::Declaration) != CompilerActionArgumentType::None && m_CurrentToken.Is(TokenType::Kw_def))
 		{
@@ -264,7 +286,10 @@ void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> cons
 			}
 		}
 
-		assert((argType & CompilerActionArgumentType::Statement) != CompilerActionArgumentType::None && "argType is only set flag Optional");
+		// 匹配声明失败了，还原 Lexer 状态
+		m_Preprocessor.GetLexer()->RestoreFromMemento(memento);
+
+		assert((argType & CompilerActionArgumentType::Statement) != CompilerActionArgumentType::None && "argType has only set flag Optional");
 		const auto stmt = ParseStatement();
 		if (stmt)
 		{
@@ -276,28 +301,11 @@ void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> cons
 			continue;
 		}
 
-		// 所有的类型都不符合，测试是否是可选的
-		if ((argType & CompilerActionArgumentType::Optional) == CompilerActionArgumentType::None)
-		{
-			// TODO: 并非可选的，报错
-		}
-
-		// 目前若一个参数是可选的，则之后的参数皆为可选
-		if (m_CurrentToken.Is(TokenType::Comma))
-		{
-			ConsumeToken();
-		}
-		else if (m_CurrentToken.Is(TokenType::RightParen))
-		{
-			ConsumeParen();
-			break;
-		}
-		else
-		{
-			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
-				.AddArgument(m_CurrentToken.GetType());
-			break;
-		}
+		// 匹配全部失败，报告错误
+		m_Diag.EnableDiag(true);
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
+			.AddArgument(m_CurrentToken.GetType());
+		break;
 	}
 }
 
@@ -382,7 +390,7 @@ NatsuLang::Declaration::DeclPtr Parser::ParseFunctionBody(Declaration::DeclPtr d
 	return m_Sema.ActOnFinishFunctionBody(std::move(decl), std::move(body));
 }
 
-NatsuLang::Statement::StmtPtr Parser::ParseStatement()
+NatsuLang::Statement::StmtPtr Parser::ParseStatement(Declaration::Context context)
 {
 	Statement::StmtPtr result;
 	const auto tokenType = m_CurrentToken.GetType();
@@ -420,7 +428,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 	{
 		const auto declBegin = m_CurrentToken.GetLocation();
 		SourceLocation declEnd;
-		auto decls = ParseDeclaration(Declaration::Context::Block, declEnd);
+		auto decls = ParseDeclaration(context, declEnd);
 		return m_Sema.ActOnDeclStmt(move(decls), declBegin, declEnd);
 	}
 	case TokenType::Kw_if:
@@ -442,7 +450,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 	case TokenType::Kw_catch:
 		break;
 	case TokenType::Dollar:
-		ParseCompilerAction([&result](natRefPointer<ASTNode> const& node)
+		ParseCompilerAction([this, &result](natRefPointer<ASTNode> const& node)
 		{
 			if (result)
 			{
@@ -450,7 +458,15 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement()
 				return true;
 			}
 
-			result = node;
+			if (const auto decl = static_cast<Declaration::DeclPtr>(node))
+			{
+				result = m_Sema.ActOnDeclStmt({ decl }, {}, {});
+			}
+			else
+			{
+				result = node;
+			}
+
 			return false;
 		});
 		return result;
@@ -639,7 +655,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseForStatement()
 		{
 			// TODO: 不能知道是否吃掉过分号，分号是必要的吗？
 			// 由于如果下一个是分号的话会被吃掉，所以至少不需要担心误判空语句
-			initPart = ParseStatement();
+			initPart = ParseStatement(Declaration::Context::For);
 		}
 		else
 		{
@@ -1130,22 +1146,62 @@ void Parser::ParseDeclarator(Declaration::Declarator& decl)
 //	specifier-seq specifier
 // specifier:
 //	storage-class-specifier
+//	access-specifier
 void Parser::ParseSpecifier(Declaration::Declarator& decl)
 {
-	switch (m_CurrentToken.GetType())
+	while (true)
 	{
-	case TokenType::Kw_extern:
-		decl.SetStorageClass(Specifier::StorageClass::Extern);
+		switch (m_CurrentToken.GetType())
+		{
+		case TokenType::Kw_extern:
+			if (decl.GetStorageClass() != Specifier::StorageClass::None)
+			{
+				// TODO: 报告错误：多个存储类说明符
+			}
+			decl.SetStorageClass(Specifier::StorageClass::Extern);
+			break;
+		case TokenType::Kw_static:
+			if (decl.GetStorageClass() != Specifier::StorageClass::None)
+			{
+				// TODO: 报告错误：多个存储类说明符
+			}
+			decl.SetStorageClass(Specifier::StorageClass::Static);
+			break;
+		case TokenType::Kw_public:
+			if (decl.GetAccessibility() != Specifier::Access::None)
+			{
+				// TODO: 报告错误：多个访问说明符
+			}
+			decl.SetAccessibility(Specifier::Access::Public);
+			break;
+		case TokenType::Kw_protected:
+			if (decl.GetAccessibility() != Specifier::Access::None)
+			{
+				// TODO: 报告错误：多个访问说明符
+			}
+			decl.SetAccessibility(Specifier::Access::Protected);
+			break;
+		case TokenType::Kw_internal:
+			if (decl.GetAccessibility() != Specifier::Access::None)
+			{
+				// TODO: 报告错误：多个访问说明符
+			}
+			decl.SetAccessibility(Specifier::Access::Internal);
+			break;
+		case TokenType::Kw_private:
+			if (decl.GetAccessibility() != Specifier::Access::None)
+			{
+				// TODO: 报告错误：多个访问说明符
+			}
+			decl.SetAccessibility(Specifier::Access::Private);
+			break;
+		default:
+			// 不是错误
+			decl.SetStorageClass(Specifier::StorageClass::None);
+			return;
+		}
+
 		ConsumeToken();
-		break;
-	case TokenType::Kw_static:
-		decl.SetStorageClass(Specifier::StorageClass::Static);
-		ConsumeToken();
-		break;
-	default:
-		// 不是错误
-		decl.SetStorageClass(Specifier::StorageClass::None);
-		break;
 	}
 }
 

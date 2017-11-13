@@ -576,3 +576,14 @@ nBool Lexer::lexStringLiteral(Lex::Token& result, Iterator cur)
 	m_Current = cur;
 	return true;
 }
+
+Lexer::Memento Lexer::SaveToMemento() const noexcept
+{
+	return { m_CurLoc, m_Current };
+}
+
+void Lexer::RestoreFromMemento(Memento memento) noexcept
+{
+	m_CurLoc = memento.m_CurLoc;
+	m_Current = memento.m_Current;
+}

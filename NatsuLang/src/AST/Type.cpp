@@ -384,3 +384,27 @@ nBool AutoType::EqualTo(TypePtr const& other) const noexcept
 
 	return static_cast<DeducedType const&>(*this).EqualTo(other);
 }
+
+UnresolvedType::~UnresolvedType()
+{
+}
+
+Identifier::IdPtr UnresolvedType::GetId() const noexcept
+{
+	return m_Id;
+}
+
+std::size_t UnresolvedType::GetHashCode() const noexcept
+{
+	return std::hash<Identifier::IdPtr>{}(m_Id);
+}
+
+nBool UnresolvedType::EqualTo(TypePtr const& other) const noexcept
+{
+	if (const auto unresolvedType = static_cast<natRefPointer<UnresolvedType>>(other))
+	{
+		return m_Id == unresolvedType->m_Id;
+	}
+
+	return false;
+}

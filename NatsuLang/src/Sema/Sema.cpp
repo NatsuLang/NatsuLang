@@ -1373,6 +1373,7 @@ void Sema::prewarming()
 	assert(compilerNamespace);
 	compilerNamespace->RegisterAction(make_ref<ActionDump>());
 	compilerNamespace->RegisterAction(make_ref<ActionDumpIf>());
+	compilerNamespace->RegisterAction(make_ref<ActionIsDefined>());
 }
 
 NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType)

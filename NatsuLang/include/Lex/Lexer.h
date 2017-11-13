@@ -39,6 +39,23 @@ namespace NatsuLang
 			nBool lexIdentifier(Lex::Token& result, Iterator cur);
 			nBool lexCharLiteral(Lex::Token& result, Iterator cur);
 			nBool lexStringLiteral(Lex::Token& result, Iterator cur);
+
+			class Memento
+			{
+				friend class Lexer;
+
+				constexpr Memento(SourceLocation curLoc, Iterator current) noexcept
+					: m_CurLoc{ curLoc }, m_Current{ current }
+				{
+				}
+
+				SourceLocation m_CurLoc;
+				Iterator m_Current;
+			};
+
+		public:
+			Memento SaveToMemento() const noexcept;
+			void RestoreFromMemento(Memento memento) noexcept;
 		};
 	}
 }

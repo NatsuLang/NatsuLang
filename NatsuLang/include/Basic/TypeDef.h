@@ -28,9 +28,10 @@ TYPE(Record, TagType)
 TYPE(Enum, TagType)
 ABSTRACT_TYPE(Deduced, Type)
 TYPE(Auto, DeducedType)
+TYPE(Unresolved, Type)
 
 #ifdef LAST_TYPE
-LAST_TYPE(Auto)
+LAST_TYPE(Unresolved)
 #undef LAST_TYPE
 #endif
 

@@ -33,7 +33,7 @@ namespace NatsuLang
 		ActionDump();
 		~ActionDump();
 
-		nString GetName() const noexcept override;
+		nStrView GetName() const noexcept override;
 
 		NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
 		void StartAction(CompilerActionContext const& context) override;
@@ -60,7 +60,7 @@ namespace NatsuLang
 		ActionDumpIf();
 		~ActionDumpIf();
 
-		nString GetName() const noexcept override;
+		nStrView GetName() const noexcept override;
 
 		NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
 		void StartAction(CompilerActionContext const& context) override;
@@ -81,7 +81,7 @@ namespace NatsuLang
 		ActionIsDefined();
 		~ActionIsDefined();
 
-		nString GetName() const noexcept override;
+		nStrView GetName() const noexcept override;
 
 		NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
 		void StartAction(CompilerActionContext const& context) override;

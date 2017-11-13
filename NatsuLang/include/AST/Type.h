@@ -2,6 +2,12 @@
 #include "TypeBase.h"
 #include <natLinq.h>
 
+namespace NatsuLang::Identifier
+{
+	class IdentifierInfo;
+	using IdPtr = NatsuLib::natRefPointer<IdentifierInfo>;
+}
+
 namespace NatsuLang::Declaration
 {
 	class TagDecl;
@@ -284,5 +290,25 @@ namespace NatsuLang::Type
 		~AutoType();
 
 		nBool EqualTo(TypePtr const& other) const noexcept override;
+	};
+
+	class UnresolvedType
+		: public Type
+	{
+	public:
+		explicit UnresolvedType(Identifier::IdPtr id)
+			: Type{ Unresolved }, m_Id{ std::move(id) }
+		{
+		}
+
+		~UnresolvedType();
+		
+		Identifier::IdPtr GetId() const noexcept;
+
+		std::size_t GetHashCode() const noexcept override;
+		nBool EqualTo(TypePtr const& other) const noexcept override;
+
+	private:
+		Identifier::IdPtr m_Id;
 	};
 }

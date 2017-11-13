@@ -2,6 +2,7 @@
 #include "AST/OperatorPrecedence.h"
 #include "Lex/Preprocessor.h"
 #include "Basic/Config.h"
+#include "Sema/Declarator.h"
 
 namespace NatsuLang
 {
@@ -18,10 +19,8 @@ namespace NatsuLang::Identifier
 
 namespace NatsuLang::Declaration
 {
-	class Declarator;
 	class Decl;
 	using DeclPtr = NatsuLib::natRefPointer<Decl>;
-	enum class Context;
 }
 
 namespace NatsuLang::Statement
@@ -176,7 +175,7 @@ namespace NatsuLang::Syntax
 
 		Declaration::DeclPtr ParseFunctionBody(Declaration::DeclPtr decl, ParseScope& scope);
 
-		Statement::StmtPtr ParseStatement();
+		Statement::StmtPtr ParseStatement(Declaration::Context context = Declaration::Context::Block);
 		Statement::StmtPtr ParseLabeledStatement(Identifier::IdPtr labelId, SourceLocation labelLoc);
 		Statement::StmtPtr ParseCompoundStatement();
 		Statement::StmtPtr ParseCompoundStatement(Semantic::ScopeFlags flags);

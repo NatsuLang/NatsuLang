@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include <natRefObj.h>
+#include <natLinq.h>
 #include "Basic/SourceLocation.h"
+#include "Basic/Specifier.h"
 
 namespace NatsuLang::Identifier
 {
@@ -31,6 +33,8 @@ namespace NatsuLang::Declaration
 	class Decl;
 	using DeclPtr = NatsuLib::natRefPointer<Decl>;
 
+	class ParmVarDecl;
+
 	enum class Context
 	{
 		Global,
@@ -47,7 +51,7 @@ namespace NatsuLang::Declaration
 	{
 	public:
 		explicit Declarator(Context context)
-			: m_Context{ context }, m_StorageClass{ Specifier::StorageClass::None }
+			: m_Context{ context }, m_StorageClass{ Specifier::StorageClass::None }, m_Accessibility{ Specifier::Access::None }
 		{
 		}
 
@@ -89,6 +93,16 @@ namespace NatsuLang::Declaration
 		void SetStorageClass(Specifier::StorageClass value) noexcept
 		{
 			m_StorageClass = value;
+		}
+
+		Specifier::Access GetAccessibility() const noexcept
+		{
+			return m_Accessibility;
+		}
+
+		void SetAccessibility(Specifier::Access value) noexcept
+		{
+			m_Accessibility = value;
 		}
 
 		Type::TypePtr GetType() const noexcept
@@ -140,6 +154,7 @@ namespace NatsuLang::Declaration
 		SourceRange m_Range;
 		Context m_Context;
 		Specifier::StorageClass m_StorageClass;
+		Specifier::Access m_Accessibility;
 		Identifier::IdPtr m_Identifier;
 		Type::TypePtr m_Type;
 		Statement::StmtPtr m_Initializer;

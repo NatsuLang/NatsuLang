@@ -57,7 +57,8 @@ namespace NatsuLang
 		virtual ~ICompilerAction();
 
 		///	@brief	获取此动作的名称
-		virtual nString GetName() const noexcept = 0;
+		///	@remark	必须保证返回值在整个生存期内有效且不改变
+		virtual nStrView GetName() const noexcept = 0;
 
 		///	@brief	获取参数要求
 		///	@remark	必须在 StartAction 方法执行后再执行
@@ -95,6 +96,6 @@ namespace NatsuLang
 	private:
 		const nString m_Name;
 		std::unordered_map<nStrView, NatsuLib::natRefPointer<CompilerActionNamespace>> m_SubNamespace;
-		std::unordered_map<nString, NatsuLib::natRefPointer<ICompilerAction>> m_Actions;
+		std::unordered_map<nStrView, NatsuLib::natRefPointer<ICompilerAction>> m_Actions;
 	};
 }
