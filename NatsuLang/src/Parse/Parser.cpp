@@ -1487,7 +1487,7 @@ void Parser::ParseInitializer(Declaration::Declarator& decl)
 	// 不是 initializer，返回
 }
 
-nBool Parser::SkipUntil(std::initializer_list<NatsuLang::Lex::TokenType> list, nBool dontConsume)
+nBool Parser::SkipUntil(std::initializer_list<NatsuLang::Lex::TokenType> list, nBool dontConsume, std::vector<Lex::Token>* skippedTokens)
 {
 	// 特例，如果调用者只是想跳到文件结尾，我们不需要再另外判断其他信息
 	if (list.size() == 1 && *list.begin() == TokenType::Eof)
@@ -1495,6 +1495,10 @@ nBool Parser::SkipUntil(std::initializer_list<NatsuLang::Lex::TokenType> list, n
 		while (!m_CurrentToken.Is(TokenType::Eof))
 		{
 			ConsumeAnyToken();
+			if (skippedTokens)
+			{
+				skippedTokens->emplace_back(m_CurrentToken);
+			}
 		}
 		return true;
 	}
@@ -1509,18 +1513,49 @@ nBool Parser::SkipUntil(std::initializer_list<NatsuLang::Lex::TokenType> list, n
 				if (!dontConsume)
 				{
 					ConsumeToken();
+					if (skippedTokens)
+					{
+						skippedTokens->emplace_back(m_CurrentToken);
+					}
 				}
 
 				return true;
 			}
 		}
 
-		if (currentType == TokenType::Eof)
+		switch (currentType)
 		{
+		case TokenType::Eof:
 			return false;
+		case TokenType::LeftParen:
+			ConsumeParen();
+			SkipUntil({ TokenType::RightParen }, false, skippedTokens);
+			break;
+		case TokenType::LeftSquare:
+			ConsumeBracket();
+			SkipUntil({ TokenType::RightSquare }, false, skippedTokens);
+			break;
+		case TokenType::LeftBrace:
+			ConsumeBrace();
+			SkipUntil({ TokenType::RightBrace }, false, skippedTokens);
+			break;
+		case TokenType::RightParen:	// 可能的不匹配括号，下同
+			ConsumeParen();
+			break;
+		case TokenType::RightSquare:
+			ConsumeBracket();
+			break;
+		case TokenType::RightBrace:
+			ConsumeBrace();
+			break;
+		default:
+			ConsumeAnyToken();
+			if (skippedTokens)
+			{
+				skippedTokens->emplace_back(m_CurrentToken);
+			}
+			break;
 		}
-
-		ConsumeAnyToken();
 	}
 }
 

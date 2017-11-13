@@ -291,24 +291,4 @@ namespace NatsuLang::Type
 
 		nBool EqualTo(TypePtr const& other) const noexcept override;
 	};
-
-	class UnresolvedType
-		: public Type
-	{
-	public:
-		explicit UnresolvedType(Identifier::IdPtr id)
-			: Type{ Unresolved }, m_Id{ std::move(id) }
-		{
-		}
-
-		~UnresolvedType();
-		
-		Identifier::IdPtr GetId() const noexcept;
-
-		std::size_t GetHashCode() const noexcept override;
-		nBool EqualTo(TypePtr const& other) const noexcept override;
-
-	private:
-		Identifier::IdPtr m_Id;
-	};
 }

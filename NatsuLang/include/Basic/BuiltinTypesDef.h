@@ -37,6 +37,7 @@ FLOATING_TYPE(LongDouble, longdouble)
 FLOATING_TYPE(Float128, float128)
 
 PLACEHOLDER_TYPE(Overload, overload)
+PLACEHOLDER_TYPE(Unresolved, unresolved)
 PLACEHOLDER_TYPE(BoundMember, boundmember)
 PLACEHOLDER_TYPE(BuiltinFn, builtinfn)
 

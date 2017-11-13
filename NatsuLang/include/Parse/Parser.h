@@ -255,7 +255,7 @@ namespace NatsuLang::Syntax
 
 		void ParseInitializer(Declaration::Declarator& decl);
 
-		nBool SkipUntil(std::initializer_list<Lex::TokenType> list, nBool dontConsume = false);
+		nBool SkipUntil(std::initializer_list<Lex::TokenType> list, nBool dontConsume = false, std::vector<Lex::Token>* skippedTokens = nullptr);
 
 	private:
 		Preprocessor& m_Preprocessor;

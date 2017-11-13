@@ -12,6 +12,7 @@ TOK(Unknown)
 
 TOK(Eof)
 TOK(Comment)
+TOK(CodeCompletion)
 
 TOK(Identifier)
 
