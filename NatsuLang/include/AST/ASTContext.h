@@ -27,6 +27,7 @@ namespace NatsuLang
 		NatsuLib::natRefPointer<Type::FunctionType> GetFunctionType(NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& params, Type::TypePtr retType);
 		NatsuLib::natRefPointer<Type::ParenType> GetParenType(Type::TypePtr innerType);
 		NatsuLib::natRefPointer<Type::AutoType> GetAutoType(Type::TypePtr deducedAsType);
+		NatsuLib::natRefPointer<Type::UnresolvedType> GetUnresolvedType(Identifier::IdPtr id);
 
 		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> GetTranslationUnit() const noexcept;
 
@@ -42,6 +43,7 @@ namespace NatsuLang
 		TypeSet<Type::FunctionType> m_FunctionTypes;
 		TypeSet<Type::ParenType> m_ParenTypes;
 		TypeSet<Type::AutoType> m_AutoTypes;
+		TypeSet<Type::UnresolvedType> m_UnresolvedTypes;
 
 		mutable std::unordered_set<NatsuLib::natRefPointer<NestedNameSpecifier>, NestedNameSpecifier::Hash, NestedNameSpecifier::EqualTo> m_NestedNameSpecifiers;
 

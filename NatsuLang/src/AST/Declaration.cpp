@@ -105,11 +105,11 @@ Linq<Valued<natRefPointer<EnumConstantDecl>>> EnumDecl::GetEnumerators() const n
 		});
 }
 
-RecordDecl::~RecordDecl()
+ClassDecl::~ClassDecl()
 {
 }
 
-Linq<Valued<natRefPointer<FieldDecl>>> RecordDecl::GetFields() const noexcept
+Linq<Valued<natRefPointer<FieldDecl>>> ClassDecl::GetFields() const noexcept
 {
 	return from(GetDecls())
 		.select([](natRefPointer<Decl> const& decl)
@@ -122,7 +122,7 @@ Linq<Valued<natRefPointer<FieldDecl>>> RecordDecl::GetFields() const noexcept
 		});
 }
 
-Linq<Valued<natRefPointer<MethodDecl>>> RecordDecl::GetMethods() const noexcept
+Linq<Valued<natRefPointer<MethodDecl>>> ClassDecl::GetMethods() const noexcept
 {
 	return from(GetDecls())
 		.select([](natRefPointer<Decl> const& decl)
@@ -135,7 +135,7 @@ Linq<Valued<natRefPointer<MethodDecl>>> RecordDecl::GetMethods() const noexcept
 		});
 }
 
-Linq<Valued<natRefPointer<RecordDecl>>> RecordDecl::GetBases() const noexcept
+Linq<Valued<natRefPointer<ClassDecl>>> ClassDecl::GetBases() const noexcept
 {
 	// TODO
 	std::terminate();

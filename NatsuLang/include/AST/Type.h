@@ -2,6 +2,8 @@
 #include "TypeBase.h"
 #include <natLinq.h>
 
+#define DEFAULT_ACCEPT_DECL void Accept(NatsuLib::natRefPointer<TypeVisitor> const& visitor) override
+
 namespace NatsuLang::Identifier
 {
 	class IdentifierInfo;
@@ -11,7 +13,7 @@ namespace NatsuLang::Identifier
 namespace NatsuLang::Declaration
 {
 	class TagDecl;
-	class RecordDecl;
+	class ClassDecl;
 	class EnumDecl;
 }
 
@@ -51,6 +53,7 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
+		DEFAULT_ACCEPT_DECL;
 
 		static BuiltinClass GetBuiltinClassFromTokenType(Lex::TokenType type) noexcept;
 		static nBool IsIntegerBuiltinClass(BuiltinClass builtinClass) noexcept;
@@ -102,6 +105,7 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		const TypePtr m_InnerType;
@@ -130,6 +134,7 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		TypePtr m_ElementType;
@@ -157,6 +162,7 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		std::vector<TypePtr> m_ParameterTypes;
@@ -186,6 +192,7 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		NatsuLib::natRefPointer<Expression::Expr> m_Expr;
@@ -217,28 +224,30 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		NatsuLib::natRefPointer<Declaration::TagDecl> m_Decl;
 	};
 
-	class RecordType
+	class ClassType
 		: public TagType
 	{
 	public:
-		explicit RecordType(NatsuLib::natRefPointer<Declaration::RecordDecl> recordDecl)
-			: TagType{ Record, recordDecl }
+		explicit ClassType(NatsuLib::natRefPointer<Declaration::ClassDecl> recordDecl)
+			: TagType{ Class, recordDecl }
 		{
 		}
 
-		RecordType(TypeClass typeClass, NatsuLib::natRefPointer<Declaration::RecordDecl> recordDecl)
+		ClassType(TypeClass typeClass, NatsuLib::natRefPointer<Declaration::ClassDecl> recordDecl)
 			: TagType{ typeClass, recordDecl }
 		{
 		}
 
-		~RecordType();
+		~ClassType();
 
 		nBool EqualTo(TypePtr const& other) const noexcept override;
+		DEFAULT_ACCEPT_DECL;
 	};
 
 	class EnumType
@@ -253,6 +262,7 @@ namespace NatsuLang::Type
 		~EnumType();
 
 		nBool EqualTo(TypePtr const& other) const noexcept override;
+		DEFAULT_ACCEPT_DECL;
 	};
 
 	class DeducedType
@@ -273,6 +283,7 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		TypePtr m_DeducedAsType;
@@ -290,5 +301,37 @@ namespace NatsuLang::Type
 		~AutoType();
 
 		nBool EqualTo(TypePtr const& other) const noexcept override;
+		DEFAULT_ACCEPT_DECL;
+	};
+
+	class UnresolvedType
+		: public Type
+	{
+	public:
+		explicit UnresolvedType(Identifier::IdPtr id)
+			: Type{ Unresolved }, m_Id { std::move(id) }
+		{
+		}
+
+		~UnresolvedType();
+
+		std::size_t GetHashCode() const noexcept override;
+		nBool EqualTo(TypePtr const& other) const noexcept override;
+		DEFAULT_ACCEPT_DECL;
+
+		Identifier::IdPtr GetId() const noexcept
+		{
+			return m_Id;
+		}
+
+		void SetId(Identifier::IdPtr value) noexcept
+		{
+			m_Id = std::move(value);
+		}
+
+	private:
+		Identifier::IdPtr m_Id;
 	};
 }
+
+#undef DEFAULT_ACCEPT_DECL

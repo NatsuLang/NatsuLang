@@ -171,6 +171,9 @@
     <ClInclude Include="include\Sema\DefaultActions.h">
       <Filter>Sema\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\AST\TypeVisitor.h">
+      <Filter>AST\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">
@@ -250,6 +253,9 @@
     </ClCompile>
     <ClCompile Include="src\Sema\DefaultActions.cpp">
       <Filter>Sema\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AST\TypeVisitor.cpp">
+      <Filter>AST\src</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

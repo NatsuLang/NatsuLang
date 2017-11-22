@@ -309,6 +309,81 @@ void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> cons
 	}
 }
 
+// class-specifier:
+//	'class' [access-specifier] identifier '{' [member-specification] '}'
+void Parser::ParseClassSpecifier()
+{
+	assert(m_CurrentToken.Is(TokenType::Kw_class));
+
+	const auto classKeywordLoc = m_CurrentToken.GetLocation();
+	ConsumeToken();
+
+	auto accessSpecifier = Specifier::Access::None;
+	switch (m_CurrentToken.GetType())
+	{
+	case TokenType::Kw_public:
+		accessSpecifier = Specifier::Access::Public;
+		ConsumeToken();
+		break;
+	case TokenType::Kw_protected:
+		accessSpecifier = Specifier::Access::Protected;
+		ConsumeToken();
+		break;
+	case TokenType::Kw_internal:
+		accessSpecifier = Specifier::Access::Internal;
+		ConsumeToken();
+		break;
+	case TokenType::Kw_private:
+		accessSpecifier = Specifier::Access::Private;
+		ConsumeToken();
+		break;
+	default:
+		break;
+	}
+
+	if (!m_CurrentToken.Is(TokenType::Identifier))
+	{
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot)
+			.AddArgument(TokenType::Identifier)
+			.AddArgument(m_CurrentToken.GetType());
+		return;
+	}
+
+	const auto classId = m_CurrentToken.GetIdentifierInfo();
+	const auto classIdLoc = m_CurrentToken.GetLocation();
+	ConsumeToken();
+
+	if (!m_CurrentToken.Is(TokenType::LeftBrace))
+	{
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot)
+			.AddArgument(TokenType::LeftBrace)
+			.AddArgument(m_CurrentToken.GetType());
+		return;
+	}
+
+	ConsumeBrace();
+
+	ParseMemberSpecification();
+
+	if (!m_CurrentToken.Is(TokenType::RightBrace))
+	{
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot)
+			.AddArgument(TokenType::RightBrace)
+			.AddArgument(m_CurrentToken.GetType());
+		return;
+	}
+
+	ConsumeBrace();
+}
+
+// member-specification:
+//	declaration
+void Parser::ParseMemberSpecification()
+{
+	// TODO
+	nat_Throw(NotImplementedException);
+}
+
 std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseModuleImport()
 {
 	assert(m_CurrentToken.Is(Lex::TokenType::Kw_import));
@@ -1237,9 +1312,10 @@ void Parser::ParseType(Declaration::Declarator& decl)
 		auto type = m_Sema.GetTypeName(m_CurrentToken.GetIdentifierInfo(), m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nullptr);
 		if (!type)
 		{
-			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
+			/*m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
 				.AddArgument(m_CurrentToken.GetIdentifierInfo());
-			return;
+			return;*/
+			type = m_Sema.CreateUnresolvedType(m_CurrentToken.GetIdentifierInfo());
 		}
 
 		decl.SetType(std::move(type));
@@ -1257,7 +1333,8 @@ void Parser::ParseType(Declaration::Declarator& decl)
 	}
 	case TokenType::RightParen:
 	{
-		assert(!"Wrong token");
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::RightParen);
 		ConsumeParen();
 
 		return;
@@ -1529,24 +1606,48 @@ nBool Parser::SkipUntil(std::initializer_list<NatsuLang::Lex::TokenType> list, n
 			return false;
 		case TokenType::LeftParen:
 			ConsumeParen();
+			if (skippedTokens)
+			{
+				skippedTokens->emplace_back(m_CurrentToken);
+			}
 			SkipUntil({ TokenType::RightParen }, false, skippedTokens);
 			break;
 		case TokenType::LeftSquare:
 			ConsumeBracket();
+			if (skippedTokens)
+			{
+				skippedTokens->emplace_back(m_CurrentToken);
+			}
 			SkipUntil({ TokenType::RightSquare }, false, skippedTokens);
 			break;
 		case TokenType::LeftBrace:
 			ConsumeBrace();
+			if (skippedTokens)
+			{
+				skippedTokens->emplace_back(m_CurrentToken);
+			}
 			SkipUntil({ TokenType::RightBrace }, false, skippedTokens);
 			break;
 		case TokenType::RightParen:	// 可能的不匹配括号，下同
 			ConsumeParen();
+			if (skippedTokens)
+			{
+				skippedTokens->emplace_back(m_CurrentToken);
+			}
 			break;
 		case TokenType::RightSquare:
 			ConsumeBracket();
+			if (skippedTokens)
+			{
+				skippedTokens->emplace_back(m_CurrentToken);
+			}
 			break;
 		case TokenType::RightBrace:
 			ConsumeBrace();
+			if (skippedTokens)
+			{
+				skippedTokens->emplace_back(m_CurrentToken);
+			}
 			break;
 		default:
 			ConsumeAnyToken();

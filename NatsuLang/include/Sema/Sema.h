@@ -19,6 +19,7 @@ namespace NatsuLang
 	namespace Declaration
 	{
 		class Declarator;
+		using DeclaratorPtr = NatsuLib::natRefPointer<Declarator>;
 	}
 
 	namespace Diag
@@ -68,6 +69,12 @@ namespace NatsuLang::Semantic
 			LookupAnyName
 		};
 
+		enum class Phase
+		{
+			Phase1,	// 分析顶层及类内的声明符，获得名称，保留声明符，在声明符中缓存记号以便延迟分析类型（先解析为 UnresolvedType）及初始化器等
+			Phase2	// 对各保留的声明符进行分析，主要工作为解析类型为真实类型及解析初始化器等
+		};
+
 		using ModulePathType = std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>;
 
 		Sema(Preprocessor& preprocessor, ASTContext& astContext, NatsuLib::natRefPointer<ASTConsumer> astConsumer);
@@ -103,6 +110,16 @@ namespace NatsuLang::Semantic
 			return m_CurrentScope;
 		}
 
+		Phase GetCurrentPhase() const noexcept
+		{
+			return m_CurrentPhase;
+		}
+
+		void SetCurrentPhase(Phase value) noexcept
+		{
+			m_CurrentPhase = value;
+		}
+
 		void PushDeclContext(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclContext* dc);
 		void PopDeclContext();
 
@@ -120,6 +137,7 @@ namespace NatsuLang::Semantic
 		Type::TypePtr GetTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, NatsuLib::natRefPointer<Scope> scope, Type::TypePtr const& objectType);
 
 		Type::TypePtr BuildFunctionType(Type::TypePtr retType, NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& paramType);
+		Type::TypePtr CreateUnresolvedType(Identifier::IdPtr id);
 
 		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& declarator);
 		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclPtr decl);
@@ -133,10 +151,13 @@ namespace NatsuLang::Semantic
 
 		Type::TypePtr ActOnTypeName(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
 		Type::TypePtr ActOnTypeOfType(NatsuLib::natRefPointer<Expression::Expr> expr, Type::TypePtr underlyingType);
+
 		NatsuLib::natRefPointer<Declaration::ParmVarDecl> ActOnParamDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
 		NatsuLib::natRefPointer<Declaration::VarDecl> ActOnVariableDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl, Declaration::DeclContext* dc);
 		NatsuLib::natRefPointer<Declaration::FunctionDecl> ActOnFunctionDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl, Declaration::DeclContext* dc);
 		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> scope, Declaration::Declarator const& decl);
+
+		void ActOnStartOfClassMemberDeclarations(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
 
 		Statement::StmtPtr ActOnNullStmt(SourceLocation loc = {});
 		Statement::StmtPtr ActOnDeclStmt(std::vector<Declaration::DeclPtr> decls, SourceLocation start, SourceLocation end);
@@ -191,6 +212,9 @@ namespace NatsuLang::Semantic
 		NatsuLib::natRefPointer<ASTConsumer> m_Consumer;
 		Diag::DiagnosticsEngine& m_Diag;
 		SourceManager& m_SourceManager;
+
+		Phase m_CurrentPhase;
+		std::vector<Declaration::DeclaratorPtr> m_Declarators;
 
 		NatsuLib::natRefPointer<Scope> m_TranslationUnitScope;
 		NatsuLib::natRefPointer<Scope> m_CurrentScope;

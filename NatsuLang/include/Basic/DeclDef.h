@@ -57,13 +57,13 @@ ABSTRACT_DECL(TAG(Tag, TypeDecl))
 ENUM(Enum, TagDecl)
 #undef ENUM
 
-#ifndef RECORD
-#define RECORD(Type, Base) TAG(Type, Base)
+#ifndef CLASS
+#define CLASS(Type, Base) TAG(Type, Base)
 #endif
-RECORD(Record, TagDecl)
-#undef RECORD
+CLASS(Class, TagDecl)
+#undef CLASS
 
-DECL_RANGE(Tag, Enum, Record)
+DECL_RANGE(Tag, Enum, Class)
 
 #undef TAG
 

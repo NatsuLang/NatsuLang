@@ -36,6 +36,7 @@ namespace NatsuLang::Statement
 			: m_Type{ type }, m_Start{ start }, m_End{ end }
 		{
 		}
+
 		~Stmt();
 
 		StmtType GetType() const noexcept

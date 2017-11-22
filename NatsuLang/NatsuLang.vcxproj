@@ -190,6 +190,7 @@
     <ClInclude Include="include\AST\StmtVisitor.h" />
     <ClInclude Include="include\AST\Type.h" />
     <ClInclude Include="include\AST\TypeBase.h" />
+    <ClInclude Include="include\AST\TypeVisitor.h" />
     <ClInclude Include="include\Basic\BuiltinTypesDef.h" />
     <ClInclude Include="include\Basic\CharInfo.h" />
     <ClInclude Include="include\Basic\Config.h" />
@@ -230,6 +231,7 @@
     <ClCompile Include="src\AST\StmtVisitor.cpp" />
     <ClCompile Include="src\AST\Type.cpp" />
     <ClCompile Include="src\AST\TypeBase.cpp" />
+    <ClCompile Include="src\AST\TypeVisitor.cpp" />
     <ClCompile Include="src\Basic\Diagnostic.cpp" />
     <ClCompile Include="src\Basic\FileManager.cpp" />
     <ClCompile Include="src\Basic\Identifier.cpp" />

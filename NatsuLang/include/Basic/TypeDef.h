@@ -24,20 +24,21 @@ TYPE(Function, Type)
 NON_CANONICAL_TYPE(Paren, Type)
 NON_CANONICAL_UNLESS_DEPENDENT_TYPE(TypeOf, Type)
 ABSTRACT_TYPE(Tag, Type)
-TYPE(Record, TagType)
+TYPE(Class, TagType)
 TYPE(Enum, TagType)
 ABSTRACT_TYPE(Deduced, Type)
 TYPE(Auto, DeducedType)
+TYPE(Unresolved, Type)
 
 #ifdef LAST_TYPE
-LAST_TYPE(Auto)
+LAST_TYPE(Unresolved)
 #undef LAST_TYPE
 #endif
 
 #ifdef LEAF_TYPE
 LEAF_TYPE(Enum)
 LEAF_TYPE(Builtin)
-LEAF_TYPE(Record)
+LEAF_TYPE(Class)
 #undef LEAF_TYPE
 #endif
 

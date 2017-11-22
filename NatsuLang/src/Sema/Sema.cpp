@@ -291,7 +291,7 @@ NatsuLang::Type::TypePtr Sema::GetTypeName(natRefPointer<Identifier::IdentifierI
 {
 	Declaration::DeclContext* context{};
 
-	if (objectType && objectType->GetType() == Type::Type::Record)
+	if (objectType && objectType->GetType() == Type::Type::Class)
 	{
 		const auto tagType = static_cast<natRefPointer<Type::TagType>>(objectType);
 		if (tagType)
@@ -338,6 +338,11 @@ NatsuLang::Type::TypePtr Sema::GetTypeName(natRefPointer<Identifier::IdentifierI
 NatsuLang::Type::TypePtr Sema::BuildFunctionType(Type::TypePtr retType, Linq<NatsuLib::Valued<Type::TypePtr>> const& paramType)
 {
 	return m_Context.GetFunctionType(from(paramType), std::move(retType));
+}
+
+NatsuLang::Type::TypePtr Sema::CreateUnresolvedType(Identifier::IdPtr id)
+{
+	return m_Context.GetUnresolvedType(std::move(id));
 }
 
 NatsuLang::Declaration::DeclPtr Sema::ActOnStartOfFunctionDef(natRefPointer<Scope> const& scope, Declaration::Declarator const& declarator)
@@ -624,6 +629,11 @@ natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 		initExpr = ImpCastExprToType(std::move(initExpr), type, getCastType(initExpr, type));
 	}
 
+	if (m_CurrentPhase == Phase::Phase1)
+	{
+		m_Declarators.emplace_back(decl.ForkRef());
+	}
+
 	auto varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl.GetRange().GetBegin(),
 		SourceLocation{}, std::move(id), std::move(type), decl.GetStorageClass());
 
@@ -648,6 +658,11 @@ natRefPointer<NatsuLang::Declaration::FunctionDecl> Sema::ActOnFunctionDeclarato
 	{
 		// TODO: 报告错误
 		return nullptr;
+	}
+
+	if (m_CurrentPhase == Phase::Phase1)
+	{
+		m_Declarators.emplace_back(decl.ForkRef());
 	}
 
 	auto funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
@@ -720,6 +735,11 @@ natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPo
 	}
 
 	return retDecl;
+}
+
+void Sema::ActOnStartOfClassMemberDeclarations(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl)
+{
+
 }
 
 NatsuLang::Statement::StmtPtr Sema::ActOnNullStmt(SourceLocation loc)
@@ -1012,7 +1032,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnThis(SourceLocation loc)
 
 	if (const auto methodDecl = static_cast<natRefPointer<Declaration::MethodDecl>>(decl))
 	{
-		auto recordDecl = Declaration::Decl::CastFromDeclContext(methodDecl->GetContext())->ForkRef<Declaration::RecordDecl>();
+		auto recordDecl = Declaration::Decl::CastFromDeclContext(methodDecl->GetContext())->ForkRef<Declaration::ClassDecl>();
 		assert(recordDecl);
 		return make_ref<Expression::ThisExpr>(loc, recordDecl->GetTypeForDecl(), false);
 	}
@@ -1088,7 +1108,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> 
 	auto baseType = base->GetExprType();
 
 	LookupResult r{ *this, id, {}, LookupNameType::LookupMemberName };
-	const auto record = static_cast<natRefPointer<Type::RecordType>>(baseType);
+	const auto record = static_cast<natRefPointer<Type::ClassType>>(baseType);
 	if (record)
 	{
 		const auto recordDecl = record->GetDecl();
@@ -1111,7 +1131,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> 
 		return BuildMemberReferenceExpr(scope, std::move(base), std::move(baseType), periodLoc, nns, r);
 	}
 
-	// TODO: 暂时不支持对RecordType以外的类型进行成员访问操作
+	// TODO: 暂时不支持对ClassType以外的类型进行成员访问操作
 	return nullptr;
 }
 
@@ -1403,7 +1423,7 @@ NatsuLang::Expression::CastType Sema::getCastType(Expression::ExprPtr const& ope
 				return Expression::CastType::FloatingToIntegral;
 			}
 			return Expression::CastType::Invalid;
-		case Type::Type::Record:
+		case Type::Type::Class:
 			// TODO: 添加用户定义转换
 			return Expression::CastType::Invalid;
 		case Type::Type::Auto:

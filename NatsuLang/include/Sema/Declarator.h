@@ -47,11 +47,13 @@ namespace NatsuLang::Declaration
 		Catch,
 	};
 
-	class Declarator
+	class Declarator final
+		: public NatsuLib::natRefObjImpl<Declarator>
 	{
 	public:
 		explicit Declarator(Context context)
-			: m_Context{ context }, m_StorageClass{ Specifier::StorageClass::None }, m_Accessibility{ Specifier::Access::None }
+			: m_Context{ context }, m_StorageClass{ Specifier::StorageClass::None }, m_Accessibility{ Specifier::Access::None },
+			  m_IsTypeUnresolved{ false }
 		{
 		}
 
@@ -115,6 +117,16 @@ namespace NatsuLang::Declaration
 			m_Type = std::move(value);
 		}
 
+		nBool IsTypeUnresolved() const noexcept
+		{
+			return m_IsTypeUnresolved;
+		}
+
+		void SetTypeUnresolved(nBool value) noexcept
+		{
+			m_IsTypeUnresolved = value;
+		}
+
 		Statement::StmtPtr GetInitializer() const noexcept
 		{
 			return m_Initializer;
@@ -145,6 +157,26 @@ namespace NatsuLang::Declaration
 			m_Params.assign(params.begin(), params.end());
 		}
 
+		std::vector<Lex::Token> const& GetCachedTokens() const noexcept
+		{
+			return m_CachedTokens;
+		}
+
+		std::vector<Lex::Token> GetAndClearCachedTokens() noexcept
+		{
+			return move(m_CachedTokens);
+		}
+
+		void ClearCachedTokens() noexcept
+		{
+			m_CachedTokens.clear();
+		}
+
+		void SetCachedTokens(std::vector<Lex::Token> value) noexcept
+		{
+			m_CachedTokens = move(value);
+		}
+
 		nBool IsValid() const noexcept
 		{
 			return m_Identifier || m_Type || m_Initializer;
@@ -157,11 +189,17 @@ namespace NatsuLang::Declaration
 		Specifier::Access m_Accessibility;
 		Identifier::IdPtr m_Identifier;
 		Type::TypePtr m_Type;
+		nBool m_IsTypeUnresolved;
 		Statement::StmtPtr m_Initializer;
 
 		DeclPtr m_Decl;
 
 		// 如果声明的是一个函数，这个 vector 将会保存参数信息
 		std::vector<NatsuLib::natRefPointer<ParmVarDecl>> m_Params;
+
+		// 保留缓存的 Token 以便延迟分析类型及初始化器或函数体等信息
+		std::vector<Lex::Token> m_CachedTokens;
 	};
+
+	using DeclaratorPtr = NatsuLib::natRefPointer<Declarator>;
 }

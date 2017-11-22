@@ -78,6 +78,19 @@ natRefPointer<Type::AutoType> ASTContext::GetAutoType(Type::TypePtr deducedAsTyp
 	return ret;
 }
 
+natRefPointer<Type::UnresolvedType> ASTContext::GetUnresolvedType(Identifier::IdPtr id)
+{
+	auto ret = make_ref<Type::UnresolvedType>(std::move(id));
+	const auto iter = m_UnresolvedTypes.find(ret);
+	if (iter != m_UnresolvedTypes.end())
+	{
+		return *iter;
+	}
+
+	m_UnresolvedTypes.emplace(ret);
+	return ret;
+}
+
 natRefPointer<Declaration::TranslationUnitDecl> ASTContext::GetTranslationUnit() const noexcept
 {
 	return m_TUDecl;
@@ -152,7 +165,7 @@ ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 	}
 	case Type::Type::Function:
 		return { 0, 0 };
-	case Type::Type::Record:
+	case Type::Type::Class:
 		break;
 	case Type::Type::Enum:
 		break;

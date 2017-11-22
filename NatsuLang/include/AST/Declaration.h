@@ -432,20 +432,20 @@ namespace NatsuLang::Declaration
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<EnumConstantDecl>>> GetEnumerators() const noexcept;
 	};
 
-	class RecordDecl
+	class ClassDecl
 		: public TagDecl
 	{
 	public:
-		RecordDecl(DeclType declType, Type::TagType::TagTypeClass tagTypeClass, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo)
+		ClassDecl(DeclType declType, Type::TagType::TagTypeClass tagTypeClass, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo)
 			: TagDecl{ declType, tagTypeClass, context, idLoc, std::move(identifierInfo), startLoc }
 		{
 		}
 
-		~RecordDecl();
+		~ClassDecl();
 
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<FieldDecl>>> GetFields() const noexcept;
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<MethodDecl>>> GetMethods() const noexcept;
-		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<RecordDecl>>> GetBases() const noexcept;
+		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ClassDecl>>> GetBases() const noexcept;
 	};
 
 	class ImportDecl
@@ -484,7 +484,7 @@ namespace NatsuLang::Declaration
 		: public MethodDecl
 	{
 	public:
-		ConstructorDecl(NatsuLib::natRefPointer<RecordDecl> recordDecl, SourceLocation startLoc, Identifier::IdPtr identifierInfo, Type::TypePtr type)
+		ConstructorDecl(NatsuLib::natRefPointer<ClassDecl> recordDecl, SourceLocation startLoc, Identifier::IdPtr identifierInfo, Type::TypePtr type)
 			: MethodDecl{ Constructor, static_cast<DeclContext*>(recordDecl.Get()), startLoc, {}, std::move(identifierInfo), std::move(type), Specifier::StorageClass::None }
 		{
 		}

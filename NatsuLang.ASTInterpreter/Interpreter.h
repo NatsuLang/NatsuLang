@@ -502,7 +502,7 @@ namespace NatsuLang
 					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				case Type::Type::Function:
 					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
-				case Type::Type::Record:
+				case Type::Type::Class:
 					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				case Type::Type::Enum:
 					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);

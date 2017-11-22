@@ -3,6 +3,7 @@
 #include "Basic/Token.h"
 #include "Basic/Identifier.h"
 #include "AST/NestedNameSpecifier.h"
+#include "AST/TypeVisitor.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang;
@@ -323,13 +324,13 @@ nBool TagType::EqualTo(TypePtr const& other) const noexcept
 	return m_Decl == realOther->m_Decl;
 }
 
-RecordType::~RecordType()
+ClassType::~ClassType()
 {
 }
 
-nBool RecordType::EqualTo(TypePtr const& other) const noexcept
+nBool ClassType::EqualTo(TypePtr const& other) const noexcept
 {
-	if (other->GetType() != Record)
+	if (other->GetType() != Class)
 	{
 		return false;
 	}
@@ -384,3 +385,25 @@ nBool AutoType::EqualTo(TypePtr const& other) const noexcept
 
 	return static_cast<DeducedType const&>(*this).EqualTo(other);
 }
+
+UnresolvedType::~UnresolvedType()
+{
+}
+
+std::size_t UnresolvedType::GetHashCode() const noexcept
+{
+	return std::hash<Identifier::IdPtr>{}(m_Id);
+}
+
+nBool UnresolvedType::EqualTo(TypePtr const& other) const noexcept
+{
+	if (const auto unresolvedOther = static_cast<natRefPointer<UnresolvedType>>(other))
+	{
+		return m_Id == unresolvedOther->m_Id;
+	}
+
+	return false;
+}
+
+#define TYPE(Class, Base) void Class##Type::Accept(NatsuLib::natRefPointer<TypeVisitor> const& visitor) { visitor->Visit##Class##Type(ForkRef<Class##Type>()); }
+#include "Basic/TypeDef.h"
