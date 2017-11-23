@@ -264,16 +264,16 @@ namespace NatsuLang::Syntax
 		//	argument-expression-list ',' argument-expression
 		nBool ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs);
 
-		void ParseDeclarator(Declaration::Declarator& decl);
-		void ParseSpecifier(Declaration::Declarator& decl);
+		void ParseDeclarator(Declaration::DeclaratorPtr& decl);
+		void ParseSpecifier(Declaration::DeclaratorPtr& decl);
 
-		void ParseType(Declaration::Declarator& decl);
-		void ParseTypeOfType(Declaration::Declarator& decl);
-		void ParseParenType(Declaration::Declarator& decl);
-		void ParseFunctionType(Declaration::Declarator& decl);
-		void ParseArrayType(Declaration::Declarator& decl);
+		void ParseType(Declaration::DeclaratorPtr& decl);
+		void ParseTypeOfType(Declaration::DeclaratorPtr& decl);
+		void ParseParenType(Declaration::DeclaratorPtr& decl);
+		void ParseFunctionType(Declaration::DeclaratorPtr& decl);
+		void ParseArrayType(Declaration::DeclaratorPtr& decl);
 
-		void ParseInitializer(Declaration::Declarator& decl);
+		void ParseInitializer(Declaration::DeclaratorPtr& decl);
 
 		nBool SkipUntil(std::initializer_list<Lex::TokenType> list, nBool dontConsume = false, std::vector<Lex::Token>* skippedTokens = nullptr);
 

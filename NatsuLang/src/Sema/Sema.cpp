@@ -345,10 +345,10 @@ NatsuLang::Type::TypePtr Sema::CreateUnresolvedType(Identifier::IdPtr id)
 	return m_Context.GetUnresolvedType(std::move(id));
 }
 
-NatsuLang::Declaration::DeclPtr Sema::ActOnStartOfFunctionDef(natRefPointer<Scope> const& scope, Declaration::Declarator const& declarator)
+NatsuLang::Declaration::DeclPtr Sema::ActOnStartOfFunctionDef(natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr declarator)
 {
 	const auto parentScope = scope->GetParent();
-	auto decl = HandleDeclarator(parentScope, declarator);
+	auto decl = static_cast<Declaration::DeclPtr>(HandleDeclarator(parentScope, declarator));
 	return ActOnStartOfFunctionDef(scope, std::move(decl));
 }
 
@@ -564,20 +564,20 @@ natRefPointer<NatsuLang::Declaration::LabelDecl> Sema::LookupOrCreateLabel(Ident
 	return labelDecl;
 }
 
-NatsuLang::Type::TypePtr Sema::ActOnTypeName(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
+NatsuLang::Type::TypePtr Sema::ActOnTypeName(natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr const& decl)
 {
 	static_cast<void>(scope);
-	return decl.GetType();
+	return decl->GetType();
 }
 
-Type::TypePtr Sema::ActOnTypeOfType(natRefPointer<Expression::Expr> expr, Type::TypePtr underlyingType)
+NatsuLang::Type::TypePtr Sema::ActOnTypeOfType(natRefPointer<Expression::Expr> expr, Type::TypePtr underlyingType)
 {
 	return make_ref<Type::TypeOfType>(std::move(expr), std::move(underlyingType));
 }
 
-natRefPointer<NatsuLang::Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer<Scope> const& scope, Declaration::Declarator const& decl)
+natRefPointer<NatsuLang::Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl)
 {
-	auto id = decl.GetIdentifier();
+	auto id = decl->GetIdentifier();
 	if (id)
 	{
 		LookupResult r{ *this, id, {}, LookupNameType::LookupOrdinaryName };
@@ -591,7 +591,13 @@ natRefPointer<NatsuLang::Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(na
 	// 临时放在翻译单元上下文中，在整个函数声明完成后关联到函数
 	auto ret = make_ref<Declaration::ParmVarDecl>(Declaration::Decl::ParmVar,
 		m_Context.GetTranslationUnit().Get(), SourceLocation{}, SourceLocation{},
-		std::move(id), decl.GetType(), Specifier::StorageClass::None, decl.GetInitializer());
+		std::move(id), decl->GetType(), Specifier::StorageClass::None, decl->GetInitializer());
+
+	if (m_CurrentPhase == Phase::Phase1)
+	{
+		decl->SetDecl(ret);
+		m_Declarators.emplace_back(std::move(decl));
+	}
 
 	scope->AddDecl(ret);
 
@@ -599,11 +605,11 @@ natRefPointer<NatsuLang::Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(na
 }
 
 natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
-	natRefPointer<Scope> const& scope, Declaration::Declarator const& decl, Declaration::DeclContext* dc)
+	natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc)
 {
-	auto type = Type::Type::GetUnderlyingType(decl.GetType());
-	auto id = decl.GetIdentifier();
-	auto initExpr = static_cast<natRefPointer<Expression::Expr>>(decl.GetInitializer());
+	auto type = Type::Type::GetUnderlyingType(decl->GetType());
+	auto id = decl->GetIdentifier();
+	auto initExpr = static_cast<natRefPointer<Expression::Expr>>(decl->GetInitializer());
 
 	if (!id)
 	{
@@ -629,23 +635,24 @@ natRefPointer<NatsuLang::Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 		initExpr = ImpCastExprToType(std::move(initExpr), type, getCastType(initExpr, type));
 	}
 
-	if (m_CurrentPhase == Phase::Phase1)
-	{
-		m_Declarators.emplace_back(decl.ForkRef());
-	}
-
-	auto varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl.GetRange().GetBegin(),
-		SourceLocation{}, std::move(id), std::move(type), decl.GetStorageClass());
+	auto varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl->GetRange().GetBegin(),
+		SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass());
 
 	varDecl->SetInitializer(initExpr);
+
+	if (m_CurrentPhase == Phase::Phase1)
+	{
+		decl->SetDecl(varDecl);
+		m_Declarators.emplace_back(decl);
+	}
 
 	return varDecl;
 }
 
 natRefPointer<NatsuLang::Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
-	natRefPointer<Scope> const& scope, Declaration::Declarator const& decl, Declaration::DeclContext* dc)
+	natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc)
 {
-	auto id = decl.GetIdentifier();
+	auto id = decl->GetIdentifier();
 	if (!id)
 	{
 		// TODO: 报告错误
@@ -653,45 +660,46 @@ natRefPointer<NatsuLang::Declaration::FunctionDecl> Sema::ActOnFunctionDeclarato
 	}
 
 	// TODO: 处理自动推断函数返回类型的情况
-	auto type = static_cast<natRefPointer<Type::FunctionType>>(decl.GetType());
+	auto type = static_cast<natRefPointer<Type::FunctionType>>(decl->GetType());
 	if (!type)
 	{
 		// TODO: 报告错误
 		return nullptr;
 	}
 
-	if (m_CurrentPhase == Phase::Phase1)
-	{
-		m_Declarators.emplace_back(decl.ForkRef());
-	}
-
 	auto funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
-		SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), decl.GetStorageClass());
+		SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass());
 
-	for (auto const& param : decl.GetParams())
+	for (auto const& param : decl->GetParams())
 	{
 		param->SetContext(funcDecl.Get());
 	}
 
-	funcDecl->SetParams(from(decl.GetParams()));
+	funcDecl->SetParams(from(decl->GetParams()));
+
+	if (m_CurrentPhase == Phase::Phase1)
+	{
+		decl->SetDecl(funcDecl);
+		m_Declarators.emplace_back(decl);
+	}
 
 	return funcDecl;
 }
 
-natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> scope, Declaration::Declarator const& decl)
+natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> scope, Declaration::DeclaratorPtr decl)
 {
-	if (auto preparedDecl = decl.GetDecl())
+	if (auto preparedDecl = decl->GetDecl())
 	{
 		return preparedDecl;
 	}
 
-	const auto id = decl.GetIdentifier();
+	const auto id = decl->GetIdentifier();
 
 	if (!id)
 	{
-		if (decl.GetContext() != Declaration::Context::Prototype)
+		if (decl->GetContext() != Declaration::Context::Prototype)
 		{
-			m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, decl.GetRange().GetBegin());
+			m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, decl->GetRange().GetBegin());
 		}
 
 		return nullptr;
@@ -713,16 +721,16 @@ natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPo
 	}
 
 	const auto dc = Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get());
-	const auto type = decl.GetType();
+	const auto type = decl->GetType();
 	natRefPointer<Declaration::NamedDecl> retDecl;
 
 	if (auto funcType = static_cast<natRefPointer<Type::FunctionType>>(type))
 	{
-		retDecl = ActOnFunctionDeclarator(scope, decl, dc);
+		retDecl = ActOnFunctionDeclarator(scope, std::move(decl), dc);
 	}
 	else
 	{
-		retDecl = ActOnVariableDeclarator(scope, decl, dc);
+		retDecl = ActOnVariableDeclarator(scope, std::move(decl), dc);
 	}
 
 	if (retDecl)
