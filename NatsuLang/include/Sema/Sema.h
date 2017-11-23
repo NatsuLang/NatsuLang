@@ -139,7 +139,7 @@ namespace NatsuLang::Semantic
 		Type::TypePtr BuildFunctionType(Type::TypePtr retType, NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& paramType);
 		Type::TypePtr CreateUnresolvedType(Identifier::IdPtr id);
 
-		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& declarator);
+		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr declarator);
 		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclPtr decl);
 		Declaration::DeclPtr ActOnFinishFunctionBody(Declaration::DeclPtr decl, Statement::StmtPtr body);
 
@@ -149,13 +149,13 @@ namespace NatsuLang::Semantic
 
 		NatsuLib::natRefPointer<Declaration::LabelDecl> LookupOrCreateLabel(Identifier::IdPtr id, SourceLocation loc);
 
-		Type::TypePtr ActOnTypeName(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
+		Type::TypePtr ActOnTypeName(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr const& decl);
 		Type::TypePtr ActOnTypeOfType(NatsuLib::natRefPointer<Expression::Expr> expr, Type::TypePtr underlyingType);
 
-		NatsuLib::natRefPointer<Declaration::ParmVarDecl> ActOnParamDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl);
-		NatsuLib::natRefPointer<Declaration::VarDecl> ActOnVariableDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl, Declaration::DeclContext* dc);
-		NatsuLib::natRefPointer<Declaration::FunctionDecl> ActOnFunctionDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::Declarator const& decl, Declaration::DeclContext* dc);
-		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> scope, Declaration::Declarator const& decl);
+		NatsuLib::natRefPointer<Declaration::ParmVarDecl> ActOnParamDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl);
+		NatsuLib::natRefPointer<Declaration::VarDecl> ActOnVariableDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
+		NatsuLib::natRefPointer<Declaration::FunctionDecl> ActOnFunctionDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
+		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> scope, Declaration::DeclaratorPtr decl);
 
 		void ActOnStartOfClassMemberDeclarations(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
 
