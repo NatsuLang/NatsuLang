@@ -1289,7 +1289,7 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 
 		return llvm::FunctionType::get(getCorrespondingType(functionType->GetResultType()), args, false);
 	}
-	case Type::Type::Record:
+	case Type::Type::Class:
 		nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
 	case Type::Type::Enum:
 		nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
