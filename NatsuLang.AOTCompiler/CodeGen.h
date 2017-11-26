@@ -83,7 +83,7 @@ namespace NatsuLang::Compiler
 			: public NatsuLib::natRefObjImpl<AotStmtVisitor, StmtVisitor>
 		{
 		public:
-			AotStmtVisitor(AotCompiler& compiler, NatsuLib::natRefPointer<Declaration::FunctionDecl> funcDecl);
+			AotStmtVisitor(AotCompiler& compiler, NatsuLib::natRefPointer<Declaration::FunctionDecl> funcDecl, llvm::Function* funcValue);
 			~AotStmtVisitor();
 
 			void VisitBreakStmt(NatsuLib::natRefPointer<Statement::BreakStmt> const& stmt) override;

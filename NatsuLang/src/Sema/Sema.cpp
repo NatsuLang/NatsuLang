@@ -379,7 +379,7 @@ NatsuLang::Type::TypePtr Sema::CreateUnresolvedType(std::vector<Lex::Token> toke
 NatsuLang::Declaration::DeclPtr Sema::ActOnStartOfFunctionDef(natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr declarator)
 {
 	const auto parentScope = scope->GetParent();
-	auto decl = static_cast<Declaration::DeclPtr>(HandleDeclarator(parentScope, declarator));
+	auto decl = static_cast<Declaration::DeclPtr>(HandleDeclarator(parentScope, declarator, declarator->GetDecl()));
 	return ActOnStartOfFunctionDef(scope, std::move(decl));
 }
 
@@ -719,7 +719,7 @@ natRefPointer<NatsuLang::Declaration::DeclaratorDecl> Sema::ActOnUnresolvedDecla
 
 natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> scope, Declaration::DeclaratorPtr decl, Declaration::DeclPtr const& oldUnresolvedDeclPtr)
 {
-	if (auto preparedDecl = decl->GetDecl())
+	if (auto preparedDecl = decl->GetDecl(); preparedDecl && preparedDecl != oldUnresolvedDeclPtr)
 	{
 		return preparedDecl;
 	}
@@ -741,11 +741,18 @@ natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPo
 		scope = scope->GetParent();
 	}
 
+	if (oldUnresolvedDeclPtr)
+	{
+		const auto declScope = decl->GetDeclarationScope();
+		assert(declScope);
+		RemoveFromScopeChains(oldUnresolvedDeclPtr, declScope);
+	}
+
 	LookupResult previous{ *this, id, {}, LookupNameType::LookupOrdinaryName };
 
 	LookupName(previous, scope);
 
-	if (previous.GetDeclSize() && !oldUnresolvedDeclPtr)
+	if (previous.GetDeclSize())
 	{
 		// TODO: 处理重载或覆盖的情况
 		return nullptr;
@@ -755,38 +762,30 @@ natRefPointer<NatsuLang::Declaration::NamedDecl> Sema::HandleDeclarator(natRefPo
 	const auto type = decl->GetType();
 	natRefPointer<Declaration::NamedDecl> retDecl;
 
-	if (!type)
+	if (!type && !decl->GetInitializer() && m_CurrentPhase == Phase::Phase1)
 	{
-		if (decl->GetInitializer() || m_CurrentPhase != Phase::Phase1)
-		{
-			// TODO: 报告错误
-		}
-		else
-		{
-			retDecl = ActOnUnresolvedDeclarator(scope, std::move(decl), dc);
-		}
+		retDecl = ActOnUnresolvedDeclarator(scope, decl, dc);
+		decl->SetDeclarationScope(scope);
 	}
 	else if (auto funcType = static_cast<natRefPointer<Type::FunctionType>>(type))
 	{
-		retDecl = ActOnFunctionDeclarator(scope, std::move(decl), dc);
+		retDecl = ActOnFunctionDeclarator(scope, decl, dc);
 	}
 	else
 	{
-		retDecl = ActOnVariableDeclarator(scope, std::move(decl), dc);
+		retDecl = ActOnVariableDeclarator(scope, decl, dc);
 	}
 
 	if (retDecl)
 	{
-		if (oldUnresolvedDeclPtr)
-		{
-			RemoveFromScopeChains(oldUnresolvedDeclPtr, scope);
-		}
 		PushOnScopeChains(retDecl, scope);
 	}
 	else
 	{
 		// TODO: 若存在错误则进行报告
 	}
+
+	decl->SetDecl(retDecl);
 
 	return retDecl;
 }
@@ -1067,7 +1066,7 @@ NatsuLang::Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& sco
 	const auto size = result.GetDeclSize();
 	if (size == 1)
 	{
-		const auto decl = result.GetDecls().first();
+		auto decl = result.GetDecls().first();
 		if (m_CurrentPhase == Phase::Phase2)
 		{
 			if (const auto declaratorDecl = static_cast<natRefPointer<Declaration::DeclaratorDecl>>(decl))
@@ -1083,8 +1082,12 @@ NatsuLang::Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& sco
 						default:
 							assert(!"Invalid resolvingState");
 						case Syntax::ResolveContext::ResolvingState::Unknown:
+						{
+							const auto oldUnresolvedDecl = declarator->GetDecl();
 							resolveContext->GetParser().ResolveDeclarator(declarator);
+							decl = HandleDeclarator(m_CurrentScope, declarator, oldUnresolvedDecl);
 							break;
+						}
 						case Syntax::ResolveContext::ResolvingState::Resolving:
 							// TODO: 报告环形依赖
 							break;

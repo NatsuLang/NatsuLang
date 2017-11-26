@@ -157,44 +157,56 @@ void AotCompiler::AotAstConsumer::HandleTranslationUnit(ASTContext& context)
 
 nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::DeclPtr>> const& decls)
 {
-	for (auto decl : decls)
+	auto declVec = decls.select([](Declaration::DeclPtr decl)
 	{
-		if (const auto funcDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(decl))
+		return std::pair<Declaration::DeclPtr, llvm::Value*>(std::move(decl), nullptr);
+	}).Cast<std::vector<std::pair<Declaration::DeclPtr, llvm::Value*>>>();
+
+	// 生成声明
+	for (auto& decl : declVec)
+	{
+		if (const auto funcDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(decl.first))
+		{
+			const auto functionType = m_Compiler.getCorrespondingType(funcDecl->GetValueType());
+			const auto functionName = funcDecl->GetIdentifierInfo()->GetName();
+
+			const auto funcValue = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
+				llvm::GlobalVariable::ExternalLinkage,
+				std::string(functionName.cbegin(), functionName.cend()),
+				m_Compiler.m_Module.get());
+
+			auto argIter = funcValue->arg_begin();
+			const auto argEnd = funcValue->arg_end();
+			auto paramIter = funcDecl->GetParams().begin();
+			const auto paramEnd = funcDecl->GetParams().end();
+
+			for (; argIter != argEnd && paramIter != paramEnd; ++argIter, static_cast<void>(++paramIter))
+			{
+				const auto name = (*paramIter)->GetIdentifierInfo()->GetName();
+				const std::string nameStr{ name.cbegin(), name.cend() };
+				argIter->setName(nameStr);
+			}
+
+			m_Compiler.m_FunctionMap.emplace(std::move(funcDecl), funcValue);
+			decl.second = funcValue;
+		}
+	}
+
+	// 生成定义
+	for (auto const& decl : declVec)
+	{
+		if (const auto funcDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(decl.first))
 		{
 			switch (funcDecl->GetStorageClass())
 			{
 			case Specifier::StorageClass::None:
 			{
-				AotStmtVisitor visitor{ m_Compiler, funcDecl };
+				AotStmtVisitor visitor{ m_Compiler, funcDecl, llvm::dyn_cast<llvm::Function>(decl.second) };
 				visitor.StartVisit();
 				break;
 			}
 			case Specifier::StorageClass::Extern:
-			{
-				const auto functionType = m_Compiler.getCorrespondingType(funcDecl->GetValueType());
-				const auto functionName = funcDecl->GetIdentifierInfo()->GetName();
-
-				const auto funcValue = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
-					llvm::GlobalVariable::ExternalLinkage,
-					std::string(functionName.cbegin(), functionName.cend()),
-					m_Compiler.m_Module.get());
-
-				auto argIter = funcValue->arg_begin();
-				const auto argEnd = funcValue->arg_end();
-				auto paramIter = funcDecl->GetParams().begin();
-				const auto paramEnd = funcDecl->GetParams().end();
-
-				for (; argIter != argEnd && paramIter != paramEnd; ++argIter, static_cast<void>(++paramIter))
-				{
-					const auto name = (*paramIter)->GetIdentifierInfo()->GetName();
-					const std::string nameStr{ name.cbegin(), name.cend() };
-					argIter->setName(nameStr);
-				}
-
-				m_Compiler.m_FunctionMap.emplace(std::move(funcDecl), funcValue);
-
 				break;
-			}
 			default:
 				break;
 			}
@@ -204,19 +216,10 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 	return true;
 }
 
-AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer<Declaration::FunctionDecl> funcDecl)
-	: m_Compiler{ compiler }, m_CurrentFunction{ std::move(funcDecl) },
+AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer<Declaration::FunctionDecl> funcDecl, llvm::Function* funcValue)
+	: m_Compiler{ compiler }, m_CurrentFunction{ std::move(funcDecl) }, m_CurrentFunctionValue{ funcValue },
 	  m_LastVisitedValue{ nullptr }, m_RequiredModifiableValue{ false }
 {
-	const auto functionType = m_Compiler.getCorrespondingType(m_CurrentFunction->GetValueType());
-	const auto functionName = m_CurrentFunction->GetIdentifierInfo()->GetName();
-
-	m_CurrentFunctionValue = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
-	                                                // TODO: 修改链接性
-	                                                llvm::GlobalVariable::ExternalLinkage,
-	                                                std::string(functionName.cbegin(), functionName.cend()),
-	                                                m_Compiler.m_Module.get());
-
 	auto argIter = m_CurrentFunctionValue->arg_begin();
 	const auto argEnd = m_CurrentFunctionValue->arg_end();
 	auto paramIter = m_CurrentFunction->GetParams().begin();
@@ -227,18 +230,12 @@ AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer
 
 	for (; argIter != argEnd && paramIter != paramEnd; ++argIter, static_cast<void>(++paramIter))
 	{
-		const auto name = (*paramIter)->GetIdentifierInfo()->GetName();
-		const std::string nameStr{ name.cbegin(), name.cend() };
-		argIter->setName(nameStr);
-
 		llvm::IRBuilder<> entryIRBuilder{ &m_CurrentFunctionValue->getEntryBlock(), m_CurrentFunctionValue->getEntryBlock().begin() };
-		const auto arg = entryIRBuilder.CreateAlloca(argIter->getType(), nullptr, nameStr);
+		const auto arg = entryIRBuilder.CreateAlloca(argIter->getType(), nullptr, argIter->getName());
 		m_Compiler.m_IRBuilder.CreateStore(&*argIter, arg);
 
 		m_DeclMap.emplace(*paramIter, arg);
 	}
-
-	m_Compiler.m_FunctionMap.emplace(m_CurrentFunction, m_CurrentFunctionValue);
 }
 
 AotCompiler::AotStmtVisitor::~AotStmtVisitor()

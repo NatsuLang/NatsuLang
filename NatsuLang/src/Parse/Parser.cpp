@@ -133,10 +133,17 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 
 	for (auto declPtr : m_Sema.GetCachedDeclarators())
 	{
-		const auto oldUnresolvedDeclaration = declPtr->GetDecl();
-		declPtr->SetDecl(nullptr);
-		ResolveDeclarator(declPtr);
-		decls.emplace_back(m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), std::move(declPtr), oldUnresolvedDeclaration));
+		if (m_ResolveContext->GetDeclaratorResolvingState(declPtr) == ResolveContext::ResolvingState::Unknown)
+		{
+			const auto oldUnresolvedDeclaration = declPtr->GetDecl();
+			ResolveDeclarator(declPtr);
+			m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), std::move(declPtr), oldUnresolvedDeclaration);
+		}
+	}
+
+	for (const auto& declPtr : m_ResolveContext->GetResolvedDeclarators())
+	{
+		decls.emplace_back(declPtr->GetDecl());
 	}
 
 	m_Sema.ActOnPhaseDiverted();
@@ -924,8 +931,8 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 	case TokenType::Identifier:
 	{
 		auto id = m_CurrentToken.GetIdentifierInfo();
-		ConsumeToken();
 		result = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), nullptr, std::move(id), m_CurrentToken.Is(TokenType::LeftParen), m_ResolveContext);
+		ConsumeToken();
 		break;
 	}
 	case TokenType::PlusPlus:
@@ -1354,7 +1361,6 @@ void Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 			break;
 		default:
 			// 不是错误
-			decl->SetStorageClass(Specifier::StorageClass::None);
 			return;
 		}
 
@@ -1607,10 +1613,12 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 					return paramDecl->GetType();
 				})));
 
+	auto declarationScope = decl->GetDeclarationScope();
+	declarationScope = declarationScope ? declarationScope : m_Sema.GetCurrentScope();
 	decl->SetParams(from(paramDecls)
-		.select([this](Declaration::DeclaratorPtr const& paramDecl)
+		.select([this, declarationScope = std::move(declarationScope)](Declaration::DeclaratorPtr const& paramDecl)
 				{
-					return m_Sema.ActOnParamDeclarator(m_Sema.GetCurrentScope(), paramDecl);
+					return m_Sema.ActOnParamDeclarator(declarationScope, paramDecl);
 				}));
 }
 
@@ -1729,7 +1737,6 @@ void Parser::pushCachedTokens(std::vector<Token> tokens)
 void Parser::popCachedTokens()
 {
 	m_Preprocessor.PopCachedTokens();
-	ConsumeToken();
 }
 
 void Parser::skipTypeAndInitializer(Declaration::DeclaratorPtr const& decl)
@@ -1770,13 +1777,19 @@ void Parser::skipTypeAndInitializer(Declaration::DeclaratorPtr const& decl)
 
 void Parser::ResolveDeclarator(Declaration::DeclaratorPtr const& decl)
 {
-	assert(m_Sema.GetCurrentPhase() == Semantic::Sema::Phase::Phase2);
+	assert(m_Sema.GetCurrentPhase() == Semantic::Sema::Phase::Phase2 && m_ResolveContext);
 	assert(!decl->GetType() && !decl->GetInitializer());
 
 	pushCachedTokens(decl->GetAndClearCachedTokens());
-	const auto scope = make_scope([this]
+	const auto tokensScope = make_scope([this]
 	{
 		popCachedTokens();
+	});
+
+	m_ResolveContext->StartResolvingDeclarator(decl);
+	const auto resolveContextScope = make_scope([this, &decl]
+	{
+		m_ResolveContext->EndResolvingDeclarator(decl);
 	});
 
 	ParseDeclarator(decl, true);

@@ -28,6 +28,11 @@ namespace NatsuLang::Expression
 	using ExprPtr = NatsuLib::natRefPointer<Expr>;
 }
 
+namespace NatsuLang::Semantic
+{
+	class Scope;
+}
+
 namespace NatsuLang::Declaration
 {
 	class Decl;
@@ -166,6 +171,16 @@ namespace NatsuLang::Declaration
 			m_CachedTokens = move(value);
 		}
 
+		NatsuLib::natRefPointer<Semantic::Scope> GetDeclarationScope() const noexcept
+		{
+			return m_DeclarationScope;
+		}
+
+		void SetDeclarationScope(NatsuLib::natRefPointer<Semantic::Scope> value) noexcept
+		{
+			m_DeclarationScope = std::move(value);
+		}
+
 		nBool IsValid() const noexcept
 		{
 			return m_Identifier || m_Type || m_Initializer;
@@ -193,6 +208,8 @@ namespace NatsuLang::Declaration
 
 		// 保留缓存的 Token 以便延迟分析类型及初始化器或函数体等信息
 		std::vector<Lex::Token> m_CachedTokens;
+
+		NatsuLib::natRefPointer<Semantic::Scope> m_DeclarationScope;
 	};
 
 	using DeclaratorPtr = NatsuLib::natRefPointer<Declarator>;

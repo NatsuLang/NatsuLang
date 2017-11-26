@@ -86,6 +86,11 @@ namespace NatsuLang::Syntax
 
 		ResolvingState GetDeclaratorResolvingState(Declaration::DeclaratorPtr const& decl) const noexcept;
 
+		std::unordered_set<Declaration::DeclaratorPtr> const& GetResolvedDeclarators() const noexcept
+		{
+			return m_ResolvedDeclarators;
+		}
+
 	private:
 		Parser& m_Parser;
 		std::unordered_set<Declaration::DeclaratorPtr> m_ResolvingDeclarators;
