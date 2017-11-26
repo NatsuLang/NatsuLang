@@ -32,6 +32,9 @@ void Interpreter::Run(Uri const& uri)
 
 void Interpreter::Run(nStrView content)
 {
+	// 解释器的 REPL 模式将视为第2阶段
+	m_Sema.SetCurrentPhase(Semantic::Sema::Phase::Phase2);
+
 	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(content, m_Preprocessor));
 	m_Parser.ConsumeToken();
 	m_CurrentScope = m_Sema.GetCurrentScope();

@@ -1207,6 +1207,7 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	m_Preprocessor.SetLexer(std::move(lexer));
 	m_Parser.ConsumeToken();
 	ParseAST(m_Parser);
+	EndParsingAST(m_Parser);
 
 	if (m_DiagConsumer->IsErrored())
 	{

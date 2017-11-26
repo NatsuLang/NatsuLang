@@ -24,8 +24,8 @@ namespace NatsuLang
 			return m_SourceManager;
 		}
 
-		void SetCachedTokens(std::vector<Lex::Token> tokens);
-		void ClearCachedTokens();
+		void PushCachedTokens(std::vector<Lex::Token> tokens);
+		void PopCachedTokens();
 
 		NatsuLib::natRefPointer<Lex::Lexer> GetLexer() const noexcept
 		{
@@ -45,8 +45,7 @@ namespace NatsuLang
 		SourceManager& m_SourceManager;
 		NatsuLib::natRefPointer<Lex::Lexer> m_Lexer;
 
-		std::vector<Lex::Token> m_CachedTokens;
-		std::vector<Lex::Token>::const_iterator m_CurrentCachedToken;
+		std::vector<std::pair<std::vector<Lex::Token>, std::vector<Lex::Token>::const_iterator>> m_CachedTokensStack;
 
 		void init() const;
 	};

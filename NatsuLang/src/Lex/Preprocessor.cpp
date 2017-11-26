@@ -3,7 +3,7 @@
 using namespace NatsuLang;
 
 Preprocessor::Preprocessor(Diag::DiagnosticsEngine& diag, SourceManager& sourceManager)
-	: m_Diag{ diag }, m_SourceManager{ sourceManager }, m_CurrentCachedToken{ m_CachedTokens.cend() }
+	: m_Diag{ diag }, m_SourceManager{ sourceManager }
 {
 	init();
 }
@@ -20,24 +20,30 @@ NatsuLib::natRefPointer<Identifier::IdentifierInfo> Preprocessor::FindIdentifier
 	return info;
 }
 
-void Preprocessor::SetCachedTokens(std::vector<Lex::Token> tokens)
+void Preprocessor::PushCachedTokens(std::vector<Lex::Token> tokens)
 {
-	m_CachedTokens = move(tokens);
-	m_CurrentCachedToken = m_CachedTokens.cbegin();
+	m_CachedTokensStack.emplace_back(std::pair<std::vector<Lex::Token>, std::vector<Lex::Token>::const_iterator>{ move(tokens), {} });
+	auto& cachedTokensPair = m_CachedTokensStack.back();
+	cachedTokensPair.second = cachedTokensPair.first.cbegin();
 }
 
-void Preprocessor::ClearCachedTokens()
+void Preprocessor::PopCachedTokens()
 {
-	m_CachedTokens.clear();
-	m_CurrentCachedToken = m_CachedTokens.cend();
+	m_CachedTokensStack.pop_back();
 }
 
 nBool Preprocessor::Lex(Lex::Token& result)
 {
-	if (m_CurrentCachedToken != m_CachedTokens.cend())
+	if (!m_CachedTokensStack.empty())
 	{
-		result = *m_CurrentCachedToken++;
-		return true;
+		auto& cachedTokensPair = m_CachedTokensStack.back();
+		if (cachedTokensPair.second != cachedTokensPair.first.cend())
+		{
+			result = *cachedTokensPair.second++;
+			return true;
+		}
+
+		return false;
 	}
 
 	return m_Lexer ? m_Lexer->Lex(result) : false;

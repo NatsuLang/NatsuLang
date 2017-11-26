@@ -392,14 +392,22 @@ UnresolvedType::~UnresolvedType()
 
 std::size_t UnresolvedType::GetHashCode() const noexcept
 {
-	return std::hash<Identifier::IdPtr>{}(m_Id);
+	return from(m_Tokens).aggregate(std::size_t{}, [](std::size_t result, Lex::Token const& token)
+	{
+		result ^= static_cast<std::size_t>(token.GetType());
+		if (token.Is(Lex::TokenType::Identifier))
+		{
+			result ^= std::hash<Identifier::IdPtr>{}(token.GetIdentifierInfo());
+		}
+		return result;
+	});
 }
 
 nBool UnresolvedType::EqualTo(TypePtr const& other) const noexcept
 {
 	if (const auto unresolvedOther = static_cast<natRefPointer<UnresolvedType>>(other))
 	{
-		return m_Id == unresolvedOther->m_Id;
+		return m_Tokens == unresolvedOther->m_Tokens;
 	}
 
 	return false;

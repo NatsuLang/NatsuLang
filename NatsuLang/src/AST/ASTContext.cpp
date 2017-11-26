@@ -78,9 +78,9 @@ natRefPointer<Type::AutoType> ASTContext::GetAutoType(Type::TypePtr deducedAsTyp
 	return ret;
 }
 
-natRefPointer<Type::UnresolvedType> ASTContext::GetUnresolvedType(Identifier::IdPtr id)
+natRefPointer<Type::UnresolvedType> ASTContext::GetUnresolvedType(std::vector<Lex::Token>&& tokens)
 {
-	auto ret = make_ref<Type::UnresolvedType>(std::move(id));
+	auto ret = make_ref<Type::UnresolvedType>(std::move(tokens));
 	const auto iter = m_UnresolvedTypes.find(ret);
 	if (iter != m_UnresolvedTypes.end())
 	{

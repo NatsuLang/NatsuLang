@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "TypeBase.h"
 #include <natLinq.h>
+#include "Basic/Token.h"
 
 #define DEFAULT_ACCEPT_DECL void Accept(NatsuLib::natRefPointer<TypeVisitor> const& visitor) override
 
@@ -308,8 +309,8 @@ namespace NatsuLang::Type
 		: public Type
 	{
 	public:
-		explicit UnresolvedType(Identifier::IdPtr id)
-			: Type{ Unresolved }, m_Id { std::move(id) }
+		explicit UnresolvedType(std::vector<Lex::Token> tokens)
+			: Type{ Unresolved }, m_Tokens{ std::move(tokens) }
 		{
 		}
 
@@ -319,18 +320,23 @@ namespace NatsuLang::Type
 		nBool EqualTo(TypePtr const& other) const noexcept override;
 		DEFAULT_ACCEPT_DECL;
 
-		Identifier::IdPtr GetId() const noexcept
+		std::vector<Lex::Token> const& GetTokens() const noexcept
 		{
-			return m_Id;
+			return m_Tokens;
 		}
 
-		void SetId(Identifier::IdPtr value) noexcept
+		std::vector<Lex::Token> GetAndClearTokens() noexcept
 		{
-			m_Id = std::move(value);
+			return std::move(m_Tokens);
+		}
+
+		void SetTokens(std::vector<Lex::Token> value) noexcept
+		{
+			m_Tokens = std::move(value);
 		}
 
 	private:
-		Identifier::IdPtr m_Id;
+		std::vector<Lex::Token> m_Tokens;
 	};
 }
 

@@ -27,7 +27,7 @@ namespace NatsuLang
 		NatsuLib::natRefPointer<Type::FunctionType> GetFunctionType(NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& params, Type::TypePtr retType);
 		NatsuLib::natRefPointer<Type::ParenType> GetParenType(Type::TypePtr innerType);
 		NatsuLib::natRefPointer<Type::AutoType> GetAutoType(Type::TypePtr deducedAsType);
-		NatsuLib::natRefPointer<Type::UnresolvedType> GetUnresolvedType(Identifier::IdPtr id);
+		NatsuLib::natRefPointer<Type::UnresolvedType> GetUnresolvedType(std::vector<Lex::Token>&& tokens);
 
 		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> GetTranslationUnit() const noexcept;
 

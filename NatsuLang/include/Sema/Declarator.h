@@ -52,8 +52,7 @@ namespace NatsuLang::Declaration
 	{
 	public:
 		explicit Declarator(Context context)
-			: m_Context{ context }, m_StorageClass{ Specifier::StorageClass::None }, m_Accessibility{ Specifier::Access::None },
-			  m_IsTypeUnresolved{ false }
+			: m_Context{ context }, m_StorageClass{ Specifier::StorageClass::None }, m_Accessibility{ Specifier::Access::None }
 		{
 		}
 
@@ -117,16 +116,6 @@ namespace NatsuLang::Declaration
 			m_Type = std::move(value);
 		}
 
-		nBool IsTypeUnresolved() const noexcept
-		{
-			return m_IsTypeUnresolved;
-		}
-
-		void SetTypeUnresolved(nBool value) noexcept
-		{
-			m_IsTypeUnresolved = value;
-		}
-
 		Statement::StmtPtr GetInitializer() const noexcept
 		{
 			return m_Initializer;
@@ -182,6 +171,12 @@ namespace NatsuLang::Declaration
 			return m_Identifier || m_Type || m_Initializer;
 		}
 
+		nBool IsUnresolved() const noexcept
+		{
+			// 若为 Unresolved 则必须类型和初始化器也都为空
+			return !m_CachedTokens.empty();
+		}
+
 	private:
 		SourceRange m_Range;
 		Context m_Context;
@@ -189,7 +184,6 @@ namespace NatsuLang::Declaration
 		Specifier::Access m_Accessibility;
 		Identifier::IdPtr m_Identifier;
 		Type::TypePtr m_Type;
-		nBool m_IsTypeUnresolved;
 		Statement::StmtPtr m_Initializer;
 
 		DeclPtr m_Decl;

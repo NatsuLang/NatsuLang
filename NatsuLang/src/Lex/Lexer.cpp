@@ -395,8 +395,6 @@ nBool Lexer::skipWhitespace(Lex::Token& result, Iterator cur)
 		++cur;
 	}
 
-	// TODO: 记录列信息
-
 	m_Current = cur;
 	return false;
 }

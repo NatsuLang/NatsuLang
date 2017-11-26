@@ -33,6 +33,11 @@ namespace NatsuLang
 		using IdPtr = NatsuLib::natRefPointer<IdentifierInfo>;
 	}
 
+	namespace Syntax
+	{
+		class ResolveContext;
+	}
+
 	class Preprocessor;
 	class ASTContext;
 	struct ASTConsumer;
@@ -71,8 +76,8 @@ namespace NatsuLang::Semantic
 
 		enum class Phase
 		{
-			Phase1,	// 分析顶层及类内的声明符，获得名称，保留声明符，在声明符中缓存记号以便延迟分析类型（先解析为 UnresolvedType）及初始化器等
-			Phase2	// 对各保留的声明符进行分析，主要工作为解析类型为真实类型及解析初始化器等
+			Phase1,	// 分析顶层及类内的声明符，获得名称，保留声明符，在声明符中缓存记号以便延迟分析类型及初始化器等
+			Phase2	// 解析顶层的 CompilerAction 及对各保留的声明符进行分析，主要工作为解析类型为真实类型及解析初始化器等
 		};
 
 		using ModulePathType = std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>;
@@ -120,6 +125,12 @@ namespace NatsuLang::Semantic
 			m_CurrentPhase = value;
 		}
 
+		std::vector<Declaration::DeclaratorPtr> const& GetCachedDeclarators() const noexcept;
+		std::vector<Declaration::DeclaratorPtr> GetAndClearCachedDeclarators() noexcept;
+		void ClearCachedDeclarations() noexcept;
+
+		void ActOnPhaseDiverted();
+
 		void PushDeclContext(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclContext* dc);
 		void PopDeclContext();
 
@@ -127,6 +138,7 @@ namespace NatsuLang::Semantic
 		void PopScope();
 
 		void PushOnScopeChains(NatsuLib::natRefPointer<Declaration::NamedDecl> decl, NatsuLib::natRefPointer<Scope> const& scope, nBool addToContext = true);
+		void RemoveFromScopeChains(NatsuLib::natRefPointer<Declaration::NamedDecl> const& decl, NatsuLib::natRefPointer<Scope> const& scope, nBool removeFromContext = true);
 
 		NatsuLib::natRefPointer<CompilerActionNamespace> GetTopLevelActionNamespace() noexcept;
 
@@ -137,7 +149,7 @@ namespace NatsuLang::Semantic
 		Type::TypePtr GetTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, NatsuLib::natRefPointer<Scope> scope, Type::TypePtr const& objectType);
 
 		Type::TypePtr BuildFunctionType(Type::TypePtr retType, NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& paramType);
-		Type::TypePtr CreateUnresolvedType(Identifier::IdPtr id);
+		Type::TypePtr CreateUnresolvedType(std::vector<Lex::Token> tokens);
 
 		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr declarator);
 		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclPtr decl);
@@ -155,7 +167,8 @@ namespace NatsuLang::Semantic
 		NatsuLib::natRefPointer<Declaration::ParmVarDecl> ActOnParamDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl);
 		NatsuLib::natRefPointer<Declaration::VarDecl> ActOnVariableDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
 		NatsuLib::natRefPointer<Declaration::FunctionDecl> ActOnFunctionDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
-		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> scope, Declaration::DeclaratorPtr decl);
+		NatsuLib::natRefPointer<Declaration::DeclaratorDecl> ActOnUnresolvedDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
+		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> scope, Declaration::DeclaratorPtr decl, Declaration::DeclPtr const& oldUnresolvedDeclPtr = nullptr);
 
 		void ActOnStartOfClassMemberDeclarations(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
 
@@ -182,7 +195,7 @@ namespace NatsuLang::Semantic
 
 		Expression::ExprPtr ActOnThrow(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr);
 
-		Expression::ExprPtr ActOnIdExpr(NatsuLib::natRefPointer<Scope> const& scope, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen);
+		Expression::ExprPtr ActOnIdExpr(NatsuLib::natRefPointer<Scope> const& scope, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen, NatsuLib::natRefPointer<Syntax::ResolveContext> const& resolveContext = nullptr);
 		Expression::ExprPtr ActOnThis(SourceLocation loc);
 		Expression::ExprPtr ActOnAsTypeExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr exprToCast, Type::TypePtr type, SourceLocation loc);
 		Expression::ExprPtr ActOnArraySubscriptExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation lloc, Expression::ExprPtr index, SourceLocation rloc);

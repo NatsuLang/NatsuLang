@@ -50,6 +50,11 @@ namespace NatsuLang::Lex
 		{
 		}
 
+		nBool operator==(Token const& other) const noexcept
+		{
+			return m_Type == other.m_Type && m_Info == other.m_Info && m_Location == other.m_Location;
+		}
+
 		void Reset() noexcept
 		{
 			m_Type = TokenType::Unknown;
