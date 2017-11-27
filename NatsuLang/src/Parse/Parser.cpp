@@ -1613,12 +1613,10 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 					return paramDecl->GetType();
 				})));
 
-	auto declarationScope = decl->GetDeclarationScope();
-	declarationScope = declarationScope ? declarationScope : m_Sema.GetCurrentScope();
 	decl->SetParams(from(paramDecls)
-		.select([this, declarationScope = std::move(declarationScope)](Declaration::DeclaratorPtr const& paramDecl)
+		.select([this](Declaration::DeclaratorPtr const& paramDecl)
 				{
-					return m_Sema.ActOnParamDeclarator(declarationScope, paramDecl);
+					return m_Sema.ActOnParamDeclarator(m_Sema.GetCurrentScope(), paramDecl);
 				}));
 }
 
@@ -1791,6 +1789,13 @@ void Parser::ResolveDeclarator(Declaration::DeclaratorPtr const& decl)
 	{
 		m_ResolveContext->EndResolvingDeclarator(decl);
 	});
+
+	const auto curScope = m_Sema.GetCurrentScope();
+	const auto recoveryScope = make_scope([this, curScope]
+	{
+		m_Sema.SetCurrentScope(curScope);
+	});
+	m_Sema.SetCurrentScope(decl->GetDeclarationScope());
 
 	ParseDeclarator(decl, true);
 }

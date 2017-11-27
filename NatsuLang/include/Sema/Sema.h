@@ -115,6 +115,11 @@ namespace NatsuLang::Semantic
 			return m_CurrentScope;
 		}
 
+		void SetCurrentScope(NatsuLib::natRefPointer<Scope> value) noexcept
+		{
+			m_CurrentScope = std::move(value);
+		}
+
 		Phase GetCurrentPhase() const noexcept
 		{
 			return m_CurrentPhase;
