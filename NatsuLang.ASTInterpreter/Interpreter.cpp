@@ -25,7 +25,7 @@ void Interpreter::Run(Uri const& uri)
 {
 	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(m_SourceManager.GetFileContent(m_SourceManager.GetFileID(uri)).second, m_Preprocessor));
 	m_Parser.ConsumeToken();
-	m_CurrentScope = m_Sema.GetCurrentScope();
+	m_Sema.SetCurrentPhase(Semantic::Sema::Phase::Phase1);
 	ParseAST(m_Parser);
 	EndParsingAST(m_Parser);
 	m_DeclStorage.GarbageCollect();
@@ -38,7 +38,6 @@ void Interpreter::Run(nStrView content)
 
 	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(content, m_Preprocessor));
 	m_Parser.ConsumeToken();
-	m_CurrentScope = m_Sema.GetCurrentScope();
 	const auto stmt = m_Parser.ParseStatement();
 	if (!stmt || m_DiagConsumer->IsErrored())
 	{
@@ -49,11 +48,6 @@ void Interpreter::Run(nStrView content)
 	m_Visitor->Visit(stmt);
 	m_Visitor->ResetReturnedExpr();
 	m_DeclStorage.GarbageCollect();
-}
-
-natRefPointer<Semantic::Scope> Interpreter::GetScope() const noexcept
-{
-	return m_CurrentScope;
 }
 
 Interpreter::InterpreterDeclStorage& Interpreter::GetDeclStorage() noexcept

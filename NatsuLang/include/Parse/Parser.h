@@ -112,23 +112,6 @@ namespace NatsuLang::Syntax
 			Parser* m_Self;
 		};
 
-		class LateParseTokens
-		{
-		public:
-			explicit LateParseTokens(std::vector<Lex::Token> tokens)
-				: m_Tokens(std::move(tokens))
-			{
-			}
-
-			std::vector<Lex::Token> const& GetTokens() const noexcept
-			{
-				return m_Tokens;
-			}
-
-		private:
-			std::vector<Lex::Token> m_Tokens;
-		};
-
 	public:
 		Parser(Preprocessor& preprocessor, Semantic::Sema& sema);
 		~Parser();

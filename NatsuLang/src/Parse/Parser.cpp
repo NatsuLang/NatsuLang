@@ -11,9 +11,9 @@
 
 using namespace NatsuLib;
 using namespace NatsuLang;
-using namespace NatsuLang::Syntax;
-using namespace NatsuLang::Lex;
-using namespace NatsuLang::Diag;
+using namespace Syntax;
+using namespace Lex;
+using namespace Diag;
 
 void ResolveContext::StartResolvingDeclarator(Declaration::DeclaratorPtr decl)
 {
@@ -51,7 +51,7 @@ Parser::~Parser()
 {
 }
 
-NatsuLang::Preprocessor& Parser::GetPreprocessor() const noexcept
+Preprocessor& Parser::GetPreprocessor() const noexcept
 {
 	return m_Preprocessor;
 }
@@ -110,7 +110,7 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 
 	for (auto&& skippedTopLevelCompilerAction : m_SkippedTopLevelCompilerActions)
 	{
-		pushCachedTokens(std::move(skippedTopLevelCompilerAction));
+		pushCachedTokens(move(skippedTopLevelCompilerAction));
 		const auto compilerActionScope = make_scope([this]
 		{
 			popCachedTokens();
@@ -165,7 +165,7 @@ nBool Parser::ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls)
 	{
 		std::vector<Token> cachedTokens;
 		skipCompilerAction(&cachedTokens);
-		m_SkippedTopLevelCompilerActions.emplace_back(std::move(cachedTokens));
+		m_SkippedTopLevelCompilerActions.emplace_back(move(cachedTokens));
 		return false;
 	}
 	default:
@@ -176,7 +176,7 @@ nBool Parser::ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls)
 	return false;
 }
 
-std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseExternalDeclaration()
+std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 {
 	switch (m_CurrentToken.GetType())
 	{
@@ -282,7 +282,7 @@ void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> cons
 		m_Diag.EnableDiag(true);
 	});
 
-	std::size_t i = 0;
+	size_t i = 0;
 	for (;; ++i)
 	{
 		const auto argType = requirement->GetExpectedArgumentType(i);
@@ -455,7 +455,7 @@ void Parser::ParseMemberSpecification()
 	nat_Throw(NotImplementedException);
 }
 
-std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseModuleImport()
+std::vector<Declaration::DeclPtr> Parser::ParseModuleImport()
 {
 	assert(m_CurrentToken.Is(Lex::TokenType::Kw_import));
 	auto startLoc = m_CurrentToken.GetLocation();
@@ -470,7 +470,7 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseModuleImport()
 	nat_Throw(NotImplementedException);
 }
 
-std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseModuleDecl()
+std::vector<Declaration::DeclPtr> Parser::ParseModuleDecl()
 {
 	nat_Throw(NotImplementedException);
 }
@@ -502,7 +502,7 @@ nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::Id
 //	simple-declaration
 // simple-declaration:
 //	def [specifier] declarator [;]
-std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context context, NatsuLang::SourceLocation& declEnd)
+std::vector<Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context context, SourceLocation& declEnd)
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_def));
 	// 吃掉 def
@@ -527,7 +527,7 @@ std::vector<NatsuLang::Declaration::DeclPtr> Parser::ParseDeclaration(Declaratio
 	return { std::move(declaration) };
 }
 
-NatsuLang::Declaration::DeclPtr Parser::ParseFunctionBody(Declaration::DeclPtr decl, ParseScope& scope)
+Declaration::DeclPtr Parser::ParseFunctionBody(Declaration::DeclPtr decl, ParseScope& scope)
 {
 	assert(m_CurrentToken.Is(TokenType::LeftBrace));
 
@@ -543,7 +543,7 @@ NatsuLang::Declaration::DeclPtr Parser::ParseFunctionBody(Declaration::DeclPtr d
 	return m_Sema.ActOnFinishFunctionBody(std::move(decl), std::move(body));
 }
 
-NatsuLang::Statement::StmtPtr Parser::ParseStatement(Declaration::Context context)
+Statement::StmtPtr Parser::ParseStatement(Declaration::Context context)
 {
 	Statement::StmtPtr result;
 	const auto tokenType = m_CurrentToken.GetType();
@@ -632,7 +632,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseStatement(Declaration::Context contex
 	nat_Throw(NotImplementedException);
 }
 
-NatsuLang::Statement::StmtPtr Parser::ParseLabeledStatement(Identifier::IdPtr labelId, SourceLocation labelLoc)
+Statement::StmtPtr Parser::ParseLabeledStatement(Identifier::IdPtr labelId, SourceLocation labelLoc)
 {
 	assert(m_CurrentToken.Is(TokenType::Colon));
 
@@ -650,12 +650,12 @@ NatsuLang::Statement::StmtPtr Parser::ParseLabeledStatement(Identifier::IdPtr la
 	return m_Sema.ActOnLabelStmt(labelLoc, std::move(labelDecl), colonLoc, std::move(stmt));
 }
 
-NatsuLang::Statement::StmtPtr Parser::ParseCompoundStatement()
+Statement::StmtPtr Parser::ParseCompoundStatement()
 {
 	return ParseCompoundStatement(Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::CompoundStmtScope);
 }
 
-NatsuLang::Statement::StmtPtr Parser::ParseCompoundStatement(Semantic::ScopeFlags flags)
+Statement::StmtPtr Parser::ParseCompoundStatement(Semantic::ScopeFlags flags)
 {
 	ParseScope scope{ this, flags };
 
@@ -677,7 +677,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseCompoundStatement(Semantic::ScopeFlag
 	return m_Sema.ActOnCompoundStmt(move(stmtVec), beginLoc, m_CurrentToken.GetLocation());
 }
 
-NatsuLang::Statement::StmtPtr Parser::ParseIfStatement()
+Statement::StmtPtr Parser::ParseIfStatement()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_if));
 	const auto ifLoc = m_CurrentToken.GetLocation();
@@ -741,7 +741,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseIfStatement()
 	return m_Sema.ActOnIfStmt(ifLoc, std::move(cond), std::move(thenStmt), elseLoc, std::move(elseStmt));
 }
 
-NatsuLang::Statement::StmtPtr Parser::ParseWhileStatement()
+Statement::StmtPtr Parser::ParseWhileStatement()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_while));
 	const auto whileLoc = m_CurrentToken.GetLocation();
@@ -779,7 +779,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseWhileStatement()
 	return m_Sema.ActOnWhileStmt(whileLoc, std::move(cond), std::move(body));
 }
 
-NatsuLang::Statement::StmtPtr Parser::ParseForStatement()
+Statement::StmtPtr Parser::ParseForStatement()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_for));
 	const auto forLoc = m_CurrentToken.GetLocation();
@@ -856,7 +856,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseForStatement()
 	return m_Sema.ActOnForStmt(forLoc, leftParenLoc, std::move(initPart), std::move(condPart), std::move(thirdPart), rightParenLoc, std::move(body));
 }
 
-NatsuLang::Statement::StmtPtr Parser::ParseContinueStatement()
+Statement::StmtPtr Parser::ParseContinueStatement()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_continue));
 	const auto loc = m_CurrentToken.GetLocation();
@@ -864,7 +864,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseContinueStatement()
 	return m_Sema.ActOnContinueStmt(loc, m_Sema.GetCurrentScope());
 }
 
-NatsuLang::Statement::StmtPtr Parser::ParseBreakStatement()
+Statement::StmtPtr Parser::ParseBreakStatement()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_break));
 	const auto loc = m_CurrentToken.GetLocation();
@@ -872,7 +872,7 @@ NatsuLang::Statement::StmtPtr Parser::ParseBreakStatement()
 	return m_Sema.ActOnBreakStmt(loc, m_Sema.GetCurrentScope());
 }
 
-NatsuLang::Statement::StmtPtr Parser::ParseReturnStatement()
+Statement::StmtPtr Parser::ParseReturnStatement()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_return));
 	const auto loc = m_CurrentToken.GetLocation();
@@ -891,17 +891,17 @@ NatsuLang::Statement::StmtPtr Parser::ParseReturnStatement()
 	return m_Sema.ActOnReturnStmt(loc, std::move(returnedExpr), m_Sema.GetCurrentScope());
 }
 
-NatsuLang::Statement::StmtPtr Parser::ParseExprStatement()
+Statement::StmtPtr Parser::ParseExprStatement()
 {
 	return m_Sema.ActOnExprStmt(ParseExpression());
 }
 
-NatsuLang::Expression::ExprPtr Parser::ParseExpression()
+Expression::ExprPtr Parser::ParseExpression()
 {
 	return ParseRightOperandOfBinaryExpression(ParseAssignmentExpression());
 }
 
-NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
+Expression::ExprPtr Parser::ParseCastExpression()
 {
 	Expression::ExprPtr result;
 	const auto tokenType = m_CurrentToken.GetType();
@@ -982,7 +982,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseCastExpression()
 	return ParseAsTypeExpression(ParsePostfixExpressionSuffix(std::move(result)));
 }
 
-NatsuLang::Expression::ExprPtr Parser::ParseAsTypeExpression(Expression::ExprPtr operand)
+Expression::ExprPtr Parser::ParseAsTypeExpression(Expression::ExprPtr operand)
 {
 	while (m_CurrentToken.Is(TokenType::Kw_as))
 	{
@@ -1015,7 +1015,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseAsTypeExpression(Expression::ExprPtr
 	return std::move(operand);
 }
 
-NatsuLang::Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expression::ExprPtr leftOperand, OperatorPrecedence minPrec)
+Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expression::ExprPtr leftOperand, OperatorPrecedence minPrec)
 {
 	auto tokenPrec = GetOperatorPrecedence(m_CurrentToken.GetType());
 	SourceLocation colonLoc;
@@ -1084,7 +1084,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expre
 	}
 }
 
-NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr prefix)
+Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr prefix)
 {
 	while (true)
 	{
@@ -1167,12 +1167,12 @@ NatsuLang::Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::
 	}
 }
 
-NatsuLang::Expression::ExprPtr Parser::ParseConstantExpression()
+Expression::ExprPtr Parser::ParseConstantExpression()
 {
 	return ParseRightOperandOfBinaryExpression(ParseCastExpression(), OperatorPrecedence::Conditional);
 }
 
-NatsuLang::Expression::ExprPtr Parser::ParseAssignmentExpression()
+Expression::ExprPtr Parser::ParseAssignmentExpression()
 {
 	if (m_CurrentToken.Is(TokenType::Kw_throw))
 	{
@@ -1182,7 +1182,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseAssignmentExpression()
 	return ParseRightOperandOfBinaryExpression(ParseCastExpression());
 }
 
-NatsuLang::Expression::ExprPtr Parser::ParseThrowExpression()
+Expression::ExprPtr Parser::ParseThrowExpression()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_throw));
 	const auto throwLocation = m_CurrentToken.GetLocation();
@@ -1210,7 +1210,7 @@ NatsuLang::Expression::ExprPtr Parser::ParseThrowExpression()
 	}
 }
 
-NatsuLang::Expression::ExprPtr Parser::ParseParenExpression()
+Expression::ExprPtr Parser::ParseParenExpression()
 {
 	assert(m_CurrentToken.Is(TokenType::LeftParen));
 
@@ -1660,6 +1660,7 @@ void Parser::ParseInitializer(Declaration::DeclaratorPtr const& decl)
 			return;
 		}
 
+		// TODO: 考虑分离声明和定义的分析，或者在声明分析过时跳过再次对声明生成新的定义，这样可以允许环形引用函数
 		ParseScope bodyScope{ this, Semantic::ScopeFlags::FunctionScope | Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::CompoundStmtScope };
 		auto funcDecl = m_Sema.ActOnStartOfFunctionDef(m_Sema.GetCurrentScope(), decl);
 		decl->SetDecl(ParseFunctionBody(std::move(funcDecl), bodyScope));
@@ -1668,7 +1669,7 @@ void Parser::ParseInitializer(Declaration::DeclaratorPtr const& decl)
 	// 不是 initializer，返回
 }
 
-nBool Parser::SkipUntil(std::initializer_list<NatsuLang::Lex::TokenType> list, nBool dontConsume, std::vector<Lex::Token>* skippedTokens)
+nBool Parser::SkipUntil(std::initializer_list<Lex::TokenType> list, nBool dontConsume, std::vector<Token>* skippedTokens)
 {
 	// 特例，如果调用者只是想跳到文件结尾，我们不需要再另外判断其他信息
 	if (list.size() == 1 && *list.begin() == TokenType::Eof)
@@ -1767,12 +1768,8 @@ void Parser::skipTypeAndInitializer(Declaration::DeclaratorPtr const& decl)
 		skipToken(&cachedTokens);
 		SkipUntil({ TokenType::RightBrace }, false, &cachedTokens);
 	}
-	else
-	{
-		// TODO: 报告错误
-	}
 
-	decl->SetCachedTokens(std::move(cachedTokens));
+	decl->SetCachedTokens(move(cachedTokens));
 }
 
 void Parser::ResolveDeclarator(Declaration::DeclaratorPtr const& decl)

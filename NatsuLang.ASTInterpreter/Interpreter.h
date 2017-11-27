@@ -578,8 +578,6 @@ namespace NatsuLang
 		void Run(NatsuLib::Uri const& uri);
 		void Run(nStrView content);
 
-		NatsuLib::natRefPointer<Semantic::Scope> GetScope() const noexcept;
-
 		InterpreterDeclStorage& GetDeclStorage() noexcept;
 
 		using Function = std::function<NatsuLib::natRefPointer<Declaration::ValueDecl>(std::vector<NatsuLib::natRefPointer<Declaration::ValueDecl>> const&)>;
@@ -601,7 +599,6 @@ namespace NatsuLang
 		Syntax::Parser m_Parser;
 		NatsuLib::natRefPointer<InterpreterStmtVisitor> m_Visitor;
 
-		NatsuLib::natRefPointer<Semantic::Scope> m_CurrentScope;
 		InterpreterDeclStorage m_DeclStorage;
 
 		std::unordered_map<NatsuLib::natRefPointer<Declaration::FunctionDecl>, Function> m_FunctionMap;
