@@ -27,6 +27,7 @@ void Interpreter::Run(Uri const& uri)
 	m_Parser.ConsumeToken();
 	m_CurrentScope = m_Sema.GetCurrentScope();
 	ParseAST(m_Parser);
+	EndParsingAST(m_Parser);
 	m_DeclStorage.GarbageCollect();
 }
 

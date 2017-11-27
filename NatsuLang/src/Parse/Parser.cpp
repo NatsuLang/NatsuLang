@@ -1533,6 +1533,8 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 
 	auto mayBeParenType = true;
 
+	ParseScope prototypeScope{ this, Semantic::ScopeFlags::FunctionDeclarationScope | Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::FunctionPrototypeScope };
+
 	if (!m_CurrentToken.Is(TokenType::RightParen))
 	{
 		while (true)

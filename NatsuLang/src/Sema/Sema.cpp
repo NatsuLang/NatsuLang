@@ -1084,8 +1084,9 @@ NatsuLang::Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& sco
 						case Syntax::ResolveContext::ResolvingState::Unknown:
 						{
 							const auto oldUnresolvedDecl = declarator->GetDecl();
+							const auto declarationScope = declarator->GetDeclarationScope();
 							resolveContext->GetParser().ResolveDeclarator(declarator);
-							decl = HandleDeclarator(m_CurrentScope, declarator, oldUnresolvedDecl);
+							decl = HandleDeclarator(declarationScope, declarator, oldUnresolvedDecl);
 							break;
 						}
 						case Syntax::ResolveContext::ResolvingState::Resolving:
