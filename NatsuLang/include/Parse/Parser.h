@@ -210,8 +210,8 @@ namespace NatsuLang::Syntax
 		NatsuLib::natRefPointer<ICompilerAction> ParseCompilerActionName();
 		void ParseCompilerActionArgumentList(NatsuLib::natRefPointer<ICompilerAction> const& action);
 
-		void ParseClassSpecifier();
-		void ParseMemberSpecification();
+		Declaration::DeclPtr ParseClassDeclaration();
+		void ParseMemberSpecification(SourceLocation startLoc, Declaration::DeclPtr const& tagDecl);
 
 		std::vector<Declaration::DeclPtr> ParseModuleImport();
 		std::vector<Declaration::DeclPtr> ParseModuleDecl();
@@ -303,7 +303,7 @@ namespace NatsuLang::Syntax
 
 		nBool SkipUntil(std::initializer_list<Lex::TokenType> list, nBool dontConsume = false, std::vector<Lex::Token>* skippedTokens = nullptr);
 
-		void ResolveDeclarator(Declaration::DeclaratorPtr const& decl);
+		Declaration::DeclPtr ResolveDeclarator(Declaration::DeclaratorPtr decl);
 
 	private:
 		Preprocessor& m_Preprocessor;

@@ -254,9 +254,9 @@ void Sema::ActOnPhaseDiverted()
 void Sema::PushDeclContext(natRefPointer<Scope> const& scope, Declaration::DeclContext* dc)
 {
 	assert(dc);
-	const auto declPtr = Declaration::Decl::CastFromDeclContext(dc)->ForkRef();
+	auto declPtr = Declaration::Decl::CastFromDeclContext(dc)->ForkRef();
 	assert(declPtr->GetContext() == Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()));
-	m_CurrentDeclContext = declPtr;
+	m_CurrentDeclContext = std::move(declPtr);
 	scope->SetEntity(dc);
 }
 
@@ -266,6 +266,16 @@ void Sema::PopDeclContext()
 	const auto parentDc = m_CurrentDeclContext->GetContext();
 	assert(parentDc);
 	m_CurrentDeclContext = Declaration::Decl::CastFromDeclContext(parentDc)->ForkRef();
+}
+
+void Sema::SetDeclContext(Declaration::DeclPtr dc) noexcept
+{
+	m_CurrentDeclContext = std::move(dc);
+}
+
+Declaration::DeclPtr Sema::GetDeclContext() const noexcept
+{
+	return m_CurrentDeclContext;
 }
 
 void Sema::PushScope(ScopeFlags flags)
@@ -436,6 +446,55 @@ Declaration::DeclPtr Sema::ActOnFinishFunctionBody(Declaration::DeclPtr decl, St
 	PopDeclContext();
 	
 	return fd;
+}
+
+natRefPointer<Declaration::FunctionDecl> Sema::GetParsingFunction() const noexcept
+{
+	if (const auto funcScope = m_CurrentScope->GetFunctionParent().Lock())
+	{
+		if (const auto funcDecl = Declaration::Decl::CastFromDeclContext(funcScope->GetEntity())->ForkRef<Declaration::FunctionDecl>())
+		{
+			return funcDecl;
+		}
+	}
+
+	return nullptr;
+}
+
+Declaration::DeclPtr Sema::ActOnTag(natRefPointer<Scope> const& scope,
+	Type::TagType::TagTypeClass tagTypeClass, SourceLocation kwLoc, Specifier::Access accessSpecifier,
+	Identifier::IdPtr name, SourceLocation nameLoc, Type::TypePtr underlyingType)
+{
+	if (tagTypeClass == Type::TagType::TagTypeClass::Enum && !underlyingType)
+	{
+		underlyingType = m_Context.GetBuiltinType(Type::BuiltinType::Int);
+	}
+
+	LookupResult previous{ *this, name, nameLoc, LookupNameType::LookupTagName };
+	if (LookupName(previous, scope) || previous.GetDeclSize() > 0)
+	{
+		// TODO: 重复定义 Tag，报告错误
+		return nullptr;
+	}
+
+	if (tagTypeClass == Type::TagType::TagTypeClass::Enum)
+	{
+		auto enumDecl = make_ref<Declaration::EnumDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()), nameLoc, name, kwLoc);
+		enumDecl->SetUnderlyingType(underlyingType);
+		return enumDecl;
+	}
+
+	return make_ref<Declaration::ClassDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()), nameLoc, name, kwLoc);
+}
+
+void Sema::ActOnTagStartDefinition(natRefPointer<Scope> const& scope, natRefPointer<Declaration::TagDecl> const& tagDecl)
+{
+	PushDeclContext(scope, tagDecl.Get());
+}
+
+void Sema::ActOnTagFinishDefinition()
+{
+	PopDeclContext();
 }
 
 nBool Sema::LookupName(LookupResult& result, natRefPointer<Scope> scope) const
@@ -660,12 +719,43 @@ natRefPointer<Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 		initExpr = ImpCastExprToType(std::move(initExpr), type, getCastType(initExpr, type));
 	}
 
-	auto varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl->GetRange().GetBegin(),
-		SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass(), decl);
+	natRefPointer<Declaration::VarDecl> varDecl;
+	if (dc->GetType() == Declaration::Decl::Class)
+	{
+		varDecl = make_ref<Declaration::FieldDecl>(Declaration::Decl::Field, dc, decl->GetRange().GetBegin(),
+			SourceLocation{}, std::move(id), std::move(type), decl);
+	}
+	else
+	{
+		varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl->GetRange().GetBegin(),
+			SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass(), decl);
+	}
 
 	varDecl->SetInitializer(initExpr);
 
 	return varDecl;
+}
+
+natRefPointer<Declaration::FieldDecl> Sema::ActOnFieldDeclarator(natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc)
+{
+	auto type = Type::Type::GetUnderlyingType(decl->GetType());
+	auto id = decl->GetIdentifier();
+
+	if (!id)
+	{
+		// TODO: 报告错误
+		return nullptr;
+	}
+
+	if (!type)
+	{
+		// TODO: 报告错误
+		return nullptr;
+	}
+
+	auto fieldDecl = make_ref<Declaration::FieldDecl>(Declaration::Decl::Field, dc, decl->GetRange().GetBegin(),
+		SourceLocation{}, std::move(id), std::move(type), decl);
+	return fieldDecl;
 }
 
 natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
@@ -686,8 +776,18 @@ natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
 		return nullptr;
 	}
 
-	auto funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
-		SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass(), decl);
+	natRefPointer<Declaration::FunctionDecl> funcDecl;
+
+	if (dc->GetType() == Declaration::Decl::Class)
+	{
+		funcDecl = make_ref<Declaration::MethodDecl>(Declaration::Decl::Method, dc,
+			SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass(), decl);
+	}
+	else
+	{
+		funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
+			SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass(), decl);
+	}
 
 	for (auto const& param : decl->GetParams())
 	{
@@ -744,12 +844,17 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 	if (oldUnresolvedDeclPtr)
 	{
 		const auto declScope = decl->GetDeclarationScope();
-		assert(declScope);
+		const auto declContext = decl->GetDeclarationContext();
+		assert(declScope && declContext);
+		const auto contextRecoveryScope = make_scope([this, curContext = std::move(m_CurrentDeclContext)]
+		{
+			m_CurrentDeclContext = curContext;
+		});
+		m_CurrentDeclContext = declContext;
 		RemoveFromScopeChains(oldUnresolvedDeclPtr, declScope);
 	}
 
 	LookupResult previous{ *this, id, {}, LookupNameType::LookupOrdinaryName };
-
 	LookupName(previous, scope);
 
 	if (previous.GetDeclSize())
@@ -766,10 +871,15 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 	{
 		retDecl = ActOnUnresolvedDeclarator(scope, decl, dc);
 		decl->SetDeclarationScope(scope);
+		decl->SetDeclarationContext(m_CurrentDeclContext);
 	}
 	else if (auto funcType = static_cast<natRefPointer<Type::FunctionType>>(type))
 	{
 		retDecl = ActOnFunctionDeclarator(scope, decl, dc);
+	}
+	else if (dc->GetType() == Declaration::Decl::Class)
+	{
+		retDecl = ActOnFieldDeclarator(scope, decl, dc);
 	}
 	else
 	{
@@ -877,15 +987,9 @@ Statement::StmtPtr Sema::ActOnBreakStmt(SourceLocation loc, natRefPointer<Scope>
 
 Statement::StmtPtr Sema::ActOnReturnStmt(SourceLocation loc, Expression::ExprPtr returnedExpr, natRefPointer<Scope> const& scope)
 {
-	if (const auto curFunc = scope->GetFunctionParent().Lock())
+	if (const auto curFunc = GetParsingFunction())
 	{
-		const auto entity = Declaration::Decl::CastFromDeclContext(curFunc->GetEntity())->ForkRef<Declaration::FunctionDecl>();
-		if (!entity)
-		{
-			return nullptr;
-		}
-
-		const auto funcType = static_cast<natRefPointer<Type::FunctionType>>(entity->GetValueType());
+		const auto funcType = static_cast<natRefPointer<Type::FunctionType>>(curFunc->GetValueType());
 		if (!funcType)
 		{
 			return nullptr;
@@ -895,10 +999,9 @@ Statement::StmtPtr Sema::ActOnReturnStmt(SourceLocation loc, Expression::ExprPtr
 		const auto retTypeClass = retType->GetType();
 		if (retTypeClass == Type::Type::Auto)
 		{
-			// TODO: 获得真实返回类型
+			funcType->SetResultType(returnedExpr ? returnedExpr->GetExprType() : static_cast<Type::TypePtr>(m_Context.GetBuiltinType(Type::BuiltinType::Void)));
 		}
-
-		if (retTypeClass == Type::Type::Builtin &&
+		else if (retTypeClass == Type::Type::Builtin &&
 			static_cast<natRefPointer<Type::BuiltinType>>(retType)->GetBuiltinClass() == Type::BuiltinType::Void &&
 			returnedExpr)
 		{
@@ -1071,7 +1174,7 @@ Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefP
 		{
 			if (const auto declaratorDecl = static_cast<natRefPointer<Declaration::DeclaratorDecl>>(decl))
 			{
-				const auto declarator = declaratorDecl->GetDeclaratorPtr().Lock();
+				auto declarator = declaratorDecl->GetDeclaratorPtr().Lock();
 				if (declarator && declarator->IsUnresolved())
 				{
 					if (resolveContext)
@@ -1082,13 +1185,8 @@ Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefP
 						default:
 							assert(!"Invalid resolvingState");
 						case Syntax::ResolveContext::ResolvingState::Unknown:
-						{
-							const auto oldUnresolvedDecl = declarator->GetDecl();
-							const auto declarationScope = declarator->GetDeclarationScope();
-							resolveContext->GetParser().ResolveDeclarator(declarator);
-							decl = HandleDeclarator(declarationScope, declarator, oldUnresolvedDecl);
+							decl = resolveContext->GetParser().ResolveDeclarator(std::move(declarator));
 							break;
-						}
 						case Syntax::ResolveContext::ResolvingState::Resolving:
 							// TODO: 报告环形依赖
 							break;

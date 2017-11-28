@@ -440,14 +440,27 @@ namespace NatsuLang::Declaration
 		~EnumDecl();
 
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<EnumConstantDecl>>> GetEnumerators() const noexcept;
+
+		Type::TypePtr GetUnderlyingType() const noexcept
+		{
+			return m_UnderlyingType;
+		}
+
+		void SetUnderlyingType(Type::TypePtr value) noexcept
+		{
+			m_UnderlyingType = std::move(value);
+		}
+
+	private:
+		Type::TypePtr m_UnderlyingType;
 	};
 
 	class ClassDecl
 		: public TagDecl
 	{
 	public:
-		ClassDecl(DeclType declType, Type::TagType::TagTypeClass tagTypeClass, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo)
-			: TagDecl{ declType, tagTypeClass, context, idLoc, std::move(identifierInfo), startLoc }
+		ClassDecl(DeclContext* context, SourceLocation idLoc, Identifier::IdPtr identifierInfo, SourceLocation startLoc)
+			: TagDecl{ Class, Type::TagType::TagTypeClass::Class, context, idLoc, std::move(identifierInfo), startLoc }
 		{
 		}
 

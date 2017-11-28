@@ -158,6 +158,11 @@ namespace NatsuLang::Type
 			return m_ResultType;
 		}
 
+		void SetResultType(TypePtr value) noexcept
+		{
+			m_ResultType = std::move(value);
+		}
+
 		NatsuLib::Linq<NatsuLib::Valued<TypePtr>> GetParameterTypes() const noexcept;
 		std::size_t GetParameterCount() const noexcept;
 

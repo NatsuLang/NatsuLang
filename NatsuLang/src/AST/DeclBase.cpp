@@ -118,7 +118,7 @@ void DeclContext::RemoveDecl(DeclPtr const& decl)
 	{
 		if (decl == m_LastDecl)
 		{
-			m_FirstDecl = m_LastDecl = 0;
+			m_FirstDecl = m_LastDecl = nullptr;
 		}
 		else
 		{
@@ -131,7 +131,7 @@ void DeclContext::RemoveDecl(DeclPtr const& decl)
 		{
 			if (d->GetNextDeclInContext() == decl)
 			{
-				d->SetNextDeclInContext(decl);
+				d->SetNextDeclInContext(decl->GetNextDeclInContext());
 				if (decl == m_LastDecl)
 				{
 					m_LastDecl = d;

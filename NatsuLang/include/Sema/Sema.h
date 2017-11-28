@@ -115,6 +115,7 @@ namespace NatsuLang::Semantic
 			return m_CurrentScope;
 		}
 
+		// 仅在解析声明符时恢复上下文时使用，不应该在其他地方使用
 		void SetCurrentScope(NatsuLib::natRefPointer<Scope> value) noexcept
 		{
 			m_CurrentScope = std::move(value);
@@ -139,6 +140,10 @@ namespace NatsuLang::Semantic
 		void PushDeclContext(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclContext* dc);
 		void PopDeclContext();
 
+		// 仅在解析声明符时恢复上下文时使用，不应该在其他地方使用
+		void SetDeclContext(Declaration::DeclPtr dc) noexcept;
+		Declaration::DeclPtr GetDeclContext() const noexcept;
+
 		void PushScope(ScopeFlags flags);
 		void PopScope();
 
@@ -160,6 +165,14 @@ namespace NatsuLang::Semantic
 		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclPtr decl);
 		Declaration::DeclPtr ActOnFinishFunctionBody(Declaration::DeclPtr decl, Statement::StmtPtr body);
 
+		///	@brief	获取当前正在分析的函数声明
+		///	@return	若当前并未在分析函数，则返回 nullptr，否则返回最近的一个函数声明
+		NatsuLib::natRefPointer<Declaration::FunctionDecl> GetParsingFunction() const noexcept;
+
+		Declaration::DeclPtr ActOnTag(NatsuLib::natRefPointer<Scope> const& scope, Type::TagType::TagTypeClass tagTypeClass, SourceLocation kwLoc, Specifier::Access accessSpecifier, Identifier::IdPtr name, SourceLocation nameLoc, Type::TypePtr underlyingType = nullptr);
+		void ActOnTagStartDefinition(NatsuLib::natRefPointer<Scope> const& scope, NatsuLib::natRefPointer<Declaration::TagDecl> const& tagDecl);
+		void ActOnTagFinishDefinition();
+
 		nBool LookupName(LookupResult& result, NatsuLib::natRefPointer<Scope> scope) const;
 		nBool LookupQualifiedName(LookupResult& result, Declaration::DeclContext* context) const;
 		nBool LookupNestedName(LookupResult& result, NatsuLib::natRefPointer<Scope> scope, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
@@ -171,6 +184,7 @@ namespace NatsuLang::Semantic
 
 		NatsuLib::natRefPointer<Declaration::ParmVarDecl> ActOnParamDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl);
 		NatsuLib::natRefPointer<Declaration::VarDecl> ActOnVariableDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
+		NatsuLib::natRefPointer<Declaration::FieldDecl> ActOnFieldDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
 		NatsuLib::natRefPointer<Declaration::FunctionDecl> ActOnFunctionDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
 		NatsuLib::natRefPointer<Declaration::DeclaratorDecl> ActOnUnresolvedDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
 		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> scope, Declaration::DeclaratorPtr decl, Declaration::DeclPtr const& oldUnresolvedDeclPtr = nullptr);

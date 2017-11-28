@@ -181,6 +181,16 @@ namespace NatsuLang::Declaration
 			m_DeclarationScope = std::move(value);
 		}
 
+		DeclPtr GetDeclarationContext() const noexcept
+		{
+			return m_DeclarationContext;
+		}
+
+		void SetDeclarationContext(DeclPtr value) noexcept
+		{
+			m_DeclarationContext = std::move(value);
+		}
+
 		nBool IsValid() const noexcept
 		{
 			return m_Identifier || m_Type || m_Initializer;
@@ -210,6 +220,7 @@ namespace NatsuLang::Declaration
 		std::vector<Lex::Token> m_CachedTokens;
 
 		NatsuLib::natRefPointer<Semantic::Scope> m_DeclarationScope;
+		DeclPtr m_DeclarationContext;
 	};
 
 	using DeclaratorPtr = NatsuLib::natRefPointer<Declarator>;

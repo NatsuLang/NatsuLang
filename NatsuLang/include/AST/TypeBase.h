@@ -46,6 +46,8 @@ namespace NatsuLang::Type
 			return m_TypeClass;
 		}
 
+		nBool IsVoid() const noexcept;
+
 		virtual std::size_t GetHashCode() const noexcept = 0;
 		virtual nBool EqualTo(NatsuLib::natRefPointer<Type> const& other) const noexcept = 0;
 		virtual void Accept(NatsuLib::natRefPointer<TypeVisitor> const& visitor) = 0;

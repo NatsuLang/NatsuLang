@@ -135,9 +135,7 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 	{
 		if (m_ResolveContext->GetDeclaratorResolvingState(declPtr) == ResolveContext::ResolvingState::Unknown)
 		{
-			const auto oldUnresolvedDeclaration = declPtr->GetDecl();
-			ResolveDeclarator(declPtr);
-			m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), std::move(declPtr), oldUnresolvedDeclaration);
+			ResolveDeclarator(std::move(declPtr));
 		}
 	}
 
@@ -197,8 +195,7 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 		return ParseDeclaration(Declaration::Context::Global, declEnd);
 	}
 	case TokenType::Kw_class:
-		// TODO
-		nat_Throw(NotImplementedException);
+		return { ParseClassDeclaration() };
 	default:
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
 			.AddArgument(m_CurrentToken.GetType());
@@ -380,9 +377,9 @@ void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> cons
 	}
 }
 
-// class-specifier:
+// class-declaration:
 //	'class' [access-specifier] identifier '{' [member-specification] '}'
-void Parser::ParseClassSpecifier()
+Declaration::DeclPtr Parser::ParseClassDeclaration()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_class));
 
@@ -417,42 +414,72 @@ void Parser::ParseClassSpecifier()
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot)
 			.AddArgument(TokenType::Identifier)
 			.AddArgument(m_CurrentToken.GetType());
-		return;
+		return ParseDeclError();
 	}
 
 	const auto classId = m_CurrentToken.GetIdentifierInfo();
 	const auto classIdLoc = m_CurrentToken.GetLocation();
 	ConsumeToken();
 
-	if (!m_CurrentToken.Is(TokenType::LeftBrace))
-	{
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot)
-			.AddArgument(TokenType::LeftBrace)
-			.AddArgument(m_CurrentToken.GetType());
-		return;
-	}
+	auto classDecl = m_Sema.ActOnTag(m_Sema.GetCurrentScope(), Type::TagType::TagTypeClass::Class, classKeywordLoc, accessSpecifier, classId, classIdLoc, nullptr);
 
-	ConsumeBrace();
+	ParseMemberSpecification(classKeywordLoc, classDecl);
 
-	ParseMemberSpecification();
-
-	if (!m_CurrentToken.Is(TokenType::RightBrace))
-	{
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot)
-			.AddArgument(TokenType::RightBrace)
-			.AddArgument(m_CurrentToken.GetType());
-		return;
-	}
-
-	ConsumeBrace();
+	return classDecl;
 }
 
 // member-specification:
-//	declaration
-void Parser::ParseMemberSpecification()
+//	member-declaration [member-specification]
+void Parser::ParseMemberSpecification(SourceLocation startLoc, Declaration::DeclPtr const& tagDecl)
 {
-	// TODO
-	nat_Throw(NotImplementedException);
+	ParseScope classScope{ this, Semantic::ScopeFlags::ClassScope | Semantic::ScopeFlags::DeclarableScope };
+
+	m_Sema.ActOnTagStartDefinition(m_Sema.GetCurrentScope(), tagDecl);
+	const auto tagScope = make_scope([this]
+	{
+		m_Sema.ActOnTagFinishDefinition();
+	});
+
+	if (m_CurrentToken.Is(TokenType::Colon))
+	{
+		ConsumeToken();
+		// TODO: 实现的 Concept 说明
+	}
+
+	if (m_CurrentToken.Is(TokenType::LeftBrace))
+	{
+		ConsumeBrace();
+	}
+	else
+	{
+		// 可能缺失的左大括号
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot)
+			.AddArgument(TokenType::LeftBrace)
+			.AddArgument(m_CurrentToken.GetType());
+	}
+
+	// 开始成员声明
+	while (!m_CurrentToken.Is(TokenType::RightBrace))
+	{
+		switch (m_CurrentToken.GetType())
+		{
+		case TokenType::Kw_def:
+		{
+			SourceLocation declEnd;
+			ParseDeclaration(Declaration::Context::Member, declEnd);
+			break;
+		}
+		case TokenType::Eof:
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot)
+				.AddArgument(TokenType::RightBrace)
+				.AddArgument(TokenType::Eof);
+			return;
+		default:
+			break;
+		}
+	}
+
+	ConsumeBrace();
 }
 
 std::vector<Declaration::DeclPtr> Parser::ParseModuleImport()
@@ -501,7 +528,7 @@ nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::Id
 // declaration:
 //	simple-declaration
 // simple-declaration:
-//	def [specifier] declarator [;]
+//	def [specifier-seq] declarator [;]
 std::vector<Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context context, SourceLocation& declEnd)
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_def));
@@ -872,6 +899,8 @@ Statement::StmtPtr Parser::ParseBreakStatement()
 	return m_Sema.ActOnBreakStmt(loc, m_Sema.GetCurrentScope());
 }
 
+// return-statement:
+//	'return' [expression] [;]
 Statement::StmtPtr Parser::ParseReturnStatement()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_return));
@@ -879,12 +908,19 @@ Statement::StmtPtr Parser::ParseReturnStatement()
 	ConsumeToken();
 
 	Expression::ExprPtr returnedExpr;
-	if (!m_CurrentToken.Is(TokenType::Semi))
+
+	if (const auto funcDecl = m_Sema.GetParsingFunction())
 	{
-		returnedExpr = ParseExpression();
-		if (m_CurrentToken.Is(TokenType::Semi))
+		const auto funcType = static_cast<natRefPointer<Type::FunctionType>>(funcDecl->GetValueType());
+		assert(funcType);
+		const auto retType = funcType->GetResultType();
+		if ((!retType && !m_CurrentToken.Is(TokenType::Semi)) || !retType->IsVoid())
 		{
-			ConsumeToken();
+			returnedExpr = ParseExpression();
+			if (m_CurrentToken.Is(TokenType::Semi))
+			{
+				ConsumeToken();
+			}
 		}
 	}
 
@@ -1307,6 +1343,7 @@ void Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipI
 }
 
 // specifier-seq:
+//	specifier
 //	specifier-seq specifier
 // specifier:
 //	storage-class-specifier
@@ -1772,10 +1809,13 @@ void Parser::skipTypeAndInitializer(Declaration::DeclaratorPtr const& decl)
 	decl->SetCachedTokens(move(cachedTokens));
 }
 
-void Parser::ResolveDeclarator(Declaration::DeclaratorPtr const& decl)
+Declaration::DeclPtr Parser::ResolveDeclarator(Declaration::DeclaratorPtr decl)
 {
 	assert(m_Sema.GetCurrentPhase() == Semantic::Sema::Phase::Phase2 && m_ResolveContext);
 	assert(!decl->GetType() && !decl->GetInitializer());
+
+	const auto oldUnresolvedDecl = decl->GetDecl();
+	assert(oldUnresolvedDecl);
 
 	pushCachedTokens(decl->GetAndClearCachedTokens());
 	const auto tokensScope = make_scope([this]
@@ -1784,19 +1824,21 @@ void Parser::ResolveDeclarator(Declaration::DeclaratorPtr const& decl)
 	});
 
 	m_ResolveContext->StartResolvingDeclarator(decl);
-	const auto resolveContextScope = make_scope([this, &decl]
+	const auto resolveContextScope = make_scope([this, decl]
 	{
 		m_ResolveContext->EndResolvingDeclarator(decl);
 	});
 
-	const auto curScope = m_Sema.GetCurrentScope();
-	const auto recoveryScope = make_scope([this, curScope]
+	const auto recoveryScope = make_scope([this, curScope = m_Sema.GetCurrentScope(), curDeclContext = m_Sema.GetDeclContext()]
 	{
+		m_Sema.SetDeclContext(curDeclContext);
 		m_Sema.SetCurrentScope(curScope);
 	});
 	m_Sema.SetCurrentScope(decl->GetDeclarationScope());
+	m_Sema.SetDeclContext(decl->GetDeclarationContext());
 
 	ParseDeclarator(decl, true);
+	return m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), std::move(decl), oldUnresolvedDecl);
 }
 
 void Parser::skipType(std::vector<Token>* skippedTokens)
@@ -1874,11 +1916,12 @@ void Parser::skipRightOperandOfBinaryExpression(std::vector<Token>* skippedToken
 	while (true)
 	{
 		const auto prec = GetOperatorPrecedence(m_CurrentToken.GetType());
-		skipToken(skippedTokens);
 		if (prec == OperatorPrecedence::Unknown)
 		{
 			break;
 		}
+
+		skipToken(skippedTokens);
 
 		if (prec == OperatorPrecedence::Conditional)
 		{
@@ -1971,7 +2014,10 @@ void Parser::skipPostfixExpressionSuffix(std::vector<Token>* skippedTokens)
 
 void Parser::skipAsTypeExpression(std::vector<Token>* skippedTokens)
 {
-	assert(m_CurrentToken.Is(TokenType::Kw_as));
+	if (!m_CurrentToken.Is(TokenType::Kw_as))
+	{
+		return;
+	}
 
 	skipToken(skippedTokens);
 	skipType(skippedTokens);

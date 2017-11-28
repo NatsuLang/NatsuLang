@@ -13,6 +13,16 @@ NatsuLang::Type::Type::~Type()
 {
 }
 
+nBool NatsuLang::Type::Type::IsVoid() const noexcept
+{
+	if (m_TypeClass != Builtin)
+	{
+		return false;
+	}
+
+	return static_cast<const BuiltinType*>(this)->GetBuiltinClass() == BuiltinType::Void;
+}
+
 TypePtr NatsuLang::Type::Type::GetUnderlyingType(TypePtr const& type)
 {
 	if (!type)
