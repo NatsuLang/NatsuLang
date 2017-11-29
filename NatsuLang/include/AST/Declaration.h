@@ -511,14 +511,14 @@ namespace NatsuLang::Declaration
 		: public Decl
 	{
 	public:
-		ImportDecl(DeclContext* context, SourceLocation loc, NatsuLib::natRefPointer<Module::Module> module)
+		ImportDecl(DeclContext* context, SourceLocation loc, NatsuLib::natRefPointer<NatsuLang::Module> module)
 			: Decl{ Import, context, loc }, m_Module{ std::move(module) }
 		{
 		}
 
 		~ImportDecl();
 
-		NatsuLib::natRefPointer<Module::Module> GetModule() const noexcept
+		NatsuLib::natRefPointer<NatsuLang::Module> GetModule() const noexcept
 		{
 			return m_Module;
 		}
@@ -526,7 +526,7 @@ namespace NatsuLang::Declaration
 		DEFAULT_ACCEPT_DECL;
 
 	private:
-		NatsuLib::natRefPointer<Module::Module> m_Module;
+		NatsuLib::natRefPointer<NatsuLang::Module> m_Module;
 	};
 
 	class EmptyDecl

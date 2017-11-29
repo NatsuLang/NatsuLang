@@ -214,7 +214,7 @@ namespace NatsuLang::Syntax
 		void ParseMemberSpecification(SourceLocation startLoc, Declaration::DeclPtr const& tagDecl);
 
 		std::vector<Declaration::DeclPtr> ParseModuleImport();
-		std::vector<Declaration::DeclPtr> ParseModuleDecl();
+		Declaration::DeclPtr ParseModuleDecl();
 		nBool ParseModuleName(std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path);
 
 		std::vector<Declaration::DeclPtr> ParseDeclaration(Declaration::Context context, SourceLocation& declEnd);

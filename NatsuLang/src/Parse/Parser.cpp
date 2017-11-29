@@ -155,7 +155,7 @@ nBool Parser::ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls)
 		decls = ParseModuleImport();
 		return false;
 	case TokenType::Kw_module:
-		decls = ParseModuleDecl();
+		decls = { ParseModuleDecl() };
 		return false;
 	case TokenType::Eof:
 		return true;
@@ -502,9 +502,62 @@ std::vector<Declaration::DeclPtr> Parser::ParseModuleImport()
 	nat_Throw(NotImplementedException);
 }
 
-std::vector<Declaration::DeclPtr> Parser::ParseModuleDecl()
+// module-decl:
+//	'module' module-name '{' declarations '}'
+Declaration::DeclPtr Parser::ParseModuleDecl()
 {
-	nat_Throw(NotImplementedException);
+	assert(m_CurrentToken.Is(TokenType::Kw_module));
+
+	const auto startLoc = m_CurrentToken.GetLocation();
+	ConsumeToken();
+
+	if (!m_CurrentToken.Is(TokenType::Identifier))
+	{
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::Identifier)
+			.AddArgument(m_CurrentToken.GetType());
+		return {};
+	}
+
+	auto moduleName = m_CurrentToken.GetIdentifierInfo();
+	auto moduleDecl = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), startLoc, std::move(moduleName));
+
+	{
+		ParseScope moduleScope{ this, Semantic::ScopeFlags::DeclarableScope };
+		m_Sema.ActOnStartModule(m_Sema.GetCurrentScope(), moduleDecl);
+		const auto scope = make_scope([this]
+		{
+			m_Sema.ActOnFinishModule();
+		});
+
+		ConsumeToken();
+		if (m_CurrentToken.Is(TokenType::LeftBrace))
+		{
+			ConsumeBrace();
+		}
+		else
+		{
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+				.AddArgument(TokenType::LeftBrace)
+				.AddArgument(m_CurrentToken.GetType());
+		}
+
+		while (!m_CurrentToken.IsAnyOf({ TokenType::RightBrace, TokenType::Eof }))
+		{
+			ParseExternalDeclaration();
+		}
+
+		if (m_CurrentToken.Is(TokenType::Eof))
+		{
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF, m_CurrentToken.GetLocation());
+		}
+		else
+		{
+			ConsumeBrace();
+		}
+	}
+
+	return moduleDecl;
 }
 
 nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path)
@@ -974,6 +1027,11 @@ Expression::ExprPtr Parser::ParseCastExpression()
 		auto id = m_CurrentToken.GetIdentifierInfo();
 		result = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), nullptr, std::move(id), m_CurrentToken.Is(TokenType::LeftParen), m_ResolveContext);
 		ConsumeToken();
+		if (m_CurrentToken.Is(TokenType::Period))
+		{
+			// TODO: 限定名称
+		}
+		
 		break;
 	}
 	case TokenType::PlusPlus:
@@ -1431,8 +1489,6 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 	{
 		ConsumeToken();
 	}
-
-	auto shouldTryParseNestedType = false;
 
 	const auto tokenType = m_CurrentToken.GetType();
 	switch (tokenType)

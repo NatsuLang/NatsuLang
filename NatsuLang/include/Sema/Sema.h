@@ -154,6 +154,9 @@ namespace NatsuLang::Semantic
 
 		void ActOnTranslationUnitScope(NatsuLib::natRefPointer<Scope> scope);
 
+		NatsuLib::natRefPointer<Declaration::ModuleDecl> ActOnModuleDecl(NatsuLib::natRefPointer<Scope> scope, SourceLocation startLoc, Identifier::IdPtr name);
+		void ActOnStartModule(NatsuLib::natRefPointer<Scope> const& scope, NatsuLib::natRefPointer<Declaration::ModuleDecl> const& moduleDecl);
+		void ActOnFinishModule();
 		NatsuLib::natRefPointer<Declaration::Decl> ActOnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path);
 
 		Type::TypePtr LookupTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, NatsuLib::natRefPointer<Scope> scope, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
@@ -188,8 +191,6 @@ namespace NatsuLang::Semantic
 		NatsuLib::natRefPointer<Declaration::FunctionDecl> ActOnFunctionDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
 		NatsuLib::natRefPointer<Declaration::DeclaratorDecl> ActOnUnresolvedDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
 		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> scope, Declaration::DeclaratorPtr decl, Declaration::DeclPtr const& oldUnresolvedDeclPtr = nullptr);
-
-		void ActOnStartOfClassMemberDeclarations(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
 
 		Statement::StmtPtr ActOnNullStmt(SourceLocation loc = {});
 		Statement::StmtPtr ActOnDeclStmt(std::vector<Declaration::DeclPtr> decls, SourceLocation start, SourceLocation end);

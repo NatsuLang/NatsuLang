@@ -232,7 +232,9 @@ void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression
 		const auto iter = m_Interpreter.m_FunctionMap.find(calleeDecl);
 		if (iter != m_Interpreter.m_FunctionMap.end())
 		{
-			m_LastVisitedExpr = iter->second({ params.begin(), params.end() });
+			auto decl = iter->second({ params.begin(), params.end() });
+			auto declType = decl->GetValueType();
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(decl), SourceLocation{}, std::move(declType));
 		}
 		else
 		{
@@ -271,7 +273,7 @@ void Interpreter::InterpreterExprVisitor::VisitAsTypeExpr(natRefPointer<Expressi
 
 	auto castToType = Type::Type::GetUnderlyingType(expr->GetExprType());
 	auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(castToType);
-	const auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, castToType);
+	const auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, std::move(castToType));
 
 	if (Evaluate(m_LastVisitedExpr, [this, tempObjDef = std::move(tempObjDef)](auto value)
 	{

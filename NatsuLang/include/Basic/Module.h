@@ -9,7 +9,7 @@ namespace NatsuLang::Declaration
 	class ModuleDecl;
 }
 
-namespace NatsuLang::Module
+namespace NatsuLang
 {
 	class Module
 		: public NatsuLib::natRefObjImpl<Module>
@@ -24,8 +24,6 @@ namespace NatsuLang::Module
 	private:
 		nString m_Name;
 		SourceLocation m_DefinitionLocation;
-		NatsuLib::natWeakRefPointer<Module> m_Parent;
-		std::vector<NatsuLib::natRefPointer<Module>> m_SubModules;
-		NatsuLib::natRefPointer<NatsuLang::Declaration::ModuleDecl> m_Module;
+		NatsuLib::natRefPointer<Declaration::ModuleDecl> m_Module;
 	};
 }

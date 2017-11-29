@@ -323,6 +323,21 @@ void Sema::ActOnTranslationUnitScope(natRefPointer<Scope> scope)
 	PushDeclContext(m_TranslationUnitScope, m_Context.GetTranslationUnit().Get());
 }
 
+natRefPointer<Declaration::ModuleDecl> Sema::ActOnModuleDecl(natRefPointer<Scope> scope, SourceLocation startLoc, Identifier::IdPtr name)
+{
+	return make_ref<Declaration::ModuleDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()), SourceLocation{}, std::move(name), startLoc);
+}
+
+void Sema::ActOnStartModule(natRefPointer<Scope> const& scope, natRefPointer<Declaration::ModuleDecl> const& moduleDecl)
+{
+	PushDeclContext(scope, moduleDecl.Get());
+}
+
+void Sema::ActOnFinishModule()
+{
+	PopDeclContext();
+}
+
 natRefPointer<Declaration::Decl> Sema::ActOnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path)
 {
 	nat_Throw(NatsuLib::NotImplementedException);
@@ -870,12 +885,6 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 	decl->SetDecl(retDecl);
 
 	return retDecl;
-}
-
-void Sema::ActOnStartOfClassMemberDeclarations(natRefPointer<Declaration::ClassDecl> const& classDecl)
-{
-	// TODO
-	nat_Throw(NotImplementedException);
 }
 
 Statement::StmtPtr Sema::ActOnNullStmt(SourceLocation loc)

@@ -1,3 +1,11 @@
+module ModuleBar
+{
+	def ModuleFunction : (arg : int) -> int
+	{
+		return arg - 5
+	}
+}
+
 class Foo
 {
 	def Method : (arg : int) -> float
