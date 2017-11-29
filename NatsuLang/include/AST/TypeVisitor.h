@@ -13,7 +13,7 @@ namespace NatsuLang
 	}
 
 	struct TypeVisitor
-		: NatsuLib::natRefObjImpl<TypeVisitor>
+		: NatsuLib::natRefObj
 	{
 		virtual ~TypeVisitor() = 0;
 

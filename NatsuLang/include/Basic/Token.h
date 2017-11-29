@@ -2,6 +2,7 @@
 #include <variant>
 #include <optional>
 #include <natRefObj.h>
+#include <natString.h>
 #include "SourceLocation.h"
 
 namespace NatsuLang::Identifier

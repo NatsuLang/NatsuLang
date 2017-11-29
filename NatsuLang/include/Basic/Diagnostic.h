@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include <vector>
-#include <natString.h>
+#include <natException.h>
 #include "Token.h"
 #include "TextProvider.h"
 #include "SourceLocation.h"

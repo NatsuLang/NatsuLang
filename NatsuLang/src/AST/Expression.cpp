@@ -9,20 +9,20 @@
 
 using namespace NatsuLib;
 using namespace NatsuLang;
-using namespace NatsuLang::Statement;
-using namespace NatsuLang::Expression;
+using namespace Statement;
+using namespace Expression;
 
 namespace
 {
-	nBool Evaluate(natRefPointer<Expr> const& expr, NatsuLang::ASTContext& context, Expr::EvalResult& result);
-	nBool EvaluateInteger(natRefPointer<Expr> const& expr, NatsuLang::ASTContext& context, Expr::EvalResult& result);
-	nBool EvaluateFloat(natRefPointer<Expr> const& expr, NatsuLang::ASTContext& context, Expr::EvalResult& result);
+	nBool Evaluate(natRefPointer<Expr> const& expr, ASTContext& context, Expr::EvalResult& result);
+	nBool EvaluateInteger(natRefPointer<Expr> const& expr, ASTContext& context, Expr::EvalResult& result);
+	nBool EvaluateFloat(natRefPointer<Expr> const& expr, ASTContext& context, Expr::EvalResult& result);
 
 	class ExprEvaluatorBase
-		: public NatsuLang::StmtVisitor
+		: public natRefObjImpl<ExprEvaluatorBase, StmtVisitor>
 	{
 	public:
-		ExprEvaluatorBase(NatsuLang::ASTContext& context, Expr::EvalResult& result)
+		ExprEvaluatorBase(ASTContext& context, Expr::EvalResult& result)
 			: m_Context{ context }, m_Result{ result }, m_LastVisitSucceed{ false }
 		{
 		}
@@ -43,7 +43,7 @@ namespace
 		}
 
 	protected:
-		NatsuLang::ASTContext& m_Context;
+		ASTContext& m_Context;
 		Expr::EvalResult& m_Result;
 		nBool m_LastVisitSucceed;
 	};
@@ -53,7 +53,7 @@ namespace
 		: public ExprEvaluatorBase
 	{
 	public:
-		IntExprEvaluator(NatsuLang::ASTContext& context, Expr::EvalResult& result)
+		IntExprEvaluator(ASTContext& context, Expr::EvalResult& result)
 			: ExprEvaluatorBase{ context, result }
 		{
 		}
@@ -367,7 +367,7 @@ namespace
 		: public ExprEvaluatorBase
 	{
 	public:
-		FloatExprEvaluator(NatsuLang::ASTContext& context, Expr::EvalResult& result)
+		FloatExprEvaluator(ASTContext& context, Expr::EvalResult& result)
 			: ExprEvaluatorBase{ context, result }
 		{
 		}
@@ -498,11 +498,11 @@ namespace
 		}
 	};
 
-	nBool Evaluate(natRefPointer<Expr> const& expr, NatsuLang::ASTContext& context, Expr::EvalResult& result)
+	nBool Evaluate(natRefPointer<Expr> const& expr, ASTContext& context, Expr::EvalResult& result)
 	{
 		const auto type = expr->GetExprType();
 
-		if (const auto builtinType = static_cast<natRefPointer<NatsuLang::Type::BuiltinType>>(type))
+		if (const auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(type))
 		{
 			if (builtinType->IsIntegerType())
 			{
@@ -517,7 +517,7 @@ namespace
 			return false;
 		}
 
-		if (type->GetType() == NatsuLang::Type::Type::Enum)
+		if (type->GetType() == Type::Type::Enum)
 		{
 			return EvaluateInteger(expr, context, result);
 		}
@@ -525,14 +525,14 @@ namespace
 		return false;
 	}
 
-	nBool EvaluateInteger(natRefPointer<Expr> const& expr, NatsuLang::ASTContext& context, Expr::EvalResult& result)
+	nBool EvaluateInteger(natRefPointer<Expr> const& expr, ASTContext& context, Expr::EvalResult& result)
 	{
 		IntExprEvaluator evaluator{ context, result };
 		evaluator.Visit(expr);
 		return evaluator.IsLastVisitSucceed();
 	}
 
-	nBool EvaluateFloat(natRefPointer<Expr> const& expr, NatsuLang::ASTContext& context, Expr::EvalResult& result)
+	nBool EvaluateFloat(natRefPointer<Expr> const& expr, ASTContext& context, Expr::EvalResult& result)
 	{
 		FloatExprEvaluator evaluator{ context, result };
 		evaluator.Visit(expr);
@@ -549,7 +549,7 @@ Expr::~Expr()
 {
 }
 
-NatsuLang::Expression::ExprPtr Expr::IgnoreParens() noexcept
+ExprPtr Expr::IgnoreParens() noexcept
 {
 	auto ret = ForkRef<Expr>();
 	// 可能的死循环
@@ -694,12 +694,12 @@ CallExpr::~CallExpr()
 {
 }
 
-Linq<NatsuLib::Valued<NatsuLang::Expression::ExprPtr>> CallExpr::GetArgs() const noexcept
+Linq<Valued<ExprPtr>> CallExpr::GetArgs() const noexcept
 {
 	return from(m_Args);
 }
 
-void CallExpr::SetArgs(Linq<NatsuLib::Valued<ExprPtr>> const& value)
+void CallExpr::SetArgs(Linq<Valued<ExprPtr>> const& value)
 {
 	m_Args.assign(value.begin(), value.end());
 }
@@ -722,7 +722,7 @@ MemberCallExpr::~MemberCallExpr()
 {
 }
 
-NatsuLang::Expression::ExprPtr MemberCallExpr::GetImplicitObjectArgument() const noexcept
+ExprPtr MemberCallExpr::GetImplicitObjectArgument() const noexcept
 {
 	const auto callee = static_cast<natRefPointer<MemberExpr>>(GetCallee());
 	if (callee)
@@ -798,12 +798,12 @@ ConstructExpr::~ConstructExpr()
 {
 }
 
-Linq<NatsuLib::Valued<NatsuLang::Expression::ExprPtr>> ConstructExpr::GetArgs() const noexcept
+Linq<Valued<ExprPtr>> ConstructExpr::GetArgs() const noexcept
 {
 	return from(m_Args);
 }
 
-void ConstructExpr::SetArgs(Linq<NatsuLib::Valued<ExprPtr>> const& value)
+void ConstructExpr::SetArgs(Linq<Valued<ExprPtr>> const& value)
 {
 	m_Args.assign(value.begin(), value.end());
 }
@@ -817,12 +817,12 @@ NewExpr::~NewExpr()
 {
 }
 
-Linq<NatsuLib::Valued<NatsuLang::Expression::ExprPtr>> NewExpr::GetArgs() const noexcept
+Linq<Valued<ExprPtr>> NewExpr::GetArgs() const noexcept
 {
 	return from(m_Args);
 }
 
-void NewExpr::SetArgs(Linq<NatsuLib::Valued<ExprPtr>> const& value)
+void NewExpr::SetArgs(Linq<Valued<ExprPtr>> const& value)
 {
 	m_Args.assign(value.begin(), value.end());
 }

@@ -5,6 +5,8 @@
 #include "Basic/Specifier.h"
 #include "Basic/Module.h"
 
+#define DEFAULT_ACCEPT_DECL void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override
+
 namespace NatsuLang
 {
 	class ASTContext;
@@ -42,6 +44,8 @@ namespace NatsuLang::Declaration
 
 		ASTContext& GetASTContext() const noexcept;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		ASTContext& m_Context;
 	};
@@ -75,6 +79,8 @@ namespace NatsuLang::Declaration
 			return true;
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		Identifier::IdPtr m_IdentifierInfo;
 	};
@@ -103,6 +109,8 @@ namespace NatsuLang::Declaration
 		{
 			m_Stmt = std::move(stmt);
 		}
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		LabelStmtPtr m_Stmt;
@@ -139,6 +147,8 @@ namespace NatsuLang::Declaration
 			m_End = value;
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		SourceLocation m_Start, m_End;
 	};
@@ -164,6 +174,8 @@ namespace NatsuLang::Declaration
 			m_ValueType = std::move(value);
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		Type::TypePtr m_ValueType;
 	};
@@ -188,6 +200,8 @@ namespace NatsuLang::Declaration
 		{
 			return m_DeclaratorPtr;
 		}
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		SourceLocation m_StartLoc;
@@ -226,6 +240,8 @@ namespace NatsuLang::Declaration
 			m_Initializer = std::move(value);
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		Specifier::StorageClass m_StorageClass;
 		Expression::ExprPtr m_Initializer;
@@ -255,6 +271,8 @@ namespace NatsuLang::Declaration
 			return m_ParamType;
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		ImplicitParamType m_ParamType;
 	};
@@ -270,6 +288,8 @@ namespace NatsuLang::Declaration
 		}
 
 		~ParmVarDecl();
+
+		DEFAULT_ACCEPT_DECL;
 	};
 
 	class FunctionDecl
@@ -301,6 +321,8 @@ namespace NatsuLang::Declaration
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ParmVarDecl>>> GetParams() const noexcept;
 		void SetParams(NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ParmVarDecl>>> value) noexcept;
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		std::vector<NatsuLib::natRefPointer<ParmVarDecl>> m_Params;
 		Statement::StmtPtr m_Body;
@@ -316,6 +338,8 @@ namespace NatsuLang::Declaration
 		}
 
 		~MethodDecl();
+
+		DEFAULT_ACCEPT_DECL;
 	};
 
 	class FieldDecl
@@ -328,6 +352,8 @@ namespace NatsuLang::Declaration
 		}
 
 		~FieldDecl();
+
+		DEFAULT_ACCEPT_DECL;
 	};
 
 	// TODO: 延迟分析
@@ -361,6 +387,8 @@ namespace NatsuLang::Declaration
 		{
 			m_Value = value;
 		}
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		Expression::ExprPtr m_Init;
@@ -398,6 +426,8 @@ namespace NatsuLang::Declaration
 			m_StartLoc = value;
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		Type::TypePtr m_Type;
 		SourceLocation m_StartLoc;
@@ -423,6 +453,8 @@ namespace NatsuLang::Declaration
 		{
 			m_TagTypeClass = value;
 		}
+
+		DEFAULT_ACCEPT_DECL;
 
 	private:
 		Type::TagType::TagTypeClass m_TagTypeClass;
@@ -451,6 +483,8 @@ namespace NatsuLang::Declaration
 			m_UnderlyingType = std::move(value);
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		Type::TypePtr m_UnderlyingType;
 	};
@@ -469,6 +503,8 @@ namespace NatsuLang::Declaration
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<FieldDecl>>> GetFields() const noexcept;
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<MethodDecl>>> GetMethods() const noexcept;
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ClassDecl>>> GetBases() const noexcept;
+
+		DEFAULT_ACCEPT_DECL;
 	};
 
 	class ImportDecl
@@ -487,6 +523,8 @@ namespace NatsuLang::Declaration
 			return m_Module;
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
 	private:
 		NatsuLib::natRefPointer<Module::Module> m_Module;
 	};
@@ -501,17 +539,37 @@ namespace NatsuLang::Declaration
 		}
 
 		~EmptyDecl();
+
+		DEFAULT_ACCEPT_DECL;
 	};
 
 	class ConstructorDecl
 		: public MethodDecl
 	{
 	public:
-		ConstructorDecl(NatsuLib::natRefPointer<ClassDecl> recordDecl, SourceLocation startLoc, Identifier::IdPtr identifierInfo, Type::TypePtr type)
-			: MethodDecl{ Constructor, static_cast<DeclContext*>(recordDecl.Get()), startLoc, {}, std::move(identifierInfo), std::move(type), Specifier::StorageClass::None }
+		ConstructorDecl(NatsuLib::natRefPointer<ClassDecl> classDecl, SourceLocation startLoc, Identifier::IdPtr identifierInfo, Type::TypePtr type)
+			: MethodDecl{ Constructor, static_cast<DeclContext*>(classDecl.Get()), startLoc, {}, std::move(identifierInfo), std::move(type), Specifier::StorageClass::None }
 		{
 		}
 
 		~ConstructorDecl();
+
+		DEFAULT_ACCEPT_DECL;
+	};
+
+	class DestructorDecl
+		: public MethodDecl
+	{
+	public:
+		DestructorDecl(NatsuLib::natRefPointer<ClassDecl> classDecl, SourceLocation startLoc, Identifier::IdPtr identifierInfo, Type::TypePtr type)
+			: MethodDecl{ Constructor, static_cast<DeclContext*>(classDecl.Get()), startLoc,{}, std::move(identifierInfo), std::move(type), Specifier::StorageClass::None }
+		{
+		}
+
+		~DestructorDecl();
+
+		DEFAULT_ACCEPT_DECL;
 	};
 }
+
+#undef DEFAULT_ACCEPT_DECL

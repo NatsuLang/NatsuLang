@@ -1,5 +1,6 @@
 ﻿#include "Basic/Identifier.h"
 #include "Basic/Token.h"
+#include <natException.h>
 
 using namespace NatsuLib;
 using namespace NatsuLang;

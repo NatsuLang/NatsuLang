@@ -316,6 +316,11 @@ void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> cons
 		}
 
 		// 记录状态以便匹配失败时还原
+		if (m_Preprocessor.IsUsingCache())
+		{
+			// TODO: 使用 Cache 时无法使用 memento 管理 Preprocessor 状态，解决这个问题或者使用其他方法
+		}
+
 		const auto memento = m_Preprocessor.GetLexer()->SaveToMemento();
 
 		if ((argType & CompilerActionArgumentType::Type) != CompilerActionArgumentType::None)
@@ -1427,47 +1432,22 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 		ConsumeToken();
 	}
 
+	auto shouldTryParseNestedType = false;
+
 	const auto tokenType = m_CurrentToken.GetType();
 	switch (tokenType)
 	{
 	case TokenType::Identifier:
 	{
-		// 普通或数组类型
-
-		auto type = m_Sema.GetTypeName(m_CurrentToken.GetIdentifierInfo(), m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nullptr);
-		if (!type)
-		{
-			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
-				.AddArgument(m_CurrentToken.GetIdentifierInfo());
-			return;
-		}
-
-		decl->SetType(std::move(type));
-
-		ConsumeToken();
-		while (m_CurrentToken.Is(TokenType::Period))
-		{
-			ConsumeToken();
-
-			if (!m_CurrentToken.Is(TokenType::Identifier))
-			{
-				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-					.AddArgument(TokenType::Identifier)
-					.AddArgument(m_CurrentToken.GetType());
-				// TODO: 错误恢复
-			}
-
-			// TODO: 嵌套类型
-			nat_Throw(NotImplementedException);
-		}
-
+		// 用户自定义类型
+		// TODO: 处理 module
+		decl->SetType(m_Sema.LookupTypeName(m_CurrentToken.GetIdentifierInfo(), m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nullptr));
 		break;
 	}
 	case TokenType::LeftParen:
 	{
 		// 函数类型或者括号类型
 		ParseFunctionType(decl);
-
 		break;
 	}
 	case TokenType::RightParen:
@@ -1481,7 +1461,6 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 	case TokenType::Kw_typeof:
 	{
 		ParseTypeOfType(decl);
-
 		break;
 	}
 	case TokenType::Eof:
@@ -1514,6 +1493,38 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 		ConsumeToken();
 		break;
 	}
+	}
+
+	if (decl->GetType()->GetType() == Type::Type::Class)
+	{
+		natRefPointer<NestedNameSpecifier> nns;
+		auto type = decl->GetType();
+
+		while (m_CurrentToken.Is(TokenType::Period))
+		{
+			ConsumeToken();
+
+			if (!m_CurrentToken.Is(TokenType::Identifier))
+			{
+				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
+					.AddArgument(tokenType);
+				break;
+			}
+
+			nns = NestedNameSpecifier::Create(m_Sema.GetASTContext(), std::move(nns), std::move(type));
+
+			type = m_Sema.LookupTypeName(m_CurrentToken.GetIdentifierInfo(), m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nns);
+			if (!type)
+			{
+				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
+					.AddArgument(m_CurrentToken.GetIdentifierInfo());
+				return;
+			}
+
+			ConsumeToken();
+		}
+
+		decl->SetType(std::move(type));
 	}
 
 	// 即使类型不是数组尝试Parse也不会错误

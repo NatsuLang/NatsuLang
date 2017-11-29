@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <natException.h>
 #include "Basic/Token.h"
 
 namespace NatsuLang

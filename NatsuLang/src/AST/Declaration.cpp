@@ -1,6 +1,7 @@
 ﻿#include "AST/Declaration.h"
 #include "AST/ASTContext.h"
 #include "AST/Expression.h"
+#include "AST/DeclVisitor.h"
 #include "Basic/Identifier.h"
 
 using namespace NatsuLib;
@@ -152,3 +153,10 @@ EmptyDecl::~EmptyDecl()
 ConstructorDecl::~ConstructorDecl()
 {
 }
+
+DestructorDecl::~DestructorDecl()
+{
+}
+
+#define DECL(Type, Base) void Type##Decl::Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) { visitor->Visit##Type##Decl(ForkRef<Type##Decl>()); }
+#include "Basic/DeclDef.h"

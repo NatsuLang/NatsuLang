@@ -20,7 +20,7 @@ namespace NatsuLang
 	}
 
 	struct StmtVisitor
-		: NatsuLib::natRefObjImpl<StmtVisitor>
+		: NatsuLib::natRefObj
 	{
 		virtual ~StmtVisitor() = 0;
 

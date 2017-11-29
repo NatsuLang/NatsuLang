@@ -240,16 +240,8 @@ namespace NatsuLang::Type
 		: public TagType
 	{
 	public:
-		explicit ClassType(NatsuLib::natRefPointer<Declaration::ClassDecl> recordDecl)
-			: TagType{ Class, recordDecl }
-		{
-		}
-
-		ClassType(TypeClass typeClass, NatsuLib::natRefPointer<Declaration::ClassDecl> recordDecl)
-			: TagType{ typeClass, recordDecl }
-		{
-		}
-
+		explicit ClassType(NatsuLib::natRefPointer<Declaration::ClassDecl> recordDecl);
+		ClassType(TypeClass typeClass, NatsuLib::natRefPointer<Declaration::ClassDecl> recordDecl);
 		~ClassType();
 
 		nBool EqualTo(TypePtr const& other) const noexcept override;
@@ -260,10 +252,7 @@ namespace NatsuLang::Type
 		: public TagType
 	{
 	public:
-		explicit EnumType(NatsuLib::natRefPointer<Declaration::EnumDecl> decl)
-			: TagType{ Enum, decl }
-		{
-		}
+		explicit EnumType(NatsuLib::natRefPointer<Declaration::EnumDecl> decl);
 
 		~EnumType();
 

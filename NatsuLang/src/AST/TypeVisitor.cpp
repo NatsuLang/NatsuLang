@@ -12,7 +12,7 @@ TypeVisitor::~TypeVisitor()
 
 void TypeVisitor::Visit(Type::TypePtr const& type)
 {
-	type->Accept(ForkRef());
+	type->Accept(natRefPointer<TypeVisitor>{ this });
 }
 
 #define TYPE(Class, Base) void TypeVisitor::Visit##Class##Type(NatsuLib::natRefPointer<Type::Class##Type> const& type) { Visit##Base(type); }

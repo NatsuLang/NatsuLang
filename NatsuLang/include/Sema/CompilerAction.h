@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <natMisc.h>
+#include <natString.h>
 
 #include "AST/ASTNode.h"
 

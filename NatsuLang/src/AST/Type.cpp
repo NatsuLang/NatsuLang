@@ -324,6 +324,16 @@ nBool TagType::EqualTo(TypePtr const& other) const noexcept
 	return m_Decl == realOther->m_Decl;
 }
 
+ClassType::ClassType(natRefPointer<Declaration::ClassDecl> recordDecl)
+	: TagType{Class, recordDecl}
+{
+}
+
+ClassType::ClassType(TypeClass typeClass, NatsuLib::natRefPointer<Declaration::ClassDecl> recordDecl)
+	: TagType{ typeClass, recordDecl }
+{
+}
+
 ClassType::~ClassType()
 {
 }
@@ -336,6 +346,11 @@ nBool ClassType::EqualTo(TypePtr const& other) const noexcept
 	}
 
 	return static_cast<TagType const&>(*this).EqualTo(other);
+}
+
+EnumType::EnumType(natRefPointer<Declaration::EnumDecl> decl)
+	: TagType{ Enum, decl }
+{
 }
 
 EnumType::~EnumType()

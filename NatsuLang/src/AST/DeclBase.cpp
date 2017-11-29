@@ -24,6 +24,10 @@ namespace
 	}
 }
 
+Decl::~Decl()
+{
+}
+
 DeclContext* Decl::CastToDeclContext(const Decl* decl)
 {
 	if (!decl)

@@ -328,30 +328,12 @@ natRefPointer<Declaration::Decl> Sema::ActOnModuleImport(SourceLocation startLoc
 	nat_Throw(NatsuLib::NotImplementedException);
 }
 
-Type::TypePtr Sema::GetTypeName(natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, natRefPointer<Scope> scope, Type::TypePtr const& objectType)
+Type::TypePtr Sema::LookupTypeName(natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, natRefPointer<Scope> scope, natRefPointer<NestedNameSpecifier> const& nns)
 {
-	Declaration::DeclContext* context{};
-
-	if (objectType && objectType->GetType() == Type::Type::Class)
-	{
-		const auto tagType = static_cast<natRefPointer<Type::TagType>>(objectType);
-		if (tagType)
-		{
-			context = tagType->GetDecl().Get();
-		}
-	}
-
 	LookupResult result{ *this, id, nameLoc, LookupNameType::LookupOrdinaryName };
-	if (context)
+	if (!LookupNestedName(result, scope, nns))
 	{
-		if (!LookupQualifiedName(result, context))
-		{
-			LookupName(result, scope);
-		}
-	}
-	else
-	{
-		LookupName(result, scope);
+		return nullptr;
 	}
 
 	switch (result.GetResultType())
@@ -719,18 +701,8 @@ natRefPointer<Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 		initExpr = ImpCastExprToType(std::move(initExpr), type, getCastType(initExpr, type));
 	}
 
-	natRefPointer<Declaration::VarDecl> varDecl;
-	if (dc->GetType() == Declaration::Decl::Class)
-	{
-		varDecl = make_ref<Declaration::FieldDecl>(Declaration::Decl::Field, dc, decl->GetRange().GetBegin(),
-			SourceLocation{}, std::move(id), std::move(type), decl);
-	}
-	else
-	{
-		varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl->GetRange().GetBegin(),
-			SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass(), decl);
-	}
-
+	auto varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl->GetRange().GetBegin(),
+		SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass(), decl);
 	varDecl->SetInitializer(initExpr);
 
 	return varDecl;
@@ -1299,12 +1271,12 @@ Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> const& scop
 	auto baseType = base->GetExprType();
 
 	LookupResult r{ *this, id, {}, LookupNameType::LookupMemberName };
-	const auto record = static_cast<natRefPointer<Type::ClassType>>(baseType);
-	if (record)
+	const auto classType = static_cast<natRefPointer<Type::ClassType>>(baseType);
+	if (classType)
 	{
-		const auto recordDecl = record->GetDecl();
+		const auto classDecl = classType->GetDecl();
 
-		Declaration::DeclContext* dc = recordDecl.Get();
+		Declaration::DeclContext* dc = classDecl.Get();
 		if (nns)
 		{
 			dc = nns->GetAsDeclContext(m_Context);

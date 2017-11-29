@@ -89,7 +89,7 @@ CompilerActionArgumentType ActionDump::ActionDumpArgumentRequirement::GetExpecte
 const natRefPointer<IArgumentRequirement> ActionDumpIf::s_ArgumentRequirement
 {
 	make_ref<SimpleArgumentRequirement>(
-	std::initializer_list<CompilerActionArgumentType>{
+		std::initializer_list<CompilerActionArgumentType>{
 			CompilerActionArgumentType::Statement,
 			CompilerActionArgumentType::Type |
 			CompilerActionArgumentType::Declaration |

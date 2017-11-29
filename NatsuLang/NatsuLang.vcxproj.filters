@@ -177,6 +177,9 @@
     <ClInclude Include="include\AST\Metadata.h">
       <Filter>AST\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\AST\DeclVisitor.h">
+      <Filter>AST\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">
@@ -261,6 +264,9 @@
       <Filter>AST\src</Filter>
     </ClCompile>
     <ClCompile Include="src\AST\Metadata.cpp">
+      <Filter>AST\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AST\DeclVisitor.cpp">
       <Filter>AST\src</Filter>
     </ClCompile>
   </ItemGroup>

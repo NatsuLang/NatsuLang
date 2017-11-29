@@ -156,7 +156,7 @@ namespace NatsuLang::Semantic
 
 		NatsuLib::natRefPointer<Declaration::Decl> ActOnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path);
 
-		Type::TypePtr GetTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, NatsuLib::natRefPointer<Scope> scope, Type::TypePtr const& objectType);
+		Type::TypePtr LookupTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, NatsuLib::natRefPointer<Scope> scope, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
 
 		Type::TypePtr BuildFunctionType(Type::TypePtr retType, NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& paramType);
 		Type::TypePtr CreateUnresolvedType(std::vector<Lex::Token> tokens);

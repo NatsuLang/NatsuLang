@@ -12,7 +12,7 @@ StmtVisitor::~StmtVisitor()
 
 void StmtVisitor::Visit(natRefPointer<Statement::Stmt> const& stmt)
 {
-	stmt->Accept(ForkRef());
+	stmt->Accept(natRefPointer<StmtVisitor>{ this });
 }
 
 #define STMT(Type, Base) void StmtVisitor::Visit##Type(natRefPointer<Statement::Type> const& stmt) { Visit##Base(stmt); }

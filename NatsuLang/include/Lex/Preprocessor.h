@@ -27,6 +27,11 @@ namespace NatsuLang
 		void PushCachedTokens(std::vector<Lex::Token> tokens);
 		void PopCachedTokens();
 
+		nBool IsUsingCache() const noexcept
+		{
+			return !m_CachedTokensStack.empty();
+		}
+
 		NatsuLib::natRefPointer<Lex::Lexer> GetLexer() const noexcept
 		{
 			return m_Lexer;
