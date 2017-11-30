@@ -717,7 +717,7 @@ natRefPointer<Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 	}
 
 	auto varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl->GetRange().GetBegin(),
-		SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass(), decl);
+		SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass());
 	varDecl->SetInitializer(initExpr);
 
 	return varDecl;
@@ -741,7 +741,7 @@ natRefPointer<Declaration::FieldDecl> Sema::ActOnFieldDeclarator(natRefPointer<S
 	}
 
 	auto fieldDecl = make_ref<Declaration::FieldDecl>(Declaration::Decl::Field, dc, decl->GetRange().GetBegin(),
-		SourceLocation{}, std::move(id), std::move(type), decl);
+		SourceLocation{}, std::move(id), std::move(type));
 	return fieldDecl;
 }
 
@@ -768,12 +768,12 @@ natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
 	if (dc->GetType() == Declaration::Decl::Class)
 	{
 		funcDecl = make_ref<Declaration::MethodDecl>(Declaration::Decl::Method, dc,
-			SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass(), decl);
+			SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass());
 	}
 	else
 	{
 		funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
-			SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass(), decl);
+			SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass());
 	}
 
 	for (auto const& param : decl->GetParams())
@@ -786,7 +786,7 @@ natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
 	return funcDecl;
 }
 
-natRefPointer<Declaration::DeclaratorDecl> Sema::ActOnUnresolvedDeclarator(natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc)
+natRefPointer<Declaration::UnresolvedDecl> Sema::ActOnUnresolvedDeclarator(natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc)
 {
 	assert(m_CurrentPhase == Phase::Phase1);
 	assert(!decl->GetType() && !decl->GetInitializer());
@@ -798,7 +798,7 @@ natRefPointer<Declaration::DeclaratorDecl> Sema::ActOnUnresolvedDeclarator(natRe
 		return nullptr;
 	}
 
-	auto unresolvedDecl = make_ref<Declaration::DeclaratorDecl>(Declaration::Decl::Declarator, dc, SourceLocation{}, std::move(id), nullptr, SourceLocation{}, decl);
+	auto unresolvedDecl = make_ref<Declaration::UnresolvedDecl>(dc, SourceLocation{}, std::move(id), nullptr, SourceLocation{}, decl);
 	m_Declarators.emplace_back(std::move(decl));
 
 	return unresolvedDecl;
@@ -1153,33 +1153,31 @@ Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefP
 		auto decl = result.GetDecls().first();
 		if (m_CurrentPhase == Phase::Phase2)
 		{
-			if (const auto declaratorDecl = static_cast<natRefPointer<Declaration::DeclaratorDecl>>(decl))
+			if (const auto unresolvedDecl = static_cast<natRefPointer<Declaration::UnresolvedDecl>>(decl))
 			{
-				auto declarator = declaratorDecl->GetDeclaratorPtr().Lock();
-				if (declarator && declarator->IsUnresolved())
+				auto declarator = unresolvedDecl->GetDeclaratorPtr().Lock();
+				assert(declarator && declarator->IsUnresolved());
+				if (resolveContext)
 				{
-					if (resolveContext)
+					const auto resolvingState = resolveContext->GetDeclaratorResolvingState(declarator);
+					switch (resolvingState)
 					{
-						const auto resolvingState = resolveContext->GetDeclaratorResolvingState(declarator);
-						switch (resolvingState)
-						{
-						default:
-							assert(!"Invalid resolvingState");
-						case Syntax::ResolveContext::ResolvingState::Unknown:
-							decl = resolveContext->GetParser().ResolveDeclarator(std::move(declarator));
-							break;
-						case Syntax::ResolveContext::ResolvingState::Resolving:
-							// TODO: 报告环形依赖
-							break;
-						case Syntax::ResolveContext::ResolvingState::Resolved:
-							assert(!"Should never happen.");
-							break;
-						}
+					default:
+						assert(!"Invalid resolvingState");
+					case Syntax::ResolveContext::ResolvingState::Unknown:
+						decl = resolveContext->GetParser().ResolveDeclarator(std::move(declarator));
+						break;
+					case Syntax::ResolveContext::ResolvingState::Resolving:
+						// TODO: 报告环形依赖
+						break;
+					case Syntax::ResolveContext::ResolvingState::Resolved:
+						assert(!"Should never happen.");
+						break;
 					}
-					else
-					{
-						// TODO: 报告错误
-					}
+				}
+				else
+				{
+					// TODO: 报告错误
 				}
 			}
 		}

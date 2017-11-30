@@ -79,6 +79,12 @@ ABSTRACT_DECL(VALUE(Value, NamedDecl))
 #endif
 ABSTRACT_DECL(DECLARATOR(Declarator, ValueDecl))
 
+#ifndef UNRESOLVED
+#define UNRESOLVED(Type, Base) DECLARATOR(Type, Base)
+#endif
+UNRESOLVED(Unresolved, DeclaratorDecl)
+#undef UNRESOLVED
+
 #ifndef FIELD
 #define FIELD(Type, Base) DECLARATOR(Type, Base)
 #endif
@@ -136,7 +142,7 @@ DECL_RANGE(Var, Var, ParmVar)
 
 #undef VAR
 
-DECL_RANGE(Declarator, Field, ParmVar)
+DECL_RANGE(Declarator, Unresolved, ParmVar)
 
 #undef DECLARATOR
 
@@ -146,7 +152,7 @@ DECL_RANGE(Declarator, Field, ParmVar)
 ENUMCONSTANT(EnumConstant, ValueDecl)
 #undef ENUMCONSTANT
 
-DECL_RANGE(Value, Field, EnumConstant)
+DECL_RANGE(Value, Unresolved, EnumConstant)
 
 #undef VALUE
 

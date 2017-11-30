@@ -184,8 +184,8 @@ namespace NatsuLang::Declaration
 		: public ValueDecl
 	{
 	public:
-		DeclaratorDecl(DeclType declType, DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, SourceLocation startLoc, NatsuLib::natWeakRefPointer<Declaration::Declarator> declaratorPtr = nullptr)
-			: ValueDecl{ declType, context, loc, std::move(identifierInfo), std::move(valueType) }, m_StartLoc{ startLoc }, m_DeclaratorPtr{ std::move(declaratorPtr) }
+		DeclaratorDecl(DeclType declType, DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, SourceLocation startLoc)
+			: ValueDecl{ declType, context, loc, std::move(identifierInfo), std::move(valueType) }, m_StartLoc{ startLoc }
 		{
 		}
 
@@ -196,6 +196,24 @@ namespace NatsuLang::Declaration
 			return m_StartLoc;
 		}
 
+		DEFAULT_ACCEPT_DECL;
+
+	private:
+		SourceLocation m_StartLoc;
+		
+	};
+
+	class UnresolvedDecl
+		: public DeclaratorDecl
+	{
+	public:
+		UnresolvedDecl(DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, SourceLocation startLoc, NatsuLib::natWeakRefPointer<Declaration::Declarator> declaratorPtr = nullptr)
+			: DeclaratorDecl{ Unresolved, context, loc, std::move(identifierInfo), std::move(valueType), startLoc }, m_DeclaratorPtr{ std::move(std::move(declaratorPtr)) }
+		{
+		}
+
+		~UnresolvedDecl();
+
 		NatsuLib::natWeakRefPointer<Declaration::Declarator> GetDeclaratorPtr() const noexcept
 		{
 			return m_DeclaratorPtr;
@@ -204,7 +222,6 @@ namespace NatsuLang::Declaration
 		DEFAULT_ACCEPT_DECL;
 
 	private:
-		SourceLocation m_StartLoc;
 		// 在 resolve 时使用，resolve 完成后将会过期
 		NatsuLib::natWeakRefPointer<Declaration::Declarator> m_DeclaratorPtr;
 	};
@@ -213,8 +230,8 @@ namespace NatsuLang::Declaration
 		: public DeclaratorDecl
 	{
 	public:
-		VarDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass, NatsuLib::natWeakRefPointer<Declaration::Declarator> declaratorPtr = nullptr)
-			: DeclaratorDecl{ declType, context, idLoc, std::move(identifierInfo), std::move(valueType), startLoc, std::move(declaratorPtr) }, m_StorageClass{ storageClass }
+		VarDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass)
+			: DeclaratorDecl{ declType, context, idLoc, std::move(identifierInfo), std::move(valueType), startLoc }, m_StorageClass{ storageClass }
 		{
 		}
 
@@ -296,8 +313,8 @@ namespace NatsuLang::Declaration
 		: public VarDecl, public DeclContext
 	{
 	public:
-		FunctionDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass, NatsuLib::natWeakRefPointer<Declaration::Declarator> declaratorPtr = nullptr)
-			: VarDecl{ declType, context, startLoc, idLoc, std::move(identifierInfo), std::move(valueType), storageClass, std::move(declaratorPtr) }, DeclContext{ declType }
+		FunctionDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass)
+			: VarDecl{ declType, context, startLoc, idLoc, std::move(identifierInfo), std::move(valueType), storageClass }, DeclContext{ declType }
 		{
 		}
 
@@ -332,8 +349,8 @@ namespace NatsuLang::Declaration
 		: public FunctionDecl
 	{
 	public:
-		MethodDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass, NatsuLib::natWeakRefPointer<Declaration::Declarator> declaratorPtr = nullptr)
-			: FunctionDecl{ declType, context, startLoc, idLoc, std::move(identifierInfo), std::move(valueType), storageClass, std::move(declaratorPtr) }
+		MethodDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, Specifier::StorageClass storageClass)
+			: FunctionDecl{ declType, context, startLoc, idLoc, std::move(identifierInfo), std::move(valueType), storageClass }
 		{
 		}
 
@@ -346,8 +363,8 @@ namespace NatsuLang::Declaration
 		: public DeclaratorDecl
 	{
 	public:
-		FieldDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, NatsuLib::natWeakRefPointer<Declaration::Declarator> declaratorPtr = nullptr)
-			: DeclaratorDecl{ declType, context, idLoc, std::move(identifierInfo), std::move(valueType), startLoc, std::move(declaratorPtr) }
+		FieldDecl(DeclType declType, DeclContext* context, SourceLocation startLoc, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType)
+			: DeclaratorDecl{ declType, context, idLoc, std::move(identifierInfo), std::move(valueType), startLoc }
 		{
 		}
 

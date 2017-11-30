@@ -43,6 +43,10 @@ DeclaratorDecl::~DeclaratorDecl()
 {
 }
 
+UnresolvedDecl::~UnresolvedDecl()
+{
+}
+
 VarDecl::~VarDecl()
 {
 }

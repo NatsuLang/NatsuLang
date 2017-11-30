@@ -44,7 +44,7 @@ namespace NatsuLang::Declaration
 		enum DeclType
 		{
 #define DECL(Derived, Base) Derived,
-//#define ABSTRACT_DECL(Decl)
+#define ABSTRACT_DECL(Decl)
 #define DECL_RANGE(Base, Start, End) \
 		First##Base = Start, Last##Base = End,
 #define LAST_DECL_RANGE(Base, Start, End) \

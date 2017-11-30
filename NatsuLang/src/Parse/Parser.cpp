@@ -1031,7 +1031,7 @@ Expression::ExprPtr Parser::ParseCastExpression()
 		{
 			// TODO: 限定名称
 		}
-		
+
 		break;
 	}
 	case TokenType::PlusPlus:

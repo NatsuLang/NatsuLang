@@ -189,7 +189,7 @@ namespace NatsuLang::Semantic
 		NatsuLib::natRefPointer<Declaration::VarDecl> ActOnVariableDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
 		NatsuLib::natRefPointer<Declaration::FieldDecl> ActOnFieldDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
 		NatsuLib::natRefPointer<Declaration::FunctionDecl> ActOnFunctionDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
-		NatsuLib::natRefPointer<Declaration::DeclaratorDecl> ActOnUnresolvedDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
+		NatsuLib::natRefPointer<Declaration::UnresolvedDecl> ActOnUnresolvedDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
 		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> scope, Declaration::DeclaratorPtr decl, Declaration::DeclPtr const& oldUnresolvedDeclPtr = nullptr);
 
 		Statement::StmtPtr ActOnNullStmt(SourceLocation loc = {});
