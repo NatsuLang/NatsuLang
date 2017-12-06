@@ -165,7 +165,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 	// 生成声明
 	for (auto& decl : declVec)
 	{
-		if (const auto funcDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(decl.first))
+		if (const auto funcDecl = decl.first.Cast<Declaration::FunctionDecl>())
 		{
 			const auto functionType = m_Compiler.getCorrespondingType(funcDecl->GetValueType());
 			const auto functionName = funcDecl->GetIdentifierInfo()->GetName();
@@ -195,7 +195,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 	// 生成定义
 	for (auto const& decl : declVec)
 	{
-		if (const auto funcDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(decl.first))
+		if (const auto funcDecl = decl.first.Cast<Declaration::FunctionDecl>())
 		{
 			switch (funcDecl->GetStorageClass())
 			{
@@ -279,7 +279,7 @@ void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStm
 			nat_Throw(AotCompilerException, u8"错误的声明"_nv);
 		}
 
-		if (auto varDecl = static_cast<natRefPointer<Declaration::VarDecl>>(decl))
+		if (auto varDecl = decl.Cast<Declaration::VarDecl>())
 		{
 			if (varDecl->IsFunction())
 			{
@@ -289,7 +289,7 @@ void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStm
 
 			const auto type = varDecl->GetValueType();
 			llvm::Value* arraySize = nullptr;
-			if (const auto arrayType = static_cast<natRefPointer<Type::ArrayType>>(type))
+			if (const auto arrayType = type.Cast<Type::ArrayType>())
 			{
 				arraySize = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Compiler.m_LLVMContext), arrayType->GetSize());
 			}
@@ -414,18 +414,18 @@ void AotCompiler::AotStmtVisitor::VisitArraySubscriptExpr(natRefPointer<Expressi
 
 void AotCompiler::AotStmtVisitor::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> const& expr)
 {
-	const auto builtinLeftOperandType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetLeftOperand()->GetExprType());
+	const auto builtinLeftOperandType = expr->GetLeftOperand()->GetExprType().Cast<Type::BuiltinType>();
 	Visit(expr->GetLeftOperand());
 	const auto leftOperand = m_LastVisitedValue;
 
-	const auto builtinRightOperandType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetRightOperand()->GetExprType());
+	const auto builtinRightOperandType = expr->GetRightOperand()->GetExprType().Cast<Type::BuiltinType>();
 	Visit(expr->GetRightOperand());
 	const auto rightOperand = m_LastVisitedValue;
 
 	const auto opCode = expr->GetOpcode();
 	// 左右操作数类型应当相同
 	const auto commonType = expr->GetLeftOperand()->GetExprType();
-	const auto resultType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetExprType());
+	const auto resultType = expr->GetExprType().Cast<Type::BuiltinType>();
 
 	m_LastVisitedValue = EmitBinOp(leftOperand, rightOperand, opCode, commonType, resultType);
 }
@@ -599,7 +599,7 @@ void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::Dec
 
 void AotCompiler::AotStmtVisitor::VisitFloatingLiteral(natRefPointer<Expression::FloatingLiteral> const& expr)
 {
-	const auto floatType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetExprType());
+	const auto floatType = expr->GetExprType().Cast<Type::BuiltinType>();
 
 	if (floatType->GetBuiltinClass() == Type::BuiltinType::Float)
 	{
@@ -613,7 +613,7 @@ void AotCompiler::AotStmtVisitor::VisitFloatingLiteral(natRefPointer<Expression:
 
 void AotCompiler::AotStmtVisitor::VisitIntegerLiteral(natRefPointer<Expression::IntegerLiteral> const& expr)
 {
-	const auto intType = static_cast<natRefPointer<Type::BuiltinType>>(expr->GetExprType());
+	const auto intType = expr->GetExprType().Cast<Type::BuiltinType>();
 	const auto typeInfo = m_Compiler.m_AstContext.GetTypeInfo(intType);
 
 	m_LastVisitedValue = llvm::ConstantInt::get(m_Compiler.m_LLVMContext, llvm::APInt{static_cast<unsigned>(typeInfo.Size * 8), expr->GetValue(), intType->IsSigned() });
@@ -1068,7 +1068,7 @@ llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarTo(llvm::Value* from, Typ
 		return from;
 	}
 
-	const auto builtinFromType = static_cast<natRefPointer<Type::BuiltinType>>(fromType), builtinToType = static_cast<natRefPointer<Type::BuiltinType>>(toType);
+	const auto builtinFromType = fromType.Cast<Type::BuiltinType>(), builtinToType = toType.Cast<Type::BuiltinType>();
 
 	if (!builtinFromType || !builtinToType)
 	{
@@ -1236,7 +1236,7 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 	{
 	case Type::Type::Builtin:
 	{
-		const auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(underlyingType);
+		const auto builtinType = underlyingType.Cast<Type::BuiltinType>();
 		switch (builtinType->GetBuiltinClass())
 		{
 		case Type::BuiltinType::Void:
@@ -1274,12 +1274,12 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 	}
 	case Type::Type::Array:
 	{
-		const auto arrayType = static_cast<natRefPointer<Type::ArrayType>>(underlyingType);
+		const auto arrayType = underlyingType.Cast<Type::ArrayType>();
 		return llvm::ArrayType::get(getCorrespondingType(arrayType->GetElementType()), static_cast<std::uint64_t>(arrayType->GetSize()));
 	}
 	case Type::Type::Function:
 	{
-		const auto functionType = static_cast<natRefPointer<Type::FunctionType>>(underlyingType);
+		const auto functionType = underlyingType.Cast<Type::FunctionType>();
 		const auto args{ functionType->GetParameterTypes().select([this](Type::TypePtr const& argType)
 		{
 			return getCorrespondingType(argType);

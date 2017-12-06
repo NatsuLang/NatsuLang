@@ -157,13 +157,13 @@ NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<NamedDecl>>> DeclContext
 {
 	return GetDecls().where([info] (DeclPtr const& decl)
 	{
-		const auto namedDecl = static_cast<natRefPointer<NamedDecl>>(decl);
+		const auto namedDecl = decl.Cast<NamedDecl>();
 		if (!namedDecl)
 		{
 			return false;
 		}
 		return namedDecl->GetIdentifierInfo() == info;
-	}).select([] (DeclPtr const& decl) { return static_cast<natRefPointer<NamedDecl>>(decl); });
+	}).select([] (DeclPtr const& decl) { return decl.Cast<NamedDecl>(); });
 }
 
 DeclContext::DeclIterator::DeclIterator(DeclPtr firstDecl)

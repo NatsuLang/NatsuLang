@@ -13,13 +13,16 @@ namespace NatsuLang
 
 	enum class CompilerActionArgumentType
 	{
-		None		= 0x0,	///< @brief	无参数
+		None			= 0x0,	///< @brief	无参数
 
-		Optional	= 0x1,	///< @brief	可选参数，不能单独设置
+		Optional		= 0x1,	///< @brief	可选参数，不能单独设置
 
-		Type		= 0x2,	///< @brief	类型参数
-		Declaration	= 0x4,	///< @brief	声明参数
-		Statement	= 0x8,	///< @brief	语句参数
+		Type			= 0x2,	///< @brief	类型参数
+		Declaration		= 0x4,	///< @brief	声明参数
+		Statement		= 0x8,	///< @brief	语句参数
+
+		Identifier		= 0x10,	///< @brief	标识符，将作为 UnresolvedDecl 传入，不会进行名称查找，GetDeclaratorPtr 将会返回 nullptr
+		CompilerAction	= 0x20,	///< @brief	编译器动作
 	};
 
 	MAKE_ENUM_CLASS_BITMASK_TYPE(CompilerActionArgumentType);
@@ -32,6 +35,7 @@ namespace NatsuLang
 		///	@brief	返回期望的指定参数类型
 		///	@param	i	指定的从 0 开始的第 i 个参数
 		///	@return	期望的参数类型，None 表示要求不接受第 i 个以上的参数，迭代可以以此结束
+		///	@remark	此方法可能根据已输入的参数而改变返回值，请根据实际编译器动作的说明来了解此方法可能的行为
 		virtual CompilerActionArgumentType GetExpectedArgumentType(std::size_t i) = 0;
 	};
 
@@ -52,8 +56,11 @@ namespace NatsuLang
 		Syntax::Parser* m_Parser;
 	};
 
+	////////////////////////////////////////////////////////////////////////////////
+	///	@brief	编译器动作接口
+	////////////////////////////////////////////////////////////////////////////////
 	struct ICompilerAction
-		: NatsuLib::natRefObj
+		: ASTNode
 	{
 		virtual ~ICompilerAction();
 
@@ -77,6 +84,12 @@ namespace NatsuLang
 		///	@brief	添加参数
 		///	@param	arg		本次添加的参数
 		virtual void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) = 0;
+
+		///	@brief	结束参数列表
+		virtual void EndArgumentList();
+
+		///	@brief	结束参数序列
+		virtual void EndArgumentSequence();
 	};
 
 	class CompilerActionNamespace final

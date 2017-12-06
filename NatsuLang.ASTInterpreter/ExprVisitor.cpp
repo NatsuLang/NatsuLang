@@ -110,7 +110,7 @@ void Interpreter::InterpreterExprVisitor::VisitStringLiteral(natRefPointer<Expre
 void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<Expression::ArraySubscriptExpr> const& expr)
 {
 	Visit(expr->GetLeftOperand());
-	const auto baseOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr);
+	const auto baseOperand = m_LastVisitedExpr.Cast<Expression::DeclRefExpr>();
 	natRefPointer<Declaration::ValueDecl> baseDecl;
 	natRefPointer<Type::ArrayType> baseType;
 	if (baseOperand)
@@ -126,7 +126,7 @@ void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<
 
 	Visit(expr->GetRightOperand());
 	nuLong indexValue;
-	if (const auto indexDeclOperand = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr))
+	if (const auto indexDeclOperand = m_LastVisitedExpr.Cast<Expression::DeclRefExpr>())
 	{
 		auto decl = indexDeclOperand->GetDecl();
 		if (!m_Interpreter.m_DeclStorage.DoesDeclExist(decl))
@@ -139,7 +139,7 @@ void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<
 			indexValue = value;
 		}, Expected<nuLong>);
 	}
-	else if (const auto indexLiteralOperand = static_cast<natRefPointer<Expression::IntegerLiteral>>(m_LastVisitedExpr))
+	else if (const auto indexLiteralOperand = m_LastVisitedExpr.Cast<Expression::IntegerLiteral>())
 	{
 		indexValue = indexLiteralOperand->GetValue();
 	}
@@ -175,13 +175,13 @@ void Interpreter::InterpreterExprVisitor::VisitThrowExpr(natRefPointer<Expressio
 void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression::CallExpr> const& expr)
 {
 	Visit(expr->GetCallee());
-	const auto callee = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr);
+	const auto callee = m_LastVisitedExpr.Cast<Expression::DeclRefExpr>();
 	if (!callee)
 	{
 		nat_Throw(InterpreterException, u8"被调用者错误"_nv);
 	}
 
-	if (const auto calleeDecl = static_cast<natRefPointer<Declaration::FunctionDecl>>(callee->GetDecl()))
+	if (const auto calleeDecl = callee->GetDecl().Cast<Declaration::FunctionDecl>())
 	{
 		if (!calleeDecl->GetBody())
 		{
@@ -243,7 +243,7 @@ void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression
 			m_LastVisitedExpr = stmtVisitor.GetReturnedExpr();
 			if (!m_LastVisitedExpr)
 			{
-				const auto retType = static_cast<natRefPointer<Type::BuiltinType>>(static_cast<natRefPointer<Type::FunctionType>>(calleeDecl->GetValueType())->GetResultType());
+				const auto retType = static_cast<natRefPointer<Type::FunctionType>>(calleeDecl->GetValueType())->GetResultType().Cast<Type::BuiltinType>();
 				if (!retType || retType->GetBuiltinClass() != Type::BuiltinType::Void)
 				{
 					nat_Throw(InterpreterException, u8"要求返回值的函数在控制流离开后未返回任何值"_nv);
@@ -753,7 +753,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 	const auto leftOperand = std::move(m_LastVisitedExpr);
 	const auto rightOperand = expr->GetRightOperand();
 
-	const auto leftDeclExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(leftOperand);
+	const auto leftDeclExpr = leftOperand.Cast<Expression::DeclRefExpr>();
 
 	natRefPointer<Declaration::ValueDecl> decl;
 	if (!leftDeclExpr || !((decl = leftDeclExpr->GetDecl())) || !decl->GetIdentifierInfo())
@@ -882,7 +882,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 {
 	const auto opCode = expr->GetOpcode();
 	Visit(expr->GetOperand());
-	const auto declExpr = static_cast<natRefPointer<Expression::DeclRefExpr>>(m_LastVisitedExpr);
+	const auto declExpr = m_LastVisitedExpr.Cast<Expression::DeclRefExpr>();
 
 	switch (opCode)
 	{

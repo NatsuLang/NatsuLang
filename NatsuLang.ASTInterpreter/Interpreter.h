@@ -297,7 +297,7 @@ namespace NatsuLang
 				{
 					const auto exprType = expr->GetExprType();
 
-					if (const auto builtinType = static_cast<NatsuLib::natRefPointer<Type::BuiltinType>>(exprType))
+					if (const auto builtinType = exprType.Cast<Type::BuiltinType>())
 					{
 						switch (builtinType->GetBuiltinClass())
 						{
@@ -322,7 +322,7 @@ namespace NatsuLang
 				{
 					const auto exprType = expr->GetExprType();
 
-					if (const auto builtinType = static_cast<NatsuLib::natRefPointer<Type::BuiltinType>>(exprType))
+					if (const auto builtinType = exprType.Cast<Type::BuiltinType>())
 					{
 						switch (builtinType->GetBuiltinClass())
 						{
@@ -483,7 +483,7 @@ namespace NatsuLang
 				{
 				case Type::Type::Builtin:
 				{
-					const auto builtinType = static_cast<NatsuLib::natRefPointer<Type::BuiltinType>>(type);
+					const auto builtinType = type.Cast<Type::BuiltinType>();
 					assert(builtinType);
 
 					switch (builtinType->GetBuiltinClass())

@@ -126,7 +126,7 @@ std::size_t BuiltinType::GetHashCode() const noexcept
 
 nBool BuiltinType::EqualTo(TypePtr const& other) const noexcept
 {
-	const auto realOther = static_cast<natRefPointer<BuiltinType>>(other);
+	const auto realOther = other.Cast<BuiltinType>();
 	if (!realOther)
 	{
 		return false;
@@ -213,7 +213,7 @@ std::size_t ParenType::GetHashCode() const noexcept
 
 nBool ParenType::EqualTo(TypePtr const& other) const noexcept
 {
-	const auto realOther = static_cast<natRefPointer<ParenType>>(other);
+	const auto realOther = other.Cast<ParenType>();
 	if (!realOther)
 	{
 		return false;
@@ -233,7 +233,7 @@ std::size_t ArrayType::GetHashCode() const noexcept
 
 nBool ArrayType::EqualTo(TypePtr const& other) const noexcept
 {
-	const auto realOther = static_cast<natRefPointer<ArrayType>>(other);
+	const auto realOther = other.Cast<ArrayType>();
 	if (!realOther)
 	{
 		return false;
@@ -269,7 +269,7 @@ std::size_t FunctionType::GetHashCode() const noexcept
 
 nBool FunctionType::EqualTo(TypePtr const& other) const noexcept
 {
-	const auto realOther = static_cast<natRefPointer<FunctionType>>(other);
+	const auto realOther = other.Cast<FunctionType>();
 	if (!realOther)
 	{
 		return false;
@@ -295,7 +295,7 @@ std::size_t TypeOfType::GetHashCode() const noexcept
 
 nBool TypeOfType::EqualTo(TypePtr const& other) const noexcept
 {
-	const auto realOther = static_cast<natRefPointer<TypeOfType>>(other);
+	const auto realOther = other.Cast<TypeOfType>();
 	if (!realOther)
 	{
 		return false;
@@ -315,7 +315,7 @@ std::size_t TagType::GetHashCode() const noexcept
 
 nBool TagType::EqualTo(TypePtr const& other) const noexcept
 {
-	const auto realOther = static_cast<natRefPointer<TagType>>(other);
+	const auto realOther = other.Cast<TagType>();
 	if (!realOther)
 	{
 		return false;
@@ -378,7 +378,7 @@ std::size_t DeducedType::GetHashCode() const noexcept
 
 nBool DeducedType::EqualTo(TypePtr const& other) const noexcept
 {
-	const auto realOther = static_cast<natRefPointer<DeducedType>>(other);
+	const auto realOther = other.Cast<DeducedType>();
 	if (!realOther)
 	{
 		return false;
@@ -420,7 +420,7 @@ std::size_t UnresolvedType::GetHashCode() const noexcept
 
 nBool UnresolvedType::EqualTo(TypePtr const& other) const noexcept
 {
-	if (const auto unresolvedOther = static_cast<natRefPointer<UnresolvedType>>(other))
+	if (const auto unresolvedOther = other.Cast<UnresolvedType>())
 	{
 		return m_Tokens == unresolvedOther->m_Tokens;
 	}

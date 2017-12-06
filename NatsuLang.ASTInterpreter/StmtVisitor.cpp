@@ -87,7 +87,7 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 			nat_Throw(InterpreterException, u8"错误的声明"_nv);
 		}
 
-		if (auto varDecl = static_cast<natRefPointer<Declaration::VarDecl>>(decl))
+		if (auto varDecl = decl.Cast<Declaration::VarDecl>())
 		{
 			// 不需要分配存储
 			if (varDecl->IsFunction() || varDecl->GetStorageClass() == Specifier::StorageClass::Extern)

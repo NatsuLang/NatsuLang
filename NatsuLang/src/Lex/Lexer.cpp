@@ -4,8 +4,8 @@
 
 using namespace NatsuLib;
 using namespace NatsuLang;
-using namespace NatsuLang::Lex;
-using namespace NatsuLang::CharInfo;
+using namespace Lex;
+using namespace CharInfo;
 
 Lexer::Lexer(nStrView buffer, Preprocessor& preprocessor)
 	: m_Preprocessor{ preprocessor }, m_Buffer{ buffer }, m_Current{ m_Buffer.cbegin() }
@@ -16,7 +16,7 @@ Lexer::Lexer(nStrView buffer, Preprocessor& preprocessor)
 	}
 }
 
-nBool Lexer::Lex(Lex::Token& result)
+nBool Lexer::Lex(Token& result)
 {
 NextToken:
 	result.Reset();
@@ -32,7 +32,7 @@ NextToken:
 		return true;
 	}
 
-	const auto charCount = NatsuLib::StringEncodingTrait<nStrView::UsingStringType>::GetCharCount(*cur);
+	const auto charCount = StringEncodingTrait<nStrView::UsingStringType>::GetCharCount(*cur);
 	if (charCount == 1)
 	{
 		switch (*cur)
@@ -376,7 +376,7 @@ void Lexer::SetFileID(nuInt value) noexcept
 	m_CurLoc = SourceLocation{ value, 1, 1 };
 }
 
-nBool Lexer::skipWhitespace(Lex::Token& result, Iterator cur)
+nBool Lexer::skipWhitespace(Token& result, Iterator cur)
 {
 	const auto end = m_Buffer.end();
 
@@ -399,7 +399,7 @@ nBool Lexer::skipWhitespace(Lex::Token& result, Iterator cur)
 	return false;
 }
 
-nBool Lexer::skipLineComment(Lex::Token& result, Iterator cur)
+nBool Lexer::skipLineComment(Token& result, Iterator cur)
 {
 	const auto end = m_Buffer.end();
 
@@ -413,7 +413,7 @@ nBool Lexer::skipLineComment(Lex::Token& result, Iterator cur)
 	return false;
 }
 
-nBool Lexer::skipBlockComment(Lex::Token& result, Iterator cur)
+nBool Lexer::skipBlockComment(Token& result, Iterator cur)
 {
 	const auto end = m_Buffer.end();
 
@@ -443,7 +443,7 @@ nBool Lexer::skipBlockComment(Lex::Token& result, Iterator cur)
 	return false;
 }
 
-nBool Lexer::lexNumericLiteral(Lex::Token& result, Iterator cur)
+nBool Lexer::lexNumericLiteral(Token& result, Iterator cur)
 {
 	const auto start = cur, end = m_Buffer.end();
 	CharType curChar = *cur, prevChar{};
@@ -484,7 +484,7 @@ nBool Lexer::lexNumericLiteral(Lex::Token& result, Iterator cur)
 	return true;
 }
 
-nBool Lexer::lexIdentifier(Lex::Token& result, Iterator cur)
+nBool Lexer::lexIdentifier(Token& result, Iterator cur)
 {
 	const auto start = cur, end = m_Buffer.end();
 
@@ -518,7 +518,7 @@ nBool Lexer::lexIdentifier(Lex::Token& result, Iterator cur)
 	return true;
 }
 
-nBool Lexer::lexCharLiteral(Lex::Token& result, Iterator cur)
+nBool Lexer::lexCharLiteral(Token& result, Iterator cur)
 {
 	assert(*cur == '\'');
 
@@ -546,7 +546,7 @@ nBool Lexer::lexCharLiteral(Lex::Token& result, Iterator cur)
 	return true;
 }
 
-nBool Lexer::lexStringLiteral(Lex::Token& result, Iterator cur)
+nBool Lexer::lexStringLiteral(Token& result, Iterator cur)
 {
 	assert(*cur == '"');
 

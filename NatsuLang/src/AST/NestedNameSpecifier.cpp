@@ -48,7 +48,7 @@ Declaration::DeclContext* NestedNameSpecifier::GetAsDeclContext(ASTContext const
 		return GetAsModule().Get();
 	case SpecifierType::Type:
 	{
-		auto ret = static_cast<natRefPointer<Type::TagType>>(GetAsType());
+		auto ret = GetAsType().Cast<Type::TagType>();
 		assert(ret);
 		return ret->GetDecl().Get();
 	}

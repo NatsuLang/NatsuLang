@@ -51,11 +51,8 @@ namespace NatsuLang::Lex
 		nStrView m_Buffer;
 		nStrView::iterator m_Current, m_DigitBegin, m_SuffixBegin;
 
-		nBool m_SawPeriod, m_SawSuffix;
-
 		nuInt m_Radix;
-		
-		nBool m_Errored : 1, m_IsFloat : 1, m_IsUnsigned : 1, m_IsLong : 1, m_IsLongLong : 1;
+		nBool m_SawPeriod : 1, m_SawSuffix : 1, m_Errored : 1, m_IsFloat : 1, m_IsUnsigned : 1, m_IsLong : 1, m_IsLongLong : 1;
 
 		void parseNumberStartingWithZero(SourceLocation loc) noexcept;
 

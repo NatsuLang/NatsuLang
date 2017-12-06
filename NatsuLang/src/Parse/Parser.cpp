@@ -206,6 +206,13 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 	}
 }
 
+// compiler-action:
+//	'$' compiler-action-name ['(' compiler-action-argument-list ')'] [compiler-action-argument] ['{' compiler-action-argument-seq '}']
+// compiler-action-name:
+//	[compiler-action-namespace-specifier] compiler-action-id
+// compiler-action-namespace-specifier:
+//	compiler-action-namespace-id '.'
+//	compiler-action-namespace-specifier compiler-action-namespace-id '.'
 void Parser::ParseCompilerAction(std::function<nBool(natRefPointer<ASTNode>)> const& output)
 {
 	assert(m_CurrentToken.Is(TokenType::Dollar));
@@ -272,6 +279,7 @@ void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> cons
 
 	const auto requirement = action->GetArgumentRequirement();
 
+	// TODO: 替换成正儿八经的实现
 	// 禁止匹配过程中的错误报告
 	m_Diag.EnableDiag(false);
 	const auto scope = make_scope([this]
@@ -969,7 +977,7 @@ Statement::StmtPtr Parser::ParseReturnStatement()
 
 	if (const auto funcDecl = m_Sema.GetParsingFunction())
 	{
-		const auto funcType = static_cast<natRefPointer<Type::FunctionType>>(funcDecl->GetValueType());
+		const auto funcType = funcDecl->GetValueType().Cast<Type::FunctionType>();
 		assert(funcType);
 		const auto retType = funcType->GetResultType();
 		if ((!retType && !m_CurrentToken.Is(TokenType::Semi)) || !retType->IsVoid())

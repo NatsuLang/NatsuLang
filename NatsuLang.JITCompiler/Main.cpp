@@ -70,7 +70,7 @@ public:
 	{
 		for (auto&& decl : decls)
 		{
-			if (auto namedDecl = static_cast<natRefPointer<Declaration::NamedDecl>>(decl))
+			if (auto namedDecl = decl.Cast<Declaration::NamedDecl>())
 			{
 				m_NamedDecls.emplace(namedDecl->GetIdentifierInfo()->GetName(), std::move(namedDecl));
 			}

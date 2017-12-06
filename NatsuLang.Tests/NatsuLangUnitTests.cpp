@@ -21,12 +21,12 @@ def Increase : (arg : int = 1) -> int
 
 	SECTION("test function \"Increase\"")
 	{
-		const auto incFunc = static_cast<natRefPointer<Declaration::FunctionDecl>>(consumer->GetNamedDecl(u8"Increase"));
+		const auto incFunc = consumer->GetNamedDecl(u8"Increase").Cast<Declaration::FunctionDecl>();
 		REQUIRE(incFunc);
 
 		SECTION("test signature")
 		{
-			auto funcType = static_cast<natRefPointer<Type::FunctionType>>(incFunc->GetValueType());
+			auto funcType = incFunc->GetValueType().Cast<Type::FunctionType>();
 			REQUIRE(funcType);
 
 			SECTION("test parameters")
@@ -41,7 +41,7 @@ def Increase : (arg : int = 1) -> int
 
 				const auto argType = arg->GetValueType();
 				REQUIRE(argType);
-				const auto argRealType = static_cast<natRefPointer<Type::BuiltinType>>(argType);
+				const auto argRealType = argType.Cast<Type::BuiltinType>();
 				REQUIRE(argRealType);
 				REQUIRE(argRealType->GetBuiltinClass() == Type::BuiltinType::Int);
 
@@ -54,7 +54,7 @@ def Increase : (arg : int = 1) -> int
 
 			SECTION("test result type")
 			{
-				const auto retType = static_cast<natRefPointer<Type::BuiltinType>>(funcType->GetResultType());
+				const auto retType = funcType->GetResultType().Cast<Type::BuiltinType>();
 				REQUIRE(retType);
 				REQUIRE(retType->GetBuiltinClass() == Type::BuiltinType::Int);
 			}
@@ -62,13 +62,13 @@ def Increase : (arg : int = 1) -> int
 
 		SECTION("test body")
 		{
-			const auto body = static_cast<natRefPointer<Statement::CompoundStmt>>(incFunc->GetBody());
+			const auto body = incFunc->GetBody().Cast<Statement::CompoundStmt>();
 			REQUIRE(body);
 
 			auto content{ body->GetChildrens().Cast<std::vector<Statement::StmtPtr>>() };
 			REQUIRE(!content.empty());
 
-			auto retStmt = static_cast<natRefPointer<Statement::ReturnStmt>>(content[0]);
+			auto retStmt = content[0].Cast<Statement::ReturnStmt>();
 			REQUIRE(retStmt);
 
 			auto retValueExpr = retStmt->GetReturnExpr();

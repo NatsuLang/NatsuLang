@@ -117,7 +117,7 @@ ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 	{
 	case Type::Type::Builtin:
 	{
-		const auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(type);
+		const auto builtinType = type.Cast<Type::BuiltinType>();
 		switch (builtinType->GetBuiltinClass())
 		{
 		case Type::BuiltinType::Void:
@@ -158,7 +158,7 @@ ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 	}
 	case Type::Type::Array:
 	{
-		const auto arrayType = static_cast<natRefPointer<Type::ArrayType>>(type);
+		const auto arrayType = type.Cast<Type::ArrayType>();
 		auto elemInfo = GetTypeInfo(arrayType->GetElementType());
 		elemInfo.Size *= arrayType->GetSize();
 		return elemInfo;

@@ -207,14 +207,14 @@ namespace NatsuLang::Declaration
 		: public DeclaratorDecl
 	{
 	public:
-		UnresolvedDecl(DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, SourceLocation startLoc, NatsuLib::natWeakRefPointer<Declaration::Declarator> declaratorPtr = nullptr)
-			: DeclaratorDecl{ Unresolved, context, loc, std::move(identifierInfo), std::move(valueType), startLoc }, m_DeclaratorPtr{ std::move(std::move(declaratorPtr)) }
+		UnresolvedDecl(DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType, SourceLocation startLoc, NatsuLib::natWeakRefPointer<Declarator> declaratorPtr = nullptr)
+			: DeclaratorDecl{ Unresolved, context, loc, std::move(identifierInfo), std::move(valueType), startLoc }, m_DeclaratorPtr{ std::move(declaratorPtr) }
 		{
 		}
 
 		~UnresolvedDecl();
 
-		NatsuLib::natWeakRefPointer<Declaration::Declarator> GetDeclaratorPtr() const noexcept
+		NatsuLib::natWeakRefPointer<Declarator> GetDeclaratorPtr() const noexcept
 		{
 			return m_DeclaratorPtr;
 		}
@@ -223,7 +223,7 @@ namespace NatsuLang::Declaration
 
 	private:
 		// 在 resolve 时使用，resolve 完成后将会过期
-		NatsuLib::natWeakRefPointer<Declaration::Declarator> m_DeclaratorPtr;
+		NatsuLib::natWeakRefPointer<Declarator> m_DeclaratorPtr;
 	};
 
 	class VarDecl

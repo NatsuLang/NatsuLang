@@ -30,17 +30,17 @@ TypePtr NatsuLang::Type::Type::GetUnderlyingType(TypePtr const& type)
 		return nullptr;
 	}
 
-	if (const auto deducedType = static_cast<natRefPointer<DeducedType>>(type))
+	if (const auto deducedType = type.Cast<DeducedType>())
 	{
 		return GetUnderlyingType(deducedType->GetDeducedAsType());
 	}
 
-	if (const auto typeofType = static_cast<natRefPointer<TypeOfType>>(type))
+	if (const auto typeofType = type.Cast<TypeOfType>())
 	{
 		return GetUnderlyingType(typeofType->GetUnderlyingType());
 	}
 
-	if (const auto parenType = static_cast<natRefPointer<ParenType>>(type))
+	if (const auto parenType = type.Cast<ParenType>())
 	{
 		return GetUnderlyingType(parenType->GetInnerType());
 	}

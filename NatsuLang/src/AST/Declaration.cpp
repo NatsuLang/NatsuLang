@@ -106,7 +106,7 @@ Linq<Valued<natRefPointer<EnumConstantDecl>>> EnumDecl::GetEnumerators() const n
 		})
 		.select([](natRefPointer<Decl> const& decl)
 		{
-			return static_cast<natRefPointer<EnumConstantDecl>>(decl);
+			return decl.Cast<EnumConstantDecl>();
 		});
 }
 
@@ -119,7 +119,7 @@ Linq<Valued<natRefPointer<FieldDecl>>> ClassDecl::GetFields() const noexcept
 	return from(GetDecls())
 		.select([](natRefPointer<Decl> const& decl)
 		{
-			return static_cast<natRefPointer<FieldDecl>>(decl);
+			return decl.Cast<FieldDecl>();
 		})
 		.where([](natRefPointer<FieldDecl> const& decl) -> nBool
 		{
@@ -132,7 +132,7 @@ Linq<Valued<natRefPointer<MethodDecl>>> ClassDecl::GetMethods() const noexcept
 	return from(GetDecls())
 		.select([](natRefPointer<Decl> const& decl)
 		{
-			return static_cast<natRefPointer<MethodDecl>>(decl);
+			return decl.Cast<MethodDecl>();
 		})
 		.where([](natRefPointer<MethodDecl> const& decl) -> nBool
 		{

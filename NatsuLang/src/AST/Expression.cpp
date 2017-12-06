@@ -502,7 +502,7 @@ namespace
 	{
 		const auto type = expr->GetExprType();
 
-		if (const auto builtinType = static_cast<natRefPointer<Type::BuiltinType>>(type))
+		if (const auto builtinType = type.Cast<Type::BuiltinType>())
 		{
 			if (builtinType->IsIntegerType())
 			{
@@ -555,7 +555,7 @@ ExprPtr Expr::IgnoreParens() noexcept
 	// 可能的死循环
 	while (true)
 	{
-		if (const auto parenExpr = static_cast<natRefPointer<ParenExpr>>(ret))
+		if (const auto parenExpr = ret.Cast<ParenExpr>())
 		{
 			ret = parenExpr->GetInnerExpr();
 		}
@@ -724,7 +724,7 @@ MemberCallExpr::~MemberCallExpr()
 
 ExprPtr MemberCallExpr::GetImplicitObjectArgument() const noexcept
 {
-	const auto callee = static_cast<natRefPointer<MemberExpr>>(GetCallee());
+	const auto callee = GetCallee().Cast<MemberExpr>();
 	if (callee)
 	{
 		return callee->GetBase();

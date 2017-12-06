@@ -11,6 +11,14 @@ ICompilerAction::~ICompilerAction()
 {
 }
 
+void ICompilerAction::EndArgumentList()
+{
+}
+
+void ICompilerAction::EndArgumentSequence()
+{
+}
+
 CompilerActionNamespace::CompilerActionNamespace(nString name)
 	: m_Name{ std::move(name) }
 {

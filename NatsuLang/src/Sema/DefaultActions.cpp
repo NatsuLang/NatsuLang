@@ -208,7 +208,7 @@ void ActionIsDefined::EndAction(std::function<nBool(natRefPointer<ASTNode>)> con
 
 void ActionIsDefined::AddArgument(natRefPointer<ASTNode> const& arg)
 {
-	const auto name = static_cast<natRefPointer<Expression::StringLiteral>>(arg);
+	const auto name = arg.Cast<Expression::StringLiteral>();
 	if (!name)
 	{
 		// TODO: 报告错误
@@ -220,4 +220,127 @@ void ActionIsDefined::AddArgument(natRefPointer<ASTNode> const& arg)
 		m_Sema->GetPreprocessor().FindIdentifierInfo(name->GetValue(), dummyToken),
 		SourceLocation{}, Semantic::Sema::LookupNameType::LookupAnyName };
 	m_Result = m_Sema->LookupName(r, m_Sema->GetCurrentScope()) && r.GetDeclSize();
+}
+
+const natRefPointer<IArgumentRequirement> ActionTypeArg::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier }) };
+
+ActionArgInfo::ActionArgInfo(ArgType argType, natRefPointer<ASTNode> arg)
+	: m_ArgType{ argType }, m_Arg{ std::move(arg) }
+{
+}
+
+ActionArgInfo::~ActionArgInfo()
+{
+}
+
+nStrView ActionArgInfo::GetName() const noexcept
+{
+	return {};
+}
+
+natRefPointer<IArgumentRequirement> ActionArgInfo::GetArgumentRequirement()
+{
+	return nullptr;
+}
+
+void ActionArgInfo::StartAction(CompilerActionContext const& /*context*/)
+{
+}
+
+void ActionArgInfo::EndAction(std::function<nBool(natRefPointer<ASTNode>)> const& /*output*/)
+{
+}
+
+void ActionArgInfo::AddArgument(natRefPointer<ASTNode> const& /*arg*/)
+{
+}
+
+ActionTypeArg::ActionTypeArg()
+	: m_Diag{}
+{
+}
+
+ActionTypeArg::~ActionTypeArg()
+{
+}
+
+nStrView ActionTypeArg::GetName() const noexcept
+{
+	return "TypeArg";
+}
+
+natRefPointer<IArgumentRequirement> ActionTypeArg::GetArgumentRequirement()
+{
+	return s_ArgumentRequirement;
+}
+
+void ActionTypeArg::StartAction(CompilerActionContext const& context)
+{
+	m_Diag = &context.GetParser().GetDiagnosticsEngine();
+}
+
+void ActionTypeArg::EndAction(std::function<nBool(natRefPointer<ASTNode>)> const& output)
+{
+	if (output)
+	{
+
+	}
+}
+
+void ActionTypeArg::AddArgument(natRefPointer<ASTNode> const& arg)
+{
+	if (const auto idDecl = arg.Cast<Declaration::UnresolvedDecl>())
+	{
+		m_TypeId = idDecl->GetIdentifierInfo();
+	}
+	else
+	{
+		// TODO: 通过 m_Diag 报告错误
+	}
+}
+
+ActionTemplate::ActionTemplate()
+	: m_Sema{}, m_IsTemplateArgEnded{ false }
+{
+}
+
+ActionTemplate::~ActionTemplate()
+{
+}
+
+nStrView ActionTemplate::GetName() const noexcept
+{
+	return "Template";
+}
+
+natRefPointer<IArgumentRequirement> ActionTemplate::GetArgumentRequirement()
+{
+	// TODO
+	return nullptr;
+}
+
+void ActionTemplate::StartAction(CompilerActionContext const& context)
+{
+}
+
+void ActionTemplate::EndAction(std::function<nBool(natRefPointer<ASTNode>)> const& output)
+{
+}
+
+void ActionTemplate::AddArgument(natRefPointer<ASTNode> const& arg)
+{
+}
+
+void ActionTemplate::EndArgumentList()
+{
+}
+
+ActionTemplate::ActionTemplateArgumentRequirement::~ActionTemplateArgumentRequirement()
+{
+}
+
+CompilerActionArgumentType ActionTemplate::ActionTemplateArgumentRequirement::GetExpectedArgumentType(std::size_t i)
+{
+	// TODO
+	return CompilerActionArgumentType::None;
 }

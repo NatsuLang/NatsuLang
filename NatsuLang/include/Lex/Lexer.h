@@ -16,7 +16,7 @@ namespace NatsuLang
 		public:
 			explicit Lexer(nStrView buffer, Preprocessor& preprocessor);
 
-			nBool Lex(Lex::Token& result);
+			nBool Lex(Token& result);
 
 			nuInt GetFileID() const noexcept;
 			void SetFileID(nuInt value) noexcept;
@@ -32,14 +32,14 @@ namespace NatsuLang
 			// 当前处理的指针，指向下一次被处理的字符
 			Iterator m_Current;
 
-			nBool skipWhitespace(Lex::Token& result, Iterator cur);
-			nBool skipLineComment(Lex::Token& result, Iterator cur);
-			nBool skipBlockComment(Lex::Token& result, Iterator cur);
+			nBool skipWhitespace(Token& result, Iterator cur);
+			nBool skipLineComment(Token& result, Iterator cur);
+			nBool skipBlockComment(Token& result, Iterator cur);
 
-			nBool lexNumericLiteral(Lex::Token& result, Iterator cur);
-			nBool lexIdentifier(Lex::Token& result, Iterator cur);
-			nBool lexCharLiteral(Lex::Token& result, Iterator cur);
-			nBool lexStringLiteral(Lex::Token& result, Iterator cur);
+			nBool lexNumericLiteral(Token& result, Iterator cur);
+			nBool lexIdentifier(Token& result, Iterator cur);
+			nBool lexCharLiteral(Token& result, Iterator cur);
+			nBool lexStringLiteral(Token& result, Iterator cur);
 
 			class Memento
 			{
