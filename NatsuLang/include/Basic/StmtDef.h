@@ -166,6 +166,12 @@ STMT_RANGE(CastExpr, AsTypeExpr, ImplicitCastExpr)
 
 #undef CASTEXPR
 
+#ifndef INITLISTEXPR
+#define INITLISTEXPR(Type, Base) EXPR(Type, Base)
+#endif
+INITLISTEXPR(InitListExpr, Expr)
+#undef INITLISTEXPR
+
 #ifndef CHARACTERLITERAL
 #define CHARACTERLITERAL(Type, Base) EXPR(Type, Base)
 #endif

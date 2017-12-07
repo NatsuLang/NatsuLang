@@ -215,6 +215,8 @@ namespace NatsuLang::Semantic
 
 		Expression::ExprPtr ActOnThrow(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, Expression::ExprPtr expr);
 
+		Expression::ExprPtr ActOnInitExpr(Type::TypePtr initType, SourceLocation leftBraceLoc, std::vector<Expression::ExprPtr> initExprs, SourceLocation rightBraceLoc);
+
 		Expression::ExprPtr ActOnIdExpr(NatsuLib::natRefPointer<Scope> const& scope, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen, NatsuLib::natRefPointer<Syntax::ResolveContext> const& resolveContext = nullptr);
 		Expression::ExprPtr ActOnThis(SourceLocation loc);
 		Expression::ExprPtr ActOnAsTypeExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr exprToCast, Type::TypePtr type, SourceLocation loc);

@@ -1124,6 +1124,11 @@ Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scope, SourceLo
 	nat_Throw(NotImplementedException);
 }
 
+Expression::ExprPtr Sema::ActOnInitExpr(Type::TypePtr initType, SourceLocation leftBraceLoc, std::vector<Expression::ExprPtr> initExprs, SourceLocation rightBraceLoc)
+{
+	return make_ref<Expression::InitListExpr>(std::move(initType), leftBraceLoc, std::move(initExprs), rightBraceLoc);
+}
+
 Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen, natRefPointer<Syntax::ResolveContext> const& resolveContext)
 {
 	LookupResult result{ *this, id, {}, LookupNameType::LookupOrdinaryName };

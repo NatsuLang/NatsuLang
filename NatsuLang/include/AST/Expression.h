@@ -584,6 +584,43 @@ namespace NatsuLang::Expression
 		DEFAULT_ACCEPT_DECL;
 	};
 
+	class InitListExpr
+		: public Expr
+	{
+	public:
+		InitListExpr(Type::TypePtr type, SourceLocation leftBraceLoc, std::vector<ExprPtr> initExprs, SourceLocation rightBraceLoc)
+			: Expr{ InitListExprClass, std::move(type) }, m_LeftBraceLoc{ leftBraceLoc }, m_RightBraceLoc{ rightBraceLoc }, m_InitExprs{ std::move(initExprs) }
+		{
+			Stmt::SetStartLoc(m_LeftBraceLoc);
+			Stmt::SetEndLoc(m_RightBraceLoc);
+		}
+
+		~InitListExpr();
+
+		SourceLocation GetLeftBraceLoc() const noexcept
+		{
+			return m_LeftBraceLoc;
+		}
+
+		SourceLocation GetRightBraceLoc() const noexcept
+		{
+			return m_RightBraceLoc;
+		}
+
+		std::size_t GetInitExprCount() const noexcept
+		{
+			return m_InitExprs.size();
+		}
+
+		NatsuLib::Linq<NatsuLib::Valued<ExprPtr>> GetInitExprs() const noexcept;
+
+		DEFAULT_ACCEPT_DECL;
+
+	private:
+		SourceLocation m_LeftBraceLoc, m_RightBraceLoc;
+		std::vector<ExprPtr> m_InitExprs;
+	};
+
 	class BinaryOperator
 		: public Expr
 	{

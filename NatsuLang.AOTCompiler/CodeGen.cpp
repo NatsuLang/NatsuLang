@@ -289,7 +289,8 @@ void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStm
 
 			const auto type = varDecl->GetValueType();
 			llvm::Value* arraySize = nullptr;
-			if (const auto arrayType = type.Cast<Type::ArrayType>())
+			const auto arrayType = type.Cast<Type::ArrayType>();
+			if (arrayType)
 			{
 				arraySize = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Compiler.m_LLVMContext), arrayType->GetSize());
 			}
@@ -302,9 +303,42 @@ void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStm
 
 				if (const auto initExpr = varDecl->GetInitializer())
 				{
-					Visit(initExpr);
-					const auto initializer = m_LastVisitedValue;
-					m_Compiler.m_IRBuilder.CreateStore(initializer, storage);
+					if (const auto initListExpr = initExpr.Cast<Expression::InitListExpr>())
+					{
+						if (arrayType)
+						{
+							// TODO: 数组类型初始化
+						}
+						else if (const auto builtinType = type.Cast<Type::BuiltinType>())
+						{
+							const auto initExprCount = initListExpr->GetInitExprCount();
+
+							if (initExprCount == 0)
+							{
+								m_Compiler.m_IRBuilder.CreateStore(llvm::Constant::getNullValue(valueType), storage);
+							}
+							else if (initExprCount == 1)
+							{
+								Visit(initListExpr->GetInitExprs().first());
+								const auto initializer = m_LastVisitedValue;
+								m_Compiler.m_IRBuilder.CreateStore(initializer, storage);
+							}
+							else
+							{
+								// TODO: 报告错误
+							}
+						}
+						else
+						{
+							// TODO: 用户自定义类型初始化
+						}
+					}
+					else
+					{
+						Visit(initExpr);
+						const auto initializer = m_LastVisitedValue;
+						m_Compiler.m_IRBuilder.CreateStore(initializer, storage);
+					}
 				}
 				else
 				{

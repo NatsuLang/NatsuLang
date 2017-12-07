@@ -288,7 +288,7 @@ namespace NatsuLang::Syntax
 		// argument-expression-list:
 		//	argument-expression
 		//	argument-expression-list ',' argument-expression
-		nBool ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs);
+		nBool ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs, Lex::TokenType endToken = Lex::TokenType::Eof);
 
 		void ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipIdentifier = false);
 		void ParseSpecifier(Declaration::DeclaratorPtr const& decl);

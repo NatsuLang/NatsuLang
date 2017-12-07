@@ -24,10 +24,10 @@ namespace NatsuLang::Statement
 		{
 			None = 0,
 #define STMT(StmtType, Base) StmtType##Class,
-#define STMT_RANGE(Base, First, Last) \
-		First##Base##Constant = First##Class, Last##Base##Constant = Last##Class,
-#define LAST_STMT_RANGE(Base, First, Last) \
-		First##Base##Constant = First##Class, Last##Base##Constant = Last##Class
+#define STMT_RANGE(Base, FirstStmt, LastStmt) \
+		First##Base = FirstStmt##Class, Last##Base = LastStmt##Class,
+#define LAST_STMT_RANGE(Base, FirstStmt, LastStmt) \
+		First##Base = FirstStmt##Class, Last##Base = LastStmt##Class
 #define ABSTRACT_STMT(Stmt)
 #include "Basic/StmtDef.h"
 		};

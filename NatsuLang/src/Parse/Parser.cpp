@@ -231,7 +231,7 @@ void Parser::ParseCompilerAction(std::function<nBool(natRefPointer<ASTNode>)> co
 	}
 
 	action->StartAction(CompilerActionContext{ *this });
-	const auto scope = make_scope([action, &output]
+	const auto scope = make_scope([&action, &output]
 	{
 		action->EndAction(output);
 	});
@@ -1231,7 +1231,7 @@ Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr pre
 			const auto lloc = m_CurrentToken.GetLocation();
 			ConsumeParen();
 
-			if (!m_CurrentToken.Is(TokenType::RightParen) && !ParseExpressionList(argExprs, commaLocs))
+			if (!m_CurrentToken.Is(TokenType::RightParen) && !ParseExpressionList(argExprs, commaLocs, TokenType::RightParen))
 			{
 				// TODO: 报告错误
 				return ParseExprError();
@@ -1349,14 +1349,14 @@ nBool Parser::ParseUnqualifiedId(Identifier::IdPtr& result)
 	return true;
 }
 
-nBool Parser::ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs)
+nBool Parser::ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs, Lex::TokenType endToken)
 {
 	while (true)
 	{
 		auto expr = ParseAssignmentExpression();
 		if (!expr)
 		{
-			SkipUntil({ TokenType::RightParen }, true);
+			SkipUntil({ endToken }, true);
 			return false;
 		}
 		exprs.emplace_back(std::move(expr));
@@ -1366,6 +1366,12 @@ nBool Parser::ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::
 		}
 		commaLocs.emplace_back(m_CurrentToken.GetLocation());
 		ConsumeToken();
+	}
+
+	if (endToken != TokenType::Eof && !m_CurrentToken.Is(endToken))
+	{
+		// TODO: 提示未以期望的 Token 结束表达式列表
+		return false;
 	}
 
 	return true;
@@ -1760,7 +1766,37 @@ void Parser::ParseInitializer(Declaration::DeclaratorPtr const& decl)
 	if (m_CurrentToken.Is(TokenType::Equal))
 	{
 		ConsumeToken();
-		decl->SetInitializer(ParseExpression());
+		if (m_CurrentToken.Is(TokenType::LeftBrace))
+		{
+			const auto leftBraceLoc = m_CurrentToken.GetLocation();
+			ConsumeBrace();
+
+			if (!decl->GetType())
+			{
+				// TODO: 报告错误：此形式要求指定类型
+				return;
+			}
+
+			std::vector<Expression::ExprPtr> argExprs;
+			std::vector<SourceLocation> commaLocs;
+
+			if (!ParseExpressionList(argExprs, commaLocs, TokenType::RightBrace))
+			{
+				// 应该已经报告了错误，仅返回即可
+				return;
+			}
+
+			// 如果到达此处说明当前 Token 是右大括号
+			const auto rightBraceLoc = m_CurrentToken.GetLocation();
+			ConsumeBrace();
+
+			decl->SetInitializer(m_Sema.ActOnInitExpr(decl->GetType(), leftBraceLoc, std::move(argExprs), rightBraceLoc));
+		}
+		else
+		{
+			decl->SetInitializer(ParseExpression());
+		}
+
 		return;
 	}
 

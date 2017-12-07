@@ -750,6 +750,15 @@ AsTypeExpr::~AsTypeExpr()
 {
 }
 
+InitListExpr::~InitListExpr()
+{
+}
+
+Linq<Valued<ExprPtr>> InitListExpr::GetInitExprs() const noexcept
+{
+	return from(m_InitExprs);
+}
+
 BinaryOperator::~BinaryOperator()
 {
 }
