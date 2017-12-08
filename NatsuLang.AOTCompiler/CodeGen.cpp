@@ -457,13 +457,12 @@ void AotCompiler::AotStmtVisitor::VisitConditionalOperator(natRefPointer<Express
 void AotCompiler::AotStmtVisitor::VisitArraySubscriptExpr(natRefPointer<Expression::ArraySubscriptExpr> const& expr)
 {
 	EvaluateAsModifiableValue(expr->GetLeftOperand());
-	const auto baseExpr = m_Compiler.m_IRBuilder.CreatePointerCast(m_LastVisitedValue,
-		m_Compiler.getCorrespondingType(expr->GetExprType())->getPointerElementType(), "decay");
+	const auto baseExpr = m_LastVisitedValue;
 	Visit(expr->GetRightOperand());
 	const auto indexExpr = m_LastVisitedValue;
 
-	m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateGEP(baseExpr,
-		{ llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext), 0), indexExpr }, "arrayelem");
+	m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateLoad(m_Compiler.m_IRBuilder.CreateGEP(baseExpr,
+		{ llvm::ConstantInt::getNullValue(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext)), indexExpr }, "arrayElemPtr"), "arrayElem");
 }
 
 void AotCompiler::AotStmtVisitor::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> const& expr)

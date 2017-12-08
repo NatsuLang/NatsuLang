@@ -3,7 +3,7 @@ module ModuleBar
 	def ModuleFunction : (arg : int) -> int
 	{
 		def arr : int[10] = { 1, 2, 3 }
-		return arg - 5
+		return arr[1]
 	}
 }
 
