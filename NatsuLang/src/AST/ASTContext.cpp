@@ -106,7 +106,7 @@ ASTContext::TypeInfo ASTContext::GetTypeInfo(Type::TypePtr const& type)
 	}
 
 	auto info = getTypeInfoImpl(underlyingType);
-	m_CachedTypeInfo.insert_or_assign(std::move(underlyingType), info);
+	m_CachedTypeInfo.emplace(std::move(underlyingType), info);
 	return info;
 }
 
@@ -168,7 +168,12 @@ ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 	case Type::Type::Class:
 		break;
 	case Type::Type::Enum:
-		break;
+	{
+		const auto enumType = type.Cast<Type::EnumType>();
+		const auto enumDecl = enumType->GetDecl().Cast<Declaration::EnumDecl>();
+		assert(enumDecl);
+		return GetTypeInfo(enumDecl->GetUnderlyingType());
+	}
 	default:
 		assert(!"Invalid type.");
 		std::terminate();

@@ -1746,7 +1746,15 @@ void Parser::ParseArrayType(Declaration::DeclaratorPtr const& decl)
 	{
 		ConsumeBracket();
 		auto countExpr = ParseConstantExpression();
-		decl->SetType(m_Sema.GetASTContext().GetArrayType(decl->GetType(), std::move(countExpr)));
+
+		nuLong result;
+		if (!countExpr->EvaluateAsInt(result, m_Sema.GetASTContext()))
+		{
+			// TODO: 报告错误
+		}
+
+		decl->SetType(m_Sema.GetASTContext().GetArrayType(decl->GetType(), static_cast<std::size_t>(result)));
+
 		if (!m_CurrentToken.Is(TokenType::RightSquare))
 		{
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())

@@ -288,26 +288,42 @@ void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStm
 			}
 
 			const auto type = varDecl->GetValueType();
+
+			// 可能用于动态大小的类型
 			llvm::Value* arraySize = nullptr;
-			const auto arrayType = type.Cast<Type::ArrayType>();
-			if (arrayType)
-			{
-				arraySize = llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Compiler.m_LLVMContext), arrayType->GetSize());
-			}
+
 			const auto varName = varDecl->GetName();
 			const auto valueType = m_Compiler.getCorrespondingType(type);
+			const auto typeInfo = m_Compiler.m_AstContext.GetTypeInfo(type);
 
 			if (varDecl->GetStorageClass() == Specifier::StorageClass::None)
 			{
 				const auto storage = m_Compiler.m_IRBuilder.CreateAlloca(valueType, arraySize, std::string(varName.cbegin(), varName.cend()));
+				storage->setAlignment(typeInfo.Align);
 
 				if (const auto initExpr = varDecl->GetInitializer())
 				{
 					if (const auto initListExpr = initExpr.Cast<Expression::InitListExpr>())
 					{
-						if (arrayType)
+						if (const auto arrayType = type.Cast<Type::ArrayType>())
 						{
 							// TODO: 数组类型初始化
+							std::vector<llvm::Value*> initValues;
+							initValues.reserve(initListExpr->GetInitExprCount());
+							for (auto&& expr : initListExpr->GetInitExprs())
+							{
+								Visit(expr);
+								initValues.push_back(m_LastVisitedValue);
+							}
+
+							m_Compiler.m_IRBuilder.CreateMemSet(storage, llvm::ConstantInt::get(llvm::IntegerType::getInt8Ty(m_Compiler.m_LLVMContext), 0), typeInfo.Size, typeInfo.Align);
+
+							for (std::size_t i = 0; i < initValues.size(); i++)
+							{
+								m_Compiler.m_IRBuilder.CreateStore(initValues[i],
+									m_Compiler.m_IRBuilder.CreateGEP(valueType, storage,
+										{ llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext), 0), llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext), i) }));
+							}
 						}
 						else if (const auto builtinType = type.Cast<Type::BuiltinType>())
 						{
@@ -332,6 +348,10 @@ void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStm
 						{
 							// TODO: 用户自定义类型初始化
 						}
+					}
+					else if (const auto constructExpr = initExpr.Cast<Expression::ConstructExpr>())
+					{
+						// TODO: 通过构造函数初始化
 					}
 					else
 					{
