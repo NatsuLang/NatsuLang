@@ -1098,7 +1098,8 @@ Expression::ExprPtr Sema::ActOnStringLiteral(Lex::Token const& token)
 
 	// TODO: 缓存字符串字面量以便重用
 	auto value = literalParser.GetValue();
-	return make_ref<Expression::StringLiteral>(value, m_Context.GetArrayType(m_Context.GetBuiltinType(Type::BuiltinType::Char), value.GetSize()), token.GetLocation());
+	// 多一个 0
+	return make_ref<Expression::StringLiteral>(value, m_Context.GetArrayType(m_Context.GetBuiltinType(Type::BuiltinType::Char), value.GetSize() + 1), token.GetLocation());
 }
 
 Expression::ExprPtr Sema::ActOnConditionExpr(Expression::ExprPtr expr)

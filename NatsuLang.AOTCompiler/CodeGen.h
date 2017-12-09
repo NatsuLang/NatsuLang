@@ -86,6 +86,7 @@ namespace NatsuLang::Compiler
 			AotStmtVisitor(AotCompiler& compiler, NatsuLib::natRefPointer<Declaration::FunctionDecl> funcDecl, llvm::Function* funcValue);
 			~AotStmtVisitor();
 
+			void VisitInitListExpr(NatsuLib::natRefPointer<Expression::InitListExpr> const& expr) override;
 			void VisitBreakStmt(NatsuLib::natRefPointer<Statement::BreakStmt> const& stmt) override;
 			void VisitCatchStmt(NatsuLib::natRefPointer<Statement::CatchStmt> const& stmt) override;
 			void VisitTryStmt(NatsuLib::natRefPointer<Statement::TryStmt> const& stmt) override;
@@ -145,6 +146,8 @@ namespace NatsuLang::Compiler
 
 			llvm::Value* EmitIncDec(llvm::Value* operand, NatsuLib::natRefPointer<Type::BuiltinType> const& opType, nBool isInc, nBool isPre);
 
+			void InitVar(Type::TypePtr const& varType, llvm::Value* varPtr, Expression::ExprPtr const& initializer);
+
 			void EvaluateAsModifiableValue(Expression::ExprPtr const& expr);
 			void EvaluateAsBool(Expression::ExprPtr const& expr);
 
@@ -183,6 +186,10 @@ namespace NatsuLang::Compiler
 		llvm::IRBuilder<> m_IRBuilder;
 
 		std::unordered_map<NatsuLib::natRefPointer<Declaration::FunctionDecl>, llvm::Function*> m_FunctionMap;
+
+		std::unordered_map<nString, llvm::GlobalVariable*> m_StringLiteralPool;
+
+		llvm::GlobalVariable* getStringLiteralValue(nStrView literalContent, nStrView literalName = "String");
 
 		llvm::Type* getCorrespondingType(Type::TypePtr const& type);
 	};

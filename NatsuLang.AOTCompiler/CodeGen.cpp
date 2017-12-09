@@ -242,6 +242,11 @@ AotCompiler::AotStmtVisitor::~AotStmtVisitor()
 {
 }
 
+void AotCompiler::AotStmtVisitor::VisitInitListExpr(natRefPointer<Expression::InitListExpr> const& expr)
+{
+	nat_Throw(AotCompilerException, u8"初始化列表不应当作为表达式求值"_nv);
+}
+
 void AotCompiler::AotStmtVisitor::VisitBreakStmt(natRefPointer<Statement::BreakStmt> const& stmt)
 {
 	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
@@ -301,69 +306,7 @@ void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStm
 				const auto storage = m_Compiler.m_IRBuilder.CreateAlloca(valueType, arraySize, std::string(varName.cbegin(), varName.cend()));
 				storage->setAlignment(typeInfo.Align);
 
-				if (const auto initExpr = varDecl->GetInitializer())
-				{
-					if (const auto initListExpr = initExpr.Cast<Expression::InitListExpr>())
-					{
-						if (const auto arrayType = type.Cast<Type::ArrayType>())
-						{
-							// TODO: 数组类型初始化
-							std::vector<llvm::Value*> initValues;
-							initValues.reserve(initListExpr->GetInitExprCount());
-							for (auto&& expr : initListExpr->GetInitExprs())
-							{
-								Visit(expr);
-								initValues.push_back(m_LastVisitedValue);
-							}
-
-							m_Compiler.m_IRBuilder.CreateMemSet(storage, llvm::ConstantInt::get(llvm::IntegerType::getInt8Ty(m_Compiler.m_LLVMContext), 0), typeInfo.Size, typeInfo.Align);
-
-							for (std::size_t i = 0; i < initValues.size(); i++)
-							{
-								m_Compiler.m_IRBuilder.CreateStore(initValues[i],
-									m_Compiler.m_IRBuilder.CreateGEP(valueType, storage,
-										{ llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext), 0), llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext), i) }));
-							}
-						}
-						else if (const auto builtinType = type.Cast<Type::BuiltinType>())
-						{
-							const auto initExprCount = initListExpr->GetInitExprCount();
-
-							if (initExprCount == 0)
-							{
-								m_Compiler.m_IRBuilder.CreateStore(llvm::Constant::getNullValue(valueType), storage);
-							}
-							else if (initExprCount == 1)
-							{
-								Visit(initListExpr->GetInitExprs().first());
-								const auto initializer = m_LastVisitedValue;
-								m_Compiler.m_IRBuilder.CreateStore(initializer, storage);
-							}
-							else
-							{
-								// TODO: 报告错误
-							}
-						}
-						else
-						{
-							// TODO: 用户自定义类型初始化
-						}
-					}
-					else if (const auto constructExpr = initExpr.Cast<Expression::ConstructExpr>())
-					{
-						// TODO: 通过构造函数初始化
-					}
-					else
-					{
-						Visit(initExpr);
-						const auto initializer = m_LastVisitedValue;
-						m_Compiler.m_IRBuilder.CreateStore(initializer, storage);
-					}
-				}
-				else
-				{
-					m_Compiler.m_IRBuilder.CreateStore(llvm::Constant::getNullValue(valueType), storage);
-				}
+				InitVar(type, storage, varDecl->GetInitializer());
 
 				m_DeclMap.emplace(varDecl, storage);
 			}
@@ -461,8 +404,13 @@ void AotCompiler::AotStmtVisitor::VisitArraySubscriptExpr(natRefPointer<Expressi
 	Visit(expr->GetRightOperand());
 	const auto indexExpr = m_LastVisitedValue;
 
-	m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateLoad(m_Compiler.m_IRBuilder.CreateGEP(baseExpr,
-		{ llvm::ConstantInt::getNullValue(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext)), indexExpr }, "arrayElemPtr"), "arrayElem");
+	m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateGEP(baseExpr,
+		{ llvm::ConstantInt::getNullValue(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext)), indexExpr }, "arrayElemPtr");
+
+	if (!m_RequiredModifiableValue)
+	{
+		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateLoad(m_LastVisitedValue, "arrayElem");
+	}
 }
 
 void AotCompiler::AotStmtVisitor::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> const& expr)
@@ -1089,6 +1037,92 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitIncDec(llvm::Value* operand, natRe
 	return isPre ? operand : value;
 }
 
+void AotCompiler::AotStmtVisitor::InitVar(Type::TypePtr const& varType, llvm::Value* varPtr, Expression::ExprPtr const& initializer)
+{
+	const auto valueType = m_Compiler.getCorrespondingType(varType);
+	const auto typeInfo = m_Compiler.m_AstContext.GetTypeInfo(varType);
+
+	if (initializer)
+	{
+		if (const auto initListExpr = initializer.Cast<Expression::InitListExpr>())
+		{
+			if (const auto arrayType = varType.Cast<Type::ArrayType>())
+			{
+				const auto initExprs = initListExpr->GetInitExprs().Cast<std::vector<Expression::ExprPtr>>();
+
+				// TODO: 需要更好的方案
+				if (initExprs.size() < arrayType->GetSize())
+				{
+					m_Compiler.m_IRBuilder.CreateMemSet(varPtr, llvm::ConstantInt::get(llvm::IntegerType::getInt8Ty(m_Compiler.m_LLVMContext), 0), typeInfo.Size, typeInfo.Align);
+				}
+
+				for (std::size_t i = 0; i < initExprs.size(); ++i)
+				{
+					const auto initExpr = initExprs[i];
+					const auto elemPtr = m_Compiler.m_IRBuilder.CreateGEP(valueType, varPtr,
+						{ llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext), 0), llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext), i) });
+
+					InitVar(arrayType->GetElementType(), elemPtr, initExpr);
+				}
+			}
+			else if (const auto builtinType = varType.Cast<Type::BuiltinType>())
+			{
+				const auto initExprCount = initListExpr->GetInitExprCount();
+
+				if (initExprCount == 0)
+				{
+					m_Compiler.m_IRBuilder.CreateStore(llvm::Constant::getNullValue(valueType), varPtr);
+				}
+				else if (initExprCount == 1)
+				{
+					Visit(initListExpr->GetInitExprs().first());
+					const auto initializerValue = m_LastVisitedValue;
+					m_Compiler.m_IRBuilder.CreateStore(initializerValue, varPtr);
+				}
+				else
+				{
+					// TODO: 报告错误
+				}
+			}
+			else
+			{
+				// TODO: 用户自定义类型初始化
+			}
+		}
+		else if (const auto constructExpr = initializer.Cast<Expression::ConstructExpr>())
+		{
+			// TODO: 通过构造函数初始化
+		}
+		else if (const auto stringLiteral = initializer.Cast<Expression::StringLiteral>())
+		{
+			const auto arrayType = varType.Cast<Type::ArrayType>();
+			const auto literalValue = stringLiteral->GetValue();
+
+			assert(arrayType);
+			// 至少要比字面量的大小还大1以存储结尾的0，这将由前端来保证
+			assert(arrayType->GetSize() > literalValue.GetSize());
+
+			if (arrayType->GetSize() > literalValue.GetSize() + 1)
+			{
+				m_Compiler.m_IRBuilder.CreateMemSet(varPtr, llvm::ConstantInt::get(llvm::IntegerType::getInt8Ty(m_Compiler.m_LLVMContext), 0), typeInfo.Size, typeInfo.Align);
+			}
+
+			const auto stringLiteralPtr = m_Compiler.getStringLiteralValue(literalValue);
+			m_Compiler.m_IRBuilder.CreateMemCpy(varPtr, stringLiteralPtr, literalValue.GetSize() + 1, typeInfo.Align);
+		}
+		else
+		{
+			Visit(initializer);
+			const auto initializerValue = m_LastVisitedValue;
+			m_Compiler.m_IRBuilder.CreateStore(initializerValue, varPtr);
+		}
+	}
+	else
+	{
+		m_Compiler.m_IRBuilder.CreateStore(llvm::Constant::getNullValue(valueType), varPtr);
+	}
+}
+
 void AotCompiler::AotStmtVisitor::EvaluateAsModifiableValue(Expression::ExprPtr const& expr)
 {
 	assert(expr);
@@ -1224,6 +1258,10 @@ AotCompiler::AotCompiler(natRefPointer<TextReader<StringType::Utf8>> const& diag
 
 AotCompiler::~AotCompiler()
 {
+	for (auto const& pair : m_StringLiteralPool)
+	{
+		delete pair.second;
+	}
 }
 
 void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
@@ -1278,6 +1316,24 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	stream.flush();
 
 	m_Module.reset();
+}
+
+llvm::GlobalVariable* AotCompiler::getStringLiteralValue(nStrView literalContent, nStrView literalName)
+{
+	const auto iter = m_StringLiteralPool.find(literalContent);
+	if (iter != m_StringLiteralPool.end())
+	{
+		return iter->second;
+	}
+
+	const auto stringLiteralValue = new llvm::GlobalVariable(
+		llvm::ArrayType::get(llvm::Type::getInt8Ty(m_LLVMContext), literalContent.GetSize() + 1), true, llvm::GlobalValue::LinkageTypes::ExternalLinkage,
+		llvm::ConstantDataArray::getString(m_LLVMContext, llvm::StringRef{ literalContent.begin(), literalContent.GetSize() }), literalName.data());
+	stringLiteralValue->setAlignment(m_AstContext.GetTypeInfo(m_AstContext.GetBuiltinType(Type::BuiltinType::Char)).Align);
+
+	m_StringLiteralPool.emplace(literalContent, stringLiteralValue);
+
+	return stringLiteralValue;
 }
 
 llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
