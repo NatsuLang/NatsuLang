@@ -1258,10 +1258,6 @@ AotCompiler::AotCompiler(natRefPointer<TextReader<StringType::Utf8>> const& diag
 
 AotCompiler::~AotCompiler()
 {
-	for (auto const& pair : m_StringLiteralPool)
-	{
-		delete pair.second;
-	}
 }
 
 void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
@@ -1320,20 +1316,27 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 
 llvm::GlobalVariable* AotCompiler::getStringLiteralValue(nStrView literalContent, nStrView literalName)
 {
-	const auto iter = m_StringLiteralPool.find(literalContent);
+	auto iter = m_StringLiteralPool.find(literalContent);
 	if (iter != m_StringLiteralPool.end())
 	{
-		return iter->second;
+		return iter->second.get();
 	}
 
-	const auto stringLiteralValue = new llvm::GlobalVariable(
+	bool succeed;
+	tie(iter, succeed) = m_StringLiteralPool.emplace(literalContent, std::make_unique<llvm::GlobalVariable>(
 		llvm::ArrayType::get(llvm::Type::getInt8Ty(m_LLVMContext), literalContent.GetSize() + 1), true, llvm::GlobalValue::LinkageTypes::ExternalLinkage,
-		llvm::ConstantDataArray::getString(m_LLVMContext, llvm::StringRef{ literalContent.begin(), literalContent.GetSize() }), literalName.data());
-	stringLiteralValue->setAlignment(m_AstContext.GetTypeInfo(m_AstContext.GetBuiltinType(Type::BuiltinType::Char)).Align);
+		llvm::ConstantDataArray::getString(m_LLVMContext, llvm::StringRef{ literalContent.begin(), literalContent.GetSize() }), literalName.data()));
 
-	m_StringLiteralPool.emplace(literalContent, stringLiteralValue);
+	if (!succeed)
+	{
+		nat_Throw(AotCompilerException, "无法插入字符串字面量池");
+	}
 
-	return stringLiteralValue;
+	// 类型的信息不会变动，缓存第一次得到的结果即可
+	static const auto CharAlign = m_AstContext.GetTypeInfo(m_AstContext.GetBuiltinType(Type::BuiltinType::Char)).Align;
+	iter->second->setAlignment(CharAlign);
+
+	return iter->second.get();
 }
 
 llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)

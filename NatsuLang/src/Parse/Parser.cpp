@@ -593,31 +593,50 @@ nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::Id
 
 // declaration:
 //	simple-declaration
+//	special-member-function-declaration
 // simple-declaration:
-//	def [specifier-seq] declarator [;]
+//	'def' [specifier-seq] declarator [;]
+// special-member-function-declaration:
+//	'this' '(' [parameter-declaration-list] ')' function-body
+//	'~' 'this' '(' [parameter-declaration-list] ')' function-body
+// function-body:
+//	compound-statement
 std::vector<Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context context, SourceLocation& declEnd)
 {
-	assert(m_CurrentToken.Is(TokenType::Kw_def));
-	// 吃掉 def
-	ConsumeToken();
+	const auto tokenType = m_CurrentToken.GetType();
 
-	const auto decl = make_ref<Declaration::Declarator>(context);
-	// 这不意味着 specifier 是 declarator 的一部分，至少目前如此
-	ParseSpecifier(decl);
-	ParseDeclarator(decl);
-	if (m_CurrentToken.Is(TokenType::Semi))
+	switch (tokenType)
 	{
+	case TokenType::Kw_def:
+	{
+		// 吃掉 def
 		ConsumeToken();
+
+		const auto decl = make_ref<Declaration::Declarator>(context);
+		// 这不意味着 specifier 是 declarator 的一部分，至少目前如此
+		ParseSpecifier(decl);
+		ParseDeclarator(decl);
+		if (m_CurrentToken.Is(TokenType::Semi))
+		{
+			ConsumeToken();
+		}
+
+		auto declaration = m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), decl);
+
+		if (decl->IsUnresolved())
+		{
+			return {};
+		}
+
+		return { std::move(declaration) };
 	}
-
-	auto declaration = m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), decl);
-
-	if (decl->IsUnresolved())
-	{
+	case TokenType::Tilde:
+	case TokenType::Kw_this:
+		// TODO: 完成构造/析构函数的声明
+		nat_Throw(NotImplementedException);
+	default:
 		return {};
 	}
-
-	return { std::move(declaration) };
 }
 
 Declaration::DeclPtr Parser::ParseFunctionBody(Declaration::DeclPtr decl, ParseScope& scope)
@@ -1003,7 +1022,7 @@ Expression::ExprPtr Parser::ParseExpression()
 	return ParseRightOperandOfBinaryExpression(ParseAssignmentExpression());
 }
 
-Expression::ExprPtr Parser::ParseCastExpression()
+Expression::ExprPtr Parser::ParseUnaryExpression()
 {
 	Expression::ExprPtr result;
 	const auto tokenType = m_CurrentToken.GetType();
@@ -1051,7 +1070,7 @@ Expression::ExprPtr Parser::ParseCastExpression()
 	{
 		const auto loc = m_CurrentToken.GetLocation();
 		ConsumeToken();
-		result = ParseCastExpression();
+		result = ParseUnaryExpression();
 		if (!result)
 		{
 			// TODO: 报告错误
@@ -1086,40 +1105,7 @@ Expression::ExprPtr Parser::ParseCastExpression()
 		return ParseExprError();
 	}
 
-	return ParseAsTypeExpression(ParsePostfixExpressionSuffix(std::move(result)));
-}
-
-Expression::ExprPtr Parser::ParseAsTypeExpression(Expression::ExprPtr operand)
-{
-	while (m_CurrentToken.Is(TokenType::Kw_as))
-	{
-		const auto asLoc = m_CurrentToken.GetLocation();
-
-		// 吃掉 as
-		ConsumeToken();
-
-		const auto decl = make_ref<Declaration::Declarator>(Declaration::Context::TypeName);
-		ParseDeclarator(decl);
-		if (!decl->IsValid())
-		{
-			// TODO: 报告错误
-			operand = nullptr;
-		}
-
-		auto type = m_Sema.ActOnTypeName(m_Sema.GetCurrentScope(), decl);
-		if (!type)
-		{
-			// TODO: 报告错误
-			operand = nullptr;
-		}
-
-		if (operand)
-		{
-			operand = m_Sema.ActOnAsTypeExpr(m_Sema.GetCurrentScope(), std::move(operand), std::move(type), asLoc);
-		}
-	}
-
-	return std::move(operand);
+	return ParsePostfixExpressionSuffix(std::move(result));
 }
 
 Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expression::ExprPtr leftOperand, OperatorPrecedence minPrec)
@@ -1156,7 +1142,7 @@ Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expression::Expr
 			ConsumeToken();
 		}
 
-		auto rightOperand = tokenPrec <= OperatorPrecedence::Conditional ? ParseAssignmentExpression() : ParseCastExpression();
+		auto rightOperand = tokenPrec <= OperatorPrecedence::Conditional ? ParseAssignmentExpression() : ParseUnaryExpression();
 		if (!rightOperand)
 		{
 			// TODO: 报告错误
@@ -1209,7 +1195,8 @@ Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr pre
 					.AddArgument(TokenType::RightSquare)
 					.AddArgument(m_CurrentToken.GetType());
 
-				return ParseExprError();
+				prefix = ParseExprError();
+				break;
 			}
 
 			const auto rloc = m_CurrentToken.GetLocation();
@@ -1220,11 +1207,6 @@ Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr pre
 		}
 		case TokenType::LeftParen:
 		{
-			if (!prefix)
-			{
-				return ParseExprError();
-			}
-
 			std::vector<Expression::ExprPtr> argExprs;
 			std::vector<SourceLocation> commaLocs;
 
@@ -1234,13 +1216,15 @@ Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr pre
 			if (!m_CurrentToken.Is(TokenType::RightParen) && !ParseExpressionList(argExprs, commaLocs, TokenType::RightParen))
 			{
 				// TODO: 报告错误
-				return ParseExprError();
+				prefix = ParseExprError();
+				break;
 			}
 
 			if (!m_CurrentToken.Is(TokenType::RightParen))
 			{
 				// TODO: 报告错误
-				return ParseExprError();
+				prefix = ParseExprError();
+				break;
 			}
 
 			ConsumeParen();
@@ -1256,7 +1240,8 @@ Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr pre
 			Identifier::IdPtr unqualifiedId;
 			if (!ParseUnqualifiedId(unqualifiedId))
 			{
-				return ParseExprError();
+				prefix = ParseExprError();
+				break;
 			}
 
 			prefix = m_Sema.ActOnMemberAccessExpr(m_Sema.GetCurrentScope(), std::move(prefix), periodLoc, nullptr, unqualifiedId);
@@ -1268,6 +1253,34 @@ Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr pre
 			prefix = m_Sema.ActOnPostfixUnaryOp(m_Sema.GetCurrentScope(), m_CurrentToken.GetLocation(), m_CurrentToken.GetType(), std::move(prefix));
 			ConsumeToken();
 			break;
+		case TokenType::Kw_as:
+		{
+			const auto asLoc = m_CurrentToken.GetLocation();
+
+			// 吃掉 as
+			ConsumeToken();
+
+			const auto decl = make_ref<Declaration::Declarator>(Declaration::Context::TypeName);
+			ParseDeclarator(decl);
+			if (!decl->IsValid())
+			{
+				// TODO: 报告错误
+				prefix = ParseExprError();
+				break;
+			}
+
+			auto type = decl->GetType();
+			if (!type)
+			{
+				// TODO: 报告错误
+				prefix = ParseExprError();
+				break;
+			}
+
+			prefix = m_Sema.ActOnAsTypeExpr(m_Sema.GetCurrentScope(), std::move(prefix), std::move(type), asLoc);
+
+			break;
+		}
 		default:
 			return std::move(prefix);
 		}
@@ -1276,7 +1289,7 @@ Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr pre
 
 Expression::ExprPtr Parser::ParseConstantExpression()
 {
-	return ParseRightOperandOfBinaryExpression(ParseCastExpression(), OperatorPrecedence::Conditional);
+	return ParseRightOperandOfBinaryExpression(ParseUnaryExpression(), OperatorPrecedence::Conditional);
 }
 
 Expression::ExprPtr Parser::ParseAssignmentExpression()
@@ -1286,7 +1299,7 @@ Expression::ExprPtr Parser::ParseAssignmentExpression()
 		return ParseThrowExpression();
 	}
 
-	return ParseRightOperandOfBinaryExpression(ParseCastExpression());
+	return ParseRightOperandOfBinaryExpression(ParseUnaryExpression());
 }
 
 Expression::ExprPtr Parser::ParseThrowExpression()
@@ -2026,7 +2039,7 @@ void Parser::skipExpression(std::vector<Token>* skippedTokens)
 
 void Parser::skipAssignmentExpression(std::vector<Token>* skippedTokens)
 {
-	skipCastExpression(skippedTokens);
+	skipUnaryExpression(skippedTokens);
 	skipRightOperandOfBinaryExpression(skippedTokens);
 }
 
@@ -2058,12 +2071,12 @@ void Parser::skipRightOperandOfBinaryExpression(std::vector<Token>* skippedToken
 		}
 		else
 		{
-			skipCastExpression(skippedTokens);
+			skipUnaryExpression(skippedTokens);
 		}
 	}
 }
 
-void Parser::skipCastExpression(std::vector<Token>* skippedTokens)
+void Parser::skipUnaryExpression(std::vector<Token>* skippedTokens)
 {
 	const auto tokenType = m_CurrentToken.GetType();
 	switch (tokenType)
@@ -2088,7 +2101,7 @@ void Parser::skipCastExpression(std::vector<Token>* skippedTokens)
 	case TokenType::Tilde:
 	{
 		skipToken(skippedTokens);
-		skipCastExpression(skippedTokens);
+		skipUnaryExpression(skippedTokens);
 		break;
 	}
 	case TokenType::Dollar:

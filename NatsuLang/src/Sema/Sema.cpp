@@ -651,12 +651,6 @@ natRefPointer<Declaration::LabelDecl> Sema::LookupOrCreateLabel(Identifier::IdPt
 	return labelDecl;
 }
 
-Type::TypePtr Sema::ActOnTypeName(natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr const& decl)
-{
-	static_cast<void>(scope);
-	return decl->GetType();
-}
-
 Type::TypePtr Sema::ActOnTypeOfType(natRefPointer<Expression::Expr> expr, Type::TypePtr underlyingType)
 {
 	return make_ref<Type::TypeOfType>(std::move(expr), std::move(underlyingType));

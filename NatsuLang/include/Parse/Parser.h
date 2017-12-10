@@ -237,14 +237,11 @@ namespace NatsuLang::Syntax
 
 		Expression::ExprPtr ParseExpression();
 
-		// cast-expression:
-		//	unary-expression
-		//	cast-expression 'as' type-name
 		// unary-expression:
 		//	postfix-expression
 		//	'++' unary-expression
 		//	'--' unary-expression
-		//	unary-operator cast-expression
+		//	unary-operator unary-expression
 		//	new-expression
 		//	delete-expression
 		// unary-operator: one of
@@ -263,8 +260,7 @@ namespace NatsuLang::Syntax
 		//	TODO
 		// delete-expression:
 		//	TODO
-		Expression::ExprPtr ParseCastExpression();
-		Expression::ExprPtr ParseAsTypeExpression(Expression::ExprPtr operand);
+		Expression::ExprPtr ParseUnaryExpression();
 
 		Expression::ExprPtr ParseRightOperandOfBinaryExpression(Expression::ExprPtr leftOperand, OperatorPrecedence minPrec = OperatorPrecedence::Assignment);
 
@@ -275,6 +271,7 @@ namespace NatsuLang::Syntax
 		//	postfix-expression '.' identifier
 		//	postfix-expression '++'
 		//	postfix-expression '--'
+		//	postfix-expression 'as' type-name
 		Expression::ExprPtr ParsePostfixExpressionSuffix(Expression::ExprPtr prefix);
 		Expression::ExprPtr ParseConstantExpression();
 		Expression::ExprPtr ParseAssignmentExpression();
@@ -336,7 +333,7 @@ namespace NatsuLang::Syntax
 		void skipExpression(std::vector<Lex::Token>* skippedTokens = nullptr);
 		void skipAssignmentExpression(std::vector<Lex::Token>* skippedTokens = nullptr);
 		void skipRightOperandOfBinaryExpression(std::vector<Lex::Token>* skippedTokens = nullptr);
-		void skipCastExpression(std::vector<Lex::Token>* skippedTokens = nullptr);
+		void skipUnaryExpression(std::vector<Lex::Token>* skippedTokens = nullptr);
 		void skipPostfixExpressionSuffix(std::vector<Lex::Token>* skippedTokens = nullptr);
 		void skipAsTypeExpression(std::vector<Lex::Token>* skippedTokens = nullptr);
 
