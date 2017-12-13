@@ -186,6 +186,7 @@ namespace NatsuLang::Compiler
 		llvm::IRBuilder<> m_IRBuilder;
 
 		std::unordered_map<NatsuLib::natRefPointer<Declaration::FunctionDecl>, llvm::Function*> m_FunctionMap;
+		std::unordered_map<NatsuLib::natRefPointer<Declaration::VarDecl>, llvm::GlobalVariable*> m_GlobalVariableMap;
 
 		std::unordered_map<nString, std::unique_ptr<llvm::GlobalVariable>> m_StringLiteralPool;
 

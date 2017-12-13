@@ -165,7 +165,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 	// 生成声明
 	for (auto& decl : declVec)
 	{
-		if (const auto funcDecl = decl.first.Cast<Declaration::FunctionDecl>())
+		if (auto funcDecl = decl.first.Cast<Declaration::FunctionDecl>())
 		{
 			const auto functionType = m_Compiler.getCorrespondingType(funcDecl->GetValueType());
 			const auto functionName = funcDecl->GetIdentifierInfo()->GetName();
@@ -190,6 +190,33 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 			m_Compiler.m_FunctionMap.emplace(std::move(funcDecl), funcValue);
 			decl.second = funcValue;
 		}
+		else if (auto varDecl = decl.first.Cast<Declaration::VarDecl>())
+		{
+			const auto varType = m_Compiler.getCorrespondingType(varDecl->GetValueType());
+			const auto varName = varDecl->GetName();
+
+			const auto initializer = varDecl->GetInitializer();
+
+			llvm::Constant* initValue{};
+
+			Expression::Expr::EvalResult evalResult;
+			if (initializer->Evaluate(evalResult, m_Compiler.m_AstContext))
+			{
+				if (evalResult.Result.index() == 0)
+				{
+					initValue = llvm::ConstantInt::get(varType, std::get<0>(evalResult.Result));
+				}
+				else
+				{
+					initValue = llvm::ConstantFP::get(varType, std::get<1>(evalResult.Result));
+				}
+			}
+
+			const auto varValue = new llvm::GlobalVariable(*m_Compiler.m_Module, varType, false, llvm::GlobalValue::ExternalLinkage, initValue, llvm::Twine{ varName.data() });
+			m_Compiler.m_GlobalVariableMap.emplace(std::move(varDecl), varValue);
+			// 注意此处有未受 unique_ptr 管理的引用
+			decl.second = varValue;
+		}
 	}
 
 	// 生成定义
@@ -210,6 +237,10 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 			default:
 				break;
 			}
+		}
+		else if (const auto varDecl = decl.first.Cast<Declaration::VarDecl>())
+		{
+			// TODO: 动态初始化
 		}
 	}
 
@@ -578,10 +609,17 @@ void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::Dec
 {
 	const auto decl = expr->GetDecl();
 
-	const auto declIter = m_DeclMap.find(decl);
-	if (declIter != m_DeclMap.end())
+	const auto localDeclIter = m_DeclMap.find(decl);
+	if (localDeclIter != m_DeclMap.end())
 	{
-		m_LastVisitedValue = m_RequiredModifiableValue ? declIter->second : m_Compiler.m_IRBuilder.CreateLoad(declIter->second);
+		m_LastVisitedValue = m_RequiredModifiableValue ? localDeclIter->second : m_Compiler.m_IRBuilder.CreateLoad(localDeclIter->second);
+		return;
+	}
+
+	const auto nonLocalDeclIter = m_Compiler.m_GlobalVariableMap.find(decl);
+	if (nonLocalDeclIter != m_Compiler.m_GlobalVariableMap.end())
+	{
+		m_LastVisitedValue = m_RequiredModifiableValue ? static_cast<llvm::Value*>(nonLocalDeclIter->second) : m_Compiler.m_IRBuilder.CreateLoad(nonLocalDeclIter->second);
 		return;
 	}
 

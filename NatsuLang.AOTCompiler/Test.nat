@@ -8,6 +8,8 @@ module ModuleBar
 	}
 }
 
+def GlobalVariable : int = 5
+
 class Foo
 {
 	def Method : (arg : int) -> float
@@ -35,7 +37,7 @@ def Func : (arg : int) -> int
 {
 	if (arg < 0)
 	{
-		return -arg
+		return -arg + GlobalVariable
 	}
 	else
 	{
