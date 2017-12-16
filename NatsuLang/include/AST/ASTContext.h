@@ -12,8 +12,17 @@ namespace NatsuLang
 	{
 		struct TypeInfo
 		{
+			// 按比特计算
 			std::size_t Size;
 			std::size_t Align;
+		};
+
+		struct ClassLayout
+		{
+			// 与 TypeInfo 不同，这里的 Size 和 Align 是按字节计算的
+			std::size_t Size;
+			std::size_t Align;
+			std::vector<std::size_t> FieldOffsets;
 		};
 
 	public:
@@ -32,6 +41,7 @@ namespace NatsuLang
 		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> GetTranslationUnit() const noexcept;
 
 		TypeInfo GetTypeInfo(Type::TypePtr const& type);
+		ClassLayout GetClassLayout(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
 
 	private:
 		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> m_TUDecl;
@@ -48,6 +58,7 @@ namespace NatsuLang
 		mutable std::unordered_set<NatsuLib::natRefPointer<NestedNameSpecifier>, NestedNameSpecifier::Hash, NestedNameSpecifier::EqualTo> m_NestedNameSpecifiers;
 
 		std::unordered_map<Type::TypePtr, TypeInfo> m_CachedTypeInfo;
+		std::unordered_map<NatsuLib::natRefPointer<Declaration::ClassDecl>, ClassLayout> m_CachedClassLayout;
 		std::unordered_map<Type::BuiltinType::BuiltinClass, NatsuLib::natRefPointer<Type::BuiltinType>> m_BuiltinTypeMap;
 
 		TypeInfo getTypeInfoImpl(Type::TypePtr const& type);

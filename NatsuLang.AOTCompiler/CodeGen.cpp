@@ -212,7 +212,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 				}
 			}
 
-			const auto varValue = new llvm::GlobalVariable(*m_Compiler.m_Module, varType, false, llvm::GlobalValue::ExternalLinkage, initValue, llvm::Twine{ varName.data() });
+			const auto varValue = new llvm::GlobalVariable(*m_Compiler.m_Module, varType, false, llvm::GlobalValue::ExternalLinkage, initValue, llvm::StringRef{ varName.data(), varName.size() });
 			m_Compiler.m_GlobalVariableMap.emplace(std::move(varDecl), varValue);
 			// 注意此处有未受 unique_ptr 管理的引用
 			decl.second = varValue;
@@ -566,6 +566,7 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 	// TODO: 实现默认参数
 	for (auto&& arg : expr->GetArgs())
 	{
+		// TODO: 直接按位复制了，在需要的时候应由前端生成复制构造函数，但此处没有看到分配存储？
 		Visit(arg);
 		assert(m_LastVisitedValue);
 		args.emplace_back(m_LastVisitedValue);
@@ -576,7 +577,35 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 
 void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::MemberCallExpr> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	Visit(expr->GetCallee());
+	const auto callee = llvm::dyn_cast<llvm::Function>(m_LastVisitedValue);
+
+	const auto baseObj = expr->GetImplicitObjectArgument();
+	EvaluateAsModifiableValue(baseObj);
+	const auto baseObjValue = m_LastVisitedValue;
+
+	assert(callee && baseObjValue);
+
+	// TODO: 消除重复代码
+	if (callee->arg_size() != expr->GetArgCount())
+	{
+		nat_Throw(AotCompilerException, u8"参数数量不匹配，这可能是默认参数功能未实现导致的"_nv);
+	}
+
+	// 将基础对象的引用作为第一个参数传入
+	std::vector<llvm::Value*> args{ baseObjValue };
+	args.reserve(expr->GetArgCount() + 1);
+
+	// TODO: 实现默认参数
+	for (auto&& arg : expr->GetArgs())
+	{
+		// TODO: 直接按位复制了，在需要的时候应由前端生成复制构造函数，但此处没有看到分配存储？
+		Visit(arg);
+		assert(m_LastVisitedValue);
+		args.emplace_back(m_LastVisitedValue);
+	}
+
+	m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateCall(callee, args, "call");
 }
 
 void AotCompiler::AotStmtVisitor::VisitCastExpr(natRefPointer<Expression::CastExpr> const& expr)
@@ -675,7 +704,7 @@ void AotCompiler::AotStmtVisitor::VisitStmtExpr(natRefPointer<Expression::StmtEx
 
 void AotCompiler::AotStmtVisitor::VisitStringLiteral(natRefPointer<Expression::StringLiteral> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	m_LastVisitedValue = m_Compiler.getStringLiteralValue(expr->GetValue());
 }
 
 void AotCompiler::AotStmtVisitor::VisitUnaryExprOrTypeTraitExpr(natRefPointer<Expression::UnaryExprOrTypeTraitExpr> const& expr)
@@ -853,6 +882,12 @@ void AotCompiler::AotStmtVisitor::VisitStmt(natRefPointer<Statement::Stmt> const
 void AotCompiler::AotStmtVisitor::StartVisit()
 {
 	Visit(m_CurrentFunction->GetBody());
+
+	// TODO: 改为前端实现
+	if (m_CurrentFunction->GetValueType().Cast<Type::FunctionType>()->GetResultType()->IsVoid() && !m_Compiler.m_IRBuilder.GetInsertBlock()->getTerminator())
+	{
+		m_Compiler.m_IRBuilder.CreateRetVoid();
+	}
 }
 
 llvm::Function* AotCompiler::AotStmtVisitor::GetFunction() const
@@ -1363,7 +1398,7 @@ llvm::GlobalVariable* AotCompiler::getStringLiteralValue(nStrView literalContent
 	bool succeed;
 	tie(iter, succeed) = m_StringLiteralPool.emplace(literalContent, std::make_unique<llvm::GlobalVariable>(
 		llvm::ArrayType::get(llvm::Type::getInt8Ty(m_LLVMContext), literalContent.GetSize() + 1), true, llvm::GlobalValue::LinkageTypes::ExternalLinkage,
-		llvm::ConstantDataArray::getString(m_LLVMContext, llvm::StringRef{ literalContent.begin(), literalContent.GetSize() }), literalName.data()));
+		llvm::ConstantDataArray::getString(m_LLVMContext, llvm::StringRef{ literalContent.begin(), literalContent.GetSize() }), llvm::StringRef{ literalName.data(), literalName.size() }));
 
 	if (!succeed)
 	{
@@ -1438,7 +1473,15 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 		return llvm::FunctionType::get(getCorrespondingType(functionType->GetResultType()), args, false);
 	}
 	case Type::Type::Class:
-		nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	{
+		const auto classType = type.Cast<Type::ClassType>();
+		const auto classDecl = classType->GetDecl().Cast<Declaration::ClassDecl>();
+		const auto className = classDecl->GetName();
+		// TODO: 添加限定名称
+		const auto typeValue = llvm::StructType::create(m_LLVMContext, llvm::StringRef{ className.data(), className.size() });
+
+
+	}
 	case Type::Type::Enum:
 		nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
 	default:

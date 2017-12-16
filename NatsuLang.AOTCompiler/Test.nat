@@ -12,6 +12,15 @@ def GlobalVariable : int = 5
 
 class Foo
 {
+	def this : (arg : int)
+	{
+
+	}
+
+	def ~this : ()
+	{
+	}
+
 	def Method : (arg : int) -> float
 	{
 		return arg

@@ -63,12 +63,32 @@ namespace NatsuLang::Declaration
 
 		Identifier::IdPtr GetIdentifier() const noexcept
 		{
-			return m_Identifier;
+			return m_Identifier.index() == 0 ? std::get<0>(m_Identifier) : nullptr;
+		}
+
+		nBool IsConstructor() const noexcept
+		{
+			return m_Identifier.index() == 1;
+		}
+
+		nBool IsDestructor() const noexcept
+		{
+			return m_Identifier.index() == 2;
 		}
 
 		void SetIdentifier(Identifier::IdPtr idPtr) noexcept
 		{
 			m_Identifier = std::move(idPtr);
+		}
+
+		void SetConstructor() noexcept
+		{
+			m_Identifier.emplace<1>();
+		}
+
+		void SetDestructor() noexcept
+		{
+			m_Identifier.emplace<2>();
 		}
 
 		SourceRange GetRange() const noexcept
@@ -146,6 +166,11 @@ namespace NatsuLang::Declaration
 			return m_Params;
 		}
 
+		void ClearParams() noexcept
+		{
+			m_Params.clear();
+		}
+
 		void SetParams(NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ParmVarDecl>>> params) noexcept
 		{
 			m_Params.assign(params.begin(), params.end());
@@ -193,7 +218,7 @@ namespace NatsuLang::Declaration
 
 		nBool IsValid() const noexcept
 		{
-			return m_Identifier || m_Type || m_Initializer;
+			return (m_Identifier.index() != 0 || std::get<0>(m_Identifier)) || m_Type || m_Initializer;
 		}
 
 		nBool IsUnresolved() const noexcept
@@ -203,11 +228,19 @@ namespace NatsuLang::Declaration
 		}
 
 	private:
+		struct ConstructorTag
+		{
+		};
+
+		struct DestructorTag
+		{
+		};
+
 		SourceRange m_Range;
 		Context m_Context;
 		Specifier::StorageClass m_StorageClass;
 		Specifier::Access m_Accessibility;
-		Identifier::IdPtr m_Identifier;
+		std::variant<Identifier::IdPtr, ConstructorTag, DestructorTag> m_Identifier;
 		Type::TypePtr m_Type;
 		Statement::StmtPtr m_Initializer;
 

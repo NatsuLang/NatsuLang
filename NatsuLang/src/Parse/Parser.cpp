@@ -630,10 +630,6 @@ std::vector<Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context 
 
 		return { std::move(declaration) };
 	}
-	case TokenType::Tilde:
-	case TokenType::Kw_this:
-		// TODO: 完成构造/析构函数的声明
-		nat_Throw(NotImplementedException);
 	default:
 		return {};
 	}
@@ -1402,6 +1398,28 @@ void Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipI
 			decl->SetIdentifier(m_CurrentToken.GetIdentifierInfo());
 			ConsumeToken();
 		}
+		else if (m_CurrentToken.IsAnyOf({ TokenType::Tilde, TokenType::Kw_this }))
+		{
+			if (m_CurrentToken.Is(TokenType::Tilde))
+			{
+				ConsumeToken();
+				if (!m_CurrentToken.Is(TokenType::Kw_this))
+				{
+					m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+						.AddArgument(TokenType::Kw_this)
+						.AddArgument(m_CurrentToken.GetType());
+					return;
+				}
+
+				decl->SetDestructor();
+			}
+			else
+			{
+				decl->SetConstructor();
+			}
+
+			ConsumeToken();
+		}
 		else if (context != Declaration::Context::Prototype && context != Declaration::Context::TypeName)
 		{
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
@@ -1668,6 +1686,12 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 
 	if (!m_CurrentToken.Is(TokenType::RightParen))
 	{
+		if (decl->IsDestructor())
+		{
+			// TODO: 报告错误：析构函数不可以具有参数
+			return;
+		}
+
 		while (true)
 		{
 			auto param = make_ref<Declaration::Declarator>(Declaration::Context::Prototype);
@@ -1719,28 +1743,39 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 
 	// 读取完函数参数信息，开始读取返回类型
 
-	// 如果不是->且只有一个无名称参数说明是普通的括号类型
-	if (!m_CurrentToken.Is(TokenType::Arrow))
+	Type::TypePtr retType;
+	// 构造和析构函数没有返回类型
+	if (decl->IsConstructor() || decl->IsDestructor())
 	{
-		if (mayBeParenType)
+		retType = m_Sema.GetASTContext().GetBuiltinType(Type::BuiltinType::Void);
+	}
+	else
+	{
+		// 如果不是->且只有一个无名称参数，并且不是构造或者析构函数说明是普通的括号类型
+		if (!m_CurrentToken.Is(TokenType::Arrow))
 		{
-			// 是括号类型，但是我们已经把Token处理完毕了。。。
-			*decl = std::move(*paramDecls[0]);
-			return;
+			if (mayBeParenType)
+			{
+				// 是括号类型，但是我们已经把Token处理完毕了。。。
+				*decl = std::move(*paramDecls[0]);
+				return;
+			}
+
+			// 以后会加入元组或匿名类型的支持吗？
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+				.AddArgument(TokenType::Arrow)
+				.AddArgument(m_CurrentToken.GetType());
 		}
 
-		// 以后会加入元组或匿名类型的支持吗？
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-			.AddArgument(TokenType::Arrow)
-			.AddArgument(m_CurrentToken.GetType());
+		ConsumeToken();
+
+		const auto retTypeDeclarator = make_ref<Declaration::Declarator>(Declaration::Context::Prototype);
+		ParseType(retTypeDeclarator);
+
+		retType = retTypeDeclarator->GetType();
 	}
 
-	ConsumeToken();
-
-	const auto retType = make_ref<Declaration::Declarator>(Declaration::Context::Prototype);
-	ParseType(retType);
-
-	decl->SetType(m_Sema.BuildFunctionType(retType->GetType(), from(paramDecls)
+	decl->SetType(m_Sema.BuildFunctionType(retType, from(paramDecls)
 		.select([](Declaration::DeclaratorPtr const& paramDecl)
 				{
 					return paramDecl->GetType();

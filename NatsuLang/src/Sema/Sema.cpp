@@ -740,14 +740,9 @@ natRefPointer<Declaration::FieldDecl> Sema::ActOnFieldDeclarator(natRefPointer<S
 }
 
 natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
-	natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc)
+	natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc, Identifier::IdPtr asId)
 {
-	auto id = decl->GetIdentifier();
-	if (!id)
-	{
-		// TODO: 报告错误
-		return nullptr;
-	}
+	asId = asId ? asId : decl->GetIdentifier();
 
 	// TODO: 处理自动推断函数返回类型的情况
 	auto type = decl->GetType().Cast<Type::FunctionType>();
@@ -762,12 +757,12 @@ natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
 	if (dc->GetType() == Declaration::Decl::Class)
 	{
 		funcDecl = make_ref<Declaration::MethodDecl>(Declaration::Decl::Method, dc,
-			SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass());
+			SourceLocation{}, SourceLocation{}, std::move(asId), std::move(type), decl->GetStorageClass());
 	}
 	else
 	{
 		funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
-			SourceLocation{}, SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass());
+			SourceLocation{}, SourceLocation{}, std::move(asId), std::move(type), decl->GetStorageClass());
 	}
 
 	for (auto const& param : decl->GetParams())
@@ -776,6 +771,7 @@ natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
 	}
 
 	funcDecl->SetParams(from(decl->GetParams()));
+	decl->ClearParams();
 
 	return funcDecl;
 }
@@ -785,14 +781,7 @@ natRefPointer<Declaration::UnresolvedDecl> Sema::ActOnUnresolvedDeclarator(natRe
 	assert(m_CurrentPhase == Phase::Phase1);
 	assert(!decl->GetType() && !decl->GetInitializer());
 
-	auto id = decl->GetIdentifier();
-	if (!id)
-	{
-		// TODO: 报告错误
-		return nullptr;
-	}
-
-	auto unresolvedDecl = make_ref<Declaration::UnresolvedDecl>(dc, SourceLocation{}, std::move(id), nullptr, SourceLocation{}, decl);
+	auto unresolvedDecl = make_ref<Declaration::UnresolvedDecl>(dc, SourceLocation{}, decl->GetIdentifier(), nullptr, SourceLocation{}, decl);
 	m_Declarators.emplace_back(std::move(decl));
 
 	return unresolvedDecl;
@@ -805,16 +794,29 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 		return preparedDecl;
 	}
 
-	const auto id = decl->GetIdentifier();
+	auto id = decl->GetIdentifier();
 
 	if (!id)
 	{
-		if (decl->GetContext() != Declaration::Context::Prototype)
+		if (decl->IsConstructor())
 		{
-			m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, decl->GetRange().GetBegin());
+			Lex::Token dummyToken;
+			id = m_Preprocessor.FindIdentifierInfo(ConstructorName, dummyToken);
 		}
+		else if (decl->IsDestructor())
+		{
+			Lex::Token dummyToken;
+			id = m_Preprocessor.FindIdentifierInfo(DestructorName, dummyToken);
+		}
+		else
+		{
+			if (decl->GetContext() != Declaration::Context::Prototype)
+			{
+				m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier, decl->GetRange().GetBegin());
+			}
 
-		return nullptr;
+			return nullptr;
+		}
 	}
 
 	while ((scope->GetFlags() & ScopeFlags::DeclarableScope) == ScopeFlags::None)
@@ -848,15 +850,21 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 	const auto type = decl->GetType();
 	natRefPointer<Declaration::NamedDecl> retDecl;
 
-	if (!type && !decl->GetInitializer() && m_CurrentPhase == Phase::Phase1)
+	if (decl->IsUnresolved())
 	{
+		if (m_CurrentPhase != Phase::Phase1)
+		{
+			// TODO: 报告错误：只有第一阶段允许未解析的声明符
+			return nullptr;
+		}
+
 		retDecl = ActOnUnresolvedDeclarator(scope, decl, dc);
 		decl->SetDeclarationScope(scope);
 		decl->SetDeclarationContext(m_CurrentDeclContext);
 	}
 	else if (auto funcType = type.Cast<Type::FunctionType>())
 	{
-		retDecl = ActOnFunctionDeclarator(scope, decl, dc);
+		retDecl = ActOnFunctionDeclarator(scope, decl, dc, id);
 	}
 	else if (dc->GetType() == Declaration::Decl::Class)
 	{
@@ -1090,7 +1098,6 @@ Expression::ExprPtr Sema::ActOnStringLiteral(Lex::Token const& token)
 		return nullptr;
 	}
 
-	// TODO: 缓存字符串字面量以便重用
 	auto value = literalParser.GetValue();
 	// 多一个 0
 	return make_ref<Expression::StringLiteral>(value, m_Context.GetArrayType(m_Context.GetBuiltinType(Type::BuiltinType::Char), value.GetSize() + 1), token.GetLocation());

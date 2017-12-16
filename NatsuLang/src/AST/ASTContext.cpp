@@ -2,8 +2,18 @@
 #include "AST/Expression.h"
 #include "Basic/Identifier.h"
 
+#undef max
+
 using namespace NatsuLib;
 using namespace NatsuLang;
+
+namespace
+{
+	constexpr std::size_t AlignTo(std::size_t size, std::size_t alignment)
+	{
+		return (size + alignment - 1) / alignment * alignment;
+	}
+}
 
 ASTContext::ASTContext()
 	: m_TUDecl{ make_ref<Declaration::TranslationUnitDecl>(*this) }
@@ -110,6 +120,32 @@ ASTContext::TypeInfo ASTContext::GetTypeInfo(Type::TypePtr const& type)
 	return info;
 }
 
+// TODO: 根据编译目标的方案进行计算
+ASTContext::ClassLayout ASTContext::GetClassLayout(natRefPointer<Declaration::ClassDecl> const& classDecl)
+{
+	assert(classDecl);
+
+	const auto layoutIter = m_CachedClassLayout.find(classDecl);
+	if (layoutIter != m_CachedClassLayout.end())
+	{
+		return layoutIter->second;
+	}
+
+	// 允许 0 大小对象将会允许对象具有相同的地址
+	ClassLayout info{};
+	for (auto const& field : classDecl->GetFields())
+	{
+		const auto fieldInfo = getTypeInfoImpl(field->GetValueType());
+		info.Align = std::max(fieldInfo.Align, info.Align);
+		const auto fieldOffset = AlignTo(info.Size, info.Align);
+		info.FieldOffsets.emplace_back(fieldOffset);
+		info.Size = fieldOffset + fieldInfo.Size;
+	}
+
+	m_CachedClassLayout.emplace(classDecl, info);
+	return info;
+}
+
 // TODO: 使用编译目标的值
 ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 {
@@ -166,7 +202,10 @@ ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 	case Type::Type::Function:
 		return { 0, 0 };
 	case Type::Type::Class:
-		break;
+	{
+		const auto classLayout = GetClassLayout(type.Cast<Type::ClassType>()->GetDecl());
+		return { classLayout.Size * 8, classLayout.Align * 8 };
+	}
 	case Type::Type::Enum:
 	{
 		const auto enumType = type.Cast<Type::EnumType>();
@@ -178,6 +217,5 @@ ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 		assert(!"Invalid type.");
 		std::terminate();
 	}
-
-	nat_Throw(NotImplementedException);
 }
+
