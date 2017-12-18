@@ -214,7 +214,6 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 
 			const auto varValue = new llvm::GlobalVariable(*m_Compiler.m_Module, varType, false, llvm::GlobalValue::ExternalLinkage, initValue, llvm::StringRef{ varName.data(), varName.size() });
 			m_Compiler.m_GlobalVariableMap.emplace(std::move(varDecl), varValue);
-			// 注意此处有未受 unique_ptr 管理的引用
 			decl.second = varValue;
 		}
 	}
@@ -516,7 +515,8 @@ void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expr
 	}
 
 	m_Compiler.m_IRBuilder.CreateStore(value, leftOperand);
-	m_LastVisitedValue = leftOperand;
+
+	m_LastVisitedValue = m_RequiredModifiableValue ? leftOperand : m_Compiler.m_IRBuilder.CreateLoad(leftOperand);
 }
 
 void AotCompiler::AotStmtVisitor::VisitBooleanLiteral(natRefPointer<Expression::BooleanLiteral> const& expr)
@@ -552,7 +552,7 @@ void AotCompiler::AotStmtVisitor::VisitThrowExpr(natRefPointer<Expression::Throw
 void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallExpr> const& expr)
 {
 	Visit(expr->GetCallee());
-	const auto callee = llvm::dyn_cast<llvm::Function>(m_LastVisitedValue);
+	const auto callee = llvm::cast<llvm::Function>(m_LastVisitedValue);
 	assert(callee);
 
 	if (callee->arg_size() != expr->GetArgCount())
@@ -578,7 +578,8 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::MemberCallExpr> const& expr)
 {
 	Visit(expr->GetCallee());
-	const auto callee = llvm::dyn_cast<llvm::Function>(m_LastVisitedValue);
+	const auto callee = llvm::cast<llvm::Function>(m_LastVisitedValue);
+	assert(callee);
 
 	const auto baseObj = expr->GetImplicitObjectArgument();
 	EvaluateAsModifiableValue(baseObj);

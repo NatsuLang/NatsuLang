@@ -391,7 +391,7 @@ void Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> cons
 }
 
 // class-declaration:
-//	'class' [access-specifier] identifier '{' [member-specification] '}'
+//	'class' [specifier-seq] identifier '{' [member-specification] '}'
 Declaration::DeclPtr Parser::ParseClassDeclaration()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_class));

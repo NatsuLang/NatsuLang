@@ -442,7 +442,7 @@ Declaration::DeclPtr Sema::ActOnFinishFunctionBody(Declaration::DeclPtr decl, St
 
 	PopDeclContext();
 	
-	return fd;
+	return decl;
 }
 
 natRefPointer<Declaration::FunctionDecl> Sema::GetParsingFunction() const noexcept
