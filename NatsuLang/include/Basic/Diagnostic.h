@@ -15,6 +15,7 @@ namespace NatsuLang::Diag
 	struct DiagnosticConsumer;
 
 	class DiagnosticsEngine
+		: NatsuLib::nonmovable
 	{
 	public:
 		enum class Level
@@ -144,6 +145,7 @@ namespace NatsuLang::Diag
 
 	public:
 		class DiagnosticBuilder
+			: nonmovable
 		{
 		public:
 			constexpr DiagnosticBuilder(DiagnosticsEngine& diags)
@@ -199,6 +201,8 @@ namespace NatsuLang::Diag
 	struct DiagnosticConsumer
 		: NatsuLib::natRefObjImpl<DiagnosticConsumer>
 	{
+		~DiagnosticConsumer();
+
 		virtual void BeginSourceFile(const Preprocessor* pp);
 		virtual void EndSourceFile();
 		virtual void Finish();

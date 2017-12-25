@@ -88,6 +88,30 @@ namespace NatsuLang::Type
 		const BuiltinClass m_BuiltinClass;
 	};
 
+	class PointerType
+		: public Type
+	{
+	public:
+		explicit PointerType(TypePtr pointeeType)
+			: Type{ Pointer }, m_PointeeType{ std::move(pointeeType) }
+		{
+		}
+
+		~PointerType();
+
+		TypePtr GetPointeeType() const noexcept
+		{
+			return m_PointeeType;
+		}
+
+		std::size_t GetHashCode() const noexcept override;
+		nBool EqualTo(TypePtr const& other) const noexcept override;
+		DEFAULT_ACCEPT_DECL;
+
+	private:
+		const TypePtr m_PointeeType;
+	};
+
 	class ParenType
 		: public Type
 	{

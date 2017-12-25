@@ -49,6 +49,19 @@ natRefPointer<Type::ArrayType> ASTContext::GetArrayType(Type::TypePtr elementTyp
 	return ret;
 }
 
+natRefPointer<Type::PointerType> ASTContext::GetPointerType(Type::TypePtr pointeeType)
+{
+	auto ret = make_ref<Type::PointerType>(std::move(pointeeType));
+	const auto iter = m_PointerTypes.find(ret);
+	if (iter != m_PointerTypes.end())
+	{
+		return *iter;
+	}
+
+	m_PointerTypes.emplace(ret);
+	return ret;
+}
+
 natRefPointer<Type::FunctionType> ASTContext::GetFunctionType(Linq<NatsuLib::Valued<Type::TypePtr>> const& params, Type::TypePtr retType)
 {
 	auto ret = make_ref<Type::FunctionType>(params, std::move(retType));
@@ -189,8 +202,14 @@ ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 		case Type::BuiltinType::BoundMember:
 		case Type::BuiltinType::BuiltinFn:
 		default:
-			break;
+			assert(!"Unexpected type");
+			std::terminate();
 		}
+	}
+	case Type::Type::Pointer:
+	{
+		// FIXME: 务必替换成编译目标的值
+		return { 8, 8 };
 	}
 	case Type::Type::Array:
 	{

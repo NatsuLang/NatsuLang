@@ -57,7 +57,8 @@ namespace NatsuLang::Declaration
 	{
 	public:
 		explicit Declarator(Context context)
-			: m_Context{ context }, m_StorageClass{ Specifier::StorageClass::None }, m_Accessibility{ Specifier::Access::None }
+			: m_Context{ context }, m_StorageClass{ Specifier::StorageClass::None }, m_Accessibility{ Specifier::Access::None },
+			  m_Safety{ Specifier::Safety::None }
 		{
 		}
 
@@ -129,6 +130,16 @@ namespace NatsuLang::Declaration
 		void SetAccessibility(Specifier::Access value) noexcept
 		{
 			m_Accessibility = value;
+		}
+
+		Specifier::Safety GetSafety() const noexcept
+		{
+			return m_Safety;
+		}
+
+		void SetSafety(Specifier::Safety value) noexcept
+		{
+			m_Safety = value;
 		}
 
 		Type::TypePtr GetType() const noexcept
@@ -240,6 +251,7 @@ namespace NatsuLang::Declaration
 		Context m_Context;
 		Specifier::StorageClass m_StorageClass;
 		Specifier::Access m_Accessibility;
+		Specifier::Safety m_Safety;
 		std::variant<Identifier::IdPtr, ConstructorTag, DestructorTag> m_Identifier;
 		Type::TypePtr m_Type;
 		Statement::StmtPtr m_Initializer;

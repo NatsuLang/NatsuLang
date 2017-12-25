@@ -19,6 +19,7 @@
 #endif
 
 TYPE(Builtin, Type)
+TYPE(Pointer, Type)
 TYPE(Array, Type)
 TYPE(Function, Type)
 NON_CANONICAL_TYPE(Paren, Type)

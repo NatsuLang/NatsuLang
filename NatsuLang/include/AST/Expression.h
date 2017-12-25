@@ -14,6 +14,10 @@ namespace NatsuLang
 
 namespace NatsuLang::Expression
 {
+	class Expr;
+
+	using ExprPtr = NatsuLib::natRefPointer<Expr>;
+
 	class Expr
 		: public Statement::Stmt
 	{
@@ -35,8 +39,8 @@ namespace NatsuLang::Expression
 
 		struct EvalResult
 		{
-			nBool HasSideEffects;
-			nBool HasUndefinedBehavior;
+			nBool HasSideEffects = false;
+			nBool HasUndefinedBehavior = false;
 			std::variant<nuLong, nDouble> Result;
 
 			nBool GetResultAsSignedInteger(nLong& result) const noexcept;
@@ -52,8 +56,6 @@ namespace NatsuLang::Expression
 	private:
 		Type::TypePtr m_ExprType;
 	};
-
-	using ExprPtr = NatsuLib::natRefPointer<Expr>;
 
 	class DeclRefExpr
 		: public Expr

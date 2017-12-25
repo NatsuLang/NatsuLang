@@ -1063,6 +1063,8 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 
 		break;
 	}
+	case Expression::UnaryOperationType::AddrOf:
+	case Expression::UnaryOperationType::Deref:
 	case Expression::UnaryOperationType::Invalid:
 	default:
 		break;

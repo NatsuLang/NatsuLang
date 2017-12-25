@@ -166,6 +166,47 @@ nBool Parser::ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls)
 		m_SkippedTopLevelCompilerActions.emplace_back(move(cachedTokens));
 		return false;
 	}
+	case TokenType::Kw_unsafe:
+	{
+		ConsumeToken();
+
+		const auto curScope = m_Sema.GetCurrentScope();
+		curScope->AddFlags(Semantic::ScopeFlags::UnsafeScope);
+		const auto scope = make_scope([curScope]
+		{
+			curScope->RemoveFlags(Semantic::ScopeFlags::UnsafeScope);
+		});
+
+		if (!m_CurrentToken.Is(TokenType::LeftBrace))
+		{
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+				.AddArgument(TokenType::LeftBrace)
+				.AddArgument(m_CurrentToken.GetType());
+			// 假设漏写了左大括号，继续分析
+		}
+		else
+		{
+			ConsumeBrace();
+		}
+
+		std::vector<Declaration::DeclPtr> curResult;
+		while (!m_CurrentToken.Is(TokenType::RightBrace))
+		{
+			// TODO: 允许不安全声明
+			const auto encounteredEof = ParseTopLevelDecl(curResult);
+
+			decls.insert(decls.end(), std::make_move_iterator(curResult.begin()), std::make_move_iterator(curResult.end()));
+
+			if (encounteredEof)
+			{
+				m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF, m_CurrentToken.GetLocation());
+				return true;
+			}
+		}
+
+		ConsumeBrace();
+		return false;
+	}
 	default:
 		break;
 	}
@@ -597,8 +638,8 @@ nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::Id
 // simple-declaration:
 //	'def' [specifier-seq] declarator [;]
 // special-member-function-declaration:
-//	'this' '(' [parameter-declaration-list] ')' function-body
-//	'~' 'this' '(' [parameter-declaration-list] ')' function-body
+//	'def' 'this' ':' '(' [parameter-declaration-list] ')' function-body
+//	'def' '~' 'this' ':' '(' ')' function-body
 // function-body:
 //	compound-statement
 std::vector<Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context context, SourceLocation& declEnd)
@@ -677,6 +718,16 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context)
 
 		return ParseStmtError();
 	}
+	case TokenType::Kw_unsafe:
+		ConsumeToken();
+		if (!m_CurrentToken.Is(TokenType::LeftBrace))
+		{
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+				.AddArgument(TokenType::LeftBrace)
+				.AddArgument(m_CurrentToken.GetType());
+			return nullptr;
+		}
+		return ParseCompoundStatement(Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::CompoundStmtScope | Semantic::ScopeFlags::UnsafeScope);
 	case TokenType::LeftBrace:
 		return ParseCompoundStatement();
 	case TokenType::Semi:
@@ -1003,9 +1054,12 @@ Statement::StmtPtr Parser::ParseReturnStatement()
 				ConsumeToken();
 			}
 		}
+
+		return m_Sema.ActOnReturnStmt(loc, std::move(returnedExpr), m_Sema.GetCurrentScope());
 	}
 
-	return m_Sema.ActOnReturnStmt(loc, std::move(returnedExpr), m_Sema.GetCurrentScope());
+	// TODO: 报告错误：仅能在函数中返回
+	return nullptr;
 }
 
 Statement::StmtPtr Parser::ParseExprStatement()
@@ -1059,6 +1113,8 @@ Expression::ExprPtr Parser::ParseUnaryExpression()
 	}
 	case TokenType::PlusPlus:
 	case TokenType::MinusMinus:
+	case TokenType::Star:
+	case TokenType::Amp:
 	case TokenType::Plus:
 	case TokenType::Minus:
 	case TokenType::Exclaim:
@@ -1113,7 +1169,7 @@ Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expression::Expr
 	{
 		if (tokenPrec < minPrec)
 		{
-			return std::move(leftOperand);
+			return leftOperand;
 		}
 
 		auto opToken = m_CurrentToken;
@@ -1278,7 +1334,7 @@ Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr pre
 			break;
 		}
 		default:
-			return std::move(prefix);
+			return prefix;
 		}
 	}
 }
@@ -1379,7 +1435,9 @@ nBool Parser::ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::
 
 	if (endToken != TokenType::Eof && !m_CurrentToken.Is(endToken))
 	{
-		// TODO: 提示未以期望的 Token 结束表达式列表
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(endToken)
+			.AddArgument(m_CurrentToken.GetType());
 		return false;
 	}
 
@@ -1503,6 +1561,13 @@ void Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 				// TODO: 报告错误：多个访问说明符
 			}
 			decl->SetAccessibility(Specifier::Access::Private);
+			break;
+		case TokenType::Kw_unsafe:
+			if (decl->GetSafety() != Specifier::Safety::None)
+			{
+				// TODO: 报告错误：多个安全说明符
+			}
+			decl->SetSafety(Specifier::Safety::Unsafe);
 			break;
 		default:
 			// 不是错误
@@ -1628,8 +1693,13 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 		decl->SetType(std::move(type));
 	}
 
+	// 数组的指针和指针的数组和指针的数组的指针
+	ParsePointerType(decl);
+
 	// 即使类型不是数组尝试Parse也不会错误
 	ParseArrayType(decl);
+
+	ParsePointerType(decl);
 }
 
 void Parser::ParseTypeOfType(Declaration::DeclaratorPtr const& decl)
@@ -1696,7 +1766,7 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 		{
 			auto param = make_ref<Declaration::Declarator>(Declaration::Context::Prototype);
 			ParseDeclarator(param);
-			if (mayBeParenType && param->GetIdentifier() || !param->GetType())
+			if ((mayBeParenType && param->GetIdentifier()) || !param->GetType())
 			{
 				mayBeParenType = false;
 			}
@@ -1793,15 +1863,15 @@ void Parser::ParseArrayType(Declaration::DeclaratorPtr const& decl)
 	while (m_CurrentToken.Is(TokenType::LeftSquare))
 	{
 		ConsumeBracket();
-		auto countExpr = ParseConstantExpression();
 
+		const auto sizeExpr = ParseConstantExpression();
 		nuLong result;
-		if (!countExpr->EvaluateAsInt(result, m_Sema.GetASTContext()))
+		if (!sizeExpr->EvaluateAsInt(result, m_Sema.GetASTContext()))
 		{
 			// TODO: 报告错误
 		}
 
-		decl->SetType(m_Sema.GetASTContext().GetArrayType(decl->GetType(), static_cast<std::size_t>(result)));
+		decl->SetType(m_Sema.ActOnArrayType(decl->GetType(), static_cast<std::size_t>(result)));
 
 		if (!m_CurrentToken.Is(TokenType::RightSquare))
 		{
@@ -1810,6 +1880,15 @@ void Parser::ParseArrayType(Declaration::DeclaratorPtr const& decl)
 				.AddArgument(m_CurrentToken.GetType());
 		}
 		ConsumeAnyToken();
+	}
+}
+
+void Parser::ParsePointerType(Declaration::DeclaratorPtr const& decl)
+{
+	while (m_CurrentToken.Is(TokenType::Star))
+	{
+		ConsumeToken();
+		decl->SetType(m_Sema.ActOnPointerType(m_Sema.GetCurrentScope(), decl->GetType()));
 	}
 }
 
@@ -2130,6 +2209,8 @@ void Parser::skipUnaryExpression(std::vector<Token>* skippedTokens)
 		break;
 	case TokenType::PlusPlus:
 	case TokenType::MinusMinus:
+	case TokenType::Star:
+	case TokenType::Amp:
 	case TokenType::Plus:
 	case TokenType::Minus:
 	case TokenType::Exclaim:

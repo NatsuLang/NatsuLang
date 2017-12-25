@@ -148,6 +148,7 @@ namespace NatsuLang::Compiler
 
 			void InitVar(Type::TypePtr const& varType, llvm::Value* varPtr, Expression::ExprPtr const& initializer);
 
+			void EvaluateValue(Expression::ExprPtr const& expr);
 			void EvaluateAsModifiableValue(Expression::ExprPtr const& expr);
 			void EvaluateAsBool(Expression::ExprPtr const& expr);
 
@@ -193,5 +194,10 @@ namespace NatsuLang::Compiler
 		llvm::GlobalVariable* getStringLiteralValue(nStrView literalContent, nStrView literalName = "String");
 
 		llvm::Type* getCorrespondingType(Type::TypePtr const& type);
+		llvm::Type* getCorrespondingType(Declaration::DeclPtr const& decl);
+
+		llvm::Type* buildFunctionType(Type::TypePtr const& resultType, NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& params);
+		llvm::Type* buildFunctionType(NatsuLib::natRefPointer<Declaration::FunctionDecl> const& funcDecl);
+		llvm::Type* buildFunctionType(NatsuLib::natRefPointer<Declaration::MethodDecl> const& methodDecl);
 	};
 }

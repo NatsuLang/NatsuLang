@@ -19,4 +19,11 @@ namespace NatsuLang::Specifier
 		Internal,
 		Private
 	};
+
+	enum class Safety
+	{
+		None,
+
+		Unsafe
+	};
 }

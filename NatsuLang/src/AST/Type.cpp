@@ -202,6 +202,25 @@ nBool BuiltinType::CompareRankTo(natRefPointer<BuiltinType> const& other, nInt& 
 	return false;
 }
 
+PointerType::~PointerType()
+{
+}
+
+std::size_t PointerType::GetHashCode() const noexcept
+{
+	return m_PointeeType->GetHashCode();
+}
+
+nBool PointerType::EqualTo(TypePtr const& other) const noexcept
+{
+	if (const auto realOther = other.Cast<PointerType>())
+	{
+		return m_PointeeType == realOther->m_PointeeType;
+	}
+
+	return false;
+}
+
 ParenType::~ParenType()
 {
 }

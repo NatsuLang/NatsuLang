@@ -24,6 +24,11 @@ void Scope::SetFlags(NatsuLib::natRefPointer<Scope> parent, ScopeFlags flags) no
 		m_Depth = m_Parent->m_Depth + 1;
 		m_BlockParent = m_Parent->m_BlockParent;
 		m_FunctionParent = m_Parent->m_FunctionParent;
+
+		if ((m_Parent->m_Flags & ScopeFlags::UnsafeScope) != ScopeFlags::None)
+		{
+			m_Flags |= ScopeFlags::UnsafeScope;
+		}
 	}
 	else
 	{
@@ -63,4 +68,14 @@ void Scope::AddFlags(ScopeFlags flags) noexcept
 	}
 
 	m_Flags |= flags;
+}
+
+void Scope::RemoveFlags(ScopeFlags flags) noexcept
+{
+	m_Flags &= ~flags;
+}
+
+nBool Scope::HasFlags(ScopeFlags flags) const noexcept
+{
+	return (m_Flags & flags) != ScopeFlags::None;
 }

@@ -136,6 +136,10 @@ namespace
 			return UnaryOperationType::Minus;
 		case Lex::TokenType::MinusMinus:
 			return UnaryOperationType::PreDec;
+		case Lex::TokenType::Amp:
+			return UnaryOperationType::AddrOf;
+		case Lex::TokenType::Star:
+			return UnaryOperationType::Deref;
 		case Lex::TokenType::Tilde:
 			return UnaryOperationType::Not;
 		case Lex::TokenType::Exclaim:
@@ -214,6 +218,11 @@ namespace
 			assert(!"Invalid TokenType for BinaryOperationType.");
 			return BinaryOperationType::Invalid;
 		}
+	}
+
+	constexpr nBool IsUnsafeOperation(Expression::UnaryOperationType opCode)
+	{
+		return opCode == Expression::UnaryOperationType::AddrOf || opCode == Expression::UnaryOperationType::Deref;
 	}
 }
 
@@ -644,7 +653,7 @@ natRefPointer<Declaration::LabelDecl> Sema::LookupOrCreateLabel(Identifier::IdPt
 	if (!labelDecl)
 	{
 		labelDecl = make_ref<Declaration::LabelDecl>(curContext, loc, r.GetLookupId(), nullptr);
-		auto s = m_CurrentScope->GetFunctionParent().Lock();
+		const auto s = m_CurrentScope->GetFunctionParent().Lock();
 		PushOnScopeChains(labelDecl, s, true);
 	}
 
@@ -656,14 +665,28 @@ Type::TypePtr Sema::ActOnTypeOfType(natRefPointer<Expression::Expr> expr, Type::
 	return make_ref<Type::TypeOfType>(std::move(expr), std::move(underlyingType));
 }
 
+Type::TypePtr Sema::ActOnArrayType(Type::TypePtr elementType, std::size_t size)
+{
+	return m_Context.GetArrayType(std::move(elementType), size);
+}
+
+Type::TypePtr Sema::ActOnPointerType(natRefPointer<Scope> const& scope, Type::TypePtr pointeeType)
+{
+	if (!scope->HasFlags(ScopeFlags::UnsafeScope))
+	{
+		// TODO: 报告错误：此范围中不允许使用不安全操作
+	}
+
+	return m_Context.GetPointerType(std::move(pointeeType));
+}
+
 natRefPointer<Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl)
 {
 	auto id = decl->GetIdentifier();
 	if (id)
 	{
 		LookupResult r{ *this, id, {}, LookupNameType::LookupOrdinaryName };
-		LookupName(r, scope);
-		if (r.GetDeclSize() > 0)
+		if (LookupName(r, scope) || r.GetDeclSize() > 0)
 		{
 			// TODO: 报告存在重名的参数
 		}
@@ -838,9 +861,7 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 	}
 
 	LookupResult previous{ *this, id, {}, LookupNameType::LookupOrdinaryName };
-	LookupName(previous, scope);
-
-	if (previous.GetDeclSize())
+	if (LookupName(previous, scope) && previous.GetDeclSize())
 	{
 		// TODO: 处理重载或覆盖的情况
 		return nullptr;
@@ -916,7 +937,7 @@ Statement::StmtPtr Sema::ActOnLabelStmt(SourceLocation labelLoc, natRefPointer<D
 		return subStmt;
 	}
 
-	auto labelStmt = make_ref<Statement::LabelStmt>(labelLoc, std::move(labelDecl), std::move(subStmt));
+	auto labelStmt = make_ref<Statement::LabelStmt>(labelLoc, labelDecl, std::move(subStmt));
 	labelDecl->SetStmt(labelStmt);
 
 	return labelStmt;
@@ -1110,7 +1131,7 @@ Expression::ExprPtr Sema::ActOnConditionExpr(Expression::ExprPtr expr)
 		return nullptr;
 	}
 
-	const auto boolType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
+	auto boolType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
 	const auto castType = getCastType(expr, boolType);
 	return ImpCastExprToType(std::move(expr), std::move(boolType), castType);
 }
@@ -1209,7 +1230,7 @@ Expression::ExprPtr Sema::ActOnThis(SourceLocation loc)
 
 	if (const auto methodDecl = decl.Cast<Declaration::MethodDecl>())
 	{
-		auto recordDecl = Declaration::Decl::CastFromDeclContext(methodDecl->GetContext())->ForkRef<Declaration::ClassDecl>();
+		const auto recordDecl = dynamic_cast<Declaration::ClassDecl*>(Declaration::Decl::CastFromDeclContext(methodDecl->GetContext()));
 		assert(recordDecl);
 		return make_ref<Expression::ThisExpr>(loc, recordDecl->GetTypeForDecl(), false);
 	}
@@ -1298,9 +1319,7 @@ Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> const& scop
 
 		// TODO: 对dc的合法性进行检查
 
-		LookupQualifiedName(r, dc);
-
-		if (r.IsEmpty())
+		if (!LookupQualifiedName(r, dc) || r.IsEmpty())
 		{
 			// TODO: 找不到这个成员
 		}
@@ -1316,7 +1335,15 @@ Expression::ExprPtr Sema::ActOnUnaryOp(natRefPointer<Scope> const& scope, Source
 {
 	// TODO: 为将来可能的操作符重载保留
 	static_cast<void>(scope);
-	return CreateBuiltinUnaryOp(loc, getUnaryOperationType(tokenType), std::move(operand));
+
+	const auto opCode = getUnaryOperationType(tokenType);
+
+	if (IsUnsafeOperation(opCode) && !scope->HasFlags(ScopeFlags::UnsafeScope))
+	{
+		// TODO: 报告错误：在安全上下文试图执行不安全的操作
+	}
+
+	return CreateBuiltinUnaryOp(loc, opCode, std::move(operand));
 }
 
 Expression::ExprPtr Sema::ActOnPostfixUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType, Expression::ExprPtr operand)
@@ -1512,6 +1539,20 @@ Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, Expression:
 		// TODO: 可能的整数提升？
 		resultType = operand->GetExprType();
 		break;
+	case Expression::UnaryOperationType::AddrOf:
+		resultType = m_Context.GetPointerType(operand->GetExprType());
+		break;
+	case Expression::UnaryOperationType::Deref:
+		if (const auto pointerType = operand->GetExprType().Cast<Type::PointerType>())
+		{
+			resultType = pointerType->GetPointeeType();
+		}
+		else
+		{
+			// TODO: 报告错误
+			return nullptr;
+		}
+		break;
 	case Expression::UnaryOperationType::LNot:
 		resultType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
 		break;
@@ -1548,7 +1589,7 @@ Expression::ExprPtr Sema::ImpCastExprToType(Expression::ExprPtr expr, Type::Type
 	const auto exprType = expr->GetExprType();
 	if (exprType == type || castType == Expression::CastType::NoOp)
 	{
-		return std::move(expr);
+		return expr;
 	}
 
 	if (auto impCastExpr = expr.Cast<Expression::ImplicitCastExpr>())
@@ -1556,7 +1597,7 @@ Expression::ExprPtr Sema::ImpCastExprToType(Expression::ExprPtr expr, Type::Type
 		if (impCastExpr->GetCastType() == castType)
 		{
 			impCastExpr->SetExprType(std::move(type));
-			return std::move(expr);
+			return expr;
 		}
 	}
 
@@ -1630,7 +1671,7 @@ Type::TypePtr Sema::handleIntegerConversion(Expression::ExprPtr& leftOperand, Ty
 	if (builtinLHSType == builtinRHSType)
 	{
 		// 无需转换
-		return std::move(leftOperandType);
+		return leftOperandType;
 	}
 
 	nInt compareResult;
@@ -1646,21 +1687,21 @@ Type::TypePtr Sema::handleIntegerConversion(Expression::ExprPtr& leftOperand, Ty
 		if (builtinLHSType->IsSigned())
 		{
 			leftOperand = ImpCastExprToType(std::move(leftOperand), rightOperandType, Expression::CastType::IntegralCast);
-			return std::move(rightOperandType);
+			return rightOperandType;
 		}
 
 		rightOperand = ImpCastExprToType(std::move(rightOperand), leftOperandType, Expression::CastType::IntegralCast);
-		return std::move(leftOperandType);
+		return leftOperandType;
 	}
 
 	if (compareResult > 0)
 	{
 		rightOperand = ImpCastExprToType(std::move(rightOperand), leftOperandType, Expression::CastType::IntegralCast);
-		return std::move(leftOperandType);
+		return leftOperandType;
 	}
 
 	leftOperand = ImpCastExprToType(std::move(leftOperand), rightOperandType, Expression::CastType::IntegralCast);
-	return std::move(rightOperandType);
+	return rightOperandType;
 }
 
 Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType)
@@ -1693,22 +1734,22 @@ Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOperand, Type
 		if (compareResult > 0)
 		{
 			rightOperand = ImpCastExprToType(std::move(rightOperand), leftOperandType, Expression::CastType::FloatingCast);
-			return std::move(leftOperandType);
+			return leftOperandType;
 		}
 
 		leftOperand = ImpCastExprToType(std::move(leftOperand), rightOperandType, Expression::CastType::FloatingCast);
-		return std::move(rightOperandType);
+		return rightOperandType;
 	}
 
 	if (lhsFloat)
 	{
 		rightOperand = ImpCastExprToType(std::move(rightOperand), leftOperandType, Expression::CastType::IntegralToFloating);
-		return std::move(leftOperandType);
+		return leftOperandType;
 	}
 
 	assert(rhsFloat);
 	leftOperand = ImpCastExprToType(std::move(leftOperand), rightOperandType, Expression::CastType::IntegralToFloating);
-	return std::move(rightOperandType);
+	return rightOperandType;
 }
 
 LookupResult::LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType)

@@ -498,6 +498,8 @@ namespace NatsuLang
 						nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 					}
 				}
+				case Type::Type::Pointer:
+					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				case Type::Type::Array:
 					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				case Type::Type::Function:

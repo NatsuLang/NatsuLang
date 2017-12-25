@@ -183,6 +183,8 @@ namespace NatsuLang::Semantic
 		NatsuLib::natRefPointer<Declaration::LabelDecl> LookupOrCreateLabel(Identifier::IdPtr id, SourceLocation loc);
 
 		Type::TypePtr ActOnTypeOfType(NatsuLib::natRefPointer<Expression::Expr> expr, Type::TypePtr underlyingType);
+		Type::TypePtr ActOnArrayType(Type::TypePtr elementType, std::size_t size);
+		Type::TypePtr ActOnPointerType(NatsuLib::natRefPointer<Scope> const& scope, Type::TypePtr pointeeType);
 
 		NatsuLib::natRefPointer<Declaration::ParmVarDecl> ActOnParamDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl);
 		NatsuLib::natRefPointer<Declaration::VarDecl> ActOnVariableDeclarator(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);

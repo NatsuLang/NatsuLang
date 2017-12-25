@@ -183,6 +183,10 @@ Diag::DiagnosticsEngine::DiagnosticBuilder Diag::DiagnosticsEngine::Report(DiagI
 	return { *this };
 }
 
+Diag::DiagnosticConsumer::~DiagnosticConsumer()
+{
+}
+
 void Diag::DiagnosticConsumer::BeginSourceFile(const Preprocessor* /*pp*/)
 {
 }
@@ -201,7 +205,7 @@ Diag::DiagException::DiagException(nStrView src, nStrView file, nuInt line, Diag
 }
 
 Diag::DiagException::DiagException(std::exception_ptr nestedException, nStrView src, nStrView file, nuInt line, DiagnosticsEngine::DiagID diagId)
-	: BaseException(nestedException, src, file, line, u8"Exception with DiagID infomation."), m_Id{ diagId }
+	: BaseException(std::move(nestedException), src, file, line, u8"Exception with DiagID infomation."), m_Id{ diagId }
 {
 }
 
