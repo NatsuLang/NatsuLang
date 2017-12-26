@@ -294,8 +294,7 @@ namespace NatsuLang::Syntax
 		void ParseTypeOfType(Declaration::DeclaratorPtr const& decl);
 		void ParseParenType(Declaration::DeclaratorPtr const& decl);
 		void ParseFunctionType(Declaration::DeclaratorPtr const& decl);
-		void ParseArrayType(Declaration::DeclaratorPtr const& decl);
-		void ParsePointerType(Declaration::DeclaratorPtr const& decl);
+		void ParseArrayOrPointerType(Declaration::DeclaratorPtr const& decl);
 
 		void ParseInitializer(Declaration::DeclaratorPtr const& decl);
 

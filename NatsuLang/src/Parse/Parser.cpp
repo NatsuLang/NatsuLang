@@ -1492,6 +1492,19 @@ void Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipI
 	}
 	else
 	{
+		// 对于有 unsafe 说明符的声明符，允许在类型和初始化器中使用不安全的功能
+		const auto curScope = m_Sema.GetCurrentScope();
+		const auto flags = curScope->GetFlags();
+		if (decl->GetSafety() == Specifier::Safety::Unsafe)
+		{
+			curScope->AddFlags(Semantic::ScopeFlags::UnsafeScope);
+		}
+
+		const auto scope = make_scope([curScope, flags]
+		{
+			curScope->SetFlags(flags);
+		});
+
 		// (: int)也可以？
 		if (m_CurrentToken.Is(TokenType::Colon) || ((context == Declaration::Context::Prototype || context == Declaration::Context::TypeName) && !decl->GetIdentifier()))
 		{
@@ -1694,12 +1707,7 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 	}
 
 	// 数组的指针和指针的数组和指针的数组的指针
-	ParsePointerType(decl);
-
-	// 即使类型不是数组尝试Parse也不会错误
-	ParseArrayType(decl);
-
-	ParsePointerType(decl);
+	ParseArrayOrPointerType(decl);
 }
 
 void Parser::ParseTypeOfType(Declaration::DeclaratorPtr const& decl)
@@ -1858,37 +1866,41 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 				}));
 }
 
-void Parser::ParseArrayType(Declaration::DeclaratorPtr const& decl)
+void Parser::ParseArrayOrPointerType(Declaration::DeclaratorPtr const& decl)
 {
-	while (m_CurrentToken.Is(TokenType::LeftSquare))
+	while (true)
 	{
-		ConsumeBracket();
-
-		const auto sizeExpr = ParseConstantExpression();
-		nuLong result;
-		if (!sizeExpr->EvaluateAsInt(result, m_Sema.GetASTContext()))
+		switch (m_CurrentToken.GetType())
 		{
-			// TODO: 报告错误
-		}
-
-		decl->SetType(m_Sema.ActOnArrayType(decl->GetType(), static_cast<std::size_t>(result)));
-
-		if (!m_CurrentToken.Is(TokenType::RightSquare))
+		case TokenType::LeftSquare:
 		{
-			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-				.AddArgument(TokenType::RightSquare)
-				.AddArgument(m_CurrentToken.GetType());
-		}
-		ConsumeAnyToken();
-	}
-}
+			ConsumeBracket();
 
-void Parser::ParsePointerType(Declaration::DeclaratorPtr const& decl)
-{
-	while (m_CurrentToken.Is(TokenType::Star))
-	{
-		ConsumeToken();
-		decl->SetType(m_Sema.ActOnPointerType(m_Sema.GetCurrentScope(), decl->GetType()));
+			const auto sizeExpr = ParseConstantExpression();
+			nuLong result;
+			if (!sizeExpr->EvaluateAsInt(result, m_Sema.GetASTContext()))
+			{
+				// TODO: 报告错误
+			}
+
+			decl->SetType(m_Sema.ActOnArrayType(decl->GetType(), static_cast<std::size_t>(result)));
+
+			if (!m_CurrentToken.Is(TokenType::RightSquare))
+			{
+				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+					.AddArgument(TokenType::RightSquare)
+					.AddArgument(m_CurrentToken.GetType());
+			}
+			ConsumeAnyToken();
+			break;
+		}
+		case TokenType::Star:
+			ConsumeToken();
+			decl->SetType(m_Sema.ActOnPointerType(m_Sema.GetCurrentScope(), decl->GetType()));
+			break;
+		default:
+			return;
+		}
 	}
 }
 
