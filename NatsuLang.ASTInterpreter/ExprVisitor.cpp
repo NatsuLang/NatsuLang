@@ -67,13 +67,14 @@ void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Express
 	VisitExpr(expr);
 	if (m_ShouldPrint)
 	{
-		const auto decl = expr->GetDecl();
+		auto decl = expr->GetDecl();
 		if (!m_Interpreter.m_DeclStorage.DoesDeclExist(decl))
 		{
 			nat_Throw(InterpreterException, u8"表达式引用了一个不存在的值定义"_nv);
 		}
 
-		m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [this, id = decl->GetIdentifierInfo()](auto value)
+		const auto id = decl->GetIdentifierInfo();
+		m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [this, &id](auto value)
 		{
 			m_Interpreter.m_Logger.LogMsg(u8"(声明 : {0}) {1}"_nv, id ? id->GetName() : u8"(临时对象)"_nv, value);
 		});
@@ -126,25 +127,18 @@ void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<
 
 	Visit(expr->GetRightOperand());
 	nuLong indexValue;
-	if (const auto indexDeclOperand = m_LastVisitedExpr.Cast<Expression::DeclRefExpr>())
+	if (!Evaluate(m_LastVisitedExpr, [&indexValue](auto value)
 	{
-		auto decl = indexDeclOperand->GetDecl();
-		if (!m_Interpreter.m_DeclStorage.DoesDeclExist(decl))
-		{
-			nat_Throw(InterpreterException, u8"下标操作数引用了一个不存在的值定义"_nv);
-		}
-
-		m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [&indexValue](auto value)
-		{
-			indexValue = value;
-		}, Expected<nuLong>);
-	}
-	else if (const auto indexLiteralOperand = m_LastVisitedExpr.Cast<Expression::IntegerLiteral>())
+		indexValue = value;
+	}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>))
 	{
-		indexValue = indexLiteralOperand->GetValue();
+		nat_Throw(InterpreterException, u8"下标操作数无法被计算为有效的整数值"_nv);
 	}
 
-	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
+	m_Interpreter.m_DeclStorage.VisitDeclStorage(baseDecl, [this, indexValue, &expr](InterpreterDeclStorage::ArrayElementAccessor const& accessor)
+	{
+		m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, accessor.GetElementDecl(indexValue), SourceLocation{}, expr->GetExprType());
+	}, Expected<InterpreterDeclStorage::ArrayElementAccessor>);
 }
 
 void Interpreter::InterpreterExprVisitor::VisitConstructExpr(natRefPointer<Expression::ConstructExpr> const& expr)
@@ -214,7 +208,7 @@ void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression
 					m_Interpreter.m_DeclStorage.SetTopStorageFlag(DeclStorageLevelFlag::AvailableForCreateStorage | DeclStorageLevelFlag::CreateStorageIfNotFound);
 				});
 
-				if (!Evaluate(param.second, [this, &storage](auto value)
+				if (!Evaluate(param.second, [&storage](auto value)
 				{
 					storage = value;
 				}, Expected<std::remove_reference_t<decltype(storage)>>))
@@ -273,9 +267,9 @@ void Interpreter::InterpreterExprVisitor::VisitAsTypeExpr(natRefPointer<Expressi
 
 	auto castToType = Type::Type::GetUnderlyingType(expr->GetExprType());
 	auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(castToType);
-	const auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, std::move(castToType));
+	auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, std::move(castToType));
 
-	if (Evaluate(m_LastVisitedExpr, [this, tempObjDef = std::move(tempObjDef)](auto value)
+	if (Evaluate(m_LastVisitedExpr, [this, &tempObjDef](auto value)
 	{
 		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(tempObjDef), [value](auto& storage)
 		{
@@ -299,9 +293,9 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 
 	auto castToType = expr->GetExprType();
 	auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(castToType);
-	const auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, castToType);
+	auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, castToType);
 
-	if (Evaluate(m_LastVisitedExpr, [this, tempObjDef = std::move(tempObjDef)](auto value)
+	if (Evaluate(m_LastVisitedExpr, [this, &tempObjDef](auto value)
 	{
 		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(tempObjDef), [value](auto& storage)
 		{
@@ -350,7 +344,7 @@ void Interpreter::InterpreterExprVisitor::VisitConditionalOperator(natRefPointer
 		condValue = value;
 	}, Expected<nBool>))
 	{
-		auto retDecl = m_Interpreter.m_DeclStorage.CreateTemporaryObjectDecl(expr->GetExprType());
+		auto retDecl = InterpreterDeclStorage::CreateTemporaryObjectDecl(expr->GetExprType());
 		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(retDecl, [this, condValue, &expr](auto&& value)
 		{
 			Visit(condValue ? expr->GetLeftOperand() : expr->GetRightOperand());
@@ -376,7 +370,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 	Visit(expr->GetLeftOperand());
 	const auto leftOperand = std::move(m_LastVisitedExpr);
 	Visit(expr->GetRightOperand());
-	const auto rightOperand = std::move(m_LastVisitedExpr);
+	auto rightOperand = std::move(m_LastVisitedExpr);
 
 	auto tempObjDecl = InterpreterDeclStorage::CreateTemporaryObjectDecl(expr->GetExprType());
 
@@ -397,7 +391,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -421,7 +415,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -445,7 +439,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble>) && evalSucceed)
+		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -464,7 +458,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -483,7 +477,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -502,7 +496,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble>) && evalSucceed)
+		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -521,7 +515,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble>) && evalSucceed)
+		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -540,7 +534,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -559,7 +553,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -578,7 +572,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -597,7 +591,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -616,7 +610,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -635,7 +629,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nBool, nByte, nStrView>) && evalSucceed)
+		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -654,7 +648,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nByte, nStrView, nFloat, nDouble>) && evalSucceed)
+		}, Excepted<nByte, nStrView, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -673,7 +667,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nByte, nStrView, nFloat, nDouble>) && evalSucceed)
+		}, Excepted<nByte, nStrView, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -692,7 +686,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nByte, nStrView, nFloat, nDouble>) && evalSucceed)
+		}, Excepted<nByte, nStrView, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -711,7 +705,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nByte, nStrView>) && evalSucceed)
+		}, Excepted<nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -730,7 +724,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 			}, Expected<decltype(leftValue)>);
-		}, Excepted<nByte, nStrView>) && evalSucceed)
+		}, Excepted<nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
 			return;
@@ -753,7 +747,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 	const auto leftOperand = std::move(m_LastVisitedExpr);
 	const auto rightOperand = expr->GetRightOperand();
 
-	const auto leftDeclExpr = leftOperand.Cast<Expression::DeclRefExpr>();
+	auto leftDeclExpr = leftOperand.Cast<Expression::DeclRefExpr>();
 
 	natRefPointer<Declaration::ValueDecl> decl;
 	if (!leftDeclExpr || !((decl = leftDeclExpr->GetDecl())) || !decl->GetIdentifierInfo())
@@ -781,7 +775,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 			{
 				storage *= value;
 			}, Expected<std::remove_reference_t<decltype(storage)>>);
-		}, Excepted<nBool>);
+		}, Excepted<nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);
 		break;
 	case Expression::BinaryOperationType::DivAssign:
 		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
@@ -790,7 +784,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 			{
 				storage /= value;
 			}, Expected<std::remove_reference_t<decltype(storage)>>);
-		}, Excepted<nBool>);
+		}, Excepted<nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);
 		break;
 	case Expression::BinaryOperationType::RemAssign:
 		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
@@ -799,7 +793,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 			{
 				storage %= value;
 			}, Expected<std::remove_reference_t<decltype(storage)>>);
-		}, Excepted<nBool, nFloat, nDouble>);
+		}, Excepted<nBool, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);
 		break;
 	case Expression::BinaryOperationType::AddAssign:
 		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
@@ -808,7 +802,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 			{
 				storage += value;
 			}, Expected<std::remove_reference_t<decltype(storage)>>);
-		}, Excepted<nBool>);
+		}, Excepted<nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);
 		break;
 	case Expression::BinaryOperationType::SubAssign:
 		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
@@ -817,7 +811,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 			{
 				storage -= value;
 			}, Expected<std::remove_reference_t<decltype(storage)>>);
-		}, Excepted<nBool>);
+		}, Excepted<nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);
 		break;
 	case Expression::BinaryOperationType::ShlAssign:
 		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
@@ -826,7 +820,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 			{
 				storage <<= value;
 			}, Expected<std::remove_reference_t<decltype(storage)>>);
-		}, Excepted<nBool, nFloat, nDouble>);
+		}, Excepted<nBool, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);
 		break;
 	case Expression::BinaryOperationType::ShrAssign:
 		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
@@ -835,7 +829,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 			{
 				storage >>= value;
 			}, Expected<std::remove_reference_t<decltype(storage)>>);
-		}, Excepted<nBool, nFloat, nDouble>);
+		}, Excepted<nBool, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);
 		break;
 	case Expression::BinaryOperationType::AndAssign:
 		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
@@ -844,7 +838,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 			{
 				storage &= value;
 			}, Expected<std::remove_reference_t<decltype(storage)>>);
-		}, Excepted<nBool, nFloat, nDouble>);
+		}, Excepted<nBool, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);
 		break;
 	case Expression::BinaryOperationType::XorAssign:
 		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
@@ -853,7 +847,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 			{
 				storage ^= value;
 			}, Expected<std::remove_reference_t<decltype(storage)>>);
-		}, Excepted<nBool, nFloat, nDouble>);
+		}, Excepted<nBool, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);
 		break;
 	case Expression::BinaryOperationType::OrAssign:
 		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)
@@ -862,7 +856,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 			{
 				storage |= value;
 			}, Expected<std::remove_reference_t<decltype(storage)>>);
-		}, Excepted<nBool, nFloat, nDouble>);
+		}, Excepted<nBool, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);
 		break;
 	case Expression::BinaryOperationType::Invalid:
 	default:
@@ -908,7 +902,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 
 				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
 				++value;
-			}, Excepted<nBool>))
+			}, Excepted<nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 			{
 				return;
 			}
@@ -936,7 +930,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 
 				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
 				--value;
-			}, Excepted<nBool>))
+			}, Excepted<nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 			{
 				return;
 			}
@@ -945,7 +939,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 	case Expression::UnaryOperationType::PreInc:
 		if (declExpr)
 		{
-			const auto decl = declExpr->GetDecl();
+			auto decl = declExpr->GetDecl();
 			if (!decl->GetIdentifierInfo())
 			{
 				nat_Throw(InterpreterException, u8"不允许修改临时对象"_nv);
@@ -954,7 +948,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [](auto& value)
 			{
 				++value;
-			}, Excepted<nBool>))
+			}, Excepted<nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 			{
 				return;
 			}
@@ -963,7 +957,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 	case Expression::UnaryOperationType::PreDec:
 		if (declExpr)
 		{
-			const auto decl = declExpr->GetDecl();
+			auto decl = declExpr->GetDecl();
 			if (!decl->GetIdentifierInfo())
 			{
 				nat_Throw(InterpreterException, u8"不允许修改临时对象"_nv);
@@ -972,7 +966,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			if (m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [](auto& value)
 			{
 				--value;
-			}, Excepted<nBool>))
+			}, Excepted<nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 			{
 				return;
 			}
@@ -991,7 +985,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			{
 				nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);
 			}
-		}, Excepted<nStrView, nBool>))
+		}, Excepted<nStrView, nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(type));
 			return;
@@ -1012,7 +1006,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			{
 				nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);
 			}
-		}, Excepted<nStrView, nBool>))
+		}, Excepted<nStrView, nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(type));
 			return;
@@ -1033,7 +1027,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			{
 				nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);
 			}
-		}, Excepted<nStrView, nBool, nFloat, nDouble>))
+		}, Excepted<nStrView, nBool, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 		{
 			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(type));
 			return;
@@ -1051,7 +1045,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			if (!Evaluate(expr, [&tmpValue](auto value)
 			{
 				tmpValue = !value;
-			}, Excepted<nStrView>))
+			}, Excepted<nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 			{
 				nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);
 			}
@@ -1064,7 +1058,50 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 		break;
 	}
 	case Expression::UnaryOperationType::AddrOf:
+	{
+		auto pointerType = m_Interpreter.m_AstContext.GetPointerType(m_LastVisitedExpr->GetExprType());
+		auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(pointerType);
+		if (!declExpr)
+		{
+			nat_Throw(InterpreterException, u8"该表达式未引用任何定义"_nv);
+		}
+
+		const auto decl = declExpr->GetDecl().Cast<Declaration::VarDecl>();
+		if (!decl)
+		{
+			nat_Throw(InterpreterException, u8"该表达式引用的是临时对象的定义"_nv);
+		}
+
+		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDef, [decl](InterpreterDeclStorage::PointerAccessor& accessor)
+		{
+			accessor.SetReferencedDecl(decl);
+		}, Expected<InterpreterDeclStorage::PointerAccessor>))
+		{
+			nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);
+		}
+
+		m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(pointerType));
+		return;
+	}
 	case Expression::UnaryOperationType::Deref:
+	{
+		if (!declExpr)
+		{
+			nat_Throw(InterpreterException, u8"该表达式未引用任何定义"_nv);
+		}
+
+		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(declExpr->GetDecl(), [this](InterpreterDeclStorage::PointerAccessor& accessor)
+		{
+			auto decl = accessor.GetReferencedDecl();
+			auto declType = decl->GetValueType();
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(decl), SourceLocation{}, std::move(declType));
+		}, Expected<InterpreterDeclStorage::PointerAccessor>))
+		{
+			nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);
+		}
+
+		return;
+	}
 	case Expression::UnaryOperationType::Invalid:
 	default:
 		break;

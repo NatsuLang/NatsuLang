@@ -87,32 +87,9 @@ void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement:
 			nat_Throw(InterpreterException, u8"错误的声明"_nv);
 		}
 
-		if (auto varDecl = decl.Cast<Declaration::VarDecl>())
+		if (const auto varDecl = decl.Cast<Declaration::VarDecl>())
 		{
-			// 不需要分配存储
-			if (varDecl->IsFunction() || varDecl->GetStorageClass() == Specifier::StorageClass::Extern)
-			{
-				continue;
-			}
-
-			auto succeed = false;
-			if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(varDecl, [this, initializer = varDecl->GetInitializer(), &succeed](auto& storage)
-			{
-				if (!initializer)
-				{
-					succeed = true;
-					return;
-				}
-
-				InterpreterExprVisitor visitor{ m_Interpreter };
-				succeed = visitor.Evaluate(initializer, [&storage](auto value)
-				{
-					storage = value;
-				}, Expected<std::remove_reference_t<decltype(storage)>>);
-			}) || !succeed)
-			{
-				nat_Throw(InterpreterException, u8"无法创建声明的存储"_nv);
-			}
+			initVar(varDecl, varDecl->GetInitializer());
 		}
 	}
 }
@@ -237,7 +214,7 @@ void Interpreter::InterpreterStmtVisitor::VisitReturnStmt(natRefPointer<Statemen
 		auto tempObjDecl = InterpreterDeclStorage::CreateTemporaryObjectDecl(retExpr->GetExprType());
 		// 禁止当前层创建存储，以保证返回值创建在上层
 		m_Interpreter.m_DeclStorage.SetTopStorageFlag(DeclStorageLevelFlag::AvailableForLookup);
-		m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [this, &visitor, &retExpr](auto& storage)
+		m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [&visitor, &retExpr](auto& storage)
 		{
 			// 由于之前已经访问过，所以不会再创建临时对象及对应的存储
 			visitor.Evaluate(retExpr, [&storage](auto value)
@@ -293,3 +270,89 @@ void Interpreter::InterpreterStmtVisitor::VisitWhileStmt(natRefPointer<Statement
 		}
 	}
 }
+
+void Interpreter::InterpreterStmtVisitor::initVar(natRefPointer<Declaration::VarDecl> const& var, Expression::ExprPtr const& initializer)
+{
+	if (!initializer)
+	{
+		m_Interpreter.m_DeclStorage.GetOrAddDecl(var);
+		return;
+	}
+
+	const auto varType = var->GetValueType();
+
+	if (const auto initListExpr = initializer.Cast<Expression::InitListExpr>())
+	{
+		if (const auto arrayType = varType.Cast<Type::ArrayType>())
+		{
+			if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(var, [this, &initListExpr](InterpreterDeclStorage::ArrayElementAccessor& accessor)
+			{
+				const auto initExprs = initListExpr->GetInitExprs();
+				auto initExprIter = initExprs.begin();
+				const auto initExprEnd = initExprs.end();
+
+				InterpreterExprVisitor evaluator{ m_Interpreter };
+
+				for (std::size_t i = 0; initExprIter != initExprEnd; ++i, static_cast<void>(++initExprIter))
+				{
+					initVar(accessor.GetElementDecl(i), *initExprIter);
+				}
+			}, Expected<InterpreterDeclStorage::ArrayElementAccessor>))
+			{
+				nat_Throw(InterpreterException, u8"无法创建声明的存储"_nv);
+			}
+		}
+		else if (varType->GetType() == Type::Type::Builtin)
+		{
+			const auto count = initListExpr->GetInitExprCount();
+			if (count == 0)
+			{
+				m_Interpreter.m_DeclStorage.GetOrAddDecl(var);
+			}
+			else if (count == 1)
+			{
+				initVar(var, initListExpr->GetInitExprs().first());
+			}
+			else
+			{
+				// TODO: 报告错误
+			}
+		}
+		else if (varType->GetType() == Type::Type::Pointer)
+		{
+			// TODO: 初始化指针
+		}
+	}
+	else if (const auto constructExpr = initializer.Cast<Expression::ConstructExpr>())
+	{
+		// TODO: 构造函数初始化
+	}
+	else if (const auto stringLiteral = initializer.Cast<Expression::StringLiteral>())
+	{
+		// 一定是用来初始化数组类型，若是用户自定义类型将会是构造函数初始化
+		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(var, [stringValue = stringLiteral->GetValue()](InterpreterDeclStorage::ArrayElementAccessor& accessor)
+		{
+			// 由前端保证存储够用
+			std::memmove(accessor.GetStorage(), stringValue.data(), stringValue.size());
+		}, Expected<InterpreterDeclStorage::ArrayElementAccessor>))
+		{
+			nat_Throw(InterpreterException, u8"无法创建声明的存储"_nv);
+		}
+	}
+	else
+	{
+		auto succeed = false;
+		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(var, [this, &initializer, &succeed](auto& storage)
+		{
+			InterpreterExprVisitor evaluator{ m_Interpreter };
+			succeed = evaluator.Evaluate(initializer, [&storage](auto value)
+			{
+				storage = value;
+			}, Expected<decltype(storage)>);
+		}, Excepted<nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) || !succeed)
+		{
+			nat_Throw(InterpreterException, u8"无法创建声明的存储，或者对初始化器的求值失败"_nv);
+		}
+	}
+}
+

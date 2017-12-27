@@ -134,7 +134,7 @@ ASTContext::TypeInfo ASTContext::GetTypeInfo(Type::TypePtr const& type)
 }
 
 // TODO: 根据编译目标的方案进行计算
-ASTContext::ClassLayout ASTContext::GetClassLayout(natRefPointer<Declaration::ClassDecl> const& classDecl)
+ASTContext::ClassLayout const& ASTContext::GetClassLayout(natRefPointer<Declaration::ClassDecl> const& classDecl)
 {
 	assert(classDecl);
 
@@ -155,8 +155,13 @@ ASTContext::ClassLayout ASTContext::GetClassLayout(natRefPointer<Declaration::Cl
 		info.Size = fieldOffset + fieldInfo.Size;
 	}
 
-	m_CachedClassLayout.emplace(classDecl, info);
-	return info;
+	const auto ret = m_CachedClassLayout.emplace(classDecl, info);
+	if (!ret.second)
+	{
+		// TODO: 报告错误
+	}
+
+	return ret.first->second;
 }
 
 // TODO: 使用编译目标的值

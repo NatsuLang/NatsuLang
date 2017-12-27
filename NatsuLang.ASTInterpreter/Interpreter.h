@@ -462,15 +462,97 @@ namespace NatsuLang
 			Interpreter& m_Interpreter;
 			nBool m_Returned;
 			Expression::ExprPtr m_ReturnedExpr;
+
+			void initVar(NatsuLib::natRefPointer<Declaration::VarDecl> const& var, Expression::ExprPtr const& initializer);
 		};
 
 		class InterpreterDeclStorage
 		{
 		public:
-			// TODO: 设计 MemberAccessor
-			struct MemberAccessor
+			class MemoryLocationDecl
+				: public Declaration::VarDecl
 			{
+			public:
+				MemoryLocationDecl(Type::TypePtr type, nData memoryLocation, Identifier::IdPtr name = nullptr)
+					: VarDecl{ Var, nullptr, {}, {}, std::move(name), std::move(type), Specifier::StorageClass::None }, m_MemoryLocation{ memoryLocation }
+				{
+				}
 
+				~MemoryLocationDecl();
+
+				nData GetMemoryLocation() const noexcept
+				{
+					return m_MemoryLocation;
+				}
+
+			private:
+				nData m_MemoryLocation;
+			};
+
+			class ArrayElementAccessor
+				: NatsuLib::nonmovable
+			{
+			public:
+				ArrayElementAccessor(InterpreterDeclStorage& declStorage, NatsuLib::natRefPointer<Type::ArrayType> const& arrayType, nData storage);
+
+				template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
+				nBool VisitElement(std::size_t i, Callable&& visitor, ExpectedOrExcepted condition = {}) const
+				{
+					return m_DeclStorage.visitStorage(m_ElementType, m_Storage + m_ElementSize * i, std::forward<Callable>(visitor), condition);
+				}
+
+				Type::TypePtr GetElementType() const noexcept;
+				NatsuLib::natRefPointer<MemoryLocationDecl> GetElementDecl(std::size_t i) const;
+
+				nData GetStorage() const noexcept;
+
+			private:
+				InterpreterDeclStorage& m_DeclStorage;
+				Type::TypePtr m_ElementType;
+				std::size_t m_ElementSize;
+				std::size_t m_ArrayElementCount;
+				nData m_Storage;
+			};
+
+			class MemberAccessor
+				: NatsuLib::nonmovable
+			{
+			public:
+				MemberAccessor(InterpreterDeclStorage& declStorage, NatsuLib::natRefPointer<Declaration::ClassDecl> classDecl, nData storage);
+
+				template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
+				nBool VisitMember(NatsuLib::natRefPointer<Declaration::FieldDecl> const& fieldDecl, Callable&& visitor, ExpectedOrExcepted condition = {}) const
+				{
+					const auto iter = m_FieldOffsets.find(fieldDecl);
+					if (iter == m_FieldOffsets.end())
+					{
+						return false;
+					}
+
+					const auto offset = iter->second;
+					return m_DeclStorage.visitStorage(fieldDecl->GetValueType(), m_Storage + offset, std::forward<Callable>(visitor), condition);
+				}
+
+				NatsuLib::natRefPointer<MemoryLocationDecl> GetMemberDecl(NatsuLib::natRefPointer<Declaration::FieldDecl> const& fieldDecl) const;
+
+			private:
+				InterpreterDeclStorage& m_DeclStorage;
+				NatsuLib::natRefPointer<Declaration::ClassDecl> m_ClassDecl;
+				std::unordered_map<NatsuLib::natRefPointer<Declaration::FieldDecl>, std::size_t> m_FieldOffsets;
+				nData m_Storage;
+			};
+
+			class PointerAccessor
+				: NatsuLib::nonmovable
+			{
+			public:
+				explicit PointerAccessor(nData storage);
+
+				NatsuLib::natRefPointer<Declaration::VarDecl> GetReferencedDecl() const noexcept;
+				void SetReferencedDecl(NatsuLib::natRefPointer<Declaration::VarDecl> const& value) noexcept;
+
+			private:
+				nData m_Storage;
 			};
 
 		private:
@@ -483,7 +565,7 @@ namespace NatsuLang
 				{
 				case Type::Type::Builtin:
 				{
-					const auto builtinType = type.Cast<Type::BuiltinType>();
+					const auto builtinType = type.UnsafeCast<Type::BuiltinType>();
 					assert(builtinType);
 
 					switch (builtinType->GetBuiltinClass())
@@ -499,13 +581,26 @@ namespace NatsuLang
 					}
 				}
 				case Type::Type::Pointer:
-					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
+				{
+					PointerAccessor accessor{ storage };
+					return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), accessor, condition);
+				}
 				case Type::Type::Array:
-					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
+				{
+					ArrayElementAccessor accessor{ *this, type, storage };
+					return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), accessor, condition);
+				}
 				case Type::Type::Function:
 					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				case Type::Type::Class:
-					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
+				{
+					const auto classType = type.UnsafeCast<Type::ClassType>();
+					auto classDecl = classType->GetDecl().Cast<Declaration::ClassDecl>();
+					assert(classDecl);
+					// TODO: 能否重用？
+					MemberAccessor accessor{ *this, std::move(classDecl), storage };
+					return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), accessor, condition);
+				}
 				case Type::Type::Enum:
 					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				default:
@@ -554,7 +649,7 @@ namespace NatsuLang
 
 				const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
 
-				const auto [addedDecl, storagePointer] = GetOrAddDecl(decl);
+				const auto [addedDecl, storagePointer] = GetOrAddDecl(decl, type);
 				auto visitSucceed = false;
 				const auto scope = NatsuLib::make_scope([this, addedDecl, &visitSucceed, decl = std::move(decl)]
 				{

@@ -42,7 +42,7 @@ namespace NatsuLang
 		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> GetTranslationUnit() const noexcept;
 
 		TypeInfo GetTypeInfo(Type::TypePtr const& type);
-		ClassLayout GetClassLayout(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
+		ClassLayout const& GetClassLayout(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
 
 	private:
 		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> m_TUDecl;
