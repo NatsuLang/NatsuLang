@@ -184,6 +184,11 @@ void Interpreter::InterpreterDeclStorage::RemoveDecl(natRefPointer<Declaration::
 
 nBool Interpreter::InterpreterDeclStorage::DoesDeclExist(natRefPointer<Declaration::ValueDecl> const& decl) const noexcept
 {
+	if (decl.Cast<MemoryLocationDecl>())
+	{
+		return true;
+	}
+
 	for (auto& curStorage : make_range(m_DeclStorage.crbegin(), m_DeclStorage.crend()))
 	{
 		if (curStorage.second->find(decl) != curStorage.second->cend())

@@ -77,7 +77,7 @@ void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Express
 		m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [this, &id](auto value)
 		{
 			m_Interpreter.m_Logger.LogMsg(u8"(声明 : {0}) {1}"_nv, id ? id->GetName() : u8"(临时对象)"_nv, value);
-		});
+		}, Excepted<InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);	// TODO: 应当允许这些访问器
 	}
 }
 
@@ -133,6 +133,11 @@ void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<
 	}, Expected<nShort, nuShort, nInt, nuInt, nLong, nuLong>))
 	{
 		nat_Throw(InterpreterException, u8"下标操作数无法被计算为有效的整数值"_nv);
+	}
+
+	if (static_cast<std::size_t>(indexValue) >= baseType->GetSize())
+	{
+		nat_Throw(InterpreterException, u8"下标越界"_nv);
 	}
 
 	m_Interpreter.m_DeclStorage.VisitDeclStorage(baseDecl, [this, indexValue, &expr](InterpreterDeclStorage::ArrayElementAccessor const& accessor)
@@ -215,7 +220,7 @@ void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression
 				{
 					nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);
 				}
-			}))
+			}, Excepted<InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))	// TODO: 应当允许这些访问器
 			{
 				nat_Throw(InterpreterException, u8"无法为参数的定义分配存储"_nv);
 			}
@@ -355,7 +360,7 @@ void Interpreter::InterpreterExprVisitor::VisitConditionalOperator(natRefPointer
 			{
 				nat_Throw(InterpreterException, u8"无法对表达式求值"_nv);
 			}
-		}))
+		}, Excepted<InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 		{
 			nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 		}
@@ -766,7 +771,7 @@ void Interpreter::InterpreterExprVisitor::VisitCompoundAssignOperator(natRefPoin
 			{
 				storage = value;
 			}, Expected<std::remove_reference_t<decltype(storage)>>);
-		});
+		}, Excepted<InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);
 		break;
 	case Expression::BinaryOperationType::MulAssign:
 		visitSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(decl, [this, &rightOperand, &evalSucceed](auto& storage)

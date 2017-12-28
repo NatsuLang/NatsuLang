@@ -727,7 +727,20 @@ natRefPointer<Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 		type = initExpr->GetExprType();
 	}
 
-	if (initExpr && Type::Type::GetUnderlyingType(initExpr->GetExprType()) != type)
+	if (const auto initList = initExpr.Cast<Expression::InitListExpr>())
+	{
+		if (const auto arrayType = type.Cast<Type::ArrayType>())
+		{
+			if (arrayType->GetSize() < initList->GetInitExprCount())
+			{
+				// TODO: 报告错误：初始化列表的元素多于数组大小
+				return nullptr;
+			}
+
+			// TODO: 进行更多检查
+		}
+	}
+	else if (initExpr && Type::Type::GetUnderlyingType(initExpr->GetExprType()) != type)
 	{
 		const auto castType = getCastType(initExpr, type);
 		initExpr = ImpCastExprToType(std::move(initExpr), type, castType);

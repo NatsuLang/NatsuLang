@@ -214,14 +214,15 @@ void Interpreter::InterpreterStmtVisitor::VisitReturnStmt(natRefPointer<Statemen
 		auto tempObjDecl = InterpreterDeclStorage::CreateTemporaryObjectDecl(retExpr->GetExprType());
 		// 禁止当前层创建存储，以保证返回值创建在上层
 		m_Interpreter.m_DeclStorage.SetTopStorageFlag(DeclStorageLevelFlag::AvailableForLookup);
-		m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [&visitor, &retExpr](auto& storage)
+		visitor.Evaluate(retExpr, [this, &tempObjDecl](auto value)
 		{
 			// 由于之前已经访问过，所以不会再创建临时对象及对应的存储
-			visitor.Evaluate(retExpr, [&storage](auto value)
+			m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [value](auto& storage)
 			{
 				storage = value;
-			}, Expected<std::remove_reference_t<decltype(storage)>>);
-		}, Expected<>);
+			}, Expected<decltype(value)>);
+		}, Excepted<nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);
+		
 		m_ReturnedExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDecl, SourceLocation{}, retExpr->GetExprType());
 	}
 
@@ -342,7 +343,19 @@ void Interpreter::InterpreterStmtVisitor::initVar(natRefPointer<Declaration::Var
 	else
 	{
 		auto succeed = false;
-		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(var, [this, &initializer, &succeed](auto& storage)
+		InterpreterExprVisitor evaluator{ m_Interpreter };
+		if (!evaluator.Evaluate(initializer, [this, &succeed, &var](auto value)
+		{
+			succeed = m_Interpreter.m_DeclStorage.VisitDeclStorage(var, [value](auto& storage)
+			{
+				storage = value;
+			}, Expected<decltype(value)>);
+		}, Excepted<nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
+		{
+			nat_Throw(InterpreterException, u8"无法创建声明的存储，或者对初始化器的求值失败"_nv);
+		}
+
+		/*if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(var, [this, &initializer, &succeed](auto& storage)
 		{
 			InterpreterExprVisitor evaluator{ m_Interpreter };
 			succeed = evaluator.Evaluate(initializer, [&storage](auto value)
@@ -352,7 +365,7 @@ void Interpreter::InterpreterStmtVisitor::initVar(natRefPointer<Declaration::Var
 		}, Excepted<nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) || !succeed)
 		{
 			nat_Throw(InterpreterException, u8"无法创建声明的存储，或者对初始化器的求值失败"_nv);
-		}
+		}*/
 	}
 }
 
