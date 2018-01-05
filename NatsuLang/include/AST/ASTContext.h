@@ -12,14 +12,12 @@ namespace NatsuLang
 	{
 		struct TypeInfo
 		{
-			// 按比特计算
 			std::size_t Size;
 			std::size_t Align;
 		};
 
 		struct ClassLayout
 		{
-			// 与 TypeInfo 不同，这里的 Size 和 Align 是按字节计算的
 			std::size_t Size;
 			std::size_t Align;
 			// 若 first 是 null 则表示的是 padding
