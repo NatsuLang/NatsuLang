@@ -1240,6 +1240,22 @@ Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefP
 			return ActOnMemberAccessExpr(scope, make_ref<Expression::ThisExpr>(SourceLocation{}, classDecl->GetTypeForDecl(), true), {}, nns, std::move(id));
 		}
 
+		// 不可能引用到构造和析构函数，但是还是要注意此处可能的漏判
+		if (decl->GetType() == Declaration::Decl::Method)
+		{
+			// 可能隐含 this
+			const auto classDecl = Declaration::Decl::CastFromDeclContext(decl->GetContext())->ForkRef<Declaration::ClassDecl>();
+			assert(classDecl);
+			if (!classDecl->ContainsDecl(decl))
+			{
+				// TODO: 报告错误：引用了不属于当前类的字段
+				return nullptr;
+			}
+
+			// 继续偷懒。。。
+			return ActOnMemberAccessExpr(scope, make_ref<Expression::ThisExpr>(SourceLocation{}, classDecl->GetTypeForDecl(), true), {}, nns, std::move(id));
+		}
+
 		return BuildDeclarationNameExpr(nns, std::move(id), decl);
 	}
 
@@ -1308,27 +1324,57 @@ Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expre
 		return nullptr;
 	}
 
-	auto fn = func->IgnoreParens().Cast<Expression::DeclRefExpr>();
-	if (!fn)
+	func = func->IgnoreParens();
+
+	if (auto nonMemberFunc = func.Cast<Expression::DeclRefExpr>())
 	{
-		return nullptr;
-	}
-	const auto refFn = fn->GetDecl();
-	if (!refFn)
-	{
-		return nullptr;
-	}
-	const auto fnType = refFn->GetValueType().Cast<Type::FunctionType>();
-	if (!fnType)
-	{
-		return nullptr;
+		const auto refFn = nonMemberFunc->GetDecl();
+		if (!refFn)
+		{
+			return nullptr;
+		}
+
+		const auto fnType = refFn->GetValueType().Cast<Type::FunctionType>();
+		if (!fnType)
+		{
+			return nullptr;
+		}
+
+		// TODO: 处理有默认参数的情况
+		return make_ref<Expression::CallExpr>(std::move(nonMemberFunc), argExprs.zip(fnType->GetParameterTypes()).select([this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
+		{
+			return ImpCastExprToType(pair.first, pair.second, getCastType(pair.first, pair.second));
+		}), fnType->GetResultType(), rloc);
 	}
 
-	// TODO: 处理有默认参数的情况
-	return make_ref<Expression::CallExpr>(std::move(fn), argExprs.zip(fnType->GetParameterTypes()).select([this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
+	if (auto memberFunc = func.Cast<Expression::MemberExpr>())
 	{
-		return ImpCastExprToType(pair.first, pair.second, getCastType(pair.first, pair.second));
-	}), fnType->GetResultType(), rloc);
+		const auto baseObj = memberFunc->GetBase();
+		if (!baseObj)
+		{
+			return nullptr;
+		}
+
+		const auto refFn = memberFunc->GetMemberDecl().Cast<Declaration::MethodDecl>();
+		if (!refFn)
+		{
+			return nullptr;
+		}
+
+		const auto fnType = refFn->GetValueType().Cast<Type::FunctionType>();
+		if (!fnType)
+		{
+			return nullptr;
+		}
+
+		return make_ref<Expression::MemberCallExpr>(std::move(memberFunc), argExprs.zip(fnType->GetParameterTypes()).select([this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
+		{
+			return ImpCastExprToType(pair.first, pair.second, getCastType(pair.first, pair.second));
+		}), fnType->GetResultType(), rloc);
+	}
+
+	// TODO: 报告错误
+	return nullptr;
 }
 
 Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation periodLoc, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id)

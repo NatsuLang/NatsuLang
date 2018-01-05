@@ -600,7 +600,9 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 	assert(callee && baseObjValue);
 
 	// TODO: 消除重复代码
-	if (callee->arg_size() != expr->GetArgCount())
+
+	// 除去 this
+	if (callee->arg_size() - 1 != expr->GetArgCount())
 	{
 		nat_Throw(AotCompilerException, u8"参数数量不匹配，这可能是默认参数功能未实现导致的"_nv);
 	}

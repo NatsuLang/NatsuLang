@@ -82,10 +82,13 @@ int main(int argc, char* argv[])
 		{ theInterpreter.GetASTContext().GetBuiltinType(Type::BuiltinType::Int) },
 		[&theInterpreter](std::vector<natRefPointer<Declaration::ValueDecl>> const& args) -> natRefPointer<Declaration::ValueDecl>
 		{
-			theInterpreter.GetDeclStorage().VisitDeclStorage(args.at(0), [](nInt value)
+			if (!theInterpreter.GetDeclStorage().VisitDeclStorage(args.at(0), [](nInt value)
 			{
 				std::cout << value << std::endl;
-			}, NatsuLang::Detail::Expected<nInt>);
+			}, NatsuLang::Detail::Expected<nInt>))
+			{
+				nat_Throw(InterpreterException, u8"无法访问参数"_nv);
+			}
 
 			return nullptr;
 		});

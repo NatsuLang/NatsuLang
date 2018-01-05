@@ -30,6 +30,11 @@ class Foo
 		return arg + Field
 	}
 
+	def Method2 : () -> void
+	{
+		Method(Field as int)
+	}
+
 	def Field : double = 1.0
 }
 
