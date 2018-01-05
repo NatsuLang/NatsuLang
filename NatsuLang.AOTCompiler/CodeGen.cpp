@@ -167,10 +167,11 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 	{
 		if (auto funcDecl = decl.first.Cast<Declaration::FunctionDecl>())
 		{
-			const auto functionType = m_Compiler.getCorrespondingType(funcDecl->GetValueType());
+			const auto functionType = llvm::dyn_cast<llvm::FunctionType>(m_Compiler.getCorrespondingType(funcDecl));
+			assert(functionType);
 			const auto functionName = funcDecl->GetIdentifierInfo()->GetName();
 
-			const auto funcValue = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
+			const auto funcValue = llvm::Function::Create(functionType,
 				llvm::GlobalVariable::ExternalLinkage,
 				std::string(functionName.cbegin(), functionName.cend()),
 				m_Compiler.m_Module.get());
@@ -179,6 +180,12 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 			const auto argEnd = funcValue->arg_end();
 			auto paramIter = funcDecl->GetParams().begin();
 			const auto paramEnd = funcDecl->GetParams().end();
+
+			if (funcDecl.Cast<Declaration::MethodDecl>())
+			{
+				argIter->setName("this");
+				++argIter;
+			}
 
 			for (; argIter != argEnd && paramIter != paramEnd; ++argIter, static_cast<void>(++paramIter))
 			{
@@ -248,12 +255,17 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 
 AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer<Declaration::FunctionDecl> funcDecl, llvm::Function* funcValue)
 	: m_Compiler{ compiler }, m_CurrentFunction{ std::move(funcDecl) }, m_CurrentFunctionValue{ funcValue },
-	  m_LastVisitedValue{ nullptr }, m_RequiredModifiableValue{ false }
+	  m_This{}, m_LastVisitedValue{ nullptr }, m_RequiredModifiableValue{ false }
 {
 	auto argIter = m_CurrentFunctionValue->arg_begin();
 	const auto argEnd = m_CurrentFunctionValue->arg_end();
 	auto paramIter = m_CurrentFunction->GetParams().begin();
 	const auto paramEnd = m_CurrentFunction->GetParams().end();
+
+	if (m_CurrentFunction.Cast<Declaration::MethodDecl>())
+	{
+		m_This = &*argIter++;
+	}
 
 	const auto block = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "Entry", m_CurrentFunctionValue);
 	m_Compiler.m_IRBuilder.SetInsertPoint(block);
@@ -539,9 +551,9 @@ void AotCompiler::AotStmtVisitor::VisitNewExpr(natRefPointer<Expression::NewExpr
 	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
 }
 
-void AotCompiler::AotStmtVisitor::VisitThisExpr(natRefPointer<Expression::ThisExpr> const& expr)
+void AotCompiler::AotStmtVisitor::VisitThisExpr(natRefPointer<Expression::ThisExpr> const& /*expr*/)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	m_LastVisitedValue = m_RequiredModifiableValue ? m_This : m_Compiler.m_IRBuilder.CreateLoad(m_This);
 }
 
 void AotCompiler::AotStmtVisitor::VisitThrowExpr(natRefPointer<Expression::ThrowExpr> const& expr)
@@ -639,26 +651,31 @@ void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::Dec
 {
 	const auto decl = expr->GetDecl();
 
-	const auto localDeclIter = m_DeclMap.find(decl);
-	if (localDeclIter != m_DeclMap.end())
+	if (const auto varDecl = decl.Cast<Declaration::VarDecl>())
 	{
-		m_LastVisitedValue = m_RequiredModifiableValue ? localDeclIter->second : m_Compiler.m_IRBuilder.CreateLoad(localDeclIter->second);
-		return;
-	}
-
-	const auto nonLocalDeclIter = m_Compiler.m_GlobalVariableMap.find(decl);
-	if (nonLocalDeclIter != m_Compiler.m_GlobalVariableMap.end())
-	{
-		m_LastVisitedValue = m_RequiredModifiableValue ? static_cast<llvm::Value*>(nonLocalDeclIter->second) : m_Compiler.m_IRBuilder.CreateLoad(nonLocalDeclIter->second);
-		return;
-	}
-
-	if (!m_RequiredModifiableValue)
-	{
-		const auto funcIter = m_Compiler.m_FunctionMap.find(decl);
-		if (funcIter != m_Compiler.m_FunctionMap.end())
+		if (const auto funcDecl = varDecl.Cast<Declaration::FunctionDecl>())
 		{
-			m_LastVisitedValue = funcIter->second;
+			if (!m_RequiredModifiableValue)
+			{
+				const auto funcIter = m_Compiler.m_FunctionMap.find(decl);
+				if (funcIter != m_Compiler.m_FunctionMap.end())
+				{
+					m_LastVisitedValue = funcIter->second;
+					return;
+				}
+			}
+			else
+			{
+				nat_Throw(AotCompilerException, u8"无法修改函数地址"_nv);
+			}
+		}
+		else
+		{
+			EmitAddressOfVar(varDecl);
+			if (!m_RequiredModifiableValue)
+			{
+				m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateLoad(m_LastVisitedValue, "var");
+			}
 			return;
 		}
 	}
@@ -684,7 +701,7 @@ void AotCompiler::AotStmtVisitor::VisitIntegerLiteral(natRefPointer<Expression::
 {
 	if (m_RequiredModifiableValue)
 	{
-		// TODO: 报告错误
+		nat_Throw(AotCompilerException, u8"当前表达式无法求值为可修改的值"_nv);
 	}
 
 	const auto intType = expr->GetExprType().Cast<Type::BuiltinType>();
@@ -695,7 +712,50 @@ void AotCompiler::AotStmtVisitor::VisitIntegerLiteral(natRefPointer<Expression::
 
 void AotCompiler::AotStmtVisitor::VisitMemberExpr(natRefPointer<Expression::MemberExpr> const& expr)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	const auto memberDecl = expr->GetMemberDecl();
+
+	if (const auto method = memberDecl.Cast<Declaration::MethodDecl>())
+	{
+		if (m_RequiredModifiableValue)
+		{
+			nat_Throw(AotCompilerException, u8"当前表达式无法求值为可修改的值"_nv);
+		}
+
+		const auto iter = m_Compiler.m_FunctionMap.find(method);
+		if (iter == m_Compiler.m_FunctionMap.end())
+		{
+			nat_Throw(AotCompilerException, u8"引用了不存在的成员"_nv);
+		}
+
+		m_LastVisitedValue = iter->second;
+	}
+	else if (const auto field = memberDecl.Cast<Declaration::FieldDecl>())
+	{
+		const auto baseExpr = expr->GetBase();
+		EvaluateAsModifiableValue(baseExpr);
+		const auto baseValue = m_LastVisitedValue;
+		const auto baseClass = baseExpr->GetExprType().Cast<Type::ClassType>();
+		assert(baseClass);
+		const auto baseClassDecl = baseClass->GetDecl();
+
+		const auto& classLayout = m_Compiler.m_AstContext.GetClassLayout(baseClassDecl);
+		const auto fieldInfo = classLayout.GetFieldInfo(field);
+		if (!fieldInfo)
+		{
+			nat_Throw(AotCompilerException, u8"引用了不存在的成员"_nv);
+		}
+
+		const auto fieldIndex = fieldInfo.value().first;
+		const auto fieldName = field->GetName();
+		const auto memberPtr = m_Compiler.m_IRBuilder.CreateGEP(baseValue,
+			{ llvm::ConstantInt::getNullValue(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext)), llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Compiler.m_LLVMContext), fieldIndex) },
+			llvm::StringRef{ fieldName.data(), fieldName.size() });
+		m_LastVisitedValue = m_RequiredModifiableValue ? memberPtr : m_Compiler.m_IRBuilder.CreateLoad(memberPtr, llvm::StringRef{ fieldName.data(), fieldName.size() });
+	}
+	else
+	{
+		nat_Throw(AotCompilerException, u8"引用了错误的成员，前端可能出现 bug"_nv);
+	}
 }
 
 void AotCompiler::AotStmtVisitor::VisitParenExpr(natRefPointer<Expression::ParenExpr> const& expr)
@@ -920,6 +980,24 @@ llvm::Function* AotCompiler::AotStmtVisitor::GetFunction() const
 	return m_CurrentFunctionValue;
 }
 
+void AotCompiler::AotStmtVisitor::EmitAddressOfVar(NatsuLib::natRefPointer<Declaration::VarDecl> const& varDecl)
+{
+	assert(varDecl);
+
+	const auto localDeclIter = m_DeclMap.find(varDecl);
+	if (localDeclIter != m_DeclMap.end())
+	{
+		m_LastVisitedValue = localDeclIter->second;
+		return;
+	}
+
+	const auto nonLocalDeclIter = m_Compiler.m_GlobalVariableMap.find(varDecl);
+	if (nonLocalDeclIter != m_Compiler.m_GlobalVariableMap.end())
+	{
+		m_LastVisitedValue = nonLocalDeclIter->second;
+	}
+}
+
 void AotCompiler::AotStmtVisitor::EmitBranch(llvm::BasicBlock* target)
 {
 	const auto curBlock = m_Compiler.m_IRBuilder.GetInsertBlock();
@@ -961,8 +1039,18 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitBinOp(llvm::Value* leftOperand, ll
 	switch (opCode)
 	{
 	case Expression::BinaryOperationType::Mul:
+		if (commonType->IsFloatingType())
+		{
+			return m_Compiler.m_IRBuilder.CreateFMul(leftOperand, rightOperand, "fmul");
+		}
+
 		return m_Compiler.m_IRBuilder.CreateMul(leftOperand, rightOperand, "mul");
 	case Expression::BinaryOperationType::Div:
+		if (commonType->IsFloatingType())
+		{
+			return m_Compiler.m_IRBuilder.CreateFDiv(leftOperand, rightOperand, "fdiv");
+		}
+
 		if (commonType->IsSigned())
 		{
 			return m_Compiler.m_IRBuilder.CreateSDiv(leftOperand, rightOperand, "div");
@@ -970,6 +1058,11 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitBinOp(llvm::Value* leftOperand, ll
 
 		return m_Compiler.m_IRBuilder.CreateUDiv(leftOperand, rightOperand, "div");
 	case Expression::BinaryOperationType::Mod:
+		if (commonType->IsFloatingType())
+		{
+			return m_Compiler.m_IRBuilder.CreateFRem(leftOperand, rightOperand, "fmod");
+		}
+
 		if (commonType->IsSigned())
 		{
 			return m_Compiler.m_IRBuilder.CreateSRem(leftOperand, rightOperand, "mod");
@@ -977,8 +1070,18 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitBinOp(llvm::Value* leftOperand, ll
 
 		return m_Compiler.m_IRBuilder.CreateURem(leftOperand, rightOperand, "mod");
 	case Expression::BinaryOperationType::Add:
+		if (commonType->IsFloatingType())
+		{
+			return m_Compiler.m_IRBuilder.CreateFAdd(leftOperand, rightOperand, "fadd");
+		}
+
 		return m_Compiler.m_IRBuilder.CreateAdd(leftOperand, rightOperand, "add");
 	case Expression::BinaryOperationType::Sub:
+		if (commonType->IsFloatingType())
+		{
+			return m_Compiler.m_IRBuilder.CreateFSub(leftOperand, rightOperand, "fsub");
+		}
+
 		return m_Compiler.m_IRBuilder.CreateSub(leftOperand, rightOperand, "sub");
 	case Expression::BinaryOperationType::Shl:
 		return m_Compiler.m_IRBuilder.CreateShl(leftOperand, rightOperand, "shl");
@@ -1448,6 +1551,14 @@ llvm::GlobalVariable* AotCompiler::getStringLiteralValue(nStrView literalContent
 llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 {
 	const auto underlyingType = Type::Type::GetUnderlyingType(type);
+
+	const auto iter = m_TypeMap.find(underlyingType);
+	if (iter != m_TypeMap.cend())
+	{
+		return iter->second;
+	}
+
+	llvm::Type* ret;
 	const auto typeClass = underlyingType->GetType();
 
 	switch (typeClass)
@@ -1458,9 +1569,11 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 		switch (builtinType->GetBuiltinClass())
 		{
 		case Type::BuiltinType::Void:
-			return llvm::Type::getVoidTy(m_LLVMContext);
+			ret = llvm::Type::getVoidTy(m_LLVMContext);
+			break;
 		case Type::BuiltinType::Bool:
-			return llvm::Type::getInt1Ty(m_LLVMContext);
+			ret = llvm::Type::getInt1Ty(m_LLVMContext);
+			break;
 		case Type::BuiltinType::Char:
 		case Type::BuiltinType::UShort:
 		case Type::BuiltinType::UInt:
@@ -1472,14 +1585,18 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 		case Type::BuiltinType::Long:
 		case Type::BuiltinType::LongLong:
 		case Type::BuiltinType::Int128:
-			return llvm::IntegerType::get(m_LLVMContext, m_AstContext.GetTypeInfo(builtinType).Size * 8);
+			ret = llvm::IntegerType::get(m_LLVMContext, m_AstContext.GetTypeInfo(builtinType).Size * 8);
+			break;
 		case Type::BuiltinType::Float:
-			return llvm::Type::getFloatTy(m_LLVMContext);
+			ret = llvm::Type::getFloatTy(m_LLVMContext);
+			break;
 		case Type::BuiltinType::Double:
-			return llvm::Type::getDoubleTy(m_LLVMContext);
+			ret = llvm::Type::getDoubleTy(m_LLVMContext);
+			break;
 		case Type::BuiltinType::LongDouble:
 		case Type::BuiltinType::Float128:
-			return llvm::Type::getFP128Ty(m_LLVMContext);
+			ret = llvm::Type::getFP128Ty(m_LLVMContext);
+			break;
 		case Type::BuiltinType::Overload:
 		case Type::BuiltinType::BoundMember:
 		case Type::BuiltinType::BuiltinFn:
@@ -1489,33 +1606,29 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 		case Type::BuiltinType::Invalid:
 			nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
 		}
+		break;
 	}
 	case Type::Type::Pointer:
 	{
 		const auto pointerType = underlyingType.UnsafeCast<Type::PointerType>();
 		// TODO: 考虑地址空间的问题
-		return llvm::PointerType::get(getCorrespondingType(pointerType->GetPointeeType()), 0);
+		ret = llvm::PointerType::get(getCorrespondingType(pointerType->GetPointeeType()), 0);
+		break;
 	}
 	case Type::Type::Array:
 	{
 		const auto arrayType = underlyingType.UnsafeCast<Type::ArrayType>();
-		return llvm::ArrayType::get(getCorrespondingType(arrayType->GetElementType()), static_cast<std::uint64_t>(arrayType->GetSize()));
+		ret = llvm::ArrayType::get(getCorrespondingType(arrayType->GetElementType()), static_cast<std::uint64_t>(arrayType->GetSize()));
+		break;
 	}
 	case Type::Type::Function:
 	{
 		const auto functionType = underlyingType.UnsafeCast<Type::FunctionType>();
-		return buildFunctionType(functionType->GetResultType(), functionType->GetParameterTypes());
+		ret = buildFunctionType(functionType->GetResultType(), functionType->GetParameterTypes());
+		break;
 	}
 	case Type::Type::Class:
-	{
-		const auto classType = underlyingType.UnsafeCast<Type::ClassType>();
-		const auto classDecl = classType->GetDecl().Cast<Declaration::ClassDecl>();
-		const auto className = classDecl->GetName();
-		// TODO: 添加限定名称
-		const auto typeValue = llvm::StructType::create(m_LLVMContext, llvm::StringRef{ className.data(), className.size() });
-
-
-	}
+		return getCorrespondingType(underlyingType.UnsafeCast<Type::ClassType>()->GetDecl());
 	case Type::Type::Enum:
 		nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
 	default:
@@ -1527,24 +1640,38 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 		assert(!"Should never happen, check NatsuLang::Type::Type::GetUnderlyingType");
 		nat_Throw(AotCompilerException, u8"错误的类型"_nv);
 	}
+
+	m_TypeMap.emplace(type, ret);
+	return ret;
 }
 
 llvm::Type* AotCompiler::getCorrespondingType(Declaration::DeclPtr const& decl)
 {
+	const auto iter = m_DeclTypeMap.find(decl);
+	if (iter != m_DeclTypeMap.cend())
+	{
+		return iter->second;
+	}
+
+	llvm::Type* ret;
+
 	switch (decl->GetType())
 	{
 	case Declaration::Decl::Enum:
 		return getCorrespondingType(decl.UnsafeCast<Declaration::EnumDecl>()->GetTypeForDecl());
 	case Declaration::Decl::Class:
-		nat_Throw(NotImplementedException);
+		ret = buildClassType(decl.UnsafeCast<Declaration::ClassDecl>());
+		break;
 	case Declaration::Decl::Field:
 		return getCorrespondingType(decl.UnsafeCast<Declaration::FieldDecl>()->GetValueType());
 	case Declaration::Decl::Function:
-		return buildFunctionType(decl.UnsafeCast<Declaration::FunctionDecl>());
+		ret = buildFunctionType(decl.UnsafeCast<Declaration::FunctionDecl>());
+		break;
 	case Declaration::Decl::Method:
 	case Declaration::Decl::Constructor:
 	case Declaration::Decl::Destructor:
-		return buildFunctionType(decl.UnsafeCast<Declaration::MethodDecl>());
+		ret = buildFunctionType(decl.UnsafeCast<Declaration::MethodDecl>());
+		break;
 	case Declaration::Decl::Var:
 		return getCorrespondingType(decl.UnsafeCast<Declaration::VarDecl>()->GetValueType());
 	case Declaration::Decl::EnumConstant:
@@ -1561,6 +1688,9 @@ llvm::Type* AotCompiler::getCorrespondingType(Declaration::DeclPtr const& decl)
 		assert(!"Invalid decl.");
 		nat_Throw(AotCompilerException, u8"不能为此声明确定类型"_nv);
 	}
+
+	m_DeclTypeMap.emplace(decl, ret);
+	return ret;
 }
 
 llvm::Type* AotCompiler::buildFunctionType(Type::TypePtr const& resultType, Linq<Valued<Type::TypePtr>> const& params)
@@ -1584,6 +1714,32 @@ llvm::Type* AotCompiler::buildFunctionType(natRefPointer<Declaration::MethodDecl
 	const auto functionType = methodDecl->GetValueType().UnsafeCast<Type::FunctionType>();
 	const auto classDecl = dynamic_cast<Declaration::ClassDecl*>(Declaration::Decl::CastFromDeclContext(methodDecl->GetContext()));
 	assert(classDecl);
-	return buildFunctionType(functionType->GetResultType(), from_values({ classDecl->GetTypeForDecl() })
+	return buildFunctionType(functionType->GetResultType(), from_values({ m_AstContext.GetPointerType(classDecl->GetTypeForDecl()).UnsafeCast<Type::Type>() })
 		.concat(functionType->GetParameterTypes()));
+}
+
+llvm::Type* AotCompiler::buildClassType(natRefPointer<Declaration::ClassDecl> const& classDecl)
+{
+	const auto className = classDecl->GetName();
+	const auto& classLayout = m_AstContext.GetClassLayout(classDecl);
+	std::vector<llvm::Type*> fieldTypes(classLayout.FieldOffsets.size());
+
+	const auto paddingElementType = llvm::Type::getInt8Ty(m_LLVMContext);
+
+	for (std::size_t i = 0; i < classLayout.FieldOffsets.size(); ++i)
+	{
+		const auto& pair = classLayout.FieldOffsets[i];
+		if (pair.first)
+		{
+			fieldTypes[i] = getCorrespondingType(pair.first->GetValueType());
+		}
+		else
+		{
+			fieldTypes[i] = llvm::ArrayType::get(paddingElementType,
+				static_cast<std::uint64_t>((i != classLayout.FieldOffsets.size() - 1 ? classLayout.FieldOffsets[i + 1].second : classLayout.Size) - pair.second));
+		}
+	}
+
+	const auto structType = llvm::StructType::create(m_LLVMContext, fieldTypes, llvm::StringRef{ className.data(), className.size() });
+	return structType;
 }

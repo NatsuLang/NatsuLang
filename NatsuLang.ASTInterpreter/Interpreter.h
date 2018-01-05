@@ -376,7 +376,7 @@ namespace NatsuLang
 			Expression::ExprPtr GetLastVisitedExpr() const noexcept;
 
 			template <typename ValueVisitor, typename ExpectedOrExcepted = Detail::Expected_t<>>
-			nBool Evaluate(NatsuLib::natRefPointer<Expression::Expr> const& expr, ValueVisitor&& visitor, ExpectedOrExcepted = {})
+			[[nodiscard]] nBool Evaluate(NatsuLib::natRefPointer<Expression::Expr> const& expr, ValueVisitor&& visitor, ExpectedOrExcepted = {})
 			{
 				if (!expr)
 				{
@@ -480,7 +480,7 @@ namespace NatsuLang
 
 				~MemoryLocationDecl();
 
-				nData GetMemoryLocation() const noexcept
+				[[nodiscard]] nData GetMemoryLocation() const noexcept
 				{
 					return m_MemoryLocation;
 				}
@@ -496,7 +496,7 @@ namespace NatsuLang
 				ArrayElementAccessor(InterpreterDeclStorage& declStorage, NatsuLib::natRefPointer<Type::ArrayType> const& arrayType, nData storage);
 
 				template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
-				nBool VisitElement(std::size_t i, Callable&& visitor, ExpectedOrExcepted condition = {}) const
+				[[nodiscard]] nBool VisitElement(std::size_t i, Callable&& visitor, ExpectedOrExcepted condition = {}) const
 				{
 					return m_DeclStorage.visitStorage(m_ElementType, m_Storage + m_ElementSize * i, std::forward<Callable>(visitor), condition);
 				}
@@ -521,7 +521,7 @@ namespace NatsuLang
 				MemberAccessor(InterpreterDeclStorage& declStorage, NatsuLib::natRefPointer<Declaration::ClassDecl> classDecl, nData storage);
 
 				template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
-				nBool VisitMember(NatsuLib::natRefPointer<Declaration::FieldDecl> const& fieldDecl, Callable&& visitor, ExpectedOrExcepted condition = {}) const
+				[[nodiscard]] nBool VisitMember(NatsuLib::natRefPointer<Declaration::FieldDecl> const& fieldDecl, Callable&& visitor, ExpectedOrExcepted condition = {}) const
 				{
 					const auto iter = m_FieldOffsets.find(fieldDecl);
 					if (iter == m_FieldOffsets.end())
@@ -640,7 +640,7 @@ namespace NatsuLang
 			static NatsuLib::natRefPointer<Declaration::ValueDecl> CreateTemporaryObjectDecl(Type::TypePtr type, SourceLocation loc = {});
 
 			template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
-			nBool VisitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Callable&& visitor, ExpectedOrExcepted condition = {})
+			[[nodiscard]] nBool VisitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Callable&& visitor, ExpectedOrExcepted condition = {})
 			{
 				if (!decl)
 				{

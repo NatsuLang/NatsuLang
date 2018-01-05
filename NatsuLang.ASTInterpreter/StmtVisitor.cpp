@@ -214,14 +214,20 @@ void Interpreter::InterpreterStmtVisitor::VisitReturnStmt(natRefPointer<Statemen
 		auto tempObjDecl = InterpreterDeclStorage::CreateTemporaryObjectDecl(retExpr->GetExprType());
 		// 禁止当前层创建存储，以保证返回值创建在上层
 		m_Interpreter.m_DeclStorage.SetTopStorageFlag(DeclStorageLevelFlag::AvailableForLookup);
-		visitor.Evaluate(retExpr, [this, &tempObjDecl](auto value)
+		if (!visitor.Evaluate(retExpr, [this, &tempObjDecl](auto value)
 		{
 			// 由于之前已经访问过，所以不会再创建临时对象及对应的存储
-			m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [value](auto& storage)
+			if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(tempObjDecl, [value](auto& storage)
 			{
 				storage = value;
-			}, Expected<decltype(value)>);
-		}, Excepted<nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);
+			}, Expected<decltype(value)>))
+			{
+				nat_Throw(InterpreterException, u8"无法访问存储"_nv);
+			}
+		}, Excepted<nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
+		{
+			nat_Throw(InterpreterException, u8"无法对表达式求值"_nv);
+		}
 		
 		m_ReturnedExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDecl, SourceLocation{}, retExpr->GetExprType());
 	}

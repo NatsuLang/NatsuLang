@@ -74,10 +74,13 @@ void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Express
 		}
 
 		const auto id = decl->GetIdentifierInfo();
-		m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [this, &id](auto value)
+		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [this, &id](auto value)
 		{
 			m_Interpreter.m_Logger.LogMsg(u8"(声明 : {0}) {1}"_nv, id ? id->GetName() : u8"(临时对象)"_nv, value);
-		}, Excepted<InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>);	// TODO: 应当允许这些访问器
+		}, Excepted<InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))	// TODO: 应当允许这些访问器
+		{
+			nat_Throw(InterpreterException, u8"无法访问存储"_nv);
+		}
 	}
 }
 
@@ -140,10 +143,13 @@ void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<
 		nat_Throw(InterpreterException, u8"下标越界"_nv);
 	}
 
-	m_Interpreter.m_DeclStorage.VisitDeclStorage(baseDecl, [this, indexValue, &expr](InterpreterDeclStorage::ArrayElementAccessor const& accessor)
+	if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(baseDecl, [this, indexValue, &expr](InterpreterDeclStorage::ArrayElementAccessor const& accessor)
 	{
 		m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, accessor.GetElementDecl(indexValue), SourceLocation{}, expr->GetExprType());
-	}, Expected<InterpreterDeclStorage::ArrayElementAccessor>);
+	}, Expected<InterpreterDeclStorage::ArrayElementAccessor>))
+	{
+		nat_Throw(InterpreterException, u8"无法访问存储"_nv);
+	}
 }
 
 void Interpreter::InterpreterExprVisitor::VisitConstructExpr(natRefPointer<Expression::ConstructExpr> const& expr)

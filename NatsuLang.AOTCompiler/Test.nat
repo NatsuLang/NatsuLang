@@ -27,7 +27,7 @@ class Foo
 
 	def Method : (arg : int) -> float
 	{
-		return arg
+		return arg + Field
 	}
 
 	def Field : double = 1.0

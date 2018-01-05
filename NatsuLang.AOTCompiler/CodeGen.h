@@ -136,6 +136,8 @@ namespace NatsuLang::Compiler
 			void StartVisit();
 			llvm::Function* GetFunction() const;
 
+			void EmitAddressOfVar(NatsuLib::natRefPointer<Declaration::VarDecl> const& varDecl);
+
 			void EmitBranch(llvm::BasicBlock* target);
 			void EmitBlock(llvm::BasicBlock* block, nBool finished = false);
 
@@ -159,6 +161,7 @@ namespace NatsuLang::Compiler
 			AotCompiler& m_Compiler;
 			NatsuLib::natRefPointer<Declaration::FunctionDecl> m_CurrentFunction;
 			llvm::Function* m_CurrentFunctionValue;
+			llvm::Value* m_This;
 			std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, llvm::Value*> m_DeclMap;
 			llvm::Value* m_LastVisitedValue;
 			nBool m_RequiredModifiableValue;
@@ -186,6 +189,8 @@ namespace NatsuLang::Compiler
 		std::unique_ptr<llvm::Module> m_Module;
 		llvm::IRBuilder<> m_IRBuilder;
 
+		std::unordered_map<Type::TypePtr, llvm::Type*> m_TypeMap;
+		std::unordered_map<Declaration::DeclPtr, llvm::Type*> m_DeclTypeMap;
 		std::unordered_map<NatsuLib::natRefPointer<Declaration::FunctionDecl>, llvm::Function*> m_FunctionMap;
 		std::unordered_map<NatsuLib::natRefPointer<Declaration::VarDecl>, llvm::GlobalVariable*> m_GlobalVariableMap;
 
@@ -199,5 +204,7 @@ namespace NatsuLang::Compiler
 		llvm::Type* buildFunctionType(Type::TypePtr const& resultType, NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& params);
 		llvm::Type* buildFunctionType(NatsuLib::natRefPointer<Declaration::FunctionDecl> const& funcDecl);
 		llvm::Type* buildFunctionType(NatsuLib::natRefPointer<Declaration::MethodDecl> const& methodDecl);
+
+		llvm::Type* buildClassType(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
 	};
 }

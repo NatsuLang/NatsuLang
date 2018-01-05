@@ -45,13 +45,14 @@ Interpreter::InterpreterDeclStorage::MemberAccessor::MemberAccessor(InterpreterD
 	auto offsetIter = layout.FieldOffsets.cbegin();
 	const auto offsetEnd = layout.FieldOffsets.cend();
 
-	const auto fields = m_ClassDecl->GetFields();
-	auto fieldIter = fields.begin();
-	const auto fieldEnd = fields.end();
-
-	for (; offsetIter != offsetEnd && fieldIter != fieldEnd; ++offsetIter, static_cast<void>(++fieldIter))
+	for (; offsetIter != offsetEnd; ++offsetIter)
 	{
-		m_FieldOffsets.emplace(*fieldIter, *offsetIter);
+		if (!offsetIter->first)
+		{
+			continue;
+		}
+
+		m_FieldOffsets.emplace(offsetIter->first, offsetIter->second);
 	}
 }
 

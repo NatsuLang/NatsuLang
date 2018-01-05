@@ -490,7 +490,9 @@ Declaration::DeclPtr Sema::ActOnTag(natRefPointer<Scope> const& scope,
 		return enumDecl;
 	}
 
-	return make_ref<Declaration::ClassDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()), nameLoc, name, kwLoc);
+	auto classDecl = make_ref<Declaration::ClassDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()), nameLoc, name, kwLoc);
+	classDecl->SetTypeForDecl(make_ref<Type::ClassType>(classDecl));
+	return classDecl;
 }
 
 void Sema::ActOnTagStartDefinition(natRefPointer<Scope> const& scope, natRefPointer<Declaration::TagDecl> const& tagDecl)
@@ -1221,6 +1223,21 @@ Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefP
 					// TODO: 报告错误
 				}
 			}
+		}
+
+		if (decl->GetType() == Declaration::Decl::Field)
+		{
+			// 可能隐含 this
+			const auto classDecl = Declaration::Decl::CastFromDeclContext(decl->GetContext())->ForkRef<Declaration::ClassDecl>();
+			assert(classDecl);
+			if (!classDecl->ContainsDecl(decl))
+			{
+				// TODO: 报告错误：引用了不属于当前类的字段
+				return nullptr;
+			}
+
+			// 偷懒了。。。
+			return ActOnMemberAccessExpr(scope, make_ref<Expression::ThisExpr>(SourceLocation{}, classDecl->GetTypeForDecl(), true), {}, nns, std::move(id));
 		}
 
 		return BuildDeclarationNameExpr(nns, std::move(id), decl);

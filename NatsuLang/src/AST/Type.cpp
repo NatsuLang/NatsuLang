@@ -329,7 +329,7 @@ TagType::~TagType()
 
 std::size_t TagType::GetHashCode() const noexcept
 {
-	return std::hash<natRefPointer<Declaration::TagDecl>>{}(m_Decl);
+	return std::hash<natWeakRefPointer<Declaration::TagDecl>>{}(m_Decl);
 }
 
 nBool TagType::EqualTo(TypePtr const& other) const noexcept

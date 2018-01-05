@@ -233,7 +233,7 @@ namespace NatsuLang::Type
 		: public Type
 	{
 	protected:
-		TagType(TypeClass typeClass, NatsuLib::natRefPointer<Declaration::TagDecl> decl)
+		TagType(TypeClass typeClass, NatsuLib::natWeakRefPointer<Declaration::TagDecl> decl)
 			: Type{ typeClass }, m_Decl{ std::move(decl) }
 		{
 		}
@@ -249,7 +249,7 @@ namespace NatsuLang::Type
 
 		NatsuLib::natRefPointer<Declaration::TagDecl> GetDecl() const noexcept
 		{
-			return m_Decl;
+			return m_Decl.Lock();
 		}
 
 		std::size_t GetHashCode() const noexcept override;
@@ -257,7 +257,7 @@ namespace NatsuLang::Type
 		DEFAULT_ACCEPT_DECL;
 
 	private:
-		NatsuLib::natRefPointer<Declaration::TagDecl> m_Decl;
+		NatsuLib::natWeakRefPointer<Declaration::TagDecl> m_Decl;
 	};
 
 	class ClassType

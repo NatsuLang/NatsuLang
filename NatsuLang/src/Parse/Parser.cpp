@@ -1104,10 +1104,6 @@ Expression::ExprPtr Parser::ParseUnaryExpression()
 		auto id = m_CurrentToken.GetIdentifierInfo();
 		result = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), nullptr, std::move(id), m_CurrentToken.Is(TokenType::LeftParen), m_ResolveContext);
 		ConsumeToken();
-		if (m_CurrentToken.Is(TokenType::Period))
-		{
-			// TODO: 限定名称
-		}
 
 		break;
 	}

@@ -22,7 +22,11 @@ namespace NatsuLang
 			// 与 TypeInfo 不同，这里的 Size 和 Align 是按字节计算的
 			std::size_t Size;
 			std::size_t Align;
-			std::vector<std::size_t> FieldOffsets;
+			// 若 first 是 null 则表示的是 padding
+			std::vector<std::pair<NatsuLib::natRefPointer<Declaration::FieldDecl>, std::size_t>> FieldOffsets;
+
+			// 返回值：字段索引，字段偏移
+			std::optional<std::pair<std::size_t, std::size_t>> GetFieldInfo(NatsuLib::natRefPointer<Declaration::FieldDecl> const& field) const noexcept;
 		};
 
 	public:

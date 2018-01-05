@@ -15,6 +15,21 @@ namespace
 	}
 }
 
+std::optional<std::pair<std::size_t, std::size_t>> ASTContext::ClassLayout::GetFieldInfo(natRefPointer<Declaration::FieldDecl> const& field) const noexcept
+{
+	const auto iter = std::find_if(FieldOffsets.cbegin(), FieldOffsets.cend(), [&field](std::pair<natRefPointer<Declaration::FieldDecl>, std::size_t> const& pair)
+	{
+		return pair.first == field;
+	});
+
+	if (iter == FieldOffsets.cend())
+	{
+		return {};
+	}
+
+	return std::optional<std::pair<std::size_t, std::size_t>>{ std::in_place, std::distance(FieldOffsets.cbegin(), iter), iter->second };
+}
+
 ASTContext::ASTContext()
 	: m_TUDecl{ make_ref<Declaration::TranslationUnitDecl>(*this) }
 {
@@ -151,7 +166,12 @@ ASTContext::ClassLayout const& ASTContext::GetClassLayout(natRefPointer<Declarat
 		const auto fieldInfo = getTypeInfoImpl(field->GetValueType());
 		info.Align = std::max(fieldInfo.Align, info.Align);
 		const auto fieldOffset = AlignTo(info.Size, info.Align);
-		info.FieldOffsets.emplace_back(fieldOffset);
+		if (fieldOffset != info.Size)
+		{
+			// 插入 padding
+			info.FieldOffsets.emplace_back(nullptr, info.Size);
+		}
+		info.FieldOffsets.emplace_back(field, fieldOffset);
 		info.Size = fieldOffset + fieldInfo.Size;
 	}
 
@@ -242,4 +262,3 @@ ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 		std::terminate();
 	}
 }
-
