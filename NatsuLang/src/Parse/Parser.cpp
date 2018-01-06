@@ -1617,6 +1617,7 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 		// 用户自定义类型
 		// TODO: 处理 module
 		decl->SetType(m_Sema.LookupTypeName(m_CurrentToken.GetIdentifierInfo(), m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nullptr));
+		ConsumeToken();
 		break;
 	}
 	case TokenType::LeftParen:
@@ -1670,11 +1671,9 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 	}
 	}
 
-	if (decl->GetType()->GetType() == Type::Type::Class)
+	if (auto type = decl->GetType(); type && type->GetType() == Type::Type::Class)
 	{
 		natRefPointer<NestedNameSpecifier> nns;
-		auto type = decl->GetType();
-
 		while (m_CurrentToken.Is(TokenType::Period))
 		{
 			ConsumeToken();
@@ -1712,7 +1711,9 @@ void Parser::ParseTypeOfType(Declaration::DeclaratorPtr const& decl)
 	ConsumeToken();
 	if (!m_CurrentToken.Is(TokenType::LeftParen))
 	{
-		// TODO: 报告错误
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::LeftParen)
+			.AddArgument(m_CurrentToken.GetType());
 		return;
 	}
 
@@ -1763,6 +1764,7 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 		if (decl->IsDestructor())
 		{
 			// TODO: 报告错误：析构函数不可以具有参数
+			// ↑那为什么要写这个括号呢？【x
 			return;
 		}
 

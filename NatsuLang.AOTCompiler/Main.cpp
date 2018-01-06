@@ -94,7 +94,12 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
-			// TODO
+			console.WriteLine(u8"Aki 版本 0.1\n"
+				"NatsuLang 的 AOT 编译器\n"
+				"请将欲编译的源码文件作为命令行参数传入\n"
+				"例如：\n"
+				"\t{0} file://./example.nat\n"
+				"其中 \"file://./example.nat\" 是将要编译的源码文件路径，使用标准 uri 形式表示"_nv, argv[0]);
 		}
 
 		console.ReadLine();

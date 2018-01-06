@@ -1287,7 +1287,36 @@ void AotCompiler::AotStmtVisitor::InitVar(Type::TypePtr const& varType, llvm::Va
 		}
 		else if (const auto constructExpr = initializer.Cast<Expression::ConstructExpr>())
 		{
-			// TODO: 通过构造函数初始化
+			const auto iter = m_Compiler.m_FunctionMap.find(constructExpr->GetConstructorDecl());
+			if (iter == m_Compiler.m_FunctionMap.end())
+			{
+				nat_Throw(AotCompilerException, u8"构造表达式引用了不存在的构造函数"_nv);
+			}
+
+			const auto constructorValue = iter->second;
+
+			// TODO: 消除重复代码
+
+			// 除去 this
+			if (constructorValue->arg_size() - 1 != constructExpr->GetArgCount())
+			{
+				nat_Throw(AotCompilerException, u8"参数数量不匹配，这可能是默认参数功能未实现导致的"_nv);
+			}
+
+			// 将要初始化的对象的引用作为第一个参数传入
+			std::vector<llvm::Value*> args{ varPtr };
+			args.reserve(constructExpr->GetArgCount() + 1);
+
+			// TODO: 实现默认参数
+			for (auto&& arg : constructExpr->GetArgs())
+			{
+				// TODO: 直接按位复制了，在需要的时候应由前端生成复制构造函数，但此处没有看到分配存储？
+				EvaluateValue(arg);
+				assert(m_LastVisitedValue);
+				args.emplace_back(m_LastVisitedValue);
+			}
+
+			m_Compiler.m_IRBuilder.CreateCall(constructorValue, args, "construct");
 		}
 		else if (const auto stringLiteral = initializer.Cast<Expression::StringLiteral>())
 		{

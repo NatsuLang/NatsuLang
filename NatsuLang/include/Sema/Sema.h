@@ -180,6 +180,8 @@ namespace NatsuLang::Semantic
 		nBool LookupQualifiedName(LookupResult& result, Declaration::DeclContext* context) const;
 		nBool LookupNestedName(LookupResult& result, NatsuLib::natRefPointer<Scope> scope, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
 
+		nBool LookupConstructors(LookupResult& result, NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
+
 		NatsuLib::natRefPointer<Declaration::LabelDecl> LookupOrCreateLabel(Identifier::IdPtr id, SourceLocation loc);
 
 		Type::TypePtr ActOnTypeOfType(NatsuLib::natRefPointer<Expression::Expr> expr, Type::TypePtr underlyingType);
@@ -235,6 +237,8 @@ namespace NatsuLang::Semantic
 		Expression::ExprPtr BuildDeclRefExpr(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Type::TypePtr type, Identifier::IdPtr id, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
 		Expression::ExprPtr BuildMemberReferenceExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr baseExpr, Type::TypePtr baseType, SourceLocation opLoc, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, LookupResult& r);
 		Expression::ExprPtr BuildFieldReferenceExpr(Expression::ExprPtr baseExpr, SourceLocation opLoc, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, NatsuLib::natRefPointer<Declaration::FieldDecl> field, Identifier::IdPtr id);
+
+		Expression::ExprPtr BuildConstructExpr(NatsuLib::natRefPointer<Type::ClassType> const& classType, SourceLocation leftBraceLoc, std::vector<Expression::ExprPtr> initExprs, SourceLocation rightBraceLoc);
 
 		Expression::ExprPtr CreateBuiltinUnaryOp(SourceLocation opLoc, Expression::UnaryOperationType opCode, Expression::ExprPtr operand);
 

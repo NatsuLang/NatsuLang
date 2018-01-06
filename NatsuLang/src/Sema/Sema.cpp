@@ -492,6 +492,9 @@ Declaration::DeclPtr Sema::ActOnTag(natRefPointer<Scope> const& scope,
 
 	auto classDecl = make_ref<Declaration::ClassDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()), nameLoc, name, kwLoc);
 	classDecl->SetTypeForDecl(make_ref<Type::ClassType>(classDecl));
+
+	PushOnScopeChains(classDecl, scope, false);
+
 	return classDecl;
 }
 
@@ -630,6 +633,22 @@ nBool Sema::LookupNestedName(LookupResult& result, natRefPointer<Scope> scope, n
 	}
 
 	return LookupName(result, scope);
+}
+
+nBool Sema::LookupConstructors(LookupResult& result, natRefPointer<Declaration::ClassDecl> const& classDecl)
+{
+	if (!classDecl)
+	{
+		result.ResolveResultType();
+		return false;
+	}
+
+	result.AddDecl(classDecl->GetMethods().where([](natRefPointer<Declaration::MethodDecl> const& method) -> nBool
+	{
+		return method.Cast<Declaration::ConstructorDecl>();
+	}));
+	result.ResolveResultType();
+	return !result.IsEmpty();
 }
 
 natRefPointer<Declaration::LabelDecl> Sema::LookupOrCreateLabel(Identifier::IdPtr id, SourceLocation loc)
@@ -1164,7 +1183,26 @@ Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scope, SourceLo
 
 Expression::ExprPtr Sema::ActOnInitExpr(Type::TypePtr initType, SourceLocation leftBraceLoc, std::vector<Expression::ExprPtr> initExprs, SourceLocation rightBraceLoc)
 {
-	return make_ref<Expression::InitListExpr>(std::move(initType), leftBraceLoc, std::move(initExprs), rightBraceLoc);
+	const auto underlyingType = Type::Type::GetUnderlyingType(initType);
+
+	switch (underlyingType->GetType())
+	{
+	case Type::Type::Builtin:
+	case Type::Type::Pointer:
+	case Type::Type::Array:
+	case Type::Type::Enum:
+		return make_ref<Expression::InitListExpr>(std::move(initType), leftBraceLoc, std::move(initExprs), rightBraceLoc);
+	case Type::Type::Class:
+		return BuildConstructExpr(underlyingType.UnsafeCast<Type::ClassType>(), leftBraceLoc, std::move(initExprs), rightBraceLoc);
+	case Type::Type::Function:
+	case Type::Type::Paren:
+	case Type::Type::TypeOf:
+	case Type::Type::Auto:
+	case Type::Type::Unresolved:
+	default:
+		assert(!"Invalid type");
+		return nullptr;
+	}
 }
 
 Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen, natRefPointer<Syntax::ResolveContext> const& resolveContext)
@@ -1248,7 +1286,7 @@ Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefP
 			assert(classDecl);
 			if (!classDecl->ContainsDecl(decl))
 			{
-				// TODO: 报告错误：引用了不属于当前类的字段
+				// TODO: 报告错误：引用了不属于当前类的方法
 				return nullptr;
 			}
 
@@ -1597,6 +1635,47 @@ Expression::ExprPtr Sema::BuildFieldReferenceExpr(Expression::ExprPtr baseExpr, 
 {
 	static_cast<void>(nns);
 	return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(field), std::move(id), field->GetValueType());
+}
+
+Expression::ExprPtr Sema::BuildConstructExpr(natRefPointer<Type::ClassType> const& classType, SourceLocation leftBraceLoc, std::vector<Expression::ExprPtr> initExprs, SourceLocation rightBraceLoc)
+{
+	const auto classDecl = classType->GetDecl().Cast<Declaration::ClassDecl>();
+	assert(classDecl);
+	LookupResult r{ *this, nullptr, {}, LookupNameType::LookupMemberName };
+	if (!LookupConstructors(r, classDecl))
+	{
+		// TODO: 报告错误
+		return nullptr;
+	}
+
+	if (r.GetResultType() != LookupResult::LookupResultType::Found || r.GetDeclSize() != 1)
+	{
+		// TODO: 实现重载
+		nat_Throw(NotImplementedException);
+	}
+
+	auto constructor = r.GetDecls().first().Cast<Declaration::ConstructorDecl>();
+
+	// TODO: 使用重载的选择机制来判断是否可调用
+	if (constructor->GetParamCount() != initExprs.size())
+	{
+		// TODO: 报告错误
+		return nullptr;
+	}
+
+	const auto params = constructor->GetParams();
+	auto paramIter = params.begin();
+	const auto paramEnd = params.end();
+
+	for (auto initExprIter = initExprs.begin(), initExprEnd = initExprs.end(); initExprIter != initExprEnd && paramIter != paramEnd; ++initExprIter, static_cast<void>(++paramIter))
+	{
+		auto paramType = (*paramIter)->GetValueType();
+		const auto castType = getCastType(*initExprIter, paramType);
+		*initExprIter = ImpCastExprToType(*initExprIter, std::move(paramType), castType);
+	}
+
+	// TODO: 位置信息缺失
+	return make_ref<Expression::ConstructExpr>(classType, leftBraceLoc, std::move(constructor), std::move(initExprs));
 }
 
 Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, Expression::UnaryOperationType opCode, Expression::ExprPtr operand)

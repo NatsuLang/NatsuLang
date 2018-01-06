@@ -812,9 +812,19 @@ Linq<Valued<ExprPtr>> ConstructExpr::GetArgs() const noexcept
 	return from(m_Args);
 }
 
+std::size_t ConstructExpr::GetArgCount() const noexcept
+{
+	return m_Args.size();
+}
+
 void ConstructExpr::SetArgs(Linq<Valued<ExprPtr>> const& value)
 {
 	m_Args.assign(value.begin(), value.end());
+}
+
+void ConstructExpr::SetArgs(std::vector<ExprPtr> value)
+{
+	m_Args = std::move(value);
 }
 
 StmtEnumerable ConstructExpr::GetChildrens()
