@@ -1797,6 +1797,11 @@ Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type:
 	assert(operand && toType);
 	assert(fromType);
 
+	if (fromType == toType)
+	{
+		return Expression::CastType::NoOp;
+	}
+
 	// TODO
 	if (fromType->GetType() == Type::Type::Builtin)
 	{

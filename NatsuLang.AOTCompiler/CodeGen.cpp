@@ -1511,6 +1511,13 @@ AotCompiler::AotCompiler(natRefPointer<TextReader<StringType::Utf8>> const& diag
 
 AotCompiler::~AotCompiler()
 {
+	for (auto const& pair : m_StringLiteralPool)
+	{
+		if (pair.second->use_empty())
+		{
+			delete pair.second;
+		}
+	}
 }
 
 void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
@@ -1572,12 +1579,12 @@ llvm::GlobalVariable* AotCompiler::getStringLiteralValue(nStrView literalContent
 	auto iter = m_StringLiteralPool.find(literalContent);
 	if (iter != m_StringLiteralPool.end())
 	{
-		return iter->second.get();
+		return iter->second;
 	}
 
 	bool succeed;
-	tie(iter, succeed) = m_StringLiteralPool.emplace(literalContent, std::make_unique<llvm::GlobalVariable>(
-		llvm::ArrayType::get(llvm::Type::getInt8Ty(m_LLVMContext), literalContent.GetSize() + 1), true, llvm::GlobalValue::LinkageTypes::ExternalLinkage,
+	tie(iter, succeed) = m_StringLiteralPool.emplace(literalContent, new llvm::GlobalVariable(
+		*m_Module, llvm::ArrayType::get(llvm::Type::getInt8Ty(m_LLVMContext), literalContent.GetSize() + 1), true, llvm::GlobalValue::LinkageTypes::ExternalLinkage,
 		llvm::ConstantDataArray::getString(m_LLVMContext, llvm::StringRef{ literalContent.begin(), literalContent.GetSize() }), llvm::StringRef{ literalName.data(), literalName.size() }));
 
 	if (!succeed)
@@ -1589,7 +1596,7 @@ llvm::GlobalVariable* AotCompiler::getStringLiteralValue(nStrView literalContent
 	static const auto CharAlign = static_cast<unsigned>(m_AstContext.GetTypeInfo(m_AstContext.GetBuiltinType(Type::BuiltinType::Char)).Align);
 	iter->second->setAlignment(CharAlign);
 
-	return iter->second.get();
+	return iter->second;
 }
 
 llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)

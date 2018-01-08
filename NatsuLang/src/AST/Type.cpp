@@ -294,7 +294,8 @@ nBool FunctionType::EqualTo(TypePtr const& other) const noexcept
 		return false;
 	}
 
-	return m_ResultType->EqualTo(realOther->m_ResultType) &&
+	return m_ParameterTypes.size() == realOther->m_ParameterTypes.size() &&
+		m_ResultType->EqualTo(realOther->m_ResultType) &&
 		from(m_ParameterTypes)
 		.zip(from(realOther->m_ParameterTypes))
 		.all([](std::pair<const TypePtr, const TypePtr> const& typePair)

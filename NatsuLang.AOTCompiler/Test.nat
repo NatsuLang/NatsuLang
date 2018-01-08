@@ -1,3 +1,10 @@
+def extern unsafe puts : (content : char*) -> int
+
+def unsafe Test : () -> int
+{
+	return puts(&"2333"[0])
+}
+
 module ModuleBar
 {
 	def ModuleFunction : (arg : int) -> int

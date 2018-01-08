@@ -194,7 +194,7 @@ namespace NatsuLang::Compiler
 		std::unordered_map<NatsuLib::natRefPointer<Declaration::FunctionDecl>, llvm::Function*> m_FunctionMap;
 		std::unordered_map<NatsuLib::natRefPointer<Declaration::VarDecl>, llvm::GlobalVariable*> m_GlobalVariableMap;
 
-		std::unordered_map<nString, std::unique_ptr<llvm::GlobalVariable>> m_StringLiteralPool;
+		std::unordered_map<nString, llvm::GlobalVariable*> m_StringLiteralPool;
 
 		llvm::GlobalVariable* getStringLiteralValue(nStrView literalContent, nStrView literalName = "String");
 
