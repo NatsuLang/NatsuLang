@@ -564,8 +564,8 @@ namespace NatsuLang::Declaration
 		: public MethodDecl
 	{
 	public:
-		ConstructorDecl(NatsuLib::natRefPointer<ClassDecl> classDecl, SourceLocation startLoc, Identifier::IdPtr identifierInfo, Type::TypePtr type)
-			: MethodDecl{ Constructor, static_cast<DeclContext*>(classDecl.Get()), startLoc, {}, std::move(identifierInfo), std::move(type), Specifier::StorageClass::None }
+		ConstructorDecl(NatsuLib::natRefPointer<ClassDecl> classDecl, SourceLocation startLoc, Identifier::IdPtr identifierInfo, Type::TypePtr type, Specifier::StorageClass storageClass)
+			: MethodDecl{ Constructor, static_cast<DeclContext*>(classDecl.Get()), startLoc, {}, std::move(identifierInfo), std::move(type), storageClass }
 		{
 		}
 
@@ -578,8 +578,8 @@ namespace NatsuLang::Declaration
 		: public MethodDecl
 	{
 	public:
-		DestructorDecl(NatsuLib::natRefPointer<ClassDecl> classDecl, SourceLocation startLoc, Identifier::IdPtr identifierInfo, Type::TypePtr type)
-			: MethodDecl{ Constructor, static_cast<DeclContext*>(classDecl.Get()), startLoc,{}, std::move(identifierInfo), std::move(type), Specifier::StorageClass::None }
+		DestructorDecl(NatsuLib::natRefPointer<ClassDecl> classDecl, SourceLocation startLoc, Identifier::IdPtr identifierInfo, Type::TypePtr type, Specifier::StorageClass storageClass)
+			: MethodDecl{ Constructor, static_cast<DeclContext*>(classDecl.Get()), startLoc,{}, std::move(identifierInfo), std::move(type), storageClass }
 		{
 		}
 

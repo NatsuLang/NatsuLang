@@ -76,7 +76,7 @@ void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Express
 		const auto id = decl->GetIdentifierInfo();
 		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [this, &id](auto value)
 		{
-			m_Interpreter.m_Logger.LogMsg(u8"(声明 : {0}) {1}"_nv, id ? id->GetName() : u8"(临时对象)"_nv, value);
+			m_Interpreter.m_Logger.LogMsg(u8"(声明 : {0}) {1}", id ? id->GetName() : u8"(临时对象)", value);
 		}, Excepted<InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))	// TODO: 应当允许这些访问器
 		{
 			nat_Throw(InterpreterException, u8"无法访问存储"_nv);

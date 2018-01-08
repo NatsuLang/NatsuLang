@@ -158,8 +158,8 @@ NumericLiteralParser::NumericLiteralParser(nStrView buffer, SourceLocation loc, 
 	m_Buffer{ buffer },
 	m_Current{ m_Buffer.cbegin() },
 	m_DigitBegin{ m_Current }, m_SuffixBegin{},
-	m_SawPeriod{ false }, m_SawSuffix{ false },
-	m_Radix{ 10 },
+	m_Radix{ 10 }, m_SawPeriod{ false },
+	m_SawSuffix{ false },
 	m_Errored{ false },
 	m_IsFloat{ false }, m_IsUnsigned{ false }, m_IsLong{ false }, m_IsLongLong{ false }
 {

@@ -813,8 +813,22 @@ natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
 
 	if (dc->GetType() == Declaration::Decl::Class)
 	{
-		funcDecl = make_ref<Declaration::MethodDecl>(Declaration::Decl::Method, dc,
-			SourceLocation{}, SourceLocation{}, std::move(asId), std::move(type), decl->GetStorageClass());
+		auto classDecl = Declaration::Decl::CastFromDeclContext(dc)->ForkRef<Declaration::ClassDecl>();
+		if (decl->IsConstructor())
+		{
+			funcDecl = make_ref<Declaration::ConstructorDecl>(std::move(classDecl), SourceLocation{},
+				std::move(asId), std::move(type), decl->GetStorageClass());
+		}
+		else if (decl->IsDestructor())
+		{
+			funcDecl = make_ref<Declaration::DestructorDecl>(std::move(classDecl), SourceLocation{},
+				std::move(asId), std::move(type), decl->GetStorageClass());
+		}
+		else
+		{
+			funcDecl = make_ref<Declaration::MethodDecl>(Declaration::Decl::Method, dc,
+				SourceLocation{}, SourceLocation{}, std::move(asId), std::move(type), decl->GetStorageClass());
+		}
 	}
 	else
 	{
@@ -1420,6 +1434,12 @@ Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> const& scop
 	auto baseType = base->GetExprType();
 
 	LookupResult r{ *this, id, {}, LookupNameType::LookupMemberName };
+
+	if (const auto pointerType = baseType.Cast<Type::PointerType>())
+	{
+		baseType = pointerType->GetPointeeType();
+	}
+
 	const auto classType = baseType.Cast<Type::ClassType>();
 	if (classType)
 	{
@@ -1441,7 +1461,7 @@ Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> const& scop
 		return BuildMemberReferenceExpr(scope, std::move(base), std::move(baseType), periodLoc, nns, r);
 	}
 
-	// TODO: 暂时不支持对ClassType以外的类型进行成员访问操作
+	// TODO: 暂时不支持对ClassType及指向ClassType的指针以外的类型进行成员访问操作
 	return nullptr;
 }
 

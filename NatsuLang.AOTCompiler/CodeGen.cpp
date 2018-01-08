@@ -346,7 +346,7 @@ void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStm
 			if (varDecl->GetStorageClass() == Specifier::StorageClass::None)
 			{
 				const auto storage = m_Compiler.m_IRBuilder.CreateAlloca(valueType, arraySize, std::string(varName.cbegin(), varName.cend()));
-				storage->setAlignment(typeInfo.Align);
+				storage->setAlignment(static_cast<unsigned>(typeInfo.Align));
 
 				InitVar(type, storage, varDecl->GetInitializer());
 
@@ -584,7 +584,13 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 		args.emplace_back(m_LastVisitedValue);
 	}
 
-	m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateCall(callee, args, "call");
+	const auto callInst = m_Compiler.m_IRBuilder.CreateCall(callee, args);
+	if (!callee->getReturnType()->isVoidTy())
+	{
+		callInst->setName("ret");
+	}
+
+	m_LastVisitedValue = callInst;
 }
 
 void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::MemberCallExpr> const& expr)
@@ -620,7 +626,13 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 		args.emplace_back(m_LastVisitedValue);
 	}
 
-	m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateCall(callee, args, "call");
+	const auto callInst = m_Compiler.m_IRBuilder.CreateCall(callee, args);
+	if (!callee->getReturnType()->isVoidTy())
+	{
+		callInst->setName("ret");
+	}
+
+	m_LastVisitedValue = callInst;
 }
 
 void AotCompiler::AotStmtVisitor::VisitCastExpr(natRefPointer<Expression::CastExpr> const& expr)
@@ -1249,7 +1261,7 @@ void AotCompiler::AotStmtVisitor::InitVar(Type::TypePtr const& varType, llvm::Va
 				// TODO: 需要更好的方案
 				if (initExprs.size() < arrayType->GetSize())
 				{
-					m_Compiler.m_IRBuilder.CreateMemSet(varPtr, llvm::ConstantInt::get(llvm::IntegerType::getInt8Ty(m_Compiler.m_LLVMContext), 0), typeInfo.Size, typeInfo.Align);
+					m_Compiler.m_IRBuilder.CreateMemSet(varPtr, llvm::ConstantInt::get(llvm::IntegerType::getInt8Ty(m_Compiler.m_LLVMContext), 0), typeInfo.Size, static_cast<unsigned>(typeInfo.Align));
 				}
 
 				for (std::size_t i = 0; i < initExprs.size(); ++i)
@@ -1316,7 +1328,8 @@ void AotCompiler::AotStmtVisitor::InitVar(Type::TypePtr const& varType, llvm::Va
 				args.emplace_back(m_LastVisitedValue);
 			}
 
-			m_Compiler.m_IRBuilder.CreateCall(constructorValue, args, "construct");
+			// 构造函数返回类型永远是 void
+			m_Compiler.m_IRBuilder.CreateCall(constructorValue, args);
 		}
 		else if (const auto stringLiteral = initializer.Cast<Expression::StringLiteral>())
 		{
@@ -1329,11 +1342,11 @@ void AotCompiler::AotStmtVisitor::InitVar(Type::TypePtr const& varType, llvm::Va
 
 			if (arrayType->GetSize() > literalValue.GetSize() + 1)
 			{
-				m_Compiler.m_IRBuilder.CreateMemSet(varPtr, llvm::ConstantInt::get(llvm::IntegerType::getInt8Ty(m_Compiler.m_LLVMContext), 0), typeInfo.Size, typeInfo.Align);
+				m_Compiler.m_IRBuilder.CreateMemSet(varPtr, llvm::ConstantInt::get(llvm::IntegerType::getInt8Ty(m_Compiler.m_LLVMContext), 0), typeInfo.Size, static_cast<unsigned>(typeInfo.Align));
 			}
 
 			const auto stringLiteralPtr = m_Compiler.getStringLiteralValue(literalValue);
-			m_Compiler.m_IRBuilder.CreateMemCpy(varPtr, stringLiteralPtr, literalValue.GetSize() + 1, typeInfo.Align);
+			m_Compiler.m_IRBuilder.CreateMemCpy(varPtr, stringLiteralPtr, literalValue.GetSize() + 1, static_cast<unsigned>(typeInfo.Align));
 		}
 		else
 		{
@@ -1573,7 +1586,7 @@ llvm::GlobalVariable* AotCompiler::getStringLiteralValue(nStrView literalContent
 	}
 
 	// 类型的信息不会变动，缓存第一次得到的结果即可
-	static const auto CharAlign = m_AstContext.GetTypeInfo(m_AstContext.GetBuiltinType(Type::BuiltinType::Char)).Align;
+	static const auto CharAlign = static_cast<unsigned>(m_AstContext.GetTypeInfo(m_AstContext.GetBuiltinType(Type::BuiltinType::Char)).Align);
 	iter->second->setAlignment(CharAlign);
 
 	return iter->second.get();
@@ -1616,7 +1629,7 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 		case Type::BuiltinType::Long:
 		case Type::BuiltinType::LongLong:
 		case Type::BuiltinType::Int128:
-			ret = llvm::IntegerType::get(m_LLVMContext, m_AstContext.GetTypeInfo(builtinType).Size * 8);
+			ret = llvm::IntegerType::get(m_LLVMContext, static_cast<unsigned>(m_AstContext.GetTypeInfo(builtinType).Size * 8));
 			break;
 		case Type::BuiltinType::Float:
 			ret = llvm::Type::getFloatTy(m_LLVMContext);
