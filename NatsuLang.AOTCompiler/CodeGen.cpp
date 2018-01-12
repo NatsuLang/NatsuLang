@@ -1511,13 +1511,6 @@ AotCompiler::AotCompiler(natRefPointer<TextReader<StringType::Utf8>> const& diag
 
 AotCompiler::~AotCompiler()
 {
-	for (auto const& pair : m_StringLiteralPool)
-	{
-		if (pair.second->use_empty())
-		{
-			delete pair.second;
-		}
-	}
 }
 
 void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
@@ -1584,7 +1577,7 @@ llvm::GlobalVariable* AotCompiler::getStringLiteralValue(nStrView literalContent
 
 	bool succeed;
 	tie(iter, succeed) = m_StringLiteralPool.emplace(literalContent, new llvm::GlobalVariable(
-		*m_Module, llvm::ArrayType::get(llvm::Type::getInt8Ty(m_LLVMContext), literalContent.GetSize() + 1), true, llvm::GlobalValue::LinkageTypes::ExternalLinkage,
+		*m_Module, llvm::ArrayType::get(llvm::Type::getInt8Ty(m_LLVMContext), literalContent.GetSize() + 1), true, llvm::GlobalValue::LinkageTypes::PrivateLinkage,
 		llvm::ConstantDataArray::getString(m_LLVMContext, llvm::StringRef{ literalContent.begin(), literalContent.GetSize() }), llvm::StringRef{ literalName.data(), literalName.size() }));
 
 	if (!succeed)
