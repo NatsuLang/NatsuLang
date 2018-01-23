@@ -655,7 +655,7 @@ ParenExpr::~ParenExpr()
 
 StmtEnumerable ParenExpr::GetChildrens()
 {
-	return from_values(static_cast<StmtPtr>(m_InnerExpr));
+	return from_values({ static_cast<StmtPtr>(m_InnerExpr) });
 }
 
 UnaryOperator::~UnaryOperator()
@@ -664,7 +664,7 @@ UnaryOperator::~UnaryOperator()
 
 StmtEnumerable UnaryOperator::GetChildrens()
 {
-	return from_values(static_cast<StmtPtr>(m_Operand));
+	return from_values({ static_cast<StmtPtr>(m_Operand) });
 }
 
 UnaryExprOrTypeTraitExpr::~UnaryExprOrTypeTraitExpr()
@@ -678,7 +678,7 @@ StmtEnumerable UnaryExprOrTypeTraitExpr::GetChildrens()
 		return Expr::GetChildrens();
 	}
 
-	return from_values(static_cast<StmtPtr>(std::get<1>(m_Operand)));
+	return from_values({ static_cast<StmtPtr>(std::get<1>(m_Operand)) });
 }
 
 ArraySubscriptExpr::~ArraySubscriptExpr()
@@ -687,7 +687,7 @@ ArraySubscriptExpr::~ArraySubscriptExpr()
 
 StmtEnumerable ArraySubscriptExpr::GetChildrens()
 {
-	return from_values(static_cast<StmtPtr>(m_LeftOperand), static_cast<StmtPtr>(m_RightOperand));
+	return from_values({ static_cast<StmtPtr>(m_LeftOperand), static_cast<StmtPtr>(m_RightOperand) });
 }
 
 CallExpr::~CallExpr()
@@ -706,7 +706,7 @@ void CallExpr::SetArgs(Linq<Valued<ExprPtr>> const& value)
 
 StmtEnumerable CallExpr::GetChildrens()
 {
-	return from_values(m_Function).concat(from(m_Args)).select([](ExprPtr const& expr) { return static_cast<StmtPtr>(expr); });
+	return from_values({ static_cast<StmtPtr>(m_Function) }).concat(from(m_Args).select([](ExprPtr const& expr) { return static_cast<StmtPtr>(expr); }));
 }
 
 MemberExpr::~MemberExpr()
@@ -715,7 +715,7 @@ MemberExpr::~MemberExpr()
 
 StmtEnumerable MemberExpr::GetChildrens()
 {
-	return from_values(static_cast<StmtPtr>(m_Base));
+	return from_values({ static_cast<StmtPtr>(m_Base) });
 }
 
 MemberCallExpr::~MemberCallExpr()
@@ -739,7 +739,7 @@ CastExpr::~CastExpr()
 
 StmtEnumerable CastExpr::GetChildrens()
 {
-	return from_values(static_cast<StmtPtr>(m_Operand));
+	return from_values({ static_cast<StmtPtr>(m_Operand) });
 }
 
 ImplicitCastExpr::~ImplicitCastExpr()
@@ -765,7 +765,7 @@ BinaryOperator::~BinaryOperator()
 
 StmtEnumerable BinaryOperator::GetChildrens()
 {
-	return from_values(static_cast<StmtPtr>(m_LeftOperand), static_cast<StmtPtr>(m_RightOperand));
+	return from_values({ static_cast<StmtPtr>(m_LeftOperand), static_cast<StmtPtr>(m_RightOperand) });
 }
 
 CompoundAssignOperator::~CompoundAssignOperator()
@@ -778,7 +778,7 @@ ConditionalOperator::~ConditionalOperator()
 
 StmtEnumerable ConditionalOperator::GetChildrens()
 {
-	return from_values(static_cast<StmtPtr>(m_Condition), static_cast<StmtPtr>(m_LeftOperand), static_cast<StmtPtr>(m_RightOperand));
+	return from_values({ static_cast<StmtPtr>(m_Condition), static_cast<StmtPtr>(m_LeftOperand), static_cast<StmtPtr>(m_RightOperand) });
 }
 
 StmtExpr::~StmtExpr()
@@ -787,7 +787,7 @@ StmtExpr::~StmtExpr()
 
 StmtEnumerable StmtExpr::GetChildrens()
 {
-	return from_values(static_cast<StmtPtr>(m_SubStmt));
+	return from_values({ static_cast<StmtPtr>(m_SubStmt) });
 }
 
 ThisExpr::~ThisExpr()
@@ -800,7 +800,7 @@ ThrowExpr::~ThrowExpr()
 
 StmtEnumerable ThrowExpr::GetChildrens()
 {
-	return from_values(static_cast<StmtPtr>(m_Operand));
+	return from_values({ static_cast<StmtPtr>(m_Operand) });
 }
 
 ConstructExpr::~ConstructExpr()
@@ -857,7 +857,7 @@ DeleteExpr::~DeleteExpr()
 
 StmtEnumerable DeleteExpr::GetChildrens()
 {
-	return from_values(static_cast<StmtPtr>(m_Operand));
+	return from_values({ static_cast<StmtPtr>(m_Operand) });
 }
 
 #define DEFAULT_ACCEPT_DEF(Type) void Type::Accept(NatsuLib::natRefPointer<StmtVisitor> const& visitor) { visitor->Visit##Type(ForkRef<Type>()); }
