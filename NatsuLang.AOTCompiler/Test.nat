@@ -10,6 +10,11 @@ module ModuleBar
 	def ModuleFunction : (arg : int) -> int
 	{
 		def arr : int[10] = { 1, 2, 3 }
+		for (def i = 0; i < 10; ++i)
+		{
+			arr[i] += i;
+		}
+
 		def str = "2333"
 		unsafe
 		{

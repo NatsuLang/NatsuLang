@@ -853,7 +853,48 @@ void AotCompiler::AotStmtVisitor::VisitUnaryOperator(natRefPointer<Expression::U
 
 void AotCompiler::AotStmtVisitor::VisitForStmt(natRefPointer<Statement::ForStmt> const& stmt)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	const auto forEnd = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.end");
+
+	if (const auto init = stmt->GetInit())
+	{
+		Visit(init);
+	}
+
+	const auto forContinue = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.cond");
+	auto forInc = forContinue;
+	EmitBlock(forContinue);
+
+	const auto inc = stmt->GetInc();
+	if (inc)
+	{
+		forInc = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.inc");
+	}
+
+	// 存储 break continue 信息
+
+	if (const auto cond = stmt->GetCond())
+	{
+		const auto forBody = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.body");
+
+		EvaluateAsBool(cond);
+		const auto condValue = m_LastVisitedValue;
+
+		m_Compiler.m_IRBuilder.CreateCondBr(condValue, forBody, forEnd);
+
+		EmitBlock(forBody);
+	}
+
+	Visit(stmt->GetBody());
+
+	if (inc)
+	{
+		EmitBlock(forInc);
+		Visit(inc);
+	}
+
+	EmitBranch(forContinue);
+
+	EmitBlock(forEnd);
 }
 
 void AotCompiler::AotStmtVisitor::VisitGotoStmt(natRefPointer<Statement::GotoStmt> const& stmt)
@@ -863,7 +904,7 @@ void AotCompiler::AotStmtVisitor::VisitGotoStmt(natRefPointer<Statement::GotoStm
 
 void AotCompiler::AotStmtVisitor::VisitIfStmt(natRefPointer<Statement::IfStmt> const& stmt)
 {
-	Visit(stmt->GetCond());
+	EvaluateAsBool(stmt->GetCond());
 	const auto condExpr = m_LastVisitedValue;
 
 	const auto thenStmt = stmt->GetThen();
