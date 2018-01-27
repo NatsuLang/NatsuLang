@@ -98,14 +98,14 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>NOMINMAX;NATSULIB_UTF8_SOURCE;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>false</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)Extern\NatsuLib\NatsuLib;$(SolutionDir)Extern\llvm\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)NatsuLang\include;$(SolutionDir)Extern\NatsuLib\NatsuLib;$(LLVM_ROOT)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4146;4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\llvm\libs\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(LLVM_ROOT)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;LLVMCore.lib;LLVMCodeGen.lib;LLVMScalarOpts.lib;LLVMProfileData.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMDemangle.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMX86Desc.lib;LLVMX86CodeGen.lib;LLVMX86Disassembler.lib;LLVMAsmParser.lib;LLVMAsmPrinter.lib;LLVMMCDisassembler.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMAnalysis.lib;LLVMDebugInfoCodeView.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

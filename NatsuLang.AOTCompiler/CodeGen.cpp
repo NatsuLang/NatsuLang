@@ -13,7 +13,7 @@ using namespace NatsuLib;
 using namespace NatsuLang;
 using namespace Compiler;
 
-AotCompiler::AotDiagIdMap::AotDiagIdMap(NatsuLib::natRefPointer<NatsuLib::TextReader<NatsuLib::StringType::Utf8>> const& reader)
+AotCompiler::AotDiagIdMap::AotDiagIdMap(natRefPointer<TextReader<StringType::Utf8>> const& reader)
 {
 	using DiagIDUnderlyingType = std::underlying_type_t<Diag::DiagnosticsEngine::DiagID>;
 
