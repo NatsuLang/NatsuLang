@@ -2148,10 +2148,25 @@ void Parser::skipType(std::vector<Token>* skippedTokens)
 		break;
 	}
 
-	while (m_CurrentToken.Is(TokenType::LeftSquare))
+	while (true)
 	{
-		skipToken(skippedTokens);
-		SkipUntil({ TokenType::RightSquare }, false, skippedTokens);
+		if (m_CurrentToken.Is(TokenType::LeftSquare))
+		{
+			skipToken(skippedTokens);
+			SkipUntil({ TokenType::RightSquare }, false, skippedTokens);
+		}
+		else if (m_CurrentToken.Is(TokenType::Star))
+		{
+			skipToken(skippedTokens);
+		}
+		else
+		{
+			if (m_CurrentToken.Is(TokenType::Semi))
+			{
+				skipToken(skippedTokens);
+			}
+			break;
+		}
 	}
 }
 

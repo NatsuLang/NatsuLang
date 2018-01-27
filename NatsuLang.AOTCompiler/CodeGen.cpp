@@ -291,7 +291,13 @@ void AotCompiler::AotStmtVisitor::VisitInitListExpr(natRefPointer<Expression::In
 
 void AotCompiler::AotStmtVisitor::VisitBreakStmt(natRefPointer<Statement::BreakStmt> const& stmt)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	assert(!m_BreakContinueStack.empty() && "break not in a breakable scope");
+
+	// TODO: 执行清理
+
+	const auto dest = m_BreakContinueStack.back().first;
+	assert(dest);
+	m_Compiler.m_IRBuilder.CreateBr(dest);
 }
 
 void AotCompiler::AotStmtVisitor::VisitCatchStmt(natRefPointer<Statement::CatchStmt> const& stmt)
@@ -314,7 +320,13 @@ void AotCompiler::AotStmtVisitor::VisitCompoundStmt(natRefPointer<Statement::Com
 
 void AotCompiler::AotStmtVisitor::VisitContinueStmt(natRefPointer<Statement::ContinueStmt> const& stmt)
 {
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+	assert(!m_BreakContinueStack.empty() && "continue not in a continuable scope");
+
+	// TODO: 执行清理
+
+	const auto dest = m_BreakContinueStack.back().second;
+	assert(dest);
+	m_Compiler.m_IRBuilder.CreateBr(dest);
 }
 
 void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStmt> const& stmt)
@@ -361,9 +373,13 @@ void AotCompiler::AotStmtVisitor::VisitDoStmt(natRefPointer<Statement::DoStmt> c
 	const auto loopEnd = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "do.end");
 	const auto loopCond = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "do.cond");
 
+	m_BreakContinueStack.emplace_back(loopEnd, loopCond);
+
 	const auto loopBody = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "do.body");
 	EmitBlock(loopBody);
 	Visit(stmt->GetBody());
+
+	m_BreakContinueStack.pop_back();
 
 	EmitBlock(loopCond);
 
@@ -870,7 +886,7 @@ void AotCompiler::AotStmtVisitor::VisitForStmt(natRefPointer<Statement::ForStmt>
 		forInc = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.inc");
 	}
 
-	// 存储 break continue 信息
+	m_BreakContinueStack.emplace_back(forEnd, forInc);
 
 	if (const auto cond = stmt->GetCond())
 	{
@@ -885,6 +901,8 @@ void AotCompiler::AotStmtVisitor::VisitForStmt(natRefPointer<Statement::ForStmt>
 	}
 
 	Visit(stmt->GetBody());
+
+	m_BreakContinueStack.pop_back();
 
 	if (inc)
 	{
@@ -980,6 +998,8 @@ void AotCompiler::AotStmtVisitor::VisitWhileStmt(natRefPointer<Statement::WhileS
 
 	const auto loopEnd = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "while.end");
 
+	m_BreakContinueStack.emplace_back(loopEnd, loopHead);
+
 	EvaluateAsBool(stmt->GetCond());
 	const auto cond = m_LastVisitedValue;
 
@@ -1001,6 +1021,8 @@ void AotCompiler::AotStmtVisitor::VisitWhileStmt(natRefPointer<Statement::WhileS
 
 	EmitBlock(loopBody);
 	Visit(stmt->GetBody());
+
+	m_BreakContinueStack.pop_back();
 
 	EmitBranch(loopHead);
 
@@ -1406,9 +1428,7 @@ void AotCompiler::AotStmtVisitor::EvaluateValue(Expression::ExprPtr const& expr)
 {
 	assert(expr);
 
-	const auto oldValue = m_RequiredModifiableValue;
-	m_RequiredModifiableValue = false;
-	const auto scope = make_scope([this, oldValue]
+	const auto scope = make_scope([this, oldValue = std::exchange(m_RequiredModifiableValue, false)]
 	{
 		m_RequiredModifiableValue = oldValue;
 	});
@@ -1420,9 +1440,7 @@ void AotCompiler::AotStmtVisitor::EvaluateAsModifiableValue(Expression::ExprPtr 
 {
 	assert(expr);
 
-	const auto oldValue = m_RequiredModifiableValue;
-	m_RequiredModifiableValue = true;
-	const auto scope = make_scope([this, oldValue]
+	const auto scope = make_scope([this, oldValue = std::exchange(m_RequiredModifiableValue, true)]
 	{
 		m_RequiredModifiableValue = oldValue;
 	});

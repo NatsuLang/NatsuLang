@@ -165,6 +165,7 @@ namespace NatsuLang::Compiler
 			std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, llvm::Value*> m_DeclMap;
 			llvm::Value* m_LastVisitedValue;
 			nBool m_RequiredModifiableValue;
+			std::vector<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> m_BreakContinueStack;
 		};
 
 		AotCompiler(NatsuLib::natRefPointer<NatsuLib::TextReader<NatsuLib::StringType::Utf8>> const& diagIdMapFile, NatsuLib::natLog& logger);
