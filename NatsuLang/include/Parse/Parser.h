@@ -72,7 +72,7 @@ namespace NatsuLang::Syntax
 		};
 
 		explicit ResolveContext(Parser& parser) noexcept
-			: m_Parser{ parser }
+			: m_Parser{parser}
 		{
 		}
 
@@ -215,7 +215,8 @@ namespace NatsuLang::Syntax
 
 		std::vector<Declaration::DeclPtr> ParseModuleImport();
 		Declaration::DeclPtr ParseModuleDecl();
-		nBool ParseModuleName(std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path);
+		nBool ParseModuleName(
+			std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path);
 
 		std::vector<Declaration::DeclPtr> ParseDeclaration(Declaration::Context context, SourceLocation& declEnd);
 
@@ -262,7 +263,8 @@ namespace NatsuLang::Syntax
 		//	TODO
 		Expression::ExprPtr ParseUnaryExpression();
 
-		Expression::ExprPtr ParseRightOperandOfBinaryExpression(Expression::ExprPtr leftOperand, OperatorPrecedence minPrec = OperatorPrecedence::Assignment);
+		Expression::ExprPtr ParseRightOperandOfBinaryExpression(Expression::ExprPtr leftOperand,
+		                                                        OperatorPrecedence minPrec = OperatorPrecedence::Assignment);
 
 		// postfix-expression:
 		//	primary-expression
@@ -285,7 +287,8 @@ namespace NatsuLang::Syntax
 		// argument-expression-list:
 		//	argument-expression
 		//	argument-expression-list ',' argument-expression
-		nBool ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs, Lex::TokenType endToken = Lex::TokenType::Eof);
+		nBool ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs,
+		                          Lex::TokenType endToken = Lex::TokenType::Eof);
 
 		void ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipIdentifier = false);
 		void ParseSpecifier(Declaration::DeclaratorPtr const& decl);
@@ -298,7 +301,8 @@ namespace NatsuLang::Syntax
 
 		void ParseInitializer(Declaration::DeclaratorPtr const& decl);
 
-		nBool SkipUntil(std::initializer_list<Lex::TokenType> list, nBool dontConsume = false, std::vector<Lex::Token>* skippedTokens = nullptr);
+		nBool SkipUntil(std::initializer_list<Lex::TokenType> list, nBool dontConsume = false,
+		                std::vector<Lex::Token>* skippedTokens = nullptr);
 
 		Declaration::DeclPtr ResolveDeclarator(Declaration::DeclaratorPtr decl);
 

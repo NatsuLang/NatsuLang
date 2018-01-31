@@ -22,7 +22,8 @@ namespace
 		switch (lookupNameType)
 		{
 		case Sema::LookupNameType::LookupOrdinaryName:
-			return IdentifierNamespace::Ordinary | IdentifierNamespace::Tag | IdentifierNamespace::Member | IdentifierNamespace::Module;
+			return IdentifierNamespace::Ordinary | IdentifierNamespace::Tag | IdentifierNamespace::Member | IdentifierNamespace::
+				Module;
 		case Sema::LookupNameType::LookupTagName:
 			return IdentifierNamespace::Type;
 		case Sema::LookupNameType::LookupLabel:
@@ -32,13 +33,15 @@ namespace
 		case Sema::LookupNameType::LookupModuleName:
 			return IdentifierNamespace::Module;
 		case Sema::LookupNameType::LookupAnyName:
-			return IdentifierNamespace::Ordinary | IdentifierNamespace::Tag | IdentifierNamespace::Member | IdentifierNamespace::Module | IdentifierNamespace::Type;
+			return IdentifierNamespace::Ordinary | IdentifierNamespace::Tag | IdentifierNamespace::Member | IdentifierNamespace::
+				Module | IdentifierNamespace::Type;
 		default:
 			return IdentifierNamespace::None;
 		}
 	}
 
-	Expression::CastType getBuiltinCastType(natRefPointer<Type::BuiltinType> const& fromType, natRefPointer<Type::BuiltinType> const& toType) noexcept
+	Expression::CastType getBuiltinCastType(natRefPointer<Type::BuiltinType> const& fromType,
+											natRefPointer<Type::BuiltinType> const& toType) noexcept
 	{
 		using Expression::CastType;
 		using Type::BuiltinType;
@@ -227,8 +230,10 @@ namespace
 }
 
 Sema::Sema(Preprocessor& preprocessor, ASTContext& astContext, natRefPointer<ASTConsumer> astConsumer)
-	: m_Preprocessor{ preprocessor }, m_Context{ astContext }, m_Consumer{ std::move(astConsumer) }, m_Diag{ preprocessor.GetDiag() },
-	  m_SourceManager{ preprocessor.GetSourceManager() }, m_CurrentPhase{ Phase::Phase1 }, m_TopLevelActionNamespace{ make_ref<CompilerActionNamespace>(u8""_nv) }
+	: m_Preprocessor{preprocessor}, m_Context{astContext}, m_Consumer{std::move(astConsumer)},
+	  m_Diag{preprocessor.GetDiag()},
+	  m_SourceManager{preprocessor.GetSourceManager()}, m_CurrentPhase{Phase::Phase1},
+	  m_TopLevelActionNamespace{make_ref<CompilerActionNamespace>(u8""_nv)}
 {
 	prewarming();
 
@@ -299,7 +304,8 @@ void Sema::PopScope()
 	m_CurrentScope = m_CurrentScope->GetParent();
 }
 
-void Sema::PushOnScopeChains(natRefPointer<Declaration::NamedDecl> decl, natRefPointer<Scope> const& scope, nBool addToContext)
+void Sema::PushOnScopeChains(natRefPointer<Declaration::NamedDecl> decl, natRefPointer<Scope> const& scope,
+							 nBool addToContext)
 {
 	// 处理覆盖声明的情况
 
@@ -311,7 +317,8 @@ void Sema::PushOnScopeChains(natRefPointer<Declaration::NamedDecl> decl, natRefP
 	scope->AddDecl(std::move(decl));
 }
 
-void Sema::RemoveFromScopeChains(natRefPointer<Declaration::NamedDecl> const& decl, natRefPointer<Scope> const& scope, nBool removeFromContext)
+void Sema::RemoveFromScopeChains(natRefPointer<Declaration::NamedDecl> const& decl, natRefPointer<Scope> const& scope,
+								 nBool removeFromContext)
 {
 	if (removeFromContext)
 	{
@@ -332,9 +339,11 @@ void Sema::ActOnTranslationUnitScope(natRefPointer<Scope> scope)
 	PushDeclContext(m_TranslationUnitScope, m_Context.GetTranslationUnit().Get());
 }
 
-natRefPointer<Declaration::ModuleDecl> Sema::ActOnModuleDecl(natRefPointer<Scope> scope, SourceLocation startLoc, Identifier::IdPtr name)
+natRefPointer<Declaration::ModuleDecl> Sema::ActOnModuleDecl(natRefPointer<Scope> scope, SourceLocation startLoc,
+															 Identifier::IdPtr name)
 {
-	return make_ref<Declaration::ModuleDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()), SourceLocation{}, std::move(name), startLoc);
+	return make_ref<Declaration::ModuleDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()),
+											 SourceLocation{}, std::move(name), startLoc);
 }
 
 void Sema::ActOnStartModule(natRefPointer<Scope> const& scope, natRefPointer<Declaration::ModuleDecl> const& moduleDecl)
@@ -347,14 +356,16 @@ void Sema::ActOnFinishModule()
 	PopDeclContext();
 }
 
-natRefPointer<Declaration::Decl> Sema::ActOnModuleImport(SourceLocation startLoc, SourceLocation importLoc, ModulePathType const& path)
+natRefPointer<Declaration::Decl> Sema::ActOnModuleImport(SourceLocation startLoc, SourceLocation importLoc,
+														 ModulePathType const& path)
 {
 	nat_Throw(NatsuLib::NotImplementedException);
 }
 
-Type::TypePtr Sema::LookupTypeName(natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc, natRefPointer<Scope> scope, natRefPointer<NestedNameSpecifier> const& nns)
+Type::TypePtr Sema::LookupTypeName(natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
+								   natRefPointer<Scope> scope, natRefPointer<NestedNameSpecifier> const& nns)
 {
-	LookupResult result{ *this, id, nameLoc, LookupNameType::LookupOrdinaryName };
+	LookupResult result{*this, id, nameLoc, LookupNameType::LookupOrdinaryName};
 	if (!LookupNestedName(result, scope, nns))
 	{
 		return nullptr;
@@ -363,22 +374,21 @@ Type::TypePtr Sema::LookupTypeName(natRefPointer<Identifier::IdentifierInfo> con
 	switch (result.GetResultType())
 	{
 	default:
-		assert(!"Invalid result type.");
-		[[fallthrough]];
+		assert(!"Invalid result type.");[[fallthrough]];
 	case LookupResult::LookupResultType::NotFound:
 	case LookupResult::LookupResultType::FoundOverloaded:
 	case LookupResult::LookupResultType::Ambiguous:
 		return nullptr;
 	case LookupResult::LookupResultType::Found:
-	{
-		assert(result.GetDeclSize() == 1);
-		const auto decl = *result.GetDecls().begin();
-		if (auto typeDecl = decl.Cast<Declaration::TypeDecl>())
 		{
-			return typeDecl->GetTypeForDecl();
+			assert(result.GetDeclSize() == 1);
+			const auto decl = *result.GetDecls().begin();
+			if (auto typeDecl = decl.Cast<Declaration::TypeDecl>())
+			{
+				return typeDecl->GetTypeForDecl();
+			}
+			return nullptr;
 		}
-		return nullptr;
-	}
 	}
 }
 
@@ -392,7 +402,8 @@ Type::TypePtr Sema::CreateUnresolvedType(std::vector<Lex::Token> tokens)
 	return m_Context.GetUnresolvedType(move(tokens));
 }
 
-Declaration::DeclPtr Sema::ActOnStartOfFunctionDef(natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr declarator)
+Declaration::DeclPtr Sema::ActOnStartOfFunctionDef(natRefPointer<Scope> const& scope,
+												   Declaration::DeclaratorPtr declarator)
 {
 	const auto parentScope = scope->GetParent();
 	auto decl = static_cast<Declaration::DeclPtr>(HandleDeclarator(parentScope, declarator, declarator->GetDecl()));
@@ -417,9 +428,9 @@ Declaration::DeclPtr Sema::ActOnStartOfFunctionDef(natRefPointer<Scope> const& s
 		PushDeclContext(scope, funcDecl.Get());
 
 		for (auto&& d : funcDecl->GetDecls().select([](Declaration::DeclPtr const& td)
-			{
-				return td.Cast<Declaration::NamedDecl>();
-			}).where([](auto&& arg) -> nBool { return arg; }))
+		{
+			return td.Cast<Declaration::NamedDecl>();
+		}).where([](auto&& arg) -> nBool { return arg; }))
 		{
 			if (d->GetIdentifierInfo())
 			{
@@ -450,7 +461,7 @@ Declaration::DeclPtr Sema::ActOnFinishFunctionBody(Declaration::DeclPtr decl, St
 	fd->SetBody(std::move(body));
 
 	PopDeclContext();
-	
+
 	return decl;
 }
 
@@ -458,7 +469,8 @@ natRefPointer<Declaration::FunctionDecl> Sema::GetParsingFunction() const noexce
 {
 	if (const auto funcScope = m_CurrentScope->GetFunctionParent().Lock())
 	{
-		if (const auto funcDecl = Declaration::Decl::CastFromDeclContext(funcScope->GetEntity())->ForkRef<Declaration::FunctionDecl>())
+		if (const auto funcDecl = Declaration::Decl::CastFromDeclContext(funcScope->GetEntity())->ForkRef<Declaration::
+			FunctionDecl>())
 		{
 			return funcDecl;
 		}
@@ -468,15 +480,16 @@ natRefPointer<Declaration::FunctionDecl> Sema::GetParsingFunction() const noexce
 }
 
 Declaration::DeclPtr Sema::ActOnTag(natRefPointer<Scope> const& scope,
-	Type::TagType::TagTypeClass tagTypeClass, SourceLocation kwLoc, Specifier::Access accessSpecifier,
-	Identifier::IdPtr name, SourceLocation nameLoc, Type::TypePtr underlyingType)
+									Type::TagType::TagTypeClass tagTypeClass, SourceLocation kwLoc,
+									Specifier::Access accessSpecifier,
+									Identifier::IdPtr name, SourceLocation nameLoc, Type::TypePtr underlyingType)
 {
 	if (tagTypeClass == Type::TagType::TagTypeClass::Enum && !underlyingType)
 	{
 		underlyingType = m_Context.GetBuiltinType(Type::BuiltinType::Int);
 	}
 
-	LookupResult previous{ *this, name, nameLoc, LookupNameType::LookupTagName };
+	LookupResult previous{*this, name, nameLoc, LookupNameType::LookupTagName};
 	if (LookupName(previous, scope) || previous.GetDeclSize() > 0)
 	{
 		// TODO: 重复定义 Tag，报告错误
@@ -485,12 +498,14 @@ Declaration::DeclPtr Sema::ActOnTag(natRefPointer<Scope> const& scope,
 
 	if (tagTypeClass == Type::TagType::TagTypeClass::Enum)
 	{
-		auto enumDecl = make_ref<Declaration::EnumDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()), nameLoc, name, kwLoc);
+		auto enumDecl = make_ref<Declaration::EnumDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()),
+														nameLoc, name, kwLoc);
 		enumDecl->SetUnderlyingType(underlyingType);
 		return enumDecl;
 	}
 
-	auto classDecl = make_ref<Declaration::ClassDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()), nameLoc, name, kwLoc);
+	auto classDecl = make_ref<Declaration::ClassDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()),
+													  nameLoc, name, kwLoc);
 	classDecl->SetTypeForDecl(make_ref<Type::ClassType>(classDecl));
 
 	PushOnScopeChains(classDecl, scope, false);
@@ -498,7 +513,8 @@ Declaration::DeclPtr Sema::ActOnTag(natRefPointer<Scope> const& scope,
 	return classDecl;
 }
 
-void Sema::ActOnTagStartDefinition(natRefPointer<Scope> const& scope, natRefPointer<Declaration::TagDecl> const& tagDecl)
+void Sema::ActOnTagStartDefinition(natRefPointer<Scope> const& scope,
+								   natRefPointer<Declaration::TagDecl> const& tagDecl)
 {
 	PushDeclContext(scope, tagDecl.Get());
 }
@@ -516,13 +532,18 @@ nBool Sema::LookupName(LookupResult& result, natRefPointer<Scope> scope) const
 
 	for (; scope; scope = scope->GetParent())
 	{
-		Linq<Valued<natRefPointer<Declaration::NamedDecl>>> query = scope->GetDecls().select([](natRefPointer<Declaration::NamedDecl> const& namedDecl)
-		{
-			return namedDecl;
-		}).where([&id](natRefPointer<Declaration::NamedDecl> const& namedDecl)
-		{
-			return namedDecl && namedDecl->GetIdentifierInfo() == id;
-		});
+		Linq<Valued<natRefPointer<Declaration::NamedDecl>>> query = scope->GetDecls().select(
+			[](natRefPointer<Declaration::NamedDecl> const&
+			namedDecl)
+			{
+				return namedDecl;
+			}).where([&id](
+			natRefPointer<Declaration::NamedDecl> const&
+			namedDecl)
+			{
+				return namedDecl && namedDecl->
+					GetIdentifierInfo() == id;
+			});
 
 		switch (lookupType)
 		{
@@ -552,14 +573,13 @@ nBool Sema::LookupName(LookupResult& result, natRefPointer<Scope> scope) const
 			});
 			break;
 		default:
-			assert(!"Invalid lookupType");
-			[[fallthrough]];
+			assert(!"Invalid lookupType");[[fallthrough]];
 		case LookupNameType::LookupOrdinaryName:
 		case LookupNameType::LookupAnyName:
 			break;
 		}
 
-		auto queryResult{ query.Cast<std::vector<natRefPointer<Declaration::NamedDecl>>>() };
+		auto queryResult{query.Cast<std::vector<natRefPointer<Declaration::NamedDecl>>>()};
 		if (!queryResult.empty())
 		{
 			result.AddDecl(from(queryResult));
@@ -607,13 +627,12 @@ nBool Sema::LookupQualifiedName(LookupResult& result, Declaration::DeclContext* 
 		});
 		break;
 	default:
-		assert(!"Invalid lookupType");
-		[[fallthrough]];
+		assert(!"Invalid lookupType");[[fallthrough]];
 	case LookupNameType::LookupOrdinaryName:
 	case LookupNameType::LookupAnyName:
 		break;
 	}
-	auto queryResult{ query.Cast<std::vector<natRefPointer<Declaration::NamedDecl>>>() };
+	auto queryResult{query.Cast<std::vector<natRefPointer<Declaration::NamedDecl>>>()};
 	if (!queryResult.empty())
 	{
 		result.AddDecl(from(queryResult));
@@ -624,7 +643,8 @@ nBool Sema::LookupQualifiedName(LookupResult& result, Declaration::DeclContext* 
 	return found;
 }
 
-nBool Sema::LookupNestedName(LookupResult& result, natRefPointer<Scope> scope, natRefPointer<NestedNameSpecifier> const& nns)
+nBool Sema::LookupNestedName(LookupResult& result, natRefPointer<Scope> scope,
+							 natRefPointer<NestedNameSpecifier> const& nns)
 {
 	if (nns)
 	{
@@ -653,7 +673,7 @@ nBool Sema::LookupConstructors(LookupResult& result, natRefPointer<Declaration::
 
 natRefPointer<Declaration::LabelDecl> Sema::LookupOrCreateLabel(Identifier::IdPtr id, SourceLocation loc)
 {
-	LookupResult r{ *this, std::move(id), loc, LookupNameType::LookupLabel };
+	LookupResult r{*this, std::move(id), loc, LookupNameType::LookupLabel};
 
 	if (!LookupName(r, m_CurrentScope) || r.GetDeclSize() != 1)
 	{
@@ -701,12 +721,13 @@ Type::TypePtr Sema::ActOnPointerType(natRefPointer<Scope> const& scope, Type::Ty
 	return m_Context.GetPointerType(std::move(pointeeType));
 }
 
-natRefPointer<Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl)
+natRefPointer<Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer<Scope> const& scope,
+																   Declaration::DeclaratorPtr decl)
 {
 	auto id = decl->GetIdentifier();
 	if (id)
 	{
-		LookupResult r{ *this, id, {}, LookupNameType::LookupOrdinaryName };
+		LookupResult r{*this, id, {}, LookupNameType::LookupOrdinaryName};
 		if (LookupName(r, scope) || r.GetDeclSize() > 0)
 		{
 			// TODO: 报告存在重名的参数
@@ -715,8 +736,9 @@ natRefPointer<Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer
 
 	// 临时放在翻译单元上下文中，在整个函数声明完成后关联到函数
 	auto ret = make_ref<Declaration::ParmVarDecl>(Declaration::Decl::ParmVar,
-		m_Context.GetTranslationUnit().Get(), SourceLocation{}, SourceLocation{},
-		std::move(id), decl->GetType(), Specifier::StorageClass::None, decl->GetInitializer());
+												  m_Context.GetTranslationUnit().Get(), SourceLocation{}, SourceLocation{},
+												  std::move(id), decl->GetType(), Specifier::StorageClass::None,
+												  decl->GetInitializer());
 
 	scope->AddDecl(ret);
 
@@ -768,13 +790,16 @@ natRefPointer<Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 	}
 
 	auto varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl->GetRange().GetBegin(),
-		SourceLocation{}, std::move(id), std::move(type), decl->GetStorageClass());
+												  SourceLocation{}, std::move(id), std::move(type),
+												  decl->GetStorageClass());
 	varDecl->SetInitializer(initExpr);
 
 	return varDecl;
 }
 
-natRefPointer<Declaration::FieldDecl> Sema::ActOnFieldDeclarator(natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc)
+natRefPointer<Declaration::FieldDecl> Sema::ActOnFieldDeclarator(natRefPointer<Scope> const& scope,
+																 Declaration::DeclaratorPtr decl,
+																 Declaration::DeclContext* dc)
 {
 	auto type = Type::Type::GetUnderlyingType(decl->GetType());
 	auto id = decl->GetIdentifier();
@@ -792,12 +817,13 @@ natRefPointer<Declaration::FieldDecl> Sema::ActOnFieldDeclarator(natRefPointer<S
 	}
 
 	auto fieldDecl = make_ref<Declaration::FieldDecl>(Declaration::Decl::Field, dc, decl->GetRange().GetBegin(),
-		SourceLocation{}, std::move(id), std::move(type));
+													  SourceLocation{}, std::move(id), std::move(type));
 	return fieldDecl;
 }
 
 natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
-	natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc, Identifier::IdPtr asId)
+	natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc,
+	Identifier::IdPtr asId)
 {
 	asId = asId ? asId : decl->GetIdentifier();
 
@@ -817,23 +843,25 @@ natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
 		if (decl->IsConstructor())
 		{
 			funcDecl = make_ref<Declaration::ConstructorDecl>(std::move(classDecl), SourceLocation{},
-				std::move(asId), std::move(type), decl->GetStorageClass());
+															  std::move(asId), std::move(type), decl->GetStorageClass());
 		}
 		else if (decl->IsDestructor())
 		{
 			funcDecl = make_ref<Declaration::DestructorDecl>(std::move(classDecl), SourceLocation{},
-				std::move(asId), std::move(type), decl->GetStorageClass());
+															 std::move(asId), std::move(type), decl->GetStorageClass());
 		}
 		else
 		{
 			funcDecl = make_ref<Declaration::MethodDecl>(Declaration::Decl::Method, dc,
-				SourceLocation{}, SourceLocation{}, std::move(asId), std::move(type), decl->GetStorageClass());
+														 SourceLocation{}, SourceLocation{}, std::move(asId), std::move(type),
+														 decl->GetStorageClass());
 		}
 	}
 	else
 	{
 		funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
-			SourceLocation{}, SourceLocation{}, std::move(asId), std::move(type), decl->GetStorageClass());
+													   SourceLocation{}, SourceLocation{}, std::move(asId), std::move(type),
+													   decl->GetStorageClass());
 	}
 
 	for (auto const& param : decl->GetParams())
@@ -847,18 +875,22 @@ natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
 	return funcDecl;
 }
 
-natRefPointer<Declaration::UnresolvedDecl> Sema::ActOnUnresolvedDeclarator(natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc)
+natRefPointer<Declaration::UnresolvedDecl> Sema::ActOnUnresolvedDeclarator(
+	natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc)
 {
 	assert(m_CurrentPhase == Phase::Phase1);
 	assert(!decl->GetType() && !decl->GetInitializer());
 
-	auto unresolvedDecl = make_ref<Declaration::UnresolvedDecl>(dc, SourceLocation{}, decl->GetIdentifier(), nullptr, SourceLocation{}, decl);
+	auto unresolvedDecl = make_ref<Declaration::UnresolvedDecl>(dc, SourceLocation{}, decl->GetIdentifier(), nullptr,
+																SourceLocation{}, decl);
 	m_Declarators.emplace_back(std::move(decl));
 
 	return unresolvedDecl;
 }
 
-natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> scope, Declaration::DeclaratorPtr decl, Declaration::DeclPtr const& oldUnresolvedDeclPtr)
+natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> scope,
+															 Declaration::DeclaratorPtr decl,
+															 Declaration::DeclPtr const& oldUnresolvedDeclPtr)
 {
 	if (auto preparedDecl = decl->GetDecl(); preparedDecl && preparedDecl != oldUnresolvedDeclPtr)
 	{
@@ -908,7 +940,7 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 		RemoveFromScopeChains(oldUnresolvedDeclPtr, declScope);
 	}
 
-	LookupResult previous{ *this, id, {}, LookupNameType::LookupOrdinaryName };
+	LookupResult previous{*this, id, {}, LookupNameType::LookupOrdinaryName};
 	if (LookupName(previous, scope) && previous.GetDeclSize())
 	{
 		// TODO: 处理重载或覆盖的情况
@@ -964,13 +996,13 @@ Statement::StmtPtr Sema::ActOnNullStmt(SourceLocation loc)
 }
 
 Statement::StmtPtr Sema::ActOnDeclStmt(std::vector<Declaration::DeclPtr> decls, SourceLocation start,
-	SourceLocation end)
+									   SourceLocation end)
 {
 	return make_ref<Statement::DeclStmt>(move(decls), start, end);
 }
 
 Statement::StmtPtr Sema::ActOnLabelStmt(SourceLocation labelLoc, natRefPointer<Declaration::LabelDecl> labelDecl,
-	SourceLocation colonLoc, Statement::StmtPtr subStmt)
+										SourceLocation colonLoc, Statement::StmtPtr subStmt)
 {
 	static_cast<void>(colonLoc);
 
@@ -992,27 +1024,30 @@ Statement::StmtPtr Sema::ActOnLabelStmt(SourceLocation labelLoc, natRefPointer<D
 }
 
 Statement::StmtPtr Sema::ActOnCompoundStmt(std::vector<Statement::StmtPtr> stmtVec, SourceLocation begin,
-	SourceLocation end)
+										   SourceLocation end)
 {
 	return make_ref<Statement::CompoundStmt>(move(stmtVec), begin, end);
 }
 
 Statement::StmtPtr Sema::ActOnIfStmt(SourceLocation ifLoc, Expression::ExprPtr condExpr,
-	Statement::StmtPtr thenStmt, SourceLocation elseLoc, Statement::StmtPtr elseStmt)
+									 Statement::StmtPtr thenStmt, SourceLocation elseLoc, Statement::StmtPtr elseStmt)
 {
-	return make_ref<Statement::IfStmt>(ifLoc, ActOnConditionExpr(std::move(condExpr)), std::move(thenStmt), elseLoc, std::move(elseStmt));
+	return make_ref<Statement::IfStmt>(ifLoc, ActOnConditionExpr(std::move(condExpr)), std::move(thenStmt), elseLoc,
+									   std::move(elseStmt));
 }
 
 Statement::StmtPtr Sema::ActOnWhileStmt(SourceLocation loc, Expression::ExprPtr cond,
-	Statement::StmtPtr body)
+										Statement::StmtPtr body)
 {
 	return make_ref<Statement::WhileStmt>(loc, ActOnConditionExpr(std::move(cond)), std::move(body));
 }
 
 Statement::StmtPtr Sema::ActOnForStmt(SourceLocation forLoc, SourceLocation leftParenLoc, Statement::StmtPtr init,
-	Expression::ExprPtr cond, Expression::ExprPtr third, SourceLocation rightParenLoc, Statement::StmtPtr body)
+									  Expression::ExprPtr cond, Expression::ExprPtr third, SourceLocation rightParenLoc,
+									  Statement::StmtPtr body)
 {
-	return make_ref<Statement::ForStmt>(std::move(init), ActOnConditionExpr(std::move(cond)), std::move(third), std::move(body), forLoc, leftParenLoc, rightParenLoc);
+	return make_ref<Statement::ForStmt>(std::move(init), ActOnConditionExpr(std::move(cond)), std::move(third),
+										std::move(body), forLoc, leftParenLoc, rightParenLoc);
 }
 
 Statement::StmtPtr Sema::ActOnContinueStmt(SourceLocation loc, natRefPointer<Scope> const& scope)
@@ -1037,7 +1072,8 @@ Statement::StmtPtr Sema::ActOnBreakStmt(SourceLocation loc, natRefPointer<Scope>
 	return make_ref<Statement::BreakStmt>(loc);
 }
 
-Statement::StmtPtr Sema::ActOnReturnStmt(SourceLocation loc, Expression::ExprPtr returnedExpr, natRefPointer<Scope> const& scope)
+Statement::StmtPtr Sema::ActOnReturnStmt(SourceLocation loc, Expression::ExprPtr returnedExpr,
+										 natRefPointer<Scope> const& scope)
 {
 	if (const auto curFunc = GetParsingFunction())
 	{
@@ -1051,13 +1087,16 @@ Statement::StmtPtr Sema::ActOnReturnStmt(SourceLocation loc, Expression::ExprPtr
 		const auto retTypeClass = retType->GetType();
 		if (retTypeClass == Type::Type::Auto)
 		{
-			funcType->SetResultType(returnedExpr ? returnedExpr->GetExprType() : static_cast<Type::TypePtr>(m_Context.GetBuiltinType(Type::BuiltinType::Void)));
+			funcType->SetResultType(returnedExpr
+										? returnedExpr->GetExprType()
+										: static_cast<Type::TypePtr>(m_Context.GetBuiltinType(Type::BuiltinType::Void)));
 		}
 		else if (retTypeClass == Type::Type::Builtin &&
 			retType.Cast<Type::BuiltinType>()->GetBuiltinClass() == Type::BuiltinType::Void &&
 			returnedExpr)
 		{
-			returnedExpr = ImpCastExprToType(std::move(returnedExpr), m_Context.GetBuiltinType(Type::BuiltinType::Void), Expression::CastType::ToVoid);
+			returnedExpr = ImpCastExprToType(std::move(returnedExpr), m_Context.GetBuiltinType(Type::BuiltinType::Void),
+											 Expression::CastType::ToVoid);
 		}
 
 		return make_ref<Statement::ReturnStmt>(loc, std::move(returnedExpr));
@@ -1075,14 +1114,15 @@ Statement::StmtPtr Sema::ActOnExprStmt(Expression::ExprPtr expr)
 Expression::ExprPtr Sema::ActOnBooleanLiteral(Lex::Token const& token) const
 {
 	assert(token.IsAnyOf({ Lex::TokenType::Kw_true, Lex::TokenType::Kw_false }));
-	return make_ref<Expression::BooleanLiteral>(token.Is(Lex::TokenType::Kw_true), m_Context.GetBuiltinType(Type::BuiltinType::Bool), token.GetLocation());
+	return make_ref<Expression::BooleanLiteral>(token.Is(Lex::TokenType::Kw_true),
+												m_Context.GetBuiltinType(Type::BuiltinType::Bool), token.GetLocation());
 }
 
 Expression::ExprPtr Sema::ActOnNumericLiteral(Lex::Token const& token) const
 {
 	assert(token.Is(Lex::TokenType::NumericLiteral));
 
-	Lex::NumericLiteralParser literalParser{ token.GetLiteralContent().value(), token.GetLocation(), m_Diag };
+	Lex::NumericLiteralParser literalParser{token.GetLiteralContent().value(), token.GetLocation(), m_Diag};
 
 	if (literalParser.Errored())
 	{
@@ -1146,21 +1186,22 @@ Expression::ExprPtr Sema::ActOnCharLiteral(Lex::Token const& token) const
 {
 	assert(token.Is(Lex::TokenType::CharLiteral) && token.GetLiteralContent().has_value());
 
-	Lex::CharLiteralParser literalParser{ token.GetLiteralContent().value(), token.GetLocation(), m_Diag };
+	Lex::CharLiteralParser literalParser{token.GetLiteralContent().value(), token.GetLocation(), m_Diag};
 
 	if (literalParser.Errored())
 	{
 		return nullptr;
 	}
 
-	return make_ref<Expression::CharacterLiteral>(literalParser.GetValue(), nString::UsingStringType, m_Context.GetBuiltinType(Type::BuiltinType::Char), token.GetLocation());
+	return make_ref<Expression::CharacterLiteral>(literalParser.GetValue(), nString::UsingStringType,
+												  m_Context.GetBuiltinType(Type::BuiltinType::Char), token.GetLocation());
 }
 
 Expression::ExprPtr Sema::ActOnStringLiteral(Lex::Token const& token)
 {
 	assert(token.Is(Lex::TokenType::StringLiteral) && token.GetLiteralContent().has_value());
 
-	Lex::StringLiteralParser literalParser{ token.GetLiteralContent().value(), token.GetLocation(), m_Diag };
+	Lex::StringLiteralParser literalParser{token.GetLiteralContent().value(), token.GetLocation(), m_Diag};
 
 	if (literalParser.Errored())
 	{
@@ -1169,7 +1210,9 @@ Expression::ExprPtr Sema::ActOnStringLiteral(Lex::Token const& token)
 
 	auto value = literalParser.GetValue();
 	// 多一个 0
-	return make_ref<Expression::StringLiteral>(value, m_Context.GetArrayType(m_Context.GetBuiltinType(Type::BuiltinType::Char), value.GetSize() + 1), token.GetLocation());
+	return make_ref<Expression::StringLiteral>(
+		value, m_Context.GetArrayType(m_Context.GetBuiltinType(Type::BuiltinType::Char), value.GetSize() + 1),
+		token.GetLocation());
 }
 
 Expression::ExprPtr Sema::ActOnConditionExpr(Expression::ExprPtr expr)
@@ -1189,13 +1232,13 @@ Expression::ExprPtr Sema::ActOnThrow(natRefPointer<Scope> const& scope, SourceLo
 	// TODO
 	if (expr)
 	{
-
 	}
 
 	nat_Throw(NotImplementedException);
 }
 
-Expression::ExprPtr Sema::ActOnInitExpr(Type::TypePtr initType, SourceLocation leftBraceLoc, std::vector<Expression::ExprPtr> initExprs, SourceLocation rightBraceLoc)
+Expression::ExprPtr Sema::ActOnInitExpr(Type::TypePtr initType, SourceLocation leftBraceLoc,
+										std::vector<Expression::ExprPtr> initExprs, SourceLocation rightBraceLoc)
 {
 	const auto underlyingType = Type::Type::GetUnderlyingType(initType);
 
@@ -1207,7 +1250,8 @@ Expression::ExprPtr Sema::ActOnInitExpr(Type::TypePtr initType, SourceLocation l
 	case Type::Type::Enum:
 		return make_ref<Expression::InitListExpr>(std::move(initType), leftBraceLoc, std::move(initExprs), rightBraceLoc);
 	case Type::Type::Class:
-		return BuildConstructExpr(underlyingType.UnsafeCast<Type::ClassType>(), leftBraceLoc, std::move(initExprs), rightBraceLoc);
+		return BuildConstructExpr(underlyingType.UnsafeCast<Type::ClassType>(), leftBraceLoc, std::move(initExprs),
+								  rightBraceLoc);
 	case Type::Type::Function:
 	case Type::Type::Paren:
 	case Type::Type::TypeOf:
@@ -1219,9 +1263,11 @@ Expression::ExprPtr Sema::ActOnInitExpr(Type::TypePtr initType, SourceLocation l
 	}
 }
 
-Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, nBool hasTraillingLParen, natRefPointer<Syntax::ResolveContext> const& resolveContext)
+Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefPointer<NestedNameSpecifier> const& nns,
+									  Identifier::IdPtr id, nBool hasTraillingLParen,
+									  natRefPointer<Syntax::ResolveContext> const& resolveContext)
 {
-	LookupResult result{ *this, id, {}, LookupNameType::LookupOrdinaryName };
+	LookupResult result{*this, id, {}, LookupNameType::LookupOrdinaryName};
 	if (!LookupNestedName(result, scope, nns))
 	{
 		switch (result.GetResultType())
@@ -1289,7 +1335,8 @@ Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefP
 			}
 
 			// 偷懒了。。。
-			return ActOnMemberAccessExpr(scope, make_ref<Expression::ThisExpr>(SourceLocation{}, classDecl->GetTypeForDecl(), true), {}, nns, std::move(id));
+			return ActOnMemberAccessExpr(
+				scope, make_ref<Expression::ThisExpr>(SourceLocation{}, classDecl->GetTypeForDecl(), true), {}, nns, std::move(id));
 		}
 
 		// 不可能引用到构造和析构函数，但是还是要注意此处可能的漏判
@@ -1305,7 +1352,8 @@ Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefP
 			}
 
 			// 继续偷懒。。。
-			return ActOnMemberAccessExpr(scope, make_ref<Expression::ThisExpr>(SourceLocation{}, classDecl->GetTypeForDecl(), true), {}, nns, std::move(id));
+			return ActOnMemberAccessExpr(
+				scope, make_ref<Expression::ThisExpr>(SourceLocation{}, classDecl->GetTypeForDecl(), true), {}, nns, std::move(id));
 		}
 
 		return BuildDeclarationNameExpr(nns, std::move(id), decl);
@@ -1328,7 +1376,8 @@ Expression::ExprPtr Sema::ActOnThis(SourceLocation loc)
 
 	if (const auto methodDecl = decl.Cast<Declaration::MethodDecl>())
 	{
-		const auto recordDecl = dynamic_cast<Declaration::ClassDecl*>(Declaration::Decl::CastFromDeclContext(methodDecl->GetContext()));
+		const auto recordDecl = dynamic_cast<Declaration::ClassDecl*>(Declaration::Decl::CastFromDeclContext(
+			methodDecl->GetContext()));
 		assert(recordDecl);
 		return make_ref<Expression::ThisExpr>(loc, recordDecl->GetTypeForDecl(), false);
 	}
@@ -1337,12 +1386,14 @@ Expression::ExprPtr Sema::ActOnThis(SourceLocation loc)
 	return nullptr;
 }
 
-Expression::ExprPtr Sema::ActOnAsTypeExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr exprToCast, Type::TypePtr type, SourceLocation loc)
+Expression::ExprPtr Sema::ActOnAsTypeExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr exprToCast,
+										  Type::TypePtr type, SourceLocation loc)
 {
 	return make_ref<Expression::AsTypeExpr>(std::move(type), getCastType(exprToCast, type), std::move(exprToCast));
 }
 
-Expression::ExprPtr Sema::ActOnArraySubscriptExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation lloc, Expression::ExprPtr index, SourceLocation rloc)
+Expression::ExprPtr Sema::ActOnArraySubscriptExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr base,
+												  SourceLocation lloc, Expression::ExprPtr index, SourceLocation rloc)
 {
 	// TODO: 屏蔽未使用参数警告，这些参数将会在将来的版本被使用
 	static_cast<void>(scope);
@@ -1367,7 +1418,9 @@ Expression::ExprPtr Sema::ActOnArraySubscriptExpr(natRefPointer<Scope> const& sc
 	return make_ref<Expression::ArraySubscriptExpr>(base, index, baseType->GetElementType(), rloc);
 }
 
-Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr func, SourceLocation lloc, Linq<Valued<Expression::ExprPtr>> argExprs, SourceLocation rloc)
+Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr func,
+										SourceLocation lloc, Linq<Valued<Expression::ExprPtr>> argExprs,
+										SourceLocation rloc)
 {
 	// TODO: 完成重载部分
 
@@ -1393,10 +1446,15 @@ Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expre
 		}
 
 		// TODO: 处理有默认参数的情况
-		return make_ref<Expression::CallExpr>(std::move(nonMemberFunc), argExprs.zip(fnType->GetParameterTypes()).select([this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
-		{
-			return ImpCastExprToType(pair.first, pair.second, getCastType(pair.first, pair.second));
-		}), fnType->GetResultType(), rloc);
+		return make_ref<Expression::CallExpr>(std::move(nonMemberFunc), argExprs.zip(fnType->GetParameterTypes()).select(
+												  [this](
+												  std::pair<Expression::ExprPtr, Type::TypePtr
+												  > const& pair)
+												  {
+													  return ImpCastExprToType(
+														  pair.first, pair.second,
+														  getCastType(pair.first, pair.second));
+												  }), fnType->GetResultType(), rloc);
 	}
 
 	if (auto memberFunc = func.Cast<Expression::MemberExpr>())
@@ -1419,21 +1477,28 @@ Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expre
 			return nullptr;
 		}
 
-		return make_ref<Expression::MemberCallExpr>(std::move(memberFunc), argExprs.zip(fnType->GetParameterTypes()).select([this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
-		{
-			return ImpCastExprToType(pair.first, pair.second, getCastType(pair.first, pair.second));
-		}), fnType->GetResultType(), rloc);
+		return make_ref<Expression::MemberCallExpr>(std::move(memberFunc), argExprs.zip(fnType->GetParameterTypes()).select(
+														[this](
+														std::pair<Expression::ExprPtr, Type::
+																  TypePtr> const& pair)
+														{
+															return ImpCastExprToType(
+																pair.first, pair.second,
+																getCastType(pair.first, pair.second));
+														}), fnType->GetResultType(), rloc);
 	}
 
 	// TODO: 报告错误
 	return nullptr;
 }
 
-Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr base, SourceLocation periodLoc, natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id)
+Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr base,
+												SourceLocation periodLoc, natRefPointer<NestedNameSpecifier> const& nns,
+												Identifier::IdPtr id)
 {
 	auto baseType = base->GetExprType();
 
-	LookupResult r{ *this, id, {}, LookupNameType::LookupMemberName };
+	LookupResult r{*this, id, {}, LookupNameType::LookupMemberName};
 
 	if (const auto pointerType = baseType.Cast<Type::PointerType>())
 	{
@@ -1465,7 +1530,8 @@ Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> const& scop
 	return nullptr;
 }
 
-Expression::ExprPtr Sema::ActOnUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType, Expression::ExprPtr operand)
+Expression::ExprPtr Sema::ActOnUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType,
+									   Expression::ExprPtr operand)
 {
 	// TODO: 为将来可能的操作符重载保留
 	static_cast<void>(scope);
@@ -1480,26 +1546,29 @@ Expression::ExprPtr Sema::ActOnUnaryOp(natRefPointer<Scope> const& scope, Source
 	return CreateBuiltinUnaryOp(loc, opCode, std::move(operand));
 }
 
-Expression::ExprPtr Sema::ActOnPostfixUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType, Expression::ExprPtr operand)
+Expression::ExprPtr Sema::ActOnPostfixUnaryOp(natRefPointer<Scope> const& scope, SourceLocation loc,
+											  Lex::TokenType tokenType, Expression::ExprPtr operand)
 {
 	// TODO: 为将来可能的操作符重载保留
 	static_cast<void>(scope);
 
 	assert(tokenType == Lex::TokenType::PlusPlus || tokenType == Lex::TokenType::MinusMinus);
 	return CreateBuiltinUnaryOp(loc,
-		tokenType == Lex::TokenType::PlusPlus ?
-			Expression::UnaryOperationType::PostInc :
-			Expression::UnaryOperationType::PostDec,
-		std::move(operand));
+								tokenType == Lex::TokenType::PlusPlus
+									? Expression::UnaryOperationType::PostInc
+									: Expression::UnaryOperationType::PostDec,
+								std::move(operand));
 }
 
-Expression::ExprPtr Sema::ActOnBinaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand)
+Expression::ExprPtr Sema::ActOnBinaryOp(natRefPointer<Scope> const& scope, SourceLocation loc, Lex::TokenType tokenType,
+										Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand)
 {
 	static_cast<void>(scope);
 	return BuildBuiltinBinaryOp(loc, getBinaryOperationType(tokenType), std::move(leftOperand), std::move(rightOperand));
 }
 
-Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::BinaryOperationType binOpType, Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand)
+Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::BinaryOperationType binOpType,
+											   Expression::ExprPtr leftOperand, Expression::ExprPtr rightOperand)
 {
 	if (!leftOperand || !rightOperand)
 	{
@@ -1522,10 +1591,11 @@ Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::B
 	case Expression::BinaryOperationType::And:
 	case Expression::BinaryOperationType::Xor:
 	case Expression::BinaryOperationType::Or:
-	{
-		auto resultType = UsualArithmeticConversions(leftOperand, rightOperand);
-		return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType, std::move(resultType), loc);
-	}
+		{
+			auto resultType = UsualArithmeticConversions(leftOperand, rightOperand);
+			return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType,
+														std::move(resultType), loc);
+		}
 	case Expression::BinaryOperationType::LT:
 	case Expression::BinaryOperationType::GT:
 	case Expression::BinaryOperationType::LE:
@@ -1534,10 +1604,11 @@ Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::B
 	case Expression::BinaryOperationType::NE:
 	case Expression::BinaryOperationType::LAnd:
 	case Expression::BinaryOperationType::LOr:
-	{
-		auto resultType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
-		return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType, std::move(resultType), loc);
-	}
+		{
+			auto resultType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
+			return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType,
+														std::move(resultType), loc);
+		}
 	case Expression::BinaryOperationType::Assign:
 	case Expression::BinaryOperationType::MulAssign:
 	case Expression::BinaryOperationType::DivAssign:
@@ -1550,33 +1621,43 @@ Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::B
 	case Expression::BinaryOperationType::XorAssign:
 	case Expression::BinaryOperationType::OrAssign:
 		const auto builtinLHSType = leftOperand->GetExprType().Cast<Type::BuiltinType>(),
-			builtinRHSType = rightOperand->GetExprType().Cast<Type::BuiltinType>();
+				   builtinRHSType = rightOperand->GetExprType().Cast<Type::BuiltinType>();
 
 		Expression::CastType castType;
 		if (builtinLHSType->IsIntegerType())
 		{
-			castType = builtinRHSType->IsIntegerType() ?
-				Expression::CastType::IntegralCast : Expression::CastType::FloatingToIntegral;
+			castType = builtinRHSType->IsIntegerType()
+						   ? Expression::CastType::IntegralCast
+						   : Expression::CastType::FloatingToIntegral;
 		}
 		else
 		{
-			castType = builtinRHSType->IsIntegerType() ?
-				Expression::CastType::IntegralToFloating : Expression::CastType::FloatingCast;
+			castType = builtinRHSType->IsIntegerType()
+						   ? Expression::CastType::IntegralToFloating
+						   : Expression::CastType::FloatingCast;
 		}
 
-		return make_ref<Expression::CompoundAssignOperator>(std::move(leftOperand), ImpCastExprToType(std::move(rightOperand), builtinLHSType, castType), binOpType, builtinLHSType, loc);
+		return make_ref<Expression::CompoundAssignOperator>(std::move(leftOperand),
+															ImpCastExprToType(std::move(rightOperand), builtinLHSType,
+																			  castType), binOpType, builtinLHSType, loc);
 	}
 }
 
-Expression::ExprPtr Sema::ActOnConditionalOp(SourceLocation questionLoc, SourceLocation colonLoc, Expression::ExprPtr condExpr, Expression::ExprPtr leftExpr, Expression::ExprPtr rightExpr)
+Expression::ExprPtr Sema::ActOnConditionalOp(SourceLocation questionLoc, SourceLocation colonLoc,
+											 Expression::ExprPtr condExpr, Expression::ExprPtr leftExpr,
+											 Expression::ExprPtr rightExpr)
 {
-	const auto leftType = leftExpr->GetExprType(), rightType = rightExpr->GetExprType(), commonType = getCommonType(leftType, rightType);
+	const auto leftType = leftExpr->GetExprType(), rightType = rightExpr->GetExprType(), commonType = getCommonType(
+				   leftType, rightType);
 	return make_ref<Expression::ConditionalOperator>(std::move(condExpr), questionLoc,
-		ImpCastExprToType(leftExpr, commonType, getCastType(leftExpr, commonType)), colonLoc,
-		ImpCastExprToType(rightExpr, commonType, getCastType(rightExpr, commonType)), commonType);
+													 ImpCastExprToType(leftExpr, commonType,
+																	   getCastType(leftExpr, commonType)), colonLoc,
+													 ImpCastExprToType(rightExpr, commonType,
+																	   getCastType(rightExpr, commonType)), commonType);
 }
 
-Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id, natRefPointer<Declaration::NamedDecl> decl)
+Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id,
+												   natRefPointer<Declaration::NamedDecl> decl)
 {
 	auto valueDecl = decl.Cast<Declaration::ValueDecl>();
 	if (!valueDecl)
@@ -1589,60 +1670,64 @@ Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<NestedNameSpeci
 	return BuildDeclRefExpr(std::move(valueDecl), std::move(type), std::move(id), nns);
 }
 
-Expression::ExprPtr Sema::BuildDeclRefExpr(natRefPointer<Declaration::ValueDecl> decl, Type::TypePtr type, Identifier::IdPtr id, natRefPointer<NestedNameSpecifier> const& nns)
+Expression::ExprPtr Sema::BuildDeclRefExpr(natRefPointer<Declaration::ValueDecl> decl, Type::TypePtr type,
+										   Identifier::IdPtr id, natRefPointer<NestedNameSpecifier> const& nns)
 {
 	static_cast<void>(id);
 	return make_ref<Expression::DeclRefExpr>(nns, std::move(decl), SourceLocation{}, std::move(type));
 }
 
-Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr baseExpr, Type::TypePtr baseType, SourceLocation opLoc, natRefPointer<NestedNameSpecifier> const& nns, LookupResult& r)
+Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr baseExpr,
+												   Type::TypePtr baseType, SourceLocation opLoc,
+												   natRefPointer<NestedNameSpecifier> const& nns, LookupResult& r)
 {
 	r.SetBaseObjectType(baseType);
 
 	switch (r.GetResultType())
 	{
 	case LookupResult::LookupResultType::Found:
-	{
-		assert(r.GetDeclSize() == 1);
-		auto decl = r.GetDecls().first();
-		const auto type = decl->GetType();
-
-		if (!baseExpr)
 		{
-			// 隐式成员访问
+			assert(r.GetDeclSize() == 1);
+			auto decl = r.GetDecls().first();
+			const auto type = decl->GetType();
 
-			if (type != Declaration::Decl::Field && type != Declaration::Decl::Method)
+			if (!baseExpr)
 			{
-				// 访问的是静态成员
-				return BuildDeclarationNameExpr(nns, r.GetLookupId(), std::move(decl));
+				// 隐式成员访问
+
+				if (type != Declaration::Decl::Field && type != Declaration::Decl::Method)
+				{
+					// 访问的是静态成员
+					return BuildDeclarationNameExpr(nns, r.GetLookupId(), std::move(decl));
+				}
+
+				baseExpr = make_ref<Expression::ThisExpr>(SourceLocation{}, r.GetBaseObjectType(), true);
 			}
 
-			baseExpr = make_ref<Expression::ThisExpr>(SourceLocation{}, r.GetBaseObjectType(), true);
-		}
+			if (auto field = decl.Cast<Declaration::FieldDecl>())
+			{
+				return BuildFieldReferenceExpr(std::move(baseExpr), opLoc, nns, std::move(field), r.GetLookupId());
+			}
 
-		if (auto field = decl.Cast<Declaration::FieldDecl>())
-		{
-			return BuildFieldReferenceExpr(std::move(baseExpr), opLoc, nns, std::move(field), r.GetLookupId());
-		}
+			if (auto var = decl.Cast<Declaration::VarDecl>())
+			{
+				return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(var), r.GetLookupId(),
+														var->GetValueType());
+			}
 
-		if (auto var = decl.Cast<Declaration::VarDecl>())
-		{
-			return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(var), r.GetLookupId(), var->GetValueType());
-		}
+			if (auto method = decl.Cast<Declaration::MethodDecl>())
+			{
+				return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(method), r.GetLookupId(),
+														method->GetValueType());
+			}
 
-		if (auto method = decl.Cast<Declaration::MethodDecl>())
-		{
-			return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(method), r.GetLookupId(), method->GetValueType());
+			return nullptr;
 		}
-
-		return nullptr;
-	}
 	case LookupResult::LookupResultType::FoundOverloaded:
 		// TODO: 处理重载的情况
 		nat_Throw(NotImplementedException);
 	default:
-		assert(!"Invalid result type.");
-		[[fallthrough]];
+		assert(!"Invalid result type.");[[fallthrough]];
 	case LookupResult::LookupResultType::NotFound:
 	case LookupResult::LookupResultType::Ambiguous:
 		// TODO: 报告错误
@@ -1651,17 +1736,21 @@ Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scope> const& s
 }
 
 Expression::ExprPtr Sema::BuildFieldReferenceExpr(Expression::ExprPtr baseExpr, SourceLocation opLoc,
-	natRefPointer<NestedNameSpecifier> const& nns, natRefPointer<Declaration::FieldDecl> field, Identifier::IdPtr id)
+												  natRefPointer<NestedNameSpecifier> const& nns,
+												  natRefPointer<Declaration::FieldDecl> field, Identifier::IdPtr id)
 {
 	static_cast<void>(nns);
-	return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(field), std::move(id), field->GetValueType());
+	return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(field), std::move(id),
+											field->GetValueType());
 }
 
-Expression::ExprPtr Sema::BuildConstructExpr(natRefPointer<Type::ClassType> const& classType, SourceLocation leftBraceLoc, std::vector<Expression::ExprPtr> initExprs, SourceLocation rightBraceLoc)
+Expression::ExprPtr Sema::BuildConstructExpr(natRefPointer<Type::ClassType> const& classType,
+											 SourceLocation leftBraceLoc, std::vector<Expression::ExprPtr> initExprs,
+											 SourceLocation rightBraceLoc)
 {
 	const auto classDecl = classType->GetDecl().Cast<Declaration::ClassDecl>();
 	assert(classDecl);
-	LookupResult r{ *this, nullptr, {}, LookupNameType::LookupMemberName };
+	LookupResult r{*this, nullptr, {}, LookupNameType::LookupMemberName};
 	if (!LookupConstructors(r, classDecl))
 	{
 		// TODO: 报告错误
@@ -1687,7 +1776,8 @@ Expression::ExprPtr Sema::BuildConstructExpr(natRefPointer<Type::ClassType> cons
 	auto paramIter = params.begin();
 	const auto paramEnd = params.end();
 
-	for (auto initExprIter = initExprs.begin(), initExprEnd = initExprs.end(); initExprIter != initExprEnd && paramIter != paramEnd; ++initExprIter, static_cast<void>(++paramIter))
+	for (auto initExprIter = initExprs.begin(), initExprEnd = initExprs.end(); initExprIter != initExprEnd && paramIter !=
+		 paramEnd; ++initExprIter, static_cast<void>(++paramIter))
 	{
 		auto paramType = (*paramIter)->GetValueType();
 		const auto castType = getCastType(*initExprIter, paramType);
@@ -1698,7 +1788,8 @@ Expression::ExprPtr Sema::BuildConstructExpr(natRefPointer<Type::ClassType> cons
 	return make_ref<Expression::ConstructExpr>(classType, leftBraceLoc, std::move(constructor), std::move(initExprs));
 }
 
-Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, Expression::UnaryOperationType opCode, Expression::ExprPtr operand)
+Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, Expression::UnaryOperationType opCode,
+											   Expression::ExprPtr operand)
 {
 	Type::TypePtr resultType;
 
@@ -1744,7 +1835,9 @@ Type::TypePtr Sema::UsualArithmeticConversions(Expression::ExprPtr& leftOperand,
 {
 	// TODO: 是否需要对左右操作数进行整数提升？
 
-	auto leftType = leftOperand->GetExprType().Cast<Type::BuiltinType>(), rightType = rightOperand->GetExprType().Cast<Type::BuiltinType>();
+	auto leftType = leftOperand->GetExprType().Cast<Type::BuiltinType>(), rightType = rightOperand
+																					  ->GetExprType().Cast<Type::
+																						  BuiltinType>();
 
 	if (leftType == rightType)
 	{
@@ -1838,9 +1931,11 @@ Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type:
 	nat_Throw(NotImplementedException);
 }
 
-Type::TypePtr Sema::handleIntegerConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType)
+Type::TypePtr Sema::handleIntegerConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType,
+											Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType)
 {
-	const auto builtinLHSType = leftOperandType.Cast<Type::BuiltinType>(), builtinRHSType = rightOperandType.Cast<Type::BuiltinType>();
+	const auto builtinLHSType = leftOperandType.Cast<Type::BuiltinType>(), builtinRHSType = rightOperandType.Cast<Type::
+				   BuiltinType>();
 
 	if (!builtinLHSType || !builtinRHSType)
 	{
@@ -1884,9 +1979,11 @@ Type::TypePtr Sema::handleIntegerConversion(Expression::ExprPtr& leftOperand, Ty
 	return rightOperandType;
 }
 
-Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType, Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType)
+Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType,
+										  Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType)
 {
-	auto builtinLHSType = leftOperandType.Cast<Type::BuiltinType>(), builtinRHSType = rightOperandType.Cast<Type::BuiltinType>();
+	auto builtinLHSType = leftOperandType.Cast<Type::BuiltinType>(), builtinRHSType = rightOperandType.Cast<Type::
+			 BuiltinType>();
 
 	if (!builtinLHSType || !builtinRHSType)
 	{
@@ -1933,7 +2030,8 @@ Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOperand, Type
 }
 
 LookupResult::LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType)
-	: m_Sema{ sema }, m_LookupId{ std::move(id) }, m_LookupLoc{ loc }, m_LookupNameType{ lookupNameType }, m_IDNS{ chooseIDNS(m_LookupNameType) }, m_Result{}, m_AmbiguousType{}
+	: m_Sema{sema}, m_LookupId{std::move(id)}, m_LookupLoc{loc}, m_LookupNameType{lookupNameType},
+	  m_IDNS{chooseIDNS(m_LookupNameType)}, m_Result{}, m_AmbiguousType{}
 {
 }
 
@@ -1958,7 +2056,7 @@ void LookupResult::ResolveResultType() noexcept
 		m_Result = LookupResultType::NotFound;
 		return;
 	}
-	
+
 	if (size == 1)
 	{
 		m_Result = LookupResultType::Found;
@@ -1973,9 +2071,9 @@ void LookupResult::ResolveResultType() noexcept
 
 	// 分析找到多个定义是由于重载还是二义性
 	if (from(m_Decls).all([](natRefPointer<Declaration::NamedDecl> const& decl)
-		{
-			return decl.Cast<Declaration::FunctionDecl>();
-		}))
+	{
+		return decl.Cast<Declaration::FunctionDecl>();
+	}))
 	{
 		m_Result = LookupResultType::FoundOverloaded;
 	}
