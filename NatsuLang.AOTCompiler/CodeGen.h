@@ -79,6 +79,7 @@ namespace NatsuLang::Compiler
 			AotCompiler& m_Compiler;
 		};
 
+		// TODO: 未处理顶层声明中的初始化器等
 		class AotStmtVisitor final
 			: public NatsuLib::natRefObjImpl<AotStmtVisitor, StmtVisitor>
 		{
@@ -136,6 +137,7 @@ namespace NatsuLang::Compiler
 			void StartVisit();
 			llvm::Function* GetFunction() const;
 
+			// TODO: 考虑将 Emit 函数移出 AotStmtVisitor
 			void EmitAddressOfVar(NatsuLib::natRefPointer<Declaration::VarDecl> const& varDecl);
 
 			void EmitBranch(llvm::BasicBlock* target);
@@ -148,7 +150,16 @@ namespace NatsuLang::Compiler
 
 			llvm::Value* EmitIncDec(llvm::Value* operand, NatsuLib::natRefPointer<Type::BuiltinType> const& opType, nBool isInc, nBool isPre);
 
-			void InitVar(Type::TypePtr const& varType, llvm::Value* varPtr, Expression::ExprPtr const& initializer);
+			void EmitVarDecl(NatsuLib::natRefPointer<Declaration::VarDecl> const& decl);
+
+			void EmitAutoVarDecl(NatsuLib::natRefPointer<Declaration::VarDecl> const& decl);
+			llvm::Value* EmitAutoVarAlloc(NatsuLib::natRefPointer<Declaration::VarDecl> const& decl);
+			void EmitAutoVarInit(Type::TypePtr const& varType, llvm::Value* varPtr, Expression::ExprPtr const& initializer);
+			void EmitAutoVarCleanup(Type::TypePtr const& varType, llvm::Value* varPtr);
+
+			void EmitExternVarDecl(NatsuLib::natRefPointer<Declaration::VarDecl> const& decl);
+
+			void EmitStaticVarDecl(NatsuLib::natRefPointer<Declaration::VarDecl> const& decl);
 
 			void EvaluateValue(Expression::ExprPtr const& expr);
 			void EvaluateAsModifiableValue(Expression::ExprPtr const& expr);

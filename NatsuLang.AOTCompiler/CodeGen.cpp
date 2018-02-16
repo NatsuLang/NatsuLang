@@ -338,7 +338,7 @@ void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStm
 			nat_Throw(AotCompilerException, u8"错误的声明"_nv);
 		}
 
-		if (auto varDecl = decl.Cast<Declaration::VarDecl>())
+		if (const auto varDecl = decl.Cast<Declaration::VarDecl>())
 		{
 			if (varDecl->IsFunction())
 			{
@@ -346,24 +346,7 @@ void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStm
 				continue;
 			}
 
-			const auto type = varDecl->GetValueType();
-
-			// 可能用于动态大小的类型
-			llvm::Value* arraySize = nullptr;
-
-			const auto varName = varDecl->GetName();
-			const auto valueType = m_Compiler.getCorrespondingType(type);
-			const auto typeInfo = m_Compiler.m_AstContext.GetTypeInfo(type);
-
-			if (varDecl->GetStorageClass() == Specifier::StorageClass::None)
-			{
-				const auto storage = m_Compiler.m_IRBuilder.CreateAlloca(valueType, arraySize, std::string(varName.cbegin(), varName.cend()));
-				storage->setAlignment(static_cast<unsigned>(typeInfo.Align));
-
-				InitVar(type, storage, varDecl->GetInitializer());
-
-				m_DeclMap.emplace(varDecl, storage);
-			}
+			EmitVarDecl(varDecl);
 		}
 	}
 }
@@ -1308,7 +1291,49 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitIncDec(llvm::Value* operand, natRe
 	return isPre ? operand : value;
 }
 
-void AotCompiler::AotStmtVisitor::InitVar(Type::TypePtr const& varType, llvm::Value* varPtr, Expression::ExprPtr const& initializer)
+void AotCompiler::AotStmtVisitor::EmitVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
+{
+	switch (decl->GetStorageClass())
+	{
+	default:
+		assert(!"Invalid storage class");
+	case Specifier::StorageClass::None:
+		return EmitAutoVarDecl(decl);
+	case Specifier::StorageClass::Extern:
+		return EmitExternVarDecl(decl);
+	case Specifier::StorageClass::Static:
+		return EmitStaticVarDecl(decl);
+	}
+}
+
+void AotCompiler::AotStmtVisitor::EmitAutoVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
+{
+	const auto type = decl->GetValueType();
+	const auto storage = EmitAutoVarAlloc(decl);
+	EmitAutoVarInit(type, storage, decl->GetInitializer());
+	EmitAutoVarCleanup(type, storage);
+}
+
+llvm::Value* AotCompiler::AotStmtVisitor::EmitAutoVarAlloc(natRefPointer<Declaration::VarDecl> const& decl)
+{
+	const auto type = decl->GetValueType();
+
+	// 可能用于动态大小的类型
+	llvm::Value* arraySize = nullptr;
+
+	const auto varName = decl->GetName();
+	const auto valueType = m_Compiler.getCorrespondingType(type);
+	const auto typeInfo = m_Compiler.m_AstContext.GetTypeInfo(type);
+
+	const auto storage = m_Compiler.m_IRBuilder.CreateAlloca(valueType, arraySize, std::string(varName.cbegin(), varName.cend()));
+	storage->setAlignment(static_cast<unsigned>(typeInfo.Align));
+
+	m_DeclMap.emplace(decl, storage);
+
+	return storage;
+}
+
+void AotCompiler::AotStmtVisitor::EmitAutoVarInit(Type::TypePtr const& varType, llvm::Value* varPtr, Expression::ExprPtr const& initializer)
 {
 	const auto valueType = m_Compiler.getCorrespondingType(varType);
 	const auto typeInfo = m_Compiler.m_AstContext.GetTypeInfo(varType);
@@ -1333,7 +1358,7 @@ void AotCompiler::AotStmtVisitor::InitVar(Type::TypePtr const& varType, llvm::Va
 					const auto elemPtr = m_Compiler.m_IRBuilder.CreateGEP(valueType, varPtr,
 						{ llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext), 0), llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext), i) });
 
-					InitVar(arrayType->GetElementType(), elemPtr, initExpr);
+					EmitAutoVarInit(arrayType->GetElementType(), elemPtr, initExpr);
 				}
 			}
 			else if (varType->GetType() == Type::Type::Builtin || varType->GetType() == Type::Type::Pointer)
@@ -1422,6 +1447,21 @@ void AotCompiler::AotStmtVisitor::InitVar(Type::TypePtr const& varType, llvm::Va
 	{
 		m_Compiler.m_IRBuilder.CreateStore(llvm::Constant::getNullValue(valueType), varPtr);
 	}
+}
+
+void AotCompiler::AotStmtVisitor::EmitAutoVarCleanup(Type::TypePtr const& varType, llvm::Value* varPtr)
+{
+	// TODO
+}
+
+void AotCompiler::AotStmtVisitor::EmitExternVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
+{
+	// TODO
+}
+
+void AotCompiler::AotStmtVisitor::EmitStaticVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
+{
+	// TODO
 }
 
 void AotCompiler::AotStmtVisitor::EvaluateValue(Expression::ExprPtr const& expr)
