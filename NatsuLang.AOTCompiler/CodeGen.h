@@ -26,7 +26,6 @@ namespace NatsuLang::Compiler
 
 	class AotCompiler final
 	{
-	public:
 		class AotDiagIdMap final
 			: public NatsuLib::natRefObjImpl<AotDiagIdMap, Misc::TextProvider<Diag::DiagnosticsEngine::DiagID>>
 		{
@@ -79,7 +78,50 @@ namespace NatsuLang::Compiler
 			AotCompiler& m_Compiler;
 		};
 
-		// TODO: 未处理顶层声明中的初始化器等
+		class AotStmtVisitor;
+
+		struct ICleanup
+			: NatsuLib::natRefObj
+		{
+			virtual ~ICleanup();
+
+			virtual void Emit(AotStmtVisitor& visitor) = 0;
+		};
+
+		class DestructorCleanup
+			: public NatsuLib::natRefObjImpl<DestructorCleanup, ICleanup>
+		{
+		public:
+			DestructorCleanup(AotStmtVisitor& visitor, NatsuLib::natRefPointer<Declaration::DestructorDecl> destructor, llvm::Value* addr);
+			~DestructorCleanup();
+
+			void Emit(AotStmtVisitor& visitor) override;
+
+		private:
+			AotStmtVisitor& m_Visitor;
+			NatsuLib::natRefPointer<Declaration::DestructorDecl> m_Destructor;
+			llvm::Value* m_Addr;
+		};
+
+		class ArrayCleanup
+			: public NatsuLib::natRefObjImpl<ArrayCleanup, ICleanup>
+		{
+		public:
+			// 为了效率，此处直接使用函数指针而不是 std::function 或类似物
+			using CleanupFunction = void(AotStmtVisitor&, llvm::Value* addr);
+
+			ArrayCleanup(NatsuLib::natRefPointer<Type::ArrayType> type, llvm::Value* addr, CleanupFunction* cleanupFunction);
+			~ArrayCleanup();
+
+			void Emit(AotStmtVisitor& visitor) override;
+
+		private:
+			NatsuLib::natRefPointer<Type::ArrayType> m_Type;
+			llvm::Value* m_Addr;
+			CleanupFunction* m_CleanupFunction;
+		};
+
+		// TODO: 无法处理顶层声明中的初始化器等
 		class AotStmtVisitor final
 			: public NatsuLib::natRefObjImpl<AotStmtVisitor, StmtVisitor>
 		{
@@ -134,6 +176,11 @@ namespace NatsuLang::Compiler
 			void VisitWhileStmt(NatsuLib::natRefPointer<Statement::WhileStmt> const& stmt) override;
 			void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) override;
 
+			AotCompiler& GetCompiler() const noexcept
+			{
+				return m_Compiler;
+			}
+
 			void StartVisit();
 			llvm::Function* GetFunction() const;
 
@@ -177,8 +224,10 @@ namespace NatsuLang::Compiler
 			llvm::Value* m_LastVisitedValue;
 			nBool m_RequiredModifiableValue;
 			std::vector<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> m_BreakContinueStack;
+			std::vector<NatsuLib::natRefPointer<ICleanup>> m_CleanupStack;
 		};
 
+	public:
 		AotCompiler(NatsuLib::natRefPointer<NatsuLib::TextReader<NatsuLib::StringType::Utf8>> const& diagIdMapFile, NatsuLib::natLog& logger);
 		~AotCompiler();
 
@@ -218,5 +267,7 @@ namespace NatsuLang::Compiler
 		llvm::Type* buildFunctionType(NatsuLib::natRefPointer<Declaration::MethodDecl> const& methodDecl);
 
 		llvm::Type* buildClassType(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
+
+		NatsuLib::natRefPointer<Type::ArrayType> flattenArray(NatsuLib::natRefPointer<Type::ArrayType> arrayType);
 	};
 }

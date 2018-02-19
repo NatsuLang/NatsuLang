@@ -173,7 +173,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 
 			const auto funcValue = llvm::Function::Create(functionType,
 				llvm::GlobalVariable::ExternalLinkage,
-				std::string(functionName.cbegin(), functionName.cend()),
+				llvm::StringRef{ functionName.cbegin(), functionName.size() },
 				m_Compiler.m_Module.get());
 
 			auto argIter = funcValue->arg_begin();
@@ -183,6 +183,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 
 			if (funcDecl.Cast<Declaration::MethodDecl>())
 			{
+				// 成员函数的第一个参数是 this，其类型应当是指向该类的指针
 				argIter->setName("this");
 				++argIter;
 			}
@@ -190,8 +191,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 			for (; argIter != argEnd && paramIter != paramEnd; ++argIter, static_cast<void>(++paramIter))
 			{
 				const auto name = (*paramIter)->GetIdentifierInfo()->GetName();
-				const std::string nameStr{ name.cbegin(), name.cend() };
-				argIter->setName(nameStr);
+				argIter->setName(llvm::StringRef{ name.cbegin(), name.size() });
 			}
 
 			m_Compiler.m_FunctionMap.emplace(std::move(funcDecl), funcValue);
@@ -202,6 +202,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 			const auto varType = m_Compiler.getCorrespondingType(varDecl->GetValueType());
 			const auto varName = varDecl->GetName();
 
+			// TODO: 修改成正儿八经的初始化
 			const auto initializer = varDecl->GetInitializer();
 
 			llvm::Constant* initValue{};
@@ -1451,7 +1452,28 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarInit(Type::TypePtr const& varType, 
 
 void AotCompiler::AotStmtVisitor::EmitAutoVarCleanup(Type::TypePtr const& varType, llvm::Value* varPtr)
 {
-	// TODO
+	if (const auto arrayType = varType.Cast<Type::ArrayType>())
+	{
+		// TODO: 显然这里可以直接作为不同的对象推入清理栈，但是太脏，尝试别的方案
+	}
+	else if (const auto classType = varType.Cast<Type::ClassType>())
+	{
+		const auto classDecl = classType->GetDecl().UnsafeCast<Declaration::ClassDecl>();
+		assert(classDecl);
+
+		auto destructor = classDecl->GetMethods().select([](natRefPointer<Declaration::MethodDecl> const& method)
+		{
+			return method.Cast<Declaration::DestructorDecl>();
+		}).where([](natRefPointer<Declaration::DestructorDecl> const& method) -> nBool
+		{
+			return method;
+		}).first_or_default(nullptr);
+
+		if (destructor)
+		{
+			m_CleanupStack.emplace_back(make_ref<DestructorCleanup>(std::move(destructor), varPtr));
+		}
+	}
 }
 
 void AotCompiler::AotStmtVisitor::EmitExternVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
@@ -1664,6 +1686,66 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	stream.flush();
 
 	m_Module.reset();
+}
+
+AotCompiler::ICleanup::~ICleanup()
+{
+}
+
+AotCompiler::DestructorCleanup::DestructorCleanup(AotStmtVisitor& visitor, natRefPointer<Declaration::DestructorDecl> destructor, llvm::Value* addr)
+	: m_Visitor{ visitor }, m_Destructor{ std::move(destructor) }, m_Addr{ addr }
+{
+}
+
+AotCompiler::DestructorCleanup::~DestructorCleanup()
+{
+}
+
+void AotCompiler::DestructorCleanup::Emit(AotStmtVisitor& visitor)
+{
+	// TODO
+}
+
+AotCompiler::ArrayCleanup::ArrayCleanup(natRefPointer<Type::ArrayType> type, llvm::Value* addr, CleanupFunction* cleanupFunction)
+	: m_Type{ std::move(type) }, m_Addr{ addr }, m_CleanupFunction{ cleanupFunction }
+{
+	assert(!m_Type->GetElementType().Cast<Type::ArrayType>() && "type should be flattened.");
+}
+
+AotCompiler::ArrayCleanup::~ArrayCleanup()
+{
+}
+
+void AotCompiler::ArrayCleanup::Emit(AotStmtVisitor& visitor)
+{
+	// 0 大小的数组不需要做任何操作
+	if (!m_Type->GetSize())
+	{
+		return;
+	}
+
+	auto& compiler = visitor.GetCompiler();
+	const auto begin = m_Addr;
+	const auto end = compiler.m_IRBuilder.CreateInBoundsGEP(begin, llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(compiler.m_LLVMContext), m_Type->GetSize()));
+
+	const auto bodyBlock = llvm::BasicBlock::Create(compiler.m_LLVMContext, "arraycleanup.body");
+	const auto endBlock = llvm::BasicBlock::Create(compiler.m_LLVMContext, "arraycleanup.end");
+
+	const auto entryBlock = compiler.m_IRBuilder.GetInsertBlock();
+	visitor.EmitBlock(bodyBlock);
+	const auto currentElement = llvm::PHINode::Create(begin->getType(), 2, "arraycleanup.currentElement");
+	currentElement->addIncoming(end, entryBlock);
+
+	const auto incValue = llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(compiler.m_LLVMContext), -1);
+	const auto element = compiler.m_IRBuilder.CreateInBoundsGEP(currentElement, incValue, "arraycleanup.element");
+
+	m_CleanupFunction(visitor, element);
+
+	const auto done = compiler.m_IRBuilder.CreateICmpEQ(element, begin, "arraycleanup.done");
+	compiler.m_IRBuilder.CreateCondBr(done, endBlock, bodyBlock);
+	currentElement->addIncoming(element, compiler.m_IRBuilder.GetInsertBlock());
+
+	visitor.EmitBlock(endBlock);
 }
 
 llvm::GlobalVariable* AotCompiler::getStringLiteralValue(nStrView literalContent, nStrView literalName)
@@ -1885,4 +1967,15 @@ llvm::Type* AotCompiler::buildClassType(natRefPointer<Declaration::ClassDecl> co
 
 	const auto structType = llvm::StructType::create(m_LLVMContext, fieldTypes, llvm::StringRef{ className.data(), className.size() });
 	return structType;
+}
+
+natRefPointer<Type::ArrayType> AotCompiler::flattenArray(natRefPointer<Type::ArrayType> arrayType)
+{
+	// 也可能是本来元素类型就是 nullptr，这里不考虑这个情况，但是这是可能的错误点
+	while (const auto elemArrayType = arrayType->GetElementType().Cast<Type::ArrayType>())
+	{
+		arrayType = m_AstContext.GetArrayType(elemArrayType->GetElementType(), arrayType->GetSize() * elemArrayType->GetSize());
+	}
+
+	return arrayType;
 }

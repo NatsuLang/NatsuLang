@@ -143,7 +143,7 @@ Linq<Valued<natRefPointer<MethodDecl>>> ClassDecl::GetMethods() const noexcept
 Linq<Valued<natRefPointer<ClassDecl>>> ClassDecl::GetBases() const noexcept
 {
 	// TODO
-	std::terminate();
+	return from_empty<natRefPointer<ClassDecl>>();
 }
 
 ImportDecl::~ImportDecl()

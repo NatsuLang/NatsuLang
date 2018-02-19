@@ -1649,11 +1649,11 @@ Expression::ExprPtr Sema::ActOnConditionalOp(SourceLocation questionLoc, SourceL
 {
 	const auto leftType = leftExpr->GetExprType(), rightType = rightExpr->GetExprType(), commonType = getCommonType(
 				   leftType, rightType);
+	const auto leftCastType = getCastType(leftExpr, commonType), rightCastType = getCastType(rightExpr, commonType);
+
 	return make_ref<Expression::ConditionalOperator>(std::move(condExpr), questionLoc,
-													 ImpCastExprToType(leftExpr, commonType,
-																	   getCastType(leftExpr, commonType)), colonLoc,
-													 ImpCastExprToType(rightExpr, commonType,
-																	   getCastType(rightExpr, commonType)), commonType);
+													 ImpCastExprToType(std::move(leftExpr), commonType, leftCastType), colonLoc,
+													 ImpCastExprToType(std::move(rightExpr), commonType, rightCastType), commonType);
 }
 
 Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id,
