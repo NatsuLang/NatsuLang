@@ -80,51 +80,69 @@ namespace NatsuLang::Compiler
 
 		class AotStmtVisitor;
 
-		struct ICleanup
-			: NatsuLib::natRefObj
-		{
-			virtual ~ICleanup();
-
-			virtual void Emit(AotStmtVisitor& visitor) = 0;
-		};
-
-		class DestructorCleanup
-			: public NatsuLib::natRefObjImpl<DestructorCleanup, ICleanup>
-		{
-		public:
-			DestructorCleanup(AotStmtVisitor& visitor, NatsuLib::natRefPointer<Declaration::DestructorDecl> destructor, llvm::Value* addr);
-			~DestructorCleanup();
-
-			void Emit(AotStmtVisitor& visitor) override;
-
-		private:
-			AotStmtVisitor& m_Visitor;
-			NatsuLib::natRefPointer<Declaration::DestructorDecl> m_Destructor;
-			llvm::Value* m_Addr;
-		};
-
-		class ArrayCleanup
-			: public NatsuLib::natRefObjImpl<ArrayCleanup, ICleanup>
-		{
-		public:
-			// 为了效率，此处直接使用函数指针而不是 std::function 或类似物
-			using CleanupFunction = void(AotStmtVisitor&, llvm::Value* addr);
-
-			ArrayCleanup(NatsuLib::natRefPointer<Type::ArrayType> type, llvm::Value* addr, CleanupFunction* cleanupFunction);
-			~ArrayCleanup();
-
-			void Emit(AotStmtVisitor& visitor) override;
-
-		private:
-			NatsuLib::natRefPointer<Type::ArrayType> m_Type;
-			llvm::Value* m_Addr;
-			CleanupFunction* m_CleanupFunction;
-		};
-
 		// TODO: 无法处理顶层声明中的初始化器等
 		class AotStmtVisitor final
 			: public NatsuLib::natRefObjImpl<AotStmtVisitor, StmtVisitor>
 		{
+			struct ICleanup
+				: NatsuLib::natRefObj
+			{
+				virtual ~ICleanup();
+
+				virtual void Emit(AotStmtVisitor& visitor) = 0;
+			};
+
+			class DestructorCleanup
+				: public NatsuLib::natRefObjImpl<DestructorCleanup, ICleanup>
+			{
+			public:
+				DestructorCleanup(NatsuLib::natRefPointer<Declaration::DestructorDecl> destructor, llvm::Value* addr);
+				~DestructorCleanup();
+
+				void Emit(AotStmtVisitor& visitor) override;
+
+			private:
+				NatsuLib::natRefPointer<Declaration::DestructorDecl> m_Destructor;
+				llvm::Value* m_Addr;
+			};
+
+			class ArrayCleanup
+				: public NatsuLib::natRefObjImpl<ArrayCleanup, ICleanup>
+			{
+			public:
+				using CleanupFunction = std::function<void(AotStmtVisitor&, llvm::Value*)>;
+
+				ArrayCleanup(NatsuLib::natRefPointer<Type::ArrayType> type, llvm::Value* addr, CleanupFunction cleanupFunction);
+				~ArrayCleanup();
+
+				void Emit(AotStmtVisitor& visitor) override;
+
+			private:
+				NatsuLib::natRefPointer<Type::ArrayType> m_Type;
+				llvm::Value* m_Addr;
+				CleanupFunction m_CleanupFunction;
+			};
+
+			class LexicalScope
+			{
+			public:
+				LexicalScope(AotStmtVisitor& visitor, SourceRange range);
+				~LexicalScope();
+
+				SourceRange GetRange() const noexcept;
+
+				void AddLabel(NatsuLib::natRefPointer<Declaration::LabelDecl> label);
+
+				void ExplicitClean();
+
+			private:
+				nBool m_AlreadyCleaned;
+				std::list<NatsuLib::natRefPointer<ICleanup>>::const_iterator m_BeginIterator;
+				AotStmtVisitor& m_Visitor;
+				SourceRange m_Range;
+				LexicalScope* m_Parent;
+				std::vector<NatsuLib::natRefPointer<Declaration::LabelDecl>> m_Labels;
+			};
 		public:
 			AotStmtVisitor(AotCompiler& compiler, NatsuLib::natRefPointer<Declaration::FunctionDecl> funcDecl, llvm::Function* funcValue);
 			~AotStmtVisitor();
@@ -187,6 +205,9 @@ namespace NatsuLang::Compiler
 			// TODO: 考虑将 Emit 函数移出 AotStmtVisitor
 			void EmitAddressOfVar(NatsuLib::natRefPointer<Declaration::VarDecl> const& varDecl);
 
+			void EmitCompoundStmt(NatsuLib::natRefPointer<Statement::CompoundStmt> const& compoundStmt);
+			void EmitCompoundStmtWithoutScope(NatsuLib::natRefPointer<Statement::CompoundStmt> const& compoundStmt);
+
 			void EmitBranch(llvm::BasicBlock* target);
 			void EmitBlock(llvm::BasicBlock* block, nBool finished = false);
 
@@ -196,6 +217,8 @@ namespace NatsuLang::Compiler
 				NatsuLib::natRefPointer<Type::BuiltinType> const& resultType);
 
 			llvm::Value* EmitIncDec(llvm::Value* operand, NatsuLib::natRefPointer<Type::BuiltinType> const& opType, nBool isInc, nBool isPre);
+
+			llvm::Value* EmitFunctionAddr(NatsuLib::natRefPointer<Declaration::FunctionDecl> const& func);
 
 			void EmitVarDecl(NatsuLib::natRefPointer<Declaration::VarDecl> const& decl);
 
@@ -207,6 +230,8 @@ namespace NatsuLang::Compiler
 			void EmitExternVarDecl(NatsuLib::natRefPointer<Declaration::VarDecl> const& decl);
 
 			void EmitStaticVarDecl(NatsuLib::natRefPointer<Declaration::VarDecl> const& decl);
+
+			void EmitDestructorCall(NatsuLib::natRefPointer<Declaration::DestructorDecl> const& destructor, llvm::Value* addr);
 
 			void EvaluateValue(Expression::ExprPtr const& expr);
 			void EvaluateAsModifiableValue(Expression::ExprPtr const& expr);
@@ -224,7 +249,8 @@ namespace NatsuLang::Compiler
 			llvm::Value* m_LastVisitedValue;
 			nBool m_RequiredModifiableValue;
 			std::vector<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> m_BreakContinueStack;
-			std::vector<NatsuLib::natRefPointer<ICleanup>> m_CleanupStack;
+			std::list<NatsuLib::natRefPointer<ICleanup>> m_CleanupStack;
+			LexicalScope* m_CurrentLexicalScope;
 		};
 
 	public:
@@ -269,5 +295,6 @@ namespace NatsuLang::Compiler
 		llvm::Type* buildClassType(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
 
 		NatsuLib::natRefPointer<Type::ArrayType> flattenArray(NatsuLib::natRefPointer<Type::ArrayType> arrayType);
+		static NatsuLib::natRefPointer<Declaration::DestructorDecl> findDestructor(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
 	};
 }

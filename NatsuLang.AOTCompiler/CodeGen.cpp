@@ -256,7 +256,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 
 AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer<Declaration::FunctionDecl> funcDecl, llvm::Function* funcValue)
 	: m_Compiler{ compiler }, m_CurrentFunction{ std::move(funcDecl) }, m_CurrentFunctionValue{ funcValue },
-	  m_This{}, m_LastVisitedValue{ nullptr }, m_RequiredModifiableValue{ false }
+	  m_This{}, m_LastVisitedValue{ nullptr }, m_RequiredModifiableValue{ false }, m_CurrentLexicalScope{ nullptr }
 {
 	auto argIter = m_CurrentFunctionValue->arg_begin();
 	const auto argEnd = m_CurrentFunctionValue->arg_end();
@@ -273,7 +273,9 @@ AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer
 
 	for (; argIter != argEnd && paramIter != paramEnd; ++argIter, static_cast<void>(++paramIter))
 	{
-		llvm::IRBuilder<> entryIRBuilder{ &m_CurrentFunctionValue->getEntryBlock(), m_CurrentFunctionValue->getEntryBlock().begin() };
+		llvm::IRBuilder<> entryIRBuilder{
+			&m_CurrentFunctionValue->getEntryBlock(), m_CurrentFunctionValue->getEntryBlock().begin()
+		};
 		const auto arg = entryIRBuilder.CreateAlloca(argIter->getType(), nullptr, argIter->getName());
 		m_Compiler.m_IRBuilder.CreateStore(&*argIter, arg);
 
@@ -313,10 +315,7 @@ void AotCompiler::AotStmtVisitor::VisitTryStmt(natRefPointer<Statement::TryStmt>
 
 void AotCompiler::AotStmtVisitor::VisitCompoundStmt(natRefPointer<Statement::CompoundStmt> const& stmt)
 {
-	for (auto&& item : stmt->GetChildrens())
-	{
-		Visit(item);
-	}
+	EmitCompoundStmt(stmt);
 }
 
 void AotCompiler::AotStmtVisitor::VisitContinueStmt(natRefPointer<Statement::ContinueStmt> const& stmt)
@@ -669,19 +668,7 @@ void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::Dec
 	{
 		if (const auto funcDecl = varDecl.Cast<Declaration::FunctionDecl>())
 		{
-			if (!m_RequiredModifiableValue)
-			{
-				const auto funcIter = m_Compiler.m_FunctionMap.find(decl);
-				if (funcIter != m_Compiler.m_FunctionMap.end())
-				{
-					m_LastVisitedValue = funcIter->second;
-					return;
-				}
-			}
-			else
-			{
-				nat_Throw(AotCompilerException, u8"无法修改函数地址"_nv);
-			}
+			EmitFunctionAddr(funcDecl);
 		}
 		else
 		{
@@ -690,8 +677,9 @@ void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::Dec
 			{
 				m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateLoad(m_LastVisitedValue, "var");
 			}
-			return;
 		}
+
+		return;
 	}
 
 	nat_Throw(AotCompilerException, u8"定义引用表达式引用了不存在或不合法的定义"_nv);
@@ -855,46 +843,50 @@ void AotCompiler::AotStmtVisitor::VisitForStmt(natRefPointer<Statement::ForStmt>
 {
 	const auto forEnd = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.end");
 
-	if (const auto init = stmt->GetInit())
 	{
-		Visit(init);
+		LexicalScope forScope{ *this,{ stmt->GetStartLoc(), stmt->GetEndLoc() } };
+
+		if (const auto init = stmt->GetInit())
+		{
+			Visit(init);
+		}
+
+		const auto forContinue = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.cond");
+		auto forInc = forContinue;
+		EmitBlock(forContinue);
+
+		const auto inc = stmt->GetInc();
+		if (inc)
+		{
+			forInc = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.inc");
+		}
+
+		m_BreakContinueStack.emplace_back(forEnd, forInc);
+
+		if (const auto cond = stmt->GetCond())
+		{
+			const auto forBody = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.body");
+
+			EvaluateAsBool(cond);
+			const auto condValue = m_LastVisitedValue;
+
+			m_Compiler.m_IRBuilder.CreateCondBr(condValue, forBody, forEnd);
+
+			EmitBlock(forBody);
+		}
+
+		Visit(stmt->GetBody());
+
+		m_BreakContinueStack.pop_back();
+
+		if (inc)
+		{
+			EmitBlock(forInc);
+			Visit(inc);
+		}
+
+		EmitBranch(forContinue);
 	}
-
-	const auto forContinue = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.cond");
-	auto forInc = forContinue;
-	EmitBlock(forContinue);
-
-	const auto inc = stmt->GetInc();
-	if (inc)
-	{
-		forInc = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.inc");
-	}
-
-	m_BreakContinueStack.emplace_back(forEnd, forInc);
-
-	if (const auto cond = stmt->GetCond())
-	{
-		const auto forBody = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.body");
-
-		EvaluateAsBool(cond);
-		const auto condValue = m_LastVisitedValue;
-
-		m_Compiler.m_IRBuilder.CreateCondBr(condValue, forBody, forEnd);
-
-		EmitBlock(forBody);
-	}
-
-	Visit(stmt->GetBody());
-
-	m_BreakContinueStack.pop_back();
-
-	if (inc)
-	{
-		EmitBlock(forInc);
-		Visit(inc);
-	}
-
-	EmitBranch(forContinue);
 
 	EmitBlock(forEnd);
 }
@@ -1020,7 +1012,17 @@ void AotCompiler::AotStmtVisitor::VisitStmt(natRefPointer<Statement::Stmt> const
 
 void AotCompiler::AotStmtVisitor::StartVisit()
 {
-	Visit(m_CurrentFunction->GetBody());
+	const auto body = m_CurrentFunction->GetBody();
+	assert(body);
+
+	if (const auto compoundStmt = body.Cast<Statement::CompoundStmt>())
+	{
+		EmitCompoundStmtWithoutScope(compoundStmt);
+	}
+	else
+	{
+		Visit(body);
+	}
 
 	// TODO: 改为前端实现
 	if (m_CurrentFunction->GetValueType().Cast<Type::FunctionType>()->GetResultType()->IsVoid() && !m_Compiler.m_IRBuilder.GetInsertBlock()->getTerminator())
@@ -1056,6 +1058,21 @@ void AotCompiler::AotStmtVisitor::EmitAddressOfVar(NatsuLib::natRefPointer<Decla
 	if (nonLocalDeclIter != m_Compiler.m_GlobalVariableMap.end())
 	{
 		m_LastVisitedValue = nonLocalDeclIter->second;
+	}
+}
+
+void AotCompiler::AotStmtVisitor::EmitCompoundStmt(NatsuLib::natRefPointer<Statement::CompoundStmt> const& compoundStmt)
+{
+	LexicalScope scope{ *this, { compoundStmt->GetStartLoc(), compoundStmt->GetEndLoc() } };
+
+	EmitCompoundStmtWithoutScope(compoundStmt);
+}
+
+void AotCompiler::AotStmtVisitor::EmitCompoundStmtWithoutScope(natRefPointer<Statement::CompoundStmt> const& compoundStmt)
+{
+	for (auto&& item : compoundStmt->GetChildrens())
+	{
+		Visit(item);
 	}
 }
 
@@ -1292,6 +1309,25 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitIncDec(llvm::Value* operand, natRe
 	return isPre ? operand : value;
 }
 
+llvm::Value* AotCompiler::AotStmtVisitor::EmitFunctionAddr(natRefPointer<Declaration::FunctionDecl> const& func)
+{
+	assert(func);
+
+	if (!m_RequiredModifiableValue)
+	{
+		const auto funcIter = m_Compiler.m_FunctionMap.find(func);
+		if (funcIter != m_Compiler.m_FunctionMap.end())
+		{
+			m_LastVisitedValue = funcIter->second;
+			return m_LastVisitedValue;
+		}
+
+		nat_Throw(AotCompilerException, u8"无法找到这个函数"_nv);
+	}
+
+	nat_Throw(AotCompilerException, u8"无法修改函数地址"_nv);
+}
+
 void AotCompiler::AotStmtVisitor::EmitVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
 {
 	switch (decl->GetStorageClass())
@@ -1454,24 +1490,33 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarCleanup(Type::TypePtr const& varTyp
 {
 	if (const auto arrayType = varType.Cast<Type::ArrayType>())
 	{
-		// TODO: 显然这里可以直接作为不同的对象推入清理栈，但是太脏，尝试别的方案
+		auto flattenArrayType = m_Compiler.flattenArray(arrayType);
+
+		ArrayCleanup::CleanupFunction func;
+		if (const auto classType = flattenArrayType->GetElementType().Cast<Type::ClassType>())
+		{
+			if (const auto classDecl = classType->GetDecl().UnsafeCast<Declaration::ClassDecl>())
+			{
+				if (auto destructor = findDestructor(classDecl))
+				{
+					func = [destructor = std::move(destructor)](AotStmtVisitor& visitor, llvm::Value* addr)
+					{
+						visitor.EmitDestructorCall(destructor, addr);
+					};
+				}
+			}
+		}
+
+		m_CleanupStack.emplace_front(make_ref<ArrayCleanup>(std::move(flattenArrayType), varPtr, std::move(func)));
 	}
 	else if (const auto classType = varType.Cast<Type::ClassType>())
 	{
 		const auto classDecl = classType->GetDecl().UnsafeCast<Declaration::ClassDecl>();
 		assert(classDecl);
 
-		auto destructor = classDecl->GetMethods().select([](natRefPointer<Declaration::MethodDecl> const& method)
+		if (auto destructor = findDestructor(classDecl))
 		{
-			return method.Cast<Declaration::DestructorDecl>();
-		}).where([](natRefPointer<Declaration::DestructorDecl> const& method) -> nBool
-		{
-			return method;
-		}).first_or_default(nullptr);
-
-		if (destructor)
-		{
-			m_CleanupStack.emplace_back(make_ref<DestructorCleanup>(std::move(destructor), varPtr));
+			m_CleanupStack.emplace_front(make_ref<DestructorCleanup>(std::move(destructor), varPtr));
 		}
 	}
 }
@@ -1484,6 +1529,13 @@ void AotCompiler::AotStmtVisitor::EmitExternVarDecl(natRefPointer<Declaration::V
 void AotCompiler::AotStmtVisitor::EmitStaticVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
 {
 	// TODO
+}
+
+void AotCompiler::AotStmtVisitor::EmitDestructorCall(natRefPointer<Declaration::DestructorDecl> const& destructor, llvm::Value* addr)
+{
+	EmitFunctionAddr(destructor);
+	const auto func = llvm::dyn_cast<llvm::Function>(m_LastVisitedValue);
+	m_Compiler.m_IRBuilder.CreateCall(func, addr);
 }
 
 void AotCompiler::AotStmtVisitor::EvaluateValue(Expression::ExprPtr const& expr)
@@ -1688,38 +1740,38 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	m_Module.reset();
 }
 
-AotCompiler::ICleanup::~ICleanup()
+AotCompiler::AotStmtVisitor::ICleanup::~ICleanup()
 {
 }
 
-AotCompiler::DestructorCleanup::DestructorCleanup(AotStmtVisitor& visitor, natRefPointer<Declaration::DestructorDecl> destructor, llvm::Value* addr)
-	: m_Visitor{ visitor }, m_Destructor{ std::move(destructor) }, m_Addr{ addr }
+AotCompiler::AotStmtVisitor::DestructorCleanup::DestructorCleanup(natRefPointer<Declaration::DestructorDecl> destructor, llvm::Value* addr)
+	: m_Destructor{ std::move(destructor) }, m_Addr{ addr }
 {
 }
 
-AotCompiler::DestructorCleanup::~DestructorCleanup()
+AotCompiler::AotStmtVisitor::DestructorCleanup::~DestructorCleanup()
 {
 }
 
-void AotCompiler::DestructorCleanup::Emit(AotStmtVisitor& visitor)
+void AotCompiler::AotStmtVisitor::DestructorCleanup::Emit(AotStmtVisitor& visitor)
 {
-	// TODO
+	visitor.EmitDestructorCall(m_Destructor, m_Addr);
 }
 
-AotCompiler::ArrayCleanup::ArrayCleanup(natRefPointer<Type::ArrayType> type, llvm::Value* addr, CleanupFunction* cleanupFunction)
-	: m_Type{ std::move(type) }, m_Addr{ addr }, m_CleanupFunction{ cleanupFunction }
+AotCompiler::AotStmtVisitor::ArrayCleanup::ArrayCleanup(natRefPointer<Type::ArrayType> type, llvm::Value* addr, CleanupFunction cleanupFunction)
+	: m_Type{ std::move(type) }, m_Addr{ addr }, m_CleanupFunction{ std::move(cleanupFunction) }
 {
 	assert(!m_Type->GetElementType().Cast<Type::ArrayType>() && "type should be flattened.");
 }
 
-AotCompiler::ArrayCleanup::~ArrayCleanup()
+AotCompiler::AotStmtVisitor::ArrayCleanup::~ArrayCleanup()
 {
 }
 
-void AotCompiler::ArrayCleanup::Emit(AotStmtVisitor& visitor)
+void AotCompiler::AotStmtVisitor::ArrayCleanup::Emit(AotStmtVisitor& visitor)
 {
 	// 0 大小的数组不需要做任何操作
-	if (!m_Type->GetSize())
+	if (!m_Type->GetSize() || !m_CleanupFunction)
 	{
 		return;
 	}
@@ -1746,6 +1798,46 @@ void AotCompiler::ArrayCleanup::Emit(AotStmtVisitor& visitor)
 	currentElement->addIncoming(element, compiler.m_IRBuilder.GetInsertBlock());
 
 	visitor.EmitBlock(endBlock);
+}
+
+AotCompiler::AotStmtVisitor::LexicalScope::LexicalScope(AotStmtVisitor& visitor, SourceRange range)
+	: m_AlreadyCleaned{ false }, m_BeginIterator{ visitor.m_CleanupStack.begin() }, m_Visitor{ visitor }, m_Range{ range }, m_Parent{ visitor.m_CurrentLexicalScope }
+{
+	visitor.m_CurrentLexicalScope = this;
+}
+
+AotCompiler::AotStmtVisitor::LexicalScope::~LexicalScope()
+{
+	if (!m_AlreadyCleaned)
+	{
+		ExplicitClean();
+	}
+}
+
+SourceRange AotCompiler::AotStmtVisitor::LexicalScope::GetRange() const noexcept
+{
+	return m_Range;
+}
+
+void AotCompiler::AotStmtVisitor::LexicalScope::AddLabel(natRefPointer<Declaration::LabelDecl> label)
+{
+	assert(!m_AlreadyCleaned);
+	m_Labels.emplace_back(std::move(label));
+}
+
+void AotCompiler::AotStmtVisitor::LexicalScope::ExplicitClean()
+{
+	assert(!m_AlreadyCleaned);
+	m_Visitor.m_CurrentLexicalScope = m_Parent;
+
+	for (auto iter = m_Visitor.m_CleanupStack.begin(); iter != m_BeginIterator;)
+	{
+		assert(!m_Visitor.m_CleanupStack.empty());
+		(*iter)->Emit(m_Visitor);
+		iter = m_Visitor.m_CleanupStack.erase(iter);
+	}
+
+	m_AlreadyCleaned = true;
 }
 
 llvm::GlobalVariable* AotCompiler::getStringLiteralValue(nStrView literalContent, nStrView literalName)
@@ -1978,4 +2070,16 @@ natRefPointer<Type::ArrayType> AotCompiler::flattenArray(natRefPointer<Type::Arr
 	}
 
 	return arrayType;
+}
+
+natRefPointer<Declaration::DestructorDecl> AotCompiler::findDestructor(natRefPointer<Declaration::ClassDecl> const& classDecl)
+{
+	assert(classDecl);
+	return classDecl->GetDecls().select([](Declaration::DeclPtr const& decl)
+	{
+		return decl.Cast<Declaration::DestructorDecl>();
+	}).where([](natRefPointer<Declaration::DestructorDecl> const& method) -> nBool
+	{
+		return method;
+	}).first_or_default(nullptr);
 }
