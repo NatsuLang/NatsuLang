@@ -934,6 +934,7 @@ void AotCompiler::AotStmtVisitor::VisitNullStmt(natRefPointer<Statement::NullStm
 {
 }
 
+// TODO: 生成清理代码
 void AotCompiler::AotStmtVisitor::VisitReturnStmt(natRefPointer<Statement::ReturnStmt> const& stmt)
 {
 	if (const auto retExpr = stmt->GetReturnExpr())
@@ -1017,6 +1018,7 @@ void AotCompiler::AotStmtVisitor::StartVisit()
 
 	if (const auto compoundStmt = body.Cast<Statement::CompoundStmt>())
 	{
+		// TODO: 完成清理
 		EmitCompoundStmtWithoutScope(compoundStmt);
 	}
 	else
