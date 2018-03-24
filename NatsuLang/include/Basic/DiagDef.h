@@ -12,6 +12,7 @@ DIAG(ErrExpectedDeclarator, Level::Error, 0)
 DIAG(ErrExpected, Level::Error, 1)
 DIAG(ErrExpectedGot, Level::Error, 2)
 DIAG(ErrExtraneousClosingBrace, Level::Error, 0)
+DIAG(ErrNotAllControlFlowReturnAValue, Level::Error, 0)
 
 DIAG(WarnOverflowed, Level::Warning, 0)
 

@@ -46,7 +46,7 @@ namespace NatsuLang::Statement
 
 		const char* GetTypeName() const noexcept;
 
-		virtual StmtEnumerable GetChildrens();
+		virtual StmtEnumerable GetChildrenStmt();
 
 		virtual SourceLocation GetStartLoc() const noexcept;
 		virtual void SetStartLoc(SourceLocation loc) noexcept;

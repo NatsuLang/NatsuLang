@@ -8,6 +8,7 @@
 #include "AST/Type.h"
 #include "AST/OperationTypes.h"
 #include "CompilerAction.h"
+#include "AST/Statement.h"
 
 namespace NatsuLang
 {
@@ -308,6 +309,8 @@ namespace NatsuLang::Semantic
 		Type::TypePtr UsualArithmeticConversions(Expression::ExprPtr& leftOperand, Expression::ExprPtr& rightOperand);
 
 		Expression::ExprPtr ImpCastExprToType(Expression::ExprPtr expr, Type::TypePtr type, Expression::CastType castType);
+
+		nBool CheckFunctionReturn(Statement::StmtEnumerable const& funcBody);
 
 	private:
 		static constexpr nStrView::CharType ConstructorName[] = ".Ctor";

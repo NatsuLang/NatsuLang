@@ -78,8 +78,6 @@ namespace NatsuLang::Compiler
 			AotCompiler& m_Compiler;
 		};
 
-		class AotStmtVisitor;
-
 		// TODO: 无法处理顶层声明中的初始化器等
 		class AotStmtVisitor final
 			: public NatsuLib::natRefObjImpl<AotStmtVisitor, StmtVisitor>
@@ -123,6 +121,23 @@ namespace NatsuLang::Compiler
 				CleanupFunction m_CleanupFunction;
 			};
 
+			class SpecialCleanup
+				: public NatsuLib::natRefObjImpl<SpecialCleanup, ICleanup>
+			{
+			public:
+				using SpecialCleanupFunction = std::function<void(AotStmtVisitor&)>;
+
+				explicit SpecialCleanup(SpecialCleanupFunction cleanupFunction);
+				~SpecialCleanup();
+
+				void Emit(AotStmtVisitor& visitor) override;
+
+			private:
+				SpecialCleanupFunction m_CleanupFunction;
+			};
+
+			using CleanupIterator = std::list<std::pair<std::size_t, NatsuLib::natRefPointer<ICleanup>>>::const_iterator;
+
 			class LexicalScope
 			{
 			public:
@@ -133,16 +148,43 @@ namespace NatsuLang::Compiler
 
 				void AddLabel(NatsuLib::natRefPointer<Declaration::LabelDecl> label);
 
+				void SetBeginIterator(CleanupIterator const& iter) noexcept;
+
 				void ExplicitClean();
 
 			private:
 				nBool m_AlreadyCleaned;
-				std::list<NatsuLib::natRefPointer<ICleanup>>::const_iterator m_BeginIterator;
+				CleanupIterator m_BeginIterator;
 				AotStmtVisitor& m_Visitor;
 				SourceRange m_Range;
 				LexicalScope* m_Parent;
 				std::vector<NatsuLib::natRefPointer<Declaration::LabelDecl>> m_Labels;
 			};
+
+			// 用于存储清理信息
+			class JumpDest
+			{
+			public:
+				JumpDest(llvm::BasicBlock* block, CleanupIterator cleanupIterator)
+					: m_Block{ block }, m_CleanupIterator{ std::move(cleanupIterator) }
+				{
+				}
+
+				llvm::BasicBlock* GetBlock() const noexcept
+				{
+					return m_Block;
+				}
+
+				CleanupIterator GetCleanupIterator() const noexcept
+				{
+					return m_CleanupIterator;
+				}
+
+			private:
+				llvm::BasicBlock* m_Block;
+				CleanupIterator m_CleanupIterator;
+			};
+
 		public:
 			AotStmtVisitor(AotCompiler& compiler, NatsuLib::natRefPointer<Declaration::FunctionDecl> funcDecl, llvm::Function* funcValue);
 			~AotStmtVisitor();
@@ -200,15 +242,19 @@ namespace NatsuLang::Compiler
 			}
 
 			void StartVisit();
+			void EndVisit();
 			llvm::Function* GetFunction() const;
 
 			// TODO: 考虑将 Emit 函数移出 AotStmtVisitor
+			void EmitFunctionEpilog();
+
 			void EmitAddressOfVar(NatsuLib::natRefPointer<Declaration::VarDecl> const& varDecl);
 
 			void EmitCompoundStmt(NatsuLib::natRefPointer<Statement::CompoundStmt> const& compoundStmt);
 			void EmitCompoundStmtWithoutScope(NatsuLib::natRefPointer<Statement::CompoundStmt> const& compoundStmt);
 
 			void EmitBranch(llvm::BasicBlock* target);
+			void EmitBranchWithCleanup(JumpDest const& target);
 			void EmitBlock(llvm::BasicBlock* block, nBool finished = false);
 
 			llvm::Value* EmitBinOp(llvm::Value* leftOperand, llvm::Value* rightOperand,
@@ -240,6 +286,13 @@ namespace NatsuLang::Compiler
 			llvm::Value* ConvertScalarTo(llvm::Value* from, Type::TypePtr fromType, Type::TypePtr toType);
 			llvm::Value* ConvertScalarToBool(llvm::Value* from, NatsuLib::natRefPointer<Type::BuiltinType> const& fromType);
 
+			CleanupIterator GetCleanupStackTop() const noexcept;
+			nBool IsCleanupStackEmpty() const noexcept;
+			void PushCleanupStack(NatsuLib::natRefPointer<ICleanup> cleanup);
+			void InsertCleanupStack(CleanupIterator const& pos, NatsuLib::natRefPointer<ICleanup> cleanup);
+			void PopCleanupStack(CleanupIterator const& iter);
+			bool CleanupEncloses(CleanupIterator const& a, CleanupIterator const& b) const noexcept;
+
 		private:
 			AotCompiler& m_Compiler;
 			NatsuLib::natRefPointer<Declaration::FunctionDecl> m_CurrentFunction;
@@ -248,9 +301,11 @@ namespace NatsuLang::Compiler
 			std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, llvm::Value*> m_DeclMap;
 			llvm::Value* m_LastVisitedValue;
 			nBool m_RequiredModifiableValue;
-			std::vector<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> m_BreakContinueStack;
-			std::list<NatsuLib::natRefPointer<ICleanup>> m_CleanupStack;
+			std::vector<std::pair<JumpDest, JumpDest>> m_BreakContinueStack;
+			std::list<std::pair<std::size_t, NatsuLib::natRefPointer<ICleanup>>> m_CleanupStack;
 			LexicalScope* m_CurrentLexicalScope;
+			JumpDest m_ReturnBlock;
+			llvm::Value* m_ReturnValue;
 		};
 
 	public:

@@ -688,7 +688,7 @@ Declaration::DeclPtr Parser::ParseFunctionBody(Declaration::DeclPtr decl, ParseS
 
 	const auto loc = m_CurrentToken.GetLocation();
 
-	auto body{ParseCompoundStatement()};
+	auto body{ ParseCompoundStatement() };
 	if (!body)
 	{
 		return ParseDeclError();

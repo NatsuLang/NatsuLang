@@ -65,7 +65,7 @@ def Increase : (arg : int = 1) -> int
 			const auto body = incFunc->GetBody().Cast<Statement::CompoundStmt>();
 			REQUIRE(body);
 
-			auto content{ body->GetChildrens().Cast<std::vector<Statement::StmtPtr>>() };
+			auto content{ body->GetChildrenStmt().Cast<std::vector<Statement::StmtPtr>>() };
 			REQUIRE(!content.empty());
 
 			auto retStmt = content[0].Cast<Statement::ReturnStmt>();

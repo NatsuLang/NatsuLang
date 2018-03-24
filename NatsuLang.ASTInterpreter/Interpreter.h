@@ -248,7 +248,7 @@ namespace NatsuLang
 			{
 			public:
 				explicit InterpreterExprEvaluator(Interpreter& interpreter, ValueVisitor const& visitor)
-					: m_Interpreter{ interpreter }, m_Visitor { visitor },
+					: m_Interpreter{ interpreter }, m_Visitor{ visitor },
 					  m_LastEvaluationSucceed{ false }
 				{
 				}

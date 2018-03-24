@@ -62,7 +62,7 @@ void Interpreter::InterpreterStmtVisitor::VisitTryStmt(natRefPointer<Statement::
 
 void Interpreter::InterpreterStmtVisitor::VisitCompoundStmt(natRefPointer<Statement::CompoundStmt> const& stmt)
 {
-	for (auto&& item : stmt->GetChildrens())
+	for (auto&& item : stmt->GetChildrenStmt())
 	{
 		if (m_Returned)
 		{

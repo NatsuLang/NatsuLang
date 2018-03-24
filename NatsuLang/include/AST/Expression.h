@@ -257,7 +257,7 @@ namespace NatsuLang::Expression
 			m_InnerExpr = std::move(value);
 		}
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -296,7 +296,7 @@ namespace NatsuLang::Expression
 			m_Opcode = value;
 		}
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -356,7 +356,7 @@ namespace NatsuLang::Expression
 			m_Operand.emplace<1>(std::move(value));
 		}
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -395,7 +395,7 @@ namespace NatsuLang::Expression
 			m_RightOperand = std::move(value);
 		}
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -438,7 +438,7 @@ namespace NatsuLang::Expression
 		NatsuLib::Linq<NatsuLib::Valued<ExprPtr>> GetArgs() const noexcept;
 		void SetArgs(NatsuLib::Linq<NatsuLib::Valued<ExprPtr>> const& value);
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -488,7 +488,7 @@ namespace NatsuLang::Expression
 			m_Name = std::move(value);
 		}
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -545,7 +545,7 @@ namespace NatsuLang::Expression
 			m_Operand = std::move(value);
 		}
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -664,7 +664,7 @@ namespace NatsuLang::Expression
 			m_Opcode = value;
 		}
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 		
 		DEFAULT_ACCEPT_DECL;
 
@@ -751,7 +751,7 @@ namespace NatsuLang::Expression
 			SetEndLoc(m_RightOperand->GetEndLoc());
 		}
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -781,7 +781,7 @@ namespace NatsuLang::Expression
 			m_SubStmt = std::move(value);
 		}
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -838,7 +838,7 @@ namespace NatsuLang::Expression
 			SetEndLoc(m_Operand ? m_Operand->GetEndLoc() : GetStartLoc());
 		}
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -872,7 +872,7 @@ namespace NatsuLang::Expression
 		void SetArgs(NatsuLib::Linq<NatsuLib::Valued<ExprPtr>> const& value);
 		void SetArgs(std::vector<ExprPtr> value);
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -895,7 +895,7 @@ namespace NatsuLang::Expression
 		NatsuLib::Linq<NatsuLib::Valued<ExprPtr>> GetArgs() const noexcept;
 		void SetArgs(NatsuLib::Linq<NatsuLib::Valued<ExprPtr>> const& value);
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -924,7 +924,7 @@ namespace NatsuLang::Expression
 			m_Operand = std::move(value);
 		}
 
-		Statement::StmtEnumerable GetChildrens() override;
+		Statement::StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 

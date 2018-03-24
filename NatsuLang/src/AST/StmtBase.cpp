@@ -30,7 +30,7 @@ const char* Stmt::GetTypeName() const noexcept
 	return getStmtTypeName(m_Type);
 }
 
-StmtEnumerable Stmt::GetChildrens()
+StmtEnumerable Stmt::GetChildrenStmt()
 {
 	return NatsuLib::from_empty<StmtPtr>();
 }

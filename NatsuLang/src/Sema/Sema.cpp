@@ -458,6 +458,13 @@ Declaration::DeclPtr Sema::ActOnFinishFunctionBody(Declaration::DeclPtr decl, St
 		return nullptr;
 	}
 
+	const auto funcType = fd->GetValueType().Cast<Type::FunctionType>();
+	assert(funcType);
+	if (!funcType->GetResultType()->IsVoid() && !CheckFunctionReturn(body->GetChildrenStmt()))
+	{
+		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrNotAllControlFlowReturnAValue);
+	}
+
 	fd->SetBody(std::move(body));
 
 	PopDeclContext();
@@ -1083,7 +1090,7 @@ Statement::StmtPtr Sema::ActOnReturnStmt(SourceLocation loc, Expression::ExprPtr
 			return nullptr;
 		}
 
-		const auto retType = funcType->GetResultType();
+		auto retType = funcType->GetResultType();
 		const auto retTypeClass = retType->GetType();
 		if (retTypeClass == Type::Type::Auto)
 		{
@@ -1091,12 +1098,10 @@ Statement::StmtPtr Sema::ActOnReturnStmt(SourceLocation loc, Expression::ExprPtr
 										? returnedExpr->GetExprType()
 										: static_cast<Type::TypePtr>(m_Context.GetBuiltinType(Type::BuiltinType::Void)));
 		}
-		else if (retTypeClass == Type::Type::Builtin &&
-			retType.Cast<Type::BuiltinType>()->GetBuiltinClass() == Type::BuiltinType::Void &&
-			returnedExpr)
+		else if (retTypeClass == Type::Type::Builtin && returnedExpr)
 		{
-			returnedExpr = ImpCastExprToType(std::move(returnedExpr), m_Context.GetBuiltinType(Type::BuiltinType::Void),
-											 Expression::CastType::ToVoid);
+			const auto castType = getCastType(returnedExpr, retType);
+			returnedExpr = ImpCastExprToType(std::move(returnedExpr), std::move(retType), castType);
 		}
 
 		return make_ref<Statement::ReturnStmt>(loc, std::move(returnedExpr));
@@ -1835,9 +1840,8 @@ Type::TypePtr Sema::UsualArithmeticConversions(Expression::ExprPtr& leftOperand,
 {
 	// TODO: 是否需要对左右操作数进行整数提升？
 
-	auto leftType = leftOperand->GetExprType().Cast<Type::BuiltinType>(), rightType = rightOperand
-																					  ->GetExprType().Cast<Type::
-																						  BuiltinType>();
+	auto leftType = leftOperand->GetExprType().Cast<Type::BuiltinType>(),
+		rightType = rightOperand->GetExprType().Cast<Type::BuiltinType>();
 
 	if (leftType == rightType)
 	{
@@ -1870,6 +1874,48 @@ Expression::ExprPtr Sema::ImpCastExprToType(Expression::ExprPtr expr, Type::Type
 	}
 
 	return make_ref<Expression::ImplicitCastExpr>(std::move(type), castType, std::move(expr));
+}
+
+nBool Sema::CheckFunctionReturn(Statement::StmtEnumerable const& funcBody)
+{
+	for (auto&& stmt : funcBody)
+	{
+		if (stmt->GetType() == Statement::Stmt::ReturnStmtClass)
+		{
+			return true;
+		}
+
+		switch (stmt->GetType())
+		{
+		case Statement::Stmt::CatchStmtClass:
+		case Statement::Stmt::TryStmtClass:
+		case Statement::Stmt::CompoundStmtClass:
+		case Statement::Stmt::ContinueStmtClass:
+		case Statement::Stmt::DeclStmtClass:
+		case Statement::Stmt::DoStmtClass:
+		case Statement::Stmt::ForStmtClass:
+		case Statement::Stmt::IfStmtClass:
+		case Statement::Stmt::LabelStmtClass:
+		case Statement::Stmt::CaseStmtClass:
+		case Statement::Stmt::DefaultStmtClass:
+		case Statement::Stmt::SwitchStmtClass:
+		case Statement::Stmt::WhileStmtClass:
+		{
+			const auto childrenStmt = stmt->GetChildrenStmt();
+			if (!childrenStmt.empty() && CheckFunctionReturn(childrenStmt))
+			{
+				return true;
+			}
+			break;
+		}
+		case Statement::Stmt::ReturnStmtClass:
+			return true;
+		default:
+			break;
+		}
+	}
+
+	return false;
 }
 
 void Sema::prewarming()

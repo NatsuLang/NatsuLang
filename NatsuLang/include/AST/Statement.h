@@ -88,7 +88,7 @@ namespace NatsuLang::Statement
 
 		~CompoundStmt();
 
-		StmtEnumerable GetChildrens() override;
+		StmtEnumerable GetChildrenStmt() override;
 		void SetStmts(StmtEnumerable const& stmts);
 
 		DEFAULT_ACCEPT_DECL;
@@ -164,7 +164,7 @@ namespace NatsuLang::Statement
 			m_FirstSwitchCase = std::move(switchCase);
 		}
 
-		StmtEnumerable GetChildrens() override;
+		StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -264,7 +264,7 @@ namespace NatsuLang::Statement
 			SetEndLoc(m_SubStmt->GetEndLoc());
 		}
 
-		StmtEnumerable GetChildrens() override;
+		StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -319,7 +319,7 @@ namespace NatsuLang::Statement
 			SetEndLoc((m_Else ? m_Else : m_Then)->GetEndLoc());
 		}
 
-		StmtEnumerable GetChildrens() override;
+		StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -361,7 +361,7 @@ namespace NatsuLang::Statement
 			SetEndLoc(m_Body->GetEndLoc());
 		}
 
-		StmtEnumerable GetChildrens() override;
+		StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -411,7 +411,7 @@ namespace NatsuLang::Statement
 			m_WhileLoc = loc;
 		}
 
-		StmtEnumerable GetChildrens() override;
+		StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -499,7 +499,7 @@ namespace NatsuLang::Statement
 			m_RParenLoc = loc;
 		}
 
-		StmtEnumerable GetChildrens() override;
+		StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 
@@ -580,7 +580,7 @@ namespace NatsuLang::Statement
 
 		void SetReturnExpr(Expression::ExprPtr value) noexcept;
 
-		StmtEnumerable GetChildrens() override;
+		StmtEnumerable GetChildrenStmt() override;
 
 		DEFAULT_ACCEPT_DECL;
 

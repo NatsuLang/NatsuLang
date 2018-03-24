@@ -34,7 +34,7 @@ CompoundStmt::~CompoundStmt()
 {
 }
 
-StmtEnumerable CompoundStmt::GetChildrens()
+StmtEnumerable CompoundStmt::GetChildrenStmt()
 {
 	return from(m_Stmts);
 }
@@ -52,7 +52,7 @@ SwitchStmt::~SwitchStmt()
 {
 }
 
-StmtEnumerable SwitchStmt::GetChildrens()
+StmtEnumerable SwitchStmt::GetChildrenStmt()
 {
 	return from_values({ static_cast<StmtPtr>(m_Cond), m_Body });
 }
@@ -74,7 +74,7 @@ nStrView LabelStmt::GetName() const noexcept
 	return m_Decl.Lock()->GetIdentifierInfo()->GetName();
 }
 
-StmtEnumerable LabelStmt::GetChildrens()
+StmtEnumerable LabelStmt::GetChildrenStmt()
 {
 	return from_values({ m_SubStmt });
 }
@@ -83,7 +83,7 @@ IfStmt::~IfStmt()
 {
 }
 
-StmtEnumerable IfStmt::GetChildrens()
+StmtEnumerable IfStmt::GetChildrenStmt()
 {
 	return from_values({ static_cast<StmtPtr>(m_Cond), m_Then, m_Else });
 }
@@ -92,7 +92,7 @@ WhileStmt::~WhileStmt()
 {
 }
 
-StmtEnumerable WhileStmt::GetChildrens()
+StmtEnumerable WhileStmt::GetChildrenStmt()
 {
 	return from_values({ static_cast<StmtPtr>(m_Cond), m_Body });
 }
@@ -101,7 +101,7 @@ DoStmt::~DoStmt()
 {
 }
 
-StmtEnumerable DoStmt::GetChildrens()
+StmtEnumerable DoStmt::GetChildrenStmt()
 {
 	return from_values({ m_Body, static_cast<StmtPtr>(m_Cond) });
 }
@@ -110,7 +110,7 @@ ForStmt::~ForStmt()
 {
 }
 
-StmtEnumerable ForStmt::GetChildrens()
+StmtEnumerable ForStmt::GetChildrenStmt()
 {
 	return from_values({ m_Init, static_cast<StmtPtr>(m_Cond),  static_cast<StmtPtr>(m_Inc), m_Body });
 }
@@ -142,14 +142,14 @@ void ReturnStmt::SetReturnExpr(ExprPtr value) noexcept
 	SetEndLoc(m_RetExpr ? m_RetExpr->GetEndLoc() : GetStartLoc());
 }
 
-StmtEnumerable ReturnStmt::GetChildrens()
+StmtEnumerable ReturnStmt::GetChildrenStmt()
 {
 	if (m_RetExpr)
 	{
 		return from_values({ static_cast<StmtPtr>(m_RetExpr) });
 	}
 	
-	return Stmt::GetChildrens();
+	return Stmt::GetChildrenStmt();
 }
 
 TryStmt::~TryStmt()

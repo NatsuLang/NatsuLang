@@ -237,6 +237,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 			{
 				AotStmtVisitor visitor{ m_Compiler, funcDecl, llvm::dyn_cast<llvm::Function>(decl.second) };
 				visitor.StartVisit();
+				visitor.EndVisit();
 				break;
 			}
 			case Specifier::StorageClass::Extern:
@@ -256,7 +257,9 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 
 AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer<Declaration::FunctionDecl> funcDecl, llvm::Function* funcValue)
 	: m_Compiler{ compiler }, m_CurrentFunction{ std::move(funcDecl) }, m_CurrentFunctionValue{ funcValue },
-	  m_This{}, m_LastVisitedValue{ nullptr }, m_RequiredModifiableValue{ false }, m_CurrentLexicalScope{ nullptr }
+	  m_This{}, m_LastVisitedValue{}, m_RequiredModifiableValue{}, m_CurrentLexicalScope{},
+	  m_ReturnBlock{ llvm::BasicBlock::Create(compiler.m_LLVMContext, "Return"), m_CleanupStack.begin() },
+	  m_ReturnValue{}
 {
 	auto argIter = m_CurrentFunctionValue->arg_begin();
 	const auto argEnd = m_CurrentFunctionValue->arg_end();
@@ -281,6 +284,13 @@ AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer
 
 		m_DeclMap.emplace(*paramIter, arg);
 	}
+
+	const auto retType = m_CurrentFunction->GetValueType().UnsafeCast<Type::FunctionType>()->GetResultType();
+	assert(retType);
+	if (!retType->IsVoid())
+	{
+		m_ReturnValue = m_Compiler.m_IRBuilder.CreateAlloca(m_Compiler.getCorrespondingType(retType), nullptr, "ret");
+	}
 }
 
 AotCompiler::AotStmtVisitor::~AotStmtVisitor()
@@ -296,11 +306,9 @@ void AotCompiler::AotStmtVisitor::VisitBreakStmt(natRefPointer<Statement::BreakS
 {
 	assert(!m_BreakContinueStack.empty() && "break not in a breakable scope");
 
-	// TODO: 执行清理
-
 	const auto dest = m_BreakContinueStack.back().first;
-	assert(dest);
-	m_Compiler.m_IRBuilder.CreateBr(dest);
+	assert(dest.GetBlock());
+	EmitBranchWithCleanup(dest);
 }
 
 void AotCompiler::AotStmtVisitor::VisitCatchStmt(natRefPointer<Statement::CatchStmt> const& stmt)
@@ -322,11 +330,9 @@ void AotCompiler::AotStmtVisitor::VisitContinueStmt(natRefPointer<Statement::Con
 {
 	assert(!m_BreakContinueStack.empty() && "continue not in a continuable scope");
 
-	// TODO: 执行清理
-
 	const auto dest = m_BreakContinueStack.back().second;
-	assert(dest);
-	m_Compiler.m_IRBuilder.CreateBr(dest);
+	assert(dest.GetBlock());
+	EmitBranchWithCleanup(dest);
 }
 
 void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStmt> const& stmt)
@@ -356,7 +362,7 @@ void AotCompiler::AotStmtVisitor::VisitDoStmt(natRefPointer<Statement::DoStmt> c
 	const auto loopEnd = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "do.end");
 	const auto loopCond = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "do.cond");
 
-	m_BreakContinueStack.emplace_back(loopEnd, loopCond);
+	m_BreakContinueStack.emplace_back(JumpDest{ loopEnd, GetCleanupStackTop() }, JumpDest{ loopCond, GetCleanupStackTop() });
 
 	const auto loopBody = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "do.body");
 	EmitBlock(loopBody);
@@ -844,7 +850,7 @@ void AotCompiler::AotStmtVisitor::VisitForStmt(natRefPointer<Statement::ForStmt>
 	const auto forEnd = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.end");
 
 	{
-		LexicalScope forScope{ *this,{ stmt->GetStartLoc(), stmt->GetEndLoc() } };
+		LexicalScope forScope{ *this, { stmt->GetStartLoc(), stmt->GetEndLoc() } };
 
 		if (const auto init = stmt->GetInit())
 		{
@@ -861,7 +867,7 @@ void AotCompiler::AotStmtVisitor::VisitForStmt(natRefPointer<Statement::ForStmt>
 			forInc = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.inc");
 		}
 
-		m_BreakContinueStack.emplace_back(forEnd, forInc);
+		m_BreakContinueStack.emplace_back(JumpDest{ forEnd, GetCleanupStackTop() }, JumpDest{ forInc, GetCleanupStackTop() });
 
 		if (const auto cond = stmt->GetCond())
 		{
@@ -911,13 +917,19 @@ void AotCompiler::AotStmtVisitor::VisitIfStmt(natRefPointer<Statement::IfStmt> c
 	m_Compiler.m_IRBuilder.CreateCondBr(condExpr, trueBranch, falseBranch);
 
 	EmitBlock(trueBranch);
-	Visit(thenStmt);
+	{
+		LexicalScope scope{ *this, { stmt->GetStartLoc(), stmt->GetEndLoc() } };
+		Visit(thenStmt);
+	}
 	EmitBranch(endBranch);
 
 	if (elseStmt)
 	{
 		EmitBlock(falseBranch);
-		Visit(elseStmt);
+		{
+			LexicalScope scope{ *this, { stmt->GetStartLoc(), stmt->GetEndLoc() } };
+			Visit(elseStmt);
+		}
 		EmitBranch(endBranch);
 	}
 
@@ -940,12 +952,10 @@ void AotCompiler::AotStmtVisitor::VisitReturnStmt(natRefPointer<Statement::Retur
 	if (const auto retExpr = stmt->GetReturnExpr())
 	{
 		Visit(retExpr);
-		m_Compiler.m_IRBuilder.CreateRet(m_LastVisitedValue);
+		m_Compiler.m_IRBuilder.CreateStore(m_LastVisitedValue, m_ReturnValue);
 	}
-	else
-	{
-		m_Compiler.m_IRBuilder.CreateRetVoid();
-	}
+
+	EmitBranchWithCleanup(m_ReturnBlock);
 }
 
 void AotCompiler::AotStmtVisitor::VisitSwitchCase(natRefPointer<Statement::SwitchCase> const& stmt)
@@ -975,7 +985,7 @@ void AotCompiler::AotStmtVisitor::VisitWhileStmt(natRefPointer<Statement::WhileS
 
 	const auto loopEnd = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "while.end");
 
-	m_BreakContinueStack.emplace_back(loopEnd, loopHead);
+	m_BreakContinueStack.emplace_back(JumpDest{ loopEnd, GetCleanupStackTop() }, JumpDest{ loopHead, GetCleanupStackTop() });
 
 	EvaluateAsBool(stmt->GetCond());
 	const auto cond = m_LastVisitedValue;
@@ -1025,12 +1035,13 @@ void AotCompiler::AotStmtVisitor::StartVisit()
 	{
 		Visit(body);
 	}
+}
 
-	// TODO: 改为前端实现
-	if (m_CurrentFunction->GetValueType().Cast<Type::FunctionType>()->GetResultType()->IsVoid() && !m_Compiler.m_IRBuilder.GetInsertBlock()->getTerminator())
-	{
-		m_Compiler.m_IRBuilder.CreateRetVoid();
-	}
+void AotCompiler::AotStmtVisitor::EndVisit()
+{
+	PopCleanupStack(m_CleanupStack.end());
+	EmitBlock(m_ReturnBlock.GetBlock());
+	EmitFunctionEpilog();
 }
 
 llvm::Function* AotCompiler::AotStmtVisitor::GetFunction() const
@@ -1045,7 +1056,20 @@ llvm::Function* AotCompiler::AotStmtVisitor::GetFunction() const
 	return m_CurrentFunctionValue;
 }
 
-void AotCompiler::AotStmtVisitor::EmitAddressOfVar(NatsuLib::natRefPointer<Declaration::VarDecl> const& varDecl)
+void AotCompiler::AotStmtVisitor::EmitFunctionEpilog()
+{
+	if (!m_ReturnValue)
+	{
+		assert(m_CurrentFunction->GetValueType().Cast<Type::FunctionType>()->GetResultType()->IsVoid());
+		m_Compiler.m_IRBuilder.CreateRetVoid();
+		return;
+	}
+
+	const auto retValue = m_Compiler.m_IRBuilder.CreateLoad(m_ReturnValue, "retValue");
+	m_Compiler.m_IRBuilder.CreateRet(retValue);
+}
+
+void AotCompiler::AotStmtVisitor::EmitAddressOfVar(natRefPointer<Declaration::VarDecl> const& varDecl)
 {
 	assert(varDecl);
 
@@ -1072,7 +1096,7 @@ void AotCompiler::AotStmtVisitor::EmitCompoundStmt(NatsuLib::natRefPointer<State
 
 void AotCompiler::AotStmtVisitor::EmitCompoundStmtWithoutScope(natRefPointer<Statement::CompoundStmt> const& compoundStmt)
 {
-	for (auto&& item : compoundStmt->GetChildrens())
+	for (auto&& item : compoundStmt->GetChildrenStmt())
 	{
 		Visit(item);
 	}
@@ -1088,6 +1112,36 @@ void AotCompiler::AotStmtVisitor::EmitBranch(llvm::BasicBlock* target)
 	}
 
 	m_Compiler.m_IRBuilder.ClearInsertionPoint();
+}
+
+void AotCompiler::AotStmtVisitor::EmitBranchWithCleanup(JumpDest const& target)
+{
+	assert(CleanupEncloses(target.GetCleanupIterator(), GetCleanupStackTop()));
+
+	if (!m_Compiler.m_IRBuilder.GetInsertBlock())
+	{
+		return;
+	}
+
+	const auto cleanupStackTop = GetCleanupStackTop();
+	if (IsCleanupStackEmpty() || CleanupEncloses(cleanupStackTop, target.GetCleanupIterator()))
+	{
+		m_Compiler.m_IRBuilder.CreateBr(target.GetBlock());
+		return;
+	}
+
+	// const auto targetBlock = target.GetBlock();
+	const auto cleanupBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "cleanup");
+	m_Compiler.m_IRBuilder.CreateBr(cleanupBlock);
+	PushCleanupStack(make_ref<SpecialCleanup>([cleanupBlock](AotStmtVisitor& visitor)
+	{
+		visitor.EmitBlock(cleanupBlock);
+	}));
+
+	if (m_CurrentLexicalScope)
+	{
+		m_CurrentLexicalScope->SetBeginIterator(GetCleanupStackTop());
+	}
 }
 
 void AotCompiler::AotStmtVisitor::EmitBlock(llvm::BasicBlock* block, nBool finished)
@@ -1509,7 +1563,7 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarCleanup(Type::TypePtr const& varTyp
 			}
 		}
 
-		m_CleanupStack.emplace_front(make_ref<ArrayCleanup>(std::move(flattenArrayType), varPtr, std::move(func)));
+		PushCleanupStack(make_ref<ArrayCleanup>(std::move(flattenArrayType), varPtr, std::move(func)));
 	}
 	else if (const auto classType = varType.Cast<Type::ClassType>())
 	{
@@ -1518,7 +1572,7 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarCleanup(Type::TypePtr const& varTyp
 
 		if (auto destructor = findDestructor(classDecl))
 		{
-			m_CleanupStack.emplace_front(make_ref<DestructorCleanup>(std::move(destructor), varPtr));
+			PushCleanupStack(make_ref<DestructorCleanup>(std::move(destructor), varPtr));
 		}
 	}
 }
@@ -1526,11 +1580,13 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarCleanup(Type::TypePtr const& varTyp
 void AotCompiler::AotStmtVisitor::EmitExternVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
 {
 	// TODO
+	nat_Throw(NotImplementedException);
 }
 
 void AotCompiler::AotStmtVisitor::EmitStaticVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
 {
 	// TODO
+	nat_Throw(NotImplementedException);
 }
 
 void AotCompiler::AotStmtVisitor::EmitDestructorCall(natRefPointer<Declaration::DestructorDecl> const& destructor, llvm::Value* addr)
@@ -1664,6 +1720,47 @@ llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarToBool(llvm::Value* from,
 
 	assert(fromType->IsIntegerType());
 	return m_Compiler.m_IRBuilder.CreateIsNotNull(from, "inttobool");
+}
+
+AotCompiler::AotStmtVisitor::CleanupIterator AotCompiler::AotStmtVisitor::GetCleanupStackTop() const noexcept
+{
+	return m_CleanupStack.cbegin();
+}
+
+nBool AotCompiler::AotStmtVisitor::IsCleanupStackEmpty() const noexcept
+{
+	return m_CleanupStack.empty();
+}
+
+void AotCompiler::AotStmtVisitor::PushCleanupStack(natRefPointer<ICleanup> cleanup)
+{
+	m_CleanupStack.emplace_front(m_CleanupStack.empty() ? 0 : m_CleanupStack.front().first + 1, std::move(cleanup));
+}
+
+void AotCompiler::AotStmtVisitor::InsertCleanupStack(CleanupIterator const& pos, natRefPointer<ICleanup> cleanup)
+{
+	const auto index = pos == m_CleanupStack.cend() ? 0 : pos->first;
+	m_CleanupStack.emplace(pos, index, std::move(cleanup));
+}
+
+void AotCompiler::AotStmtVisitor::PopCleanupStack(CleanupIterator const& iter)
+{
+	for (auto i = m_CleanupStack.begin(); i != iter;)
+	{
+		assert(!m_CleanupStack.empty());
+		i->second->Emit(*this);
+		i = m_CleanupStack.erase(i);
+	}
+}
+
+bool AotCompiler::AotStmtVisitor::CleanupEncloses(CleanupIterator const& a, CleanupIterator const& b) const noexcept
+{
+	if (a == m_CleanupStack.cend())
+	{
+		return true;
+	}
+
+	return b != m_CleanupStack.cend() && a->first >= b->first;
 }
 
 AotCompiler::AotCompiler(natRefPointer<TextReader<StringType::Utf8>> const& diagIdMapFile, natLog& logger)
@@ -1802,6 +1899,20 @@ void AotCompiler::AotStmtVisitor::ArrayCleanup::Emit(AotStmtVisitor& visitor)
 	visitor.EmitBlock(endBlock);
 }
 
+AotCompiler::AotStmtVisitor::SpecialCleanup::SpecialCleanup(SpecialCleanupFunction cleanupFunction)
+	: m_CleanupFunction{ std::move(cleanupFunction) }
+{
+}
+
+AotCompiler::AotStmtVisitor::SpecialCleanup::~SpecialCleanup()
+{
+}
+
+void AotCompiler::AotStmtVisitor::SpecialCleanup::Emit(AotStmtVisitor& visitor)
+{
+	m_CleanupFunction(visitor);
+}
+
 AotCompiler::AotStmtVisitor::LexicalScope::LexicalScope(AotStmtVisitor& visitor, SourceRange range)
 	: m_AlreadyCleaned{ false }, m_BeginIterator{ visitor.m_CleanupStack.begin() }, m_Visitor{ visitor }, m_Range{ range }, m_Parent{ visitor.m_CurrentLexicalScope }
 {
@@ -1827,17 +1938,21 @@ void AotCompiler::AotStmtVisitor::LexicalScope::AddLabel(natRefPointer<Declarati
 	m_Labels.emplace_back(std::move(label));
 }
 
+void AotCompiler::AotStmtVisitor::LexicalScope::SetBeginIterator(CleanupIterator const& iter) noexcept
+{
+	m_BeginIterator = iter;
+	if (m_Parent && !m_Visitor.CleanupEncloses(m_Parent->m_BeginIterator, m_BeginIterator))
+	{
+		m_Parent->SetBeginIterator(iter);
+	}
+}
+
 void AotCompiler::AotStmtVisitor::LexicalScope::ExplicitClean()
 {
 	assert(!m_AlreadyCleaned);
 	m_Visitor.m_CurrentLexicalScope = m_Parent;
 
-	for (auto iter = m_Visitor.m_CleanupStack.begin(); iter != m_BeginIterator;)
-	{
-		assert(!m_Visitor.m_CleanupStack.empty());
-		(*iter)->Emit(m_Visitor);
-		iter = m_Visitor.m_CleanupStack.erase(iter);
-	}
+	m_Visitor.PopCleanupStack(m_BeginIterator);
 
 	m_AlreadyCleaned = true;
 }
@@ -1930,8 +2045,10 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 	case Type::Type::Pointer:
 	{
 		const auto pointerType = underlyingType.UnsafeCast<Type::PointerType>();
+		const auto pointeeType = pointerType->GetPointeeType();
 		// TODO: 考虑地址空间的问题
-		ret = llvm::PointerType::get(getCorrespondingType(pointerType->GetPointeeType()), 0);
+		// TODO: 考虑禁用 void*
+		ret = llvm::PointerType::get(getCorrespondingType(pointeeType->IsVoid() ? static_cast<Type::TypePtr>(m_AstContext.GetBuiltinType(Type::BuiltinType::Char)) : pointeeType), 0);
 		break;
 	}
 	case Type::Type::Array:
