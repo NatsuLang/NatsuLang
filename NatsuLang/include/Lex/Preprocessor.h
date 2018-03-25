@@ -3,6 +3,7 @@
 #include "Basic/Diagnostic.h"
 #include "Basic/SourceManager.h"
 #include "Lexer.h"
+#include <list>
 
 namespace NatsuLang
 {
