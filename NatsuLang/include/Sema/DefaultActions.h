@@ -99,6 +99,25 @@ namespace NatsuLang
 		static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
 	};
 
+	class ActionTypeOf
+		: public NatsuLib::natRefObjImpl<ActionTypeOf, ICompilerAction>
+	{
+	public:
+		ActionTypeOf();
+		~ActionTypeOf();
+
+		nStrView GetName() const noexcept override;
+
+		NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
+		void StartAction(CompilerActionContext const& context) override;
+		void EndAction(std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
+		void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+
+	private:
+		Type::TypePtr m_Type;
+		static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
+	};
+
 	// 此 Action 不允许用户自己调用，也不会进行注册，它将作为 Arg 系 Action 的返回值传递给 ActionTemplate 等，仅用于传递数据
 	class ActionArgInfo
 		: public NatsuLib::natRefObjImpl<ActionArgInfo, ICompilerAction>

@@ -118,7 +118,7 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 			popCachedTokens();
 		});
 
-		ParseCompilerAction([&decls](natRefPointer<ASTNode> const& astNode)
+		ParseCompilerAction(Declaration::Context::Global, [&decls](natRefPointer<ASTNode> const& astNode)
 		{
 			if (auto decl = static_cast<Declaration::DeclPtr>(astNode))
 			{
@@ -129,6 +129,17 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 			// TODO: 报告错误：编译器动作插入了声明以外的 AST
 			return true;
 		});
+
+		if (m_CurrentToken.Is(TokenType::Semi))
+		{
+			ConsumeToken();
+		}
+		else
+		{
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+				.AddArgument(TokenType::Semi)
+				.AddArgument(m_CurrentToken.GetType());
+		}
 	}
 
 	m_SkippedTopLevelCompilerActions.clear();
@@ -256,7 +267,7 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 // compiler-action-namespace-specifier:
 //	compiler-action-namespace-id '.'
 //	compiler-action-namespace-specifier compiler-action-namespace-id '.'
-void Parser::ParseCompilerAction(std::function<nBool(natRefPointer<ASTNode>)> const& output)
+void Parser::ParseCompilerAction(Declaration::Context context, std::function<nBool(natRefPointer<ASTNode>)> const& output)
 {
 	assert(m_CurrentToken.Is(TokenType::Dollar));
 	ConsumeToken();
@@ -277,24 +288,17 @@ void Parser::ParseCompilerAction(std::function<nBool(natRefPointer<ASTNode>)> co
 	std::size_t argCount = 0;
 	if (m_CurrentToken.Is(TokenType::LeftParen))
 	{
-		argCount = ParseCompilerActionArgumentList(action, argCount);
+		argCount = ParseCompilerActionArgumentList(action, context, argCount);
 	}
 
 	if (!m_CurrentToken.IsAnyOf({ TokenType::Semi, TokenType::LeftBrace }))
 	{
-		argCount += ParseCompilerActionArgument(action, argCount);
+		argCount += ParseCompilerActionArgument(action, context, argCount);
 	}
 
 	if (m_CurrentToken.Is(TokenType::LeftBrace))
 	{
-		ParseCompilerActionArgumentSequence(action, argCount);
-	}
-
-	if (!m_CurrentToken.Is(TokenType::Semi))
-	{
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-			.AddArgument(TokenType::Semi)
-			.AddArgument(m_CurrentToken.GetType());
+		ParseCompilerActionArgumentSequence(action, context, argCount);
 	}
 }
 
@@ -331,7 +335,7 @@ natRefPointer<ICompilerAction> Parser::ParseCompilerActionName()
 	return nullptr;
 }
 
-nBool Parser::ParseCompilerActionArgument(natRefPointer<ICompilerAction> const& action, std::size_t startIndex)
+nBool Parser::ParseCompilerActionArgument(natRefPointer<ICompilerAction> const& action, Declaration::Context context, std::size_t startIndex)
 {
 	const auto requirement = action->GetArgumentRequirement();
 
@@ -379,8 +383,7 @@ nBool Parser::ParseCompilerActionArgument(natRefPointer<ICompilerAction> const& 
 	if (HasFlags(argType, CompilerActionArgumentType::Declaration))
 	{
 		SourceLocation end;
-		// TODO: 修改 Context
-		const auto decl = ParseDeclaration(Declaration::Context::Global, end);
+		const auto decl = ParseDeclaration(context, end);
 		if (!decl.empty())
 		{
 			assert(decl.size() == 1);
@@ -395,7 +398,7 @@ nBool Parser::ParseCompilerActionArgument(natRefPointer<ICompilerAction> const& 
 
 	assert(HasFlags(argType, CompilerActionArgumentType::Statement) &&
 		"argType has only set flag Optional");
-	const auto stmt = ParseStatement();
+	const auto stmt = ParseStatement(context, true);
 	if (stmt)
 	{
 		action->AddArgument(stmt);
@@ -410,7 +413,7 @@ nBool Parser::ParseCompilerActionArgument(natRefPointer<ICompilerAction> const& 
 	return false;
 }
 
-std::size_t Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> const& action, std::size_t startIndex)
+std::size_t Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> const& action, Declaration::Context context, std::size_t startIndex)
 {
 	assert(m_CurrentToken.Is(TokenType::LeftParen));
 	ConsumeParen();
@@ -447,7 +450,7 @@ std::size_t Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerActio
 			ConsumeToken();
 		}
 
-		if (!ParseCompilerActionArgument(action, i))
+		if (!ParseCompilerActionArgument(action, context, i))
 		{
 			// 匹配失败，报告错误
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
@@ -464,7 +467,7 @@ std::size_t Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerActio
 	return i;
 }
 
-std::size_t Parser::ParseCompilerActionArgumentSequence(natRefPointer<ICompilerAction> const& action, std::size_t startIndex)
+std::size_t Parser::ParseCompilerActionArgumentSequence(natRefPointer<ICompilerAction> const& action, Declaration::Context context, std::size_t startIndex)
 {
 	assert(m_CurrentToken.Is(TokenType::LeftBrace));
 	ConsumeBrace();
@@ -488,7 +491,7 @@ std::size_t Parser::ParseCompilerActionArgumentSequence(natRefPointer<ICompilerA
 			break;
 		}
 
-		if (!ParseCompilerActionArgument(action, i))
+		if (!ParseCompilerActionArgument(action, context, i))
 		{
 			// 匹配失败，报告错误
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
@@ -758,7 +761,7 @@ Declaration::DeclPtr Parser::ParseFunctionBody(Declaration::DeclPtr decl, ParseS
 	return m_Sema.ActOnFinishFunctionBody(std::move(decl), std::move(body));
 }
 
-Statement::StmtPtr Parser::ParseStatement(Declaration::Context context)
+Statement::StmtPtr Parser::ParseStatement(Declaration::Context context, nBool mayBeExpr)
 {
 	Statement::StmtPtr result;
 	const auto tokenType = m_CurrentToken.GetType();
@@ -829,7 +832,7 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context)
 	case TokenType::Kw_catch:
 		break;
 	case TokenType::Dollar:
-		ParseCompilerAction([this, &result](natRefPointer<ASTNode> const& node)
+		ParseCompilerAction(context, [this, &result](natRefPointer<ASTNode> const& node)
 		{
 			if (result)
 			{
@@ -851,7 +854,7 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context)
 		return result;
 	case TokenType::Identifier:
 	default:
-		return ParseExprStatement();
+		return ParseExprStatement(mayBeExpr);
 	}
 
 	// TODO
@@ -1156,22 +1159,24 @@ Statement::StmtPtr Parser::ParseReturnStatement()
 	return nullptr;
 }
 
-Statement::StmtPtr Parser::ParseExprStatement()
+Statement::StmtPtr Parser::ParseExprStatement(nBool mayBeExpr)
 {
 	auto expr = ParseExpression();
 
 	if (m_CurrentToken.Is(TokenType::Semi))
 	{
 		ConsumeToken();
-	}
-	else
-	{
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-			  .AddArgument(TokenType::Semi)
-			  .AddArgument(m_CurrentToken.GetType());
+		return m_Sema.ActOnExprStmt(std::move(expr));
 	}
 
-	return m_Sema.ActOnExprStmt(std::move(expr));
+	if (!mayBeExpr)
+	{
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::Semi)
+			.AddArgument(m_CurrentToken.GetType());
+	}
+
+	return expr;
 }
 
 Expression::ExprPtr Parser::ParseExpression()
@@ -1240,7 +1245,8 @@ Expression::ExprPtr Parser::ParseUnaryExpression()
 	case TokenType::Kw_this:
 		return m_Sema.ActOnThis(m_CurrentToken.GetLocation());
 	case TokenType::Dollar:
-		ParseCompilerAction([&result](natRefPointer<ASTNode> const& node)
+		// TODO: 分清 Context
+		ParseCompilerAction(Declaration::Context::Block, [&result](natRefPointer<ASTNode> const& node)
 		{
 			if (result)
 			{
@@ -1764,7 +1770,8 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF, m_CurrentToken.GetLocation());
 		break;
 	case TokenType::Dollar:
-		ParseCompilerAction([&decl](natRefPointer<ASTNode> const& node)
+		// TODO: 分清 Context
+		ParseCompilerAction(Declaration::Context::TypeName, [&decl](natRefPointer<ASTNode> const& node)
 		{
 			if (decl->GetType())
 			{

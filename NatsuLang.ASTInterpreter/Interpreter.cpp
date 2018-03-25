@@ -38,7 +38,7 @@ void Interpreter::Run(nStrView content)
 
 	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(content, m_Preprocessor));
 	m_Parser.ConsumeToken();
-	const auto stmt = m_Parser.ParseStatement();
+	const auto stmt = m_Parser.ParseStatement(Declaration::Context::Block, true);
 	if (!stmt || m_DiagConsumer->IsErrored())
 	{
 		m_DiagConsumer->Reset();

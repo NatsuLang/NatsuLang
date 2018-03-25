@@ -1932,6 +1932,7 @@ void Sema::prewarming()
 	compilerNamespace->RegisterAction(make_ref<ActionDump>());
 	compilerNamespace->RegisterAction(make_ref<ActionDumpIf>());
 	compilerNamespace->RegisterAction(make_ref<ActionIsDefined>());
+	compilerNamespace->RegisterAction(make_ref<ActionTypeOf>());
 }
 
 Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType)

@@ -168,7 +168,7 @@ void ActionDumpIf::AddArgument(natRefPointer<ASTNode> const& arg)
 	}
 }
 
-const natRefPointer<IArgumentRequirement> ActionIsDefined::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Statement }) };
+const natRefPointer<IArgumentRequirement> ActionIsDefined::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier }) };
 
 ActionIsDefined::ActionIsDefined()
 	: m_Sema{ nullptr }
@@ -208,7 +208,7 @@ void ActionIsDefined::EndAction(std::function<nBool(natRefPointer<ASTNode>)> con
 
 void ActionIsDefined::AddArgument(natRefPointer<ASTNode> const& arg)
 {
-	const auto name = arg.Cast<Expression::StringLiteral>();
+	const auto name = arg.Cast<Declaration::UnresolvedDecl>();
 	if (!name)
 	{
 		// TODO: 报告错误
@@ -216,10 +216,54 @@ void ActionIsDefined::AddArgument(natRefPointer<ASTNode> const& arg)
 	}
 
 	Lex::Token dummyToken;
-	Semantic::LookupResult r{ *m_Sema,
-		m_Sema->GetPreprocessor().FindIdentifierInfo(name->GetValue(), dummyToken),
-		SourceLocation{}, Semantic::Sema::LookupNameType::LookupAnyName };
+	Semantic::LookupResult r{ *m_Sema, name->GetIdentifierInfo(), {}, Semantic::Sema::LookupNameType::LookupAnyName };
 	m_Result = m_Sema->LookupName(r, m_Sema->GetCurrentScope()) && r.GetDeclSize();
+}
+
+const natRefPointer<IArgumentRequirement> ActionTypeOf::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Statement }) };
+
+ActionTypeOf::ActionTypeOf()
+{
+}
+
+ActionTypeOf::~ActionTypeOf()
+{
+}
+
+nStrView ActionTypeOf::GetName() const noexcept
+{
+	return "TypeOf";
+}
+
+natRefPointer<IArgumentRequirement> ActionTypeOf::GetArgumentRequirement()
+{
+	return s_ArgumentRequirement;
+}
+
+void ActionTypeOf::StartAction(CompilerActionContext const& /*context*/)
+{
+}
+
+void ActionTypeOf::EndAction(std::function<nBool(natRefPointer<ASTNode>)> const& output)
+{
+	if (output)
+	{
+		output(m_Type);
+	}
+
+	m_Type.Reset();
+}
+
+void ActionTypeOf::AddArgument(natRefPointer<ASTNode> const& arg)
+{
+	const auto expr = arg.Cast<Expression::Expr>();
+	if (!expr)
+	{
+		// TODO: 报告错误
+		return;
+	}
+
+	m_Type = expr->GetExprType();
 }
 
 const natRefPointer<IArgumentRequirement> ActionTypeArg::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier }) };

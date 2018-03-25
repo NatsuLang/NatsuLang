@@ -206,11 +206,11 @@ namespace NatsuLang::Syntax
 		nBool ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls);
 		std::vector<Declaration::DeclPtr> ParseExternalDeclaration();
 
-		void ParseCompilerAction(std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output = {});
+		void ParseCompilerAction(Declaration::Context context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output = {});
 		NatsuLib::natRefPointer<ICompilerAction> ParseCompilerActionName();
-		nBool ParseCompilerActionArgument(NatsuLib::natRefPointer<ICompilerAction> const& action, std::size_t startIndex = 0);
-		std::size_t ParseCompilerActionArgumentList(NatsuLib::natRefPointer<ICompilerAction> const& action, std::size_t startIndex = 0);
-		std::size_t ParseCompilerActionArgumentSequence(NatsuLib::natRefPointer<ICompilerAction> const& action, std::size_t startIndex = 0);
+		nBool ParseCompilerActionArgument(NatsuLib::natRefPointer<ICompilerAction> const& action, Declaration::Context context, std::size_t startIndex = 0);
+		std::size_t ParseCompilerActionArgumentList(NatsuLib::natRefPointer<ICompilerAction> const& action, Declaration::Context context, std::size_t startIndex = 0);
+		std::size_t ParseCompilerActionArgumentSequence(NatsuLib::natRefPointer<ICompilerAction> const& action, Declaration::Context context, std::size_t startIndex = 0);
 
 		Declaration::DeclPtr ParseClassDeclaration();
 		void ParseMemberSpecification(SourceLocation startLoc, Declaration::DeclPtr const& tagDecl);
@@ -224,7 +224,7 @@ namespace NatsuLang::Syntax
 
 		Declaration::DeclPtr ParseFunctionBody(Declaration::DeclPtr decl, ParseScope& scope);
 
-		Statement::StmtPtr ParseStatement(Declaration::Context context = Declaration::Context::Block);
+		Statement::StmtPtr ParseStatement(Declaration::Context context = Declaration::Context::Block, nBool mayBeExpr = false);
 		Statement::StmtPtr ParseLabeledStatement(Identifier::IdPtr labelId, SourceLocation labelLoc);
 		Statement::StmtPtr ParseCompoundStatement();
 		Statement::StmtPtr ParseCompoundStatement(Semantic::ScopeFlags flags);
@@ -236,7 +236,7 @@ namespace NatsuLang::Syntax
 		Statement::StmtPtr ParseBreakStatement();
 		Statement::StmtPtr ParseReturnStatement();
 
-		Statement::StmtPtr ParseExprStatement();
+		Statement::StmtPtr ParseExprStatement(nBool mayBeExpr = false);
 
 		Expression::ExprPtr ParseExpression();
 
