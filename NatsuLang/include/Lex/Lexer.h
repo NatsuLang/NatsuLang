@@ -41,6 +41,7 @@ namespace NatsuLang
 			nBool lexCharLiteral(Token& result, Iterator cur);
 			nBool lexStringLiteral(Token& result, Iterator cur);
 
+		public:
 			class Memento
 			{
 				friend class Lexer;
@@ -54,7 +55,6 @@ namespace NatsuLang
 				Iterator m_Current;
 			};
 
-		public:
 			Memento SaveToMemento() const noexcept;
 			void RestoreFromMemento(Memento memento) noexcept;
 		};

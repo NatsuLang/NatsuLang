@@ -895,6 +895,12 @@ natRefPointer<Declaration::UnresolvedDecl> Sema::ActOnUnresolvedDeclarator(
 	return unresolvedDecl;
 }
 
+natRefPointer<Declaration::UnresolvedDecl> Sema::ActOnCompilerActionIdentifierArgument(Identifier::IdPtr id)
+{
+	assert(id);
+	return make_ref<Declaration::UnresolvedDecl>(nullptr, SourceLocation{}, std::move(id), nullptr, SourceLocation{}, nullptr);
+}
+
 natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> scope,
 															 Declaration::DeclaratorPtr decl,
 															 Declaration::DeclPtr const& oldUnresolvedDeclPtr)

@@ -208,7 +208,9 @@ namespace NatsuLang::Syntax
 
 		void ParseCompilerAction(std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output = {});
 		NatsuLib::natRefPointer<ICompilerAction> ParseCompilerActionName();
-		void ParseCompilerActionArgumentList(NatsuLib::natRefPointer<ICompilerAction> const& action);
+		nBool ParseCompilerActionArgument(NatsuLib::natRefPointer<ICompilerAction> const& action, std::size_t startIndex = 0);
+		std::size_t ParseCompilerActionArgumentList(NatsuLib::natRefPointer<ICompilerAction> const& action, std::size_t startIndex = 0);
+		std::size_t ParseCompilerActionArgumentSequence(NatsuLib::natRefPointer<ICompilerAction> const& action, std::size_t startIndex = 0);
 
 		Declaration::DeclPtr ParseClassDeclaration();
 		void ParseMemberSpecification(SourceLocation startLoc, Declaration::DeclPtr const& tagDecl);
@@ -331,17 +333,6 @@ namespace NatsuLang::Syntax
 		}
 
 		void skipTypeAndInitializer(Declaration::DeclaratorPtr const& decl);
-
-		void skipType(std::vector<Lex::Token>* skippedTokens = nullptr);
-
-		void skipExpression(std::vector<Lex::Token>* skippedTokens = nullptr);
-		void skipAssignmentExpression(std::vector<Lex::Token>* skippedTokens = nullptr);
-		void skipRightOperandOfBinaryExpression(std::vector<Lex::Token>* skippedTokens = nullptr);
-		void skipUnaryExpression(std::vector<Lex::Token>* skippedTokens = nullptr);
-		void skipPostfixExpressionSuffix(std::vector<Lex::Token>* skippedTokens = nullptr);
-		void skipAsTypeExpression(std::vector<Lex::Token>* skippedTokens = nullptr);
-
-		void skipCompilerAction(std::vector<Lex::Token>* skippedTokens = nullptr);
 	};
 }
 

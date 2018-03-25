@@ -50,8 +50,27 @@ namespace NatsuLang
 		SourceManager& m_SourceManager;
 		NatsuLib::natRefPointer<Lex::Lexer> m_Lexer;
 
-		std::vector<std::pair<std::vector<Lex::Token>, std::vector<Lex::Token>::const_iterator>> m_CachedTokensStack;
+		using CachedTokensStackType = std::list<std::pair<std::vector<Lex::Token>, std::vector<Lex::Token>::const_iterator>>;
+		CachedTokensStackType m_CachedTokensStack;
 
 		void init() const;
+
+		class Memento
+		{
+			friend class Preprocessor;
+			using ContentType = std::variant<std::pair<CachedTokensStackType::iterator, std::vector<Lex::Token>::const_iterator>, Lex::Lexer::Memento>;
+
+			template <typename... Args>
+			constexpr Memento(Args&&... args)
+				: m_Content(std::forward<Args>(args)...)
+			{
+			}
+
+			ContentType m_Content;
+		};
+
+	public:
+		Memento SaveToMemento() noexcept;
+		void RestoreFromMemento(Memento const& memento) noexcept;
 	};
 }

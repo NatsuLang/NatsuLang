@@ -216,6 +216,7 @@ namespace NatsuLang::Semantic
 			Identifier::IdPtr asId = nullptr);
 		NatsuLib::natRefPointer<Declaration::UnresolvedDecl> ActOnUnresolvedDeclarator(
 			NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
+		NatsuLib::natRefPointer<Declaration::UnresolvedDecl> ActOnCompilerActionIdentifierArgument(Identifier::IdPtr id);
 		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> scope,
 		                                                                 Declaration::DeclaratorPtr decl,
 		                                                                 Declaration::DeclPtr const& oldUnresolvedDeclPtr =
