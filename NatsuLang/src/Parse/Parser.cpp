@@ -956,6 +956,7 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context, nBool ma
 				return result;
 			}
 		}
+		[[fallthrough]];
 	}
 	default:
 		return ParseExprStatement(mayBeExpr);
