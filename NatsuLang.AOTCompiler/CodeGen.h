@@ -151,6 +151,7 @@ namespace NatsuLang::Compiler
 				void SetBeginIterator(CleanupIterator const& iter) noexcept;
 
 				void ExplicitClean();
+				void SetAlreadyCleaned() noexcept;
 
 			private:
 				nBool m_AlreadyCleaned;
@@ -290,7 +291,7 @@ namespace NatsuLang::Compiler
 			nBool IsCleanupStackEmpty() const noexcept;
 			void PushCleanupStack(NatsuLib::natRefPointer<ICleanup> cleanup);
 			void InsertCleanupStack(CleanupIterator const& pos, NatsuLib::natRefPointer<ICleanup> cleanup);
-			void PopCleanupStack(CleanupIterator const& iter);
+			void PopCleanupStack(CleanupIterator const& iter, nBool popStack = true);
 			bool CleanupEncloses(CleanupIterator const& a, CleanupIterator const& b) const noexcept;
 
 		private:

@@ -1028,8 +1028,7 @@ void AotCompiler::AotStmtVisitor::StartVisit()
 
 	if (const auto compoundStmt = body.Cast<Statement::CompoundStmt>())
 	{
-		// TODO: 完成清理
-		EmitCompoundStmtWithoutScope(compoundStmt);
+		EmitCompoundStmt(compoundStmt);
 	}
 	else
 	{
@@ -1039,7 +1038,7 @@ void AotCompiler::AotStmtVisitor::StartVisit()
 
 void AotCompiler::AotStmtVisitor::EndVisit()
 {
-	PopCleanupStack(m_CleanupStack.end());
+	//PopCleanupStack(m_CleanupStack.end());
 	EmitBlock(m_ReturnBlock.GetBlock());
 	EmitFunctionEpilog();
 }
@@ -1123,25 +1122,13 @@ void AotCompiler::AotStmtVisitor::EmitBranchWithCleanup(JumpDest const& target)
 		return;
 	}
 
-	const auto cleanupStackTop = GetCleanupStackTop();
-	if (IsCleanupStackEmpty() || CleanupEncloses(cleanupStackTop, target.GetCleanupIterator()))
-	{
-		m_Compiler.m_IRBuilder.CreateBr(target.GetBlock());
-		return;
-	}
-
-	// const auto targetBlock = target.GetBlock();
-	const auto cleanupBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "cleanup");
-	m_Compiler.m_IRBuilder.CreateBr(cleanupBlock);
-	PushCleanupStack(make_ref<SpecialCleanup>([cleanupBlock](AotStmtVisitor& visitor)
-	{
-		visitor.EmitBlock(cleanupBlock);
-	}));
-
+	PopCleanupStack(target.GetCleanupIterator(), false);
 	if (m_CurrentLexicalScope)
 	{
-		m_CurrentLexicalScope->SetBeginIterator(GetCleanupStackTop());
+		m_CurrentLexicalScope->SetAlreadyCleaned();
 	}
+
+	m_Compiler.m_IRBuilder.CreateBr(target.GetBlock());
 }
 
 void AotCompiler::AotStmtVisitor::EmitBlock(llvm::BasicBlock* block, nBool finished)
@@ -1743,13 +1730,20 @@ void AotCompiler::AotStmtVisitor::InsertCleanupStack(CleanupIterator const& pos,
 	m_CleanupStack.emplace(pos, index, std::move(cleanup));
 }
 
-void AotCompiler::AotStmtVisitor::PopCleanupStack(CleanupIterator const& iter)
+void AotCompiler::AotStmtVisitor::PopCleanupStack(CleanupIterator const& iter, nBool popStack)
 {
 	for (auto i = m_CleanupStack.begin(); i != iter;)
 	{
 		assert(!m_CleanupStack.empty());
 		i->second->Emit(*this);
-		i = m_CleanupStack.erase(i);
+		if (popStack)
+		{
+			i = m_CleanupStack.erase(i);
+		}
+		else
+		{
+			++i;
+		}
 	}
 }
 
@@ -1950,10 +1944,14 @@ void AotCompiler::AotStmtVisitor::LexicalScope::SetBeginIterator(CleanupIterator
 void AotCompiler::AotStmtVisitor::LexicalScope::ExplicitClean()
 {
 	assert(!m_AlreadyCleaned);
+	m_Visitor.PopCleanupStack(m_BeginIterator);
 	m_Visitor.m_CurrentLexicalScope = m_Parent;
 
-	m_Visitor.PopCleanupStack(m_BeginIterator);
+	m_AlreadyCleaned = true;
+}
 
+void AotCompiler::AotStmtVisitor::LexicalScope::SetAlreadyCleaned() noexcept
+{
 	m_AlreadyCleaned = true;
 }
 
