@@ -20,5 +20,7 @@ ErrExtraneousClosingBrace
 未匹配的关闭大括号
 ErrNotAllControlFlowReturnAValue
 并非所有的控制流都返回值
+ErrUnsafeOperationInNotUnsafeScope
+在安全的范围内使用了不安全的操作
 WarnOverflowed
 发生溢出

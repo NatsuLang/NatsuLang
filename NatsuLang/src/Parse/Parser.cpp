@@ -261,7 +261,7 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 }
 
 // compiler-action:
-//	'$' compiler-action-name ['(' compiler-action-argument-list ')'] [compiler-action-argument] ['{' compiler-action-argument-seq '}'] ;
+//	'$' compiler-action-name ['(' compiler-action-argument-list ')'] [compiler-action-argument] ['{' compiler-action-argument-seq '}'] [;]
 // compiler-action-name:
 //	[compiler-action-namespace-specifier] compiler-action-id
 // compiler-action-namespace-specifier:

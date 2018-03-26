@@ -462,11 +462,9 @@ void AotCompiler::AotStmtVisitor::VisitArraySubscriptExpr(natRefPointer<Expressi
 
 void AotCompiler::AotStmtVisitor::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> const& expr)
 {
-	const auto builtinLeftOperandType = expr->GetLeftOperand()->GetExprType().Cast<Type::BuiltinType>();
 	EvaluateValue(expr->GetLeftOperand());
 	const auto leftOperand = m_LastVisitedValue;
 
-	const auto builtinRightOperandType = expr->GetRightOperand()->GetExprType().Cast<Type::BuiltinType>();
 	EvaluateValue(expr->GetRightOperand());
 	const auto rightOperand = m_LastVisitedValue;
 
@@ -475,12 +473,13 @@ void AotCompiler::AotStmtVisitor::VisitBinaryOperator(natRefPointer<Expression::
 	const auto commonType = expr->GetLeftOperand()->GetExprType();
 	const auto resultType = expr->GetExprType().Cast<Type::BuiltinType>();
 
-	m_LastVisitedValue = EmitBinOp(leftOperand, rightOperand, opCode, commonType, resultType);
+	m_LastVisitedValue = EmitBinOp(leftOperand, rightOperand, opCode, expr->GetLeftOperand()->GetExprType(), expr->GetRightOperand()->GetExprType(), resultType);
 }
 
 void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expression::CompoundAssignOperator> const& expr)
 {
 	const auto resultType = expr->GetLeftOperand()->GetExprType();
+	const auto rightType = expr->GetRightOperand()->GetExprType();
 
 	EvaluateAsModifiableValue(expr->GetLeftOperand());
 	const auto leftOperand = m_LastVisitedValue;
@@ -497,34 +496,34 @@ void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expr
 		value = rightOperand;
 		break;
 	case Expression::BinaryOperationType::MulAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Mul, resultType, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Mul, resultType, rightType, resultType);
 		break;
 	case Expression::BinaryOperationType::DivAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Div, resultType, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Div, resultType, rightType, resultType);
 		break;
 	case Expression::BinaryOperationType::RemAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Mod, resultType, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Mod, resultType, rightType, resultType);
 		break;
 	case Expression::BinaryOperationType::AddAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Add, resultType, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Add, resultType, rightType, resultType);
 		break;
 	case Expression::BinaryOperationType::SubAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Sub, resultType, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Sub, resultType, rightType, resultType);
 		break;
 	case Expression::BinaryOperationType::ShlAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Shl, resultType, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Shl, resultType, rightType, resultType);
 		break;
 	case Expression::BinaryOperationType::ShrAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Shr, resultType, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Shr, resultType, rightType, resultType);
 		break;
 	case Expression::BinaryOperationType::AndAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::And, resultType, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::And, resultType, rightType, resultType);
 		break;
 	case Expression::BinaryOperationType::XorAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Xor, resultType, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Xor, resultType, rightType, resultType);
 		break;
 	case Expression::BinaryOperationType::OrAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Or, resultType, resultType);
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Or, resultType, rightType, resultType);
 		break;
 	default:
 		assert(!"Invalid Opcode");
@@ -1155,7 +1154,86 @@ void AotCompiler::AotStmtVisitor::EmitBlock(llvm::BasicBlock* block, nBool finis
 	m_Compiler.m_IRBuilder.SetInsertPoint(block);
 }
 
-llvm::Value* AotCompiler::AotStmtVisitor::EmitBinOp(llvm::Value* leftOperand, llvm::Value* rightOperand, Expression::BinaryOperationType opCode, natRefPointer<Type::BuiltinType> const& commonType, natRefPointer<Type::BuiltinType> const& resultType)
+llvm::Value* AotCompiler::AotStmtVisitor::EmitBinOp(llvm::Value* leftOperand, llvm::Value* rightOperand,
+	Expression::BinaryOperationType opCode, Type::TypePtr const& leftType, Type::TypePtr const& rightType,
+	Type::TypePtr const& resultType)
+{
+	switch (leftType->GetType())
+	{
+	case Type::Type::Builtin:
+		switch (rightType->GetType())
+		{
+		case Type::Type::Builtin:
+			assert(leftType == rightType);
+			return EmitBuiltinBinOp(leftOperand, rightOperand, opCode, leftType, resultType);
+		case Type::Type::Pointer:
+			switch (opCode)
+			{
+			case Expression::BinaryOperationType::Add:
+				return m_Compiler.m_IRBuilder.CreateInBoundsGEP(rightOperand, leftOperand, "ptradd");
+			default:
+				assert(!"Invalid opCode");
+				break;
+			}
+			break;
+		case Type::Type::Array:
+			break;
+		case Type::Type::Function:
+			break;
+		case Type::Type::Class:
+			break;
+		case Type::Type::Enum:
+			break;
+		default:
+			assert(!"Invalid type");
+			break;
+		}
+		break;
+	case Type::Type::Pointer:
+		switch (rightType->GetType())
+		{
+		case Type::Type::Builtin:
+			switch (opCode)
+			{
+			case Expression::BinaryOperationType::Add:
+				return m_Compiler.m_IRBuilder.CreateInBoundsGEP(leftOperand, rightOperand, "addptr");
+			case Expression::BinaryOperationType::Sub:
+				return m_Compiler.m_IRBuilder.CreateInBoundsGEP(leftOperand, m_Compiler.m_IRBuilder.CreateNeg(rightOperand, "diff"), "subptr");
+			default:
+				assert(!"Invalid opCode");
+				break;
+			}
+			break;
+		case Type::Type::Pointer:
+			assert(opCode == Expression::BinaryOperationType::Sub);
+			return m_Compiler.m_IRBuilder.CreatePtrDiff(leftOperand, rightOperand, "ptrdiff");
+		case Type::Type::Array:
+			break;
+		case Type::Type::Class:
+			break;
+		case Type::Type::Enum:
+			break;
+		default:
+			break;
+		}
+		break;
+	case Type::Type::Array:
+		break;
+	case Type::Type::Function:
+		break;
+	case Type::Type::Class:
+		break;
+	case Type::Type::Enum:
+		break;
+	default:
+		assert(!"Invalid type");
+		break;
+	}
+
+	nat_Throw(NotImplementedException);
+}
+
+llvm::Value* AotCompiler::AotStmtVisitor::EmitBuiltinBinOp(llvm::Value* leftOperand, llvm::Value* rightOperand, Expression::BinaryOperationType opCode, natRefPointer<Type::BuiltinType> const& commonType, natRefPointer<Type::BuiltinType> const& resultType)
 {
 	switch (opCode)
 	{
@@ -1626,68 +1704,134 @@ llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarTo(llvm::Value* from, Typ
 		return from;
 	}
 
-	const auto builtinFromType = fromType.Cast<Type::BuiltinType>(), builtinToType = toType.Cast<Type::BuiltinType>();
-
-	if (!builtinFromType || !builtinToType)
-	{
-		// TODO: 报告错误
-		return nullptr;
-	}
-
-	if (builtinToType->GetBuiltinClass() == Type::BuiltinType::Void)
-	{
-		return nullptr;
-	}
-
-	if (builtinToType->GetBuiltinClass() == Type::BuiltinType::Bool)
-	{
-		return ConvertScalarToBool(from, builtinFromType);
-	}
-
 	const auto llvmFromType = m_Compiler.getCorrespondingType(fromType), llvmToType = m_Compiler.getCorrespondingType(toType);
 
-	if (llvmFromType == llvmToType)
+	switch (fromType->GetType())
 	{
-		return from;
-	}
-
-	if (builtinFromType->IsIntegerType())
+	case Type::Type::Builtin:
 	{
-		const auto fromSigned = builtinFromType->IsSigned();
-
-		if (builtinToType->IsIntegerType())
+		const auto builtinFromType = fromType.UnsafeCast<Type::BuiltinType>();
+		switch (toType->GetType())
 		{
-			return m_Compiler.m_IRBuilder.CreateIntCast(from, llvmToType, fromSigned, "scalarconv");
-		}
-		
-		if (fromSigned)
+		case Type::Type::Builtin:
 		{
-			return m_Compiler.m_IRBuilder.CreateSIToFP(from, llvmToType, "scalarconv");
+			const auto builtinToType = toType.UnsafeCast<Type::BuiltinType>();
+			if (builtinToType->GetBuiltinClass() == Type::BuiltinType::Void)
+			{
+				return nullptr;
+			}
+
+			if (builtinToType->GetBuiltinClass() == Type::BuiltinType::Bool)
+			{
+				return ConvertScalarToBool(from, builtinFromType);
+			}
+
+			if (llvmFromType == llvmToType)
+			{
+				return from;
+			}
+
+			if (builtinFromType->IsIntegerType())
+			{
+				const auto fromSigned = builtinFromType->IsSigned();
+
+				if (builtinToType->IsIntegerType())
+				{
+					return m_Compiler.m_IRBuilder.CreateIntCast(from, llvmToType, fromSigned, "scalarconv");
+				}
+
+				if (fromSigned)
+				{
+					return m_Compiler.m_IRBuilder.CreateSIToFP(from, llvmToType, "scalarconv");
+				}
+
+				return m_Compiler.m_IRBuilder.CreateUIToFP(from, llvmToType, "scalarconv");
+			}
+
+			if (builtinToType->IsIntegerType())
+			{
+				if (builtinToType->IsSigned())
+				{
+					return m_Compiler.m_IRBuilder.CreateFPToSI(from, llvmToType, "scalarconv");
+				}
+
+				return m_Compiler.m_IRBuilder.CreateFPToUI(from, llvmToType, "scalarconv");
+			}
+
+			nInt result;
+			const auto succeed = builtinFromType->CompareRankTo(builtinToType, result);
+			assert(succeed);
+
+			if (result > 0)
+			{
+				return m_Compiler.m_IRBuilder.CreateFPTrunc(from, llvmToType, "scalarconv");
+			}
+
+			return m_Compiler.m_IRBuilder.CreateFPExt(from, llvmToType, "scalarconv");
 		}
-		
-		return m_Compiler.m_IRBuilder.CreateUIToFP(from, llvmToType, "scalarconv");
+		case Type::Type::Pointer:
+			if (builtinFromType->GetBuiltinClass() != Type::BuiltinType::Long)
+			{
+				// FIXME: 替换成足够长的整数类型，并定义别名
+				from = ConvertScalarTo(from, fromType, m_Compiler.m_AstContext.GetBuiltinType(Type::BuiltinType::Long));
+			}
+			return m_Compiler.m_IRBuilder.CreateIntToPtr(from, llvmToType, "inttoptr");
+		case Type::Type::Array: break;
+		case Type::Type::Function: break;
+		case Type::Type::Class: break;
+		case Type::Type::Enum: break;
+		default:
+			assert(!"Invalid type");
+			nat_Throw(Compiler::AotCompilerException, u8"错误的类型"_nv);
+		}
+		break;
 	}
-	
-	if (builtinToType->IsIntegerType())
-	{
-		if (builtinToType->IsSigned())
+	case Type::Type::Pointer:
+		switch (toType->GetType())
 		{
-			return m_Compiler.m_IRBuilder.CreateFPToSI(from, llvmToType, "scalarconv");
+		case Type::Type::Builtin:
+		{
+			const auto builtinToType = toType.UnsafeCast<Type::BuiltinType>();
+			assert(builtinToType->IsIntegerType());
+			auto result = m_Compiler.m_IRBuilder.CreatePtrToInt(from, llvm::IntegerType::get(m_Compiler.m_LLVMContext, llvmFromType->getIntegerBitWidth()), "ptrtoint");
+			nInt compareResult;
+			if (builtinToType->CompareRankTo(Type::BuiltinType::Long, compareResult) && compareResult <= 0)
+			{
+				if (compareResult < 0)
+				{
+					result = ConvertScalarTo(result, m_Compiler.m_AstContext.GetBuiltinType(Type::BuiltinType::Long), toType);
+				}
+
+				return result;
+			}
+
+			nat_Throw(Compiler::AotCompilerException, u8"截断转换的指针的值");
 		}
-
-		return m_Compiler.m_IRBuilder.CreateFPToUI(from, llvmToType, "scalarconv");
+		case Type::Type::Pointer:
+		{
+			assert(fromType != toType);
+			return m_Compiler.m_IRBuilder.CreatePointerBitCastOrAddrSpaceCast(from, llvmToType, "ptrcast");
+		}
+		case Type::Type::Array: break;
+		case Type::Type::Function: break;
+		case Type::Type::Class: break;
+		case Type::Type::Enum: break;
+		default:
+			assert(!"Invalid type");
+			nat_Throw(Compiler::AotCompilerException, u8"错误的类型"_nv);
+		}
+		break;
+	case Type::Type::Array: break;
+	case Type::Type::Function: break;
+	case Type::Type::Class: break;
+	case Type::Type::Enum: break;
+	default:
+		assert(!"Invalid type");
+		nat_Throw(Compiler::AotCompilerException, u8"错误的类型"_nv);
 	}
 
-	nInt result;
-	const auto succeed = builtinFromType->CompareRankTo(builtinToType, result);
-	assert(succeed);
-
-	if (result > 0)
-	{
-		return m_Compiler.m_IRBuilder.CreateFPTrunc(from, llvmToType, "scalarconv");
-	}
-
-	return m_Compiler.m_IRBuilder.CreateFPExt(from, llvmToType, "scalarconv");
+	// TODO
+	nat_Throw(NotImplementedException);
 }
 
 llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarToBool(llvm::Value* from, natRefPointer<Type::BuiltinType> const& fromType)

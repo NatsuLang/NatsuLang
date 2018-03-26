@@ -307,6 +307,7 @@ namespace NatsuLang::Semantic
 		Expression::ExprPtr CreateBuiltinUnaryOp(SourceLocation opLoc, Expression::UnaryOperationType opCode,
 		                                         Expression::ExprPtr operand);
 
+		Type::TypePtr GetBuiltinBinaryOpType(Expression::ExprPtr& leftOperand, Expression::ExprPtr& rightOperand);
 		Type::TypePtr UsualArithmeticConversions(Expression::ExprPtr& leftOperand, Expression::ExprPtr& rightOperand);
 
 		Expression::ExprPtr ImpCastExprToType(Expression::ExprPtr expr, Type::TypePtr type, Expression::CastType castType);
@@ -336,7 +337,7 @@ namespace NatsuLang::Semantic
 
 		void prewarming();
 
-		Expression::CastType getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType);
+		Expression::CastType getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType, nBool isImplicit);
 
 		Type::TypePtr handleIntegerConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType,
 		                                      Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType);

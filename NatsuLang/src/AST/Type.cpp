@@ -202,6 +202,33 @@ nBool BuiltinType::CompareRankTo(natRefPointer<BuiltinType> const& other, nInt& 
 	return false;
 }
 
+nBool BuiltinType::CompareRankTo(BuiltinClass other, nInt& result) const noexcept
+{
+	if (IsFloatingType())
+	{
+		if (!IsFloatingBuiltinClass(other))
+		{
+			return false;
+		}
+
+		result = m_BuiltinClass - other;
+		return true;
+	}
+
+	if (IsIntegerType())
+	{
+		if (!IsIntegerBuiltinClass(other))
+		{
+			return false;
+		}
+
+		result = MakeBuiltinTypeSigned(m_BuiltinClass) - MakeBuiltinTypeSigned(other);
+		return true;
+	}
+
+	return false;
+}
+
 PointerType::~PointerType()
 {
 }

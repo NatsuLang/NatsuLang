@@ -260,6 +260,12 @@ namespace NatsuLang::Compiler
 
 			llvm::Value* EmitBinOp(llvm::Value* leftOperand, llvm::Value* rightOperand,
 				Expression::BinaryOperationType opCode,
+				Type::TypePtr const& leftType,
+				Type::TypePtr const& rightType,
+				Type::TypePtr const& resultType);
+
+			llvm::Value* EmitBuiltinBinOp(llvm::Value* leftOperand, llvm::Value* rightOperand,
+				Expression::BinaryOperationType opCode,
 				NatsuLib::natRefPointer<Type::BuiltinType> const& commonType,
 				NatsuLib::natRefPointer<Type::BuiltinType> const& resultType);
 

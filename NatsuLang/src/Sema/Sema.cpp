@@ -230,10 +230,10 @@ namespace
 }
 
 Sema::Sema(Preprocessor& preprocessor, ASTContext& astContext, natRefPointer<ASTConsumer> astConsumer)
-	: m_Preprocessor{preprocessor}, m_Context{astContext}, m_Consumer{std::move(astConsumer)},
-	  m_Diag{preprocessor.GetDiag()},
-	  m_SourceManager{preprocessor.GetSourceManager()}, m_CurrentPhase{Phase::Phase1},
-	  m_TopLevelActionNamespace{make_ref<CompilerActionNamespace>(u8""_nv)}
+	: m_Preprocessor{ preprocessor }, m_Context{ astContext }, m_Consumer{ std::move(astConsumer) },
+	  m_Diag{ preprocessor.GetDiag() },
+	  m_SourceManager{ preprocessor.GetSourceManager() }, m_CurrentPhase{ Phase::Phase1 },
+	  m_TopLevelActionNamespace{ make_ref<CompilerActionNamespace>(u8""_nv) }
 {
 	prewarming();
 
@@ -365,7 +365,7 @@ natRefPointer<Declaration::Decl> Sema::ActOnModuleImport(SourceLocation startLoc
 Type::TypePtr Sema::LookupTypeName(natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
 								   natRefPointer<Scope> scope, natRefPointer<NestedNameSpecifier> const& nns)
 {
-	LookupResult result{*this, id, nameLoc, LookupNameType::LookupOrdinaryName};
+	LookupResult result{ *this, id, nameLoc, LookupNameType::LookupOrdinaryName };
 	if (!LookupNestedName(result, scope, nns))
 	{
 		return nullptr;
@@ -380,15 +380,15 @@ Type::TypePtr Sema::LookupTypeName(natRefPointer<Identifier::IdentifierInfo> con
 	case LookupResult::LookupResultType::Ambiguous:
 		return nullptr;
 	case LookupResult::LookupResultType::Found:
+	{
+		assert(result.GetDeclSize() == 1);
+		const auto decl = *result.GetDecls().begin();
+		if (auto typeDecl = decl.Cast<Declaration::TypeDecl>())
 		{
-			assert(result.GetDeclSize() == 1);
-			const auto decl = *result.GetDecls().begin();
-			if (auto typeDecl = decl.Cast<Declaration::TypeDecl>())
-			{
-				return typeDecl->GetTypeForDecl();
-			}
-			return nullptr;
+			return typeDecl->GetTypeForDecl();
 		}
+		return nullptr;
+	}
 	}
 }
 
@@ -496,7 +496,7 @@ Declaration::DeclPtr Sema::ActOnTag(natRefPointer<Scope> const& scope,
 		underlyingType = m_Context.GetBuiltinType(Type::BuiltinType::Int);
 	}
 
-	LookupResult previous{*this, name, nameLoc, LookupNameType::LookupTagName};
+	LookupResult previous{ *this, name, nameLoc, LookupNameType::LookupTagName };
 	if (LookupName(previous, scope) || previous.GetDeclSize() > 0)
 	{
 		// TODO: 重复定义 Tag，报告错误
@@ -586,7 +586,7 @@ nBool Sema::LookupName(LookupResult& result, natRefPointer<Scope> scope) const
 			break;
 		}
 
-		auto queryResult{query.Cast<std::vector<natRefPointer<Declaration::NamedDecl>>>()};
+		auto queryResult{ query.Cast<std::vector<natRefPointer<Declaration::NamedDecl>>>() };
 		if (!queryResult.empty())
 		{
 			result.AddDecl(from(queryResult));
@@ -639,7 +639,7 @@ nBool Sema::LookupQualifiedName(LookupResult& result, Declaration::DeclContext* 
 	case LookupNameType::LookupAnyName:
 		break;
 	}
-	auto queryResult{query.Cast<std::vector<natRefPointer<Declaration::NamedDecl>>>()};
+	auto queryResult{ query.Cast<std::vector<natRefPointer<Declaration::NamedDecl>>>() };
 	if (!queryResult.empty())
 	{
 		result.AddDecl(from(queryResult));
@@ -680,7 +680,7 @@ nBool Sema::LookupConstructors(LookupResult& result, natRefPointer<Declaration::
 
 natRefPointer<Declaration::LabelDecl> Sema::LookupOrCreateLabel(Identifier::IdPtr id, SourceLocation loc)
 {
-	LookupResult r{*this, std::move(id), loc, LookupNameType::LookupLabel};
+	LookupResult r{ *this, std::move(id), loc, LookupNameType::LookupLabel };
 
 	if (!LookupName(r, m_CurrentScope) || r.GetDeclSize() != 1)
 	{
@@ -722,7 +722,7 @@ Type::TypePtr Sema::ActOnPointerType(natRefPointer<Scope> const& scope, Type::Ty
 {
 	if (!scope->HasFlags(ScopeFlags::UnsafeScope))
 	{
-		// TODO: 报告错误：此范围中不允许使用不安全操作
+		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrUnsafeOperationInNotUnsafeScope);
 	}
 
 	return m_Context.GetPointerType(std::move(pointeeType));
@@ -734,7 +734,7 @@ natRefPointer<Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer
 	auto id = decl->GetIdentifier();
 	if (id)
 	{
-		LookupResult r{*this, id, {}, LookupNameType::LookupOrdinaryName};
+		LookupResult r{ *this, id, {}, LookupNameType::LookupOrdinaryName };
 		if (LookupName(r, scope) || r.GetDeclSize() > 0)
 		{
 			// TODO: 报告存在重名的参数
@@ -792,7 +792,7 @@ natRefPointer<Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 	}
 	else if (initExpr && Type::Type::GetUnderlyingType(initExpr->GetExprType()) != type)
 	{
-		const auto castType = getCastType(initExpr, type);
+		const auto castType = getCastType(initExpr, type, true);
 		initExpr = ImpCastExprToType(std::move(initExpr), type, castType);
 	}
 
@@ -898,7 +898,8 @@ natRefPointer<Declaration::UnresolvedDecl> Sema::ActOnUnresolvedDeclarator(
 natRefPointer<Declaration::UnresolvedDecl> Sema::ActOnCompilerActionIdentifierArgument(Identifier::IdPtr id)
 {
 	assert(id);
-	return make_ref<Declaration::UnresolvedDecl>(nullptr, SourceLocation{}, std::move(id), nullptr, SourceLocation{}, nullptr);
+	return make_ref<Declaration::UnresolvedDecl>(nullptr, SourceLocation{}, std::move(id), nullptr, SourceLocation{},
+												 nullptr);
 }
 
 natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> scope,
@@ -953,7 +954,7 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 		RemoveFromScopeChains(oldUnresolvedDeclPtr, declScope);
 	}
 
-	LookupResult previous{*this, id, {}, LookupNameType::LookupOrdinaryName};
+	LookupResult previous{ *this, id, {}, LookupNameType::LookupOrdinaryName };
 	if (LookupName(previous, scope) && previous.GetDeclSize())
 	{
 		// TODO: 处理重载或覆盖的情况
@@ -1106,7 +1107,7 @@ Statement::StmtPtr Sema::ActOnReturnStmt(SourceLocation loc, Expression::ExprPtr
 		}
 		else if (retTypeClass == Type::Type::Builtin && returnedExpr)
 		{
-			const auto castType = getCastType(returnedExpr, retType);
+			const auto castType = getCastType(returnedExpr, retType, true);
 			returnedExpr = ImpCastExprToType(std::move(returnedExpr), std::move(retType), castType);
 		}
 
@@ -1133,7 +1134,7 @@ Expression::ExprPtr Sema::ActOnNumericLiteral(Lex::Token const& token) const
 {
 	assert(token.Is(Lex::TokenType::NumericLiteral));
 
-	Lex::NumericLiteralParser literalParser{token.GetLiteralContent().value(), token.GetLocation(), m_Diag};
+	Lex::NumericLiteralParser literalParser{ token.GetLiteralContent().value(), token.GetLocation(), m_Diag };
 
 	if (literalParser.Errored())
 	{
@@ -1197,7 +1198,7 @@ Expression::ExprPtr Sema::ActOnCharLiteral(Lex::Token const& token) const
 {
 	assert(token.Is(Lex::TokenType::CharLiteral) && token.GetLiteralContent().has_value());
 
-	Lex::CharLiteralParser literalParser{token.GetLiteralContent().value(), token.GetLocation(), m_Diag};
+	Lex::CharLiteralParser literalParser{ token.GetLiteralContent().value(), token.GetLocation(), m_Diag };
 
 	if (literalParser.Errored())
 	{
@@ -1212,7 +1213,7 @@ Expression::ExprPtr Sema::ActOnStringLiteral(Lex::Token const& token)
 {
 	assert(token.Is(Lex::TokenType::StringLiteral) && token.GetLiteralContent().has_value());
 
-	Lex::StringLiteralParser literalParser{token.GetLiteralContent().value(), token.GetLocation(), m_Diag};
+	Lex::StringLiteralParser literalParser{ token.GetLiteralContent().value(), token.GetLocation(), m_Diag };
 
 	if (literalParser.Errored())
 	{
@@ -1234,7 +1235,7 @@ Expression::ExprPtr Sema::ActOnConditionExpr(Expression::ExprPtr expr)
 	}
 
 	auto boolType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
-	const auto castType = getCastType(expr, boolType);
+	const auto castType = getCastType(expr, boolType, true);
 	return ImpCastExprToType(std::move(expr), std::move(boolType), castType);
 }
 
@@ -1278,7 +1279,7 @@ Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefP
 									  Identifier::IdPtr id, nBool hasTraillingLParen,
 									  natRefPointer<Syntax::ResolveContext> const& resolveContext)
 {
-	LookupResult result{*this, id, {}, LookupNameType::LookupOrdinaryName};
+	LookupResult result{ *this, id, {}, LookupNameType::LookupOrdinaryName };
 	if (!LookupNestedName(result, scope, nns))
 	{
 		switch (result.GetResultType())
@@ -1400,7 +1401,7 @@ Expression::ExprPtr Sema::ActOnThis(SourceLocation loc)
 Expression::ExprPtr Sema::ActOnAsTypeExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr exprToCast,
 										  Type::TypePtr type, SourceLocation loc)
 {
-	return make_ref<Expression::AsTypeExpr>(std::move(type), getCastType(exprToCast, type), std::move(exprToCast));
+	return make_ref<Expression::AsTypeExpr>(std::move(type), getCastType(exprToCast, type, false), std::move(exprToCast));
 }
 
 Expression::ExprPtr Sema::ActOnArraySubscriptExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr base,
@@ -1464,7 +1465,7 @@ Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expre
 												  {
 													  return ImpCastExprToType(
 														  pair.first, pair.second,
-														  getCastType(pair.first, pair.second));
+														  getCastType(pair.first, pair.second, true));
 												  }), fnType->GetResultType(), rloc);
 	}
 
@@ -1495,7 +1496,7 @@ Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expre
 														{
 															return ImpCastExprToType(
 																pair.first, pair.second,
-																getCastType(pair.first, pair.second));
+																getCastType(pair.first, pair.second, true));
 														}), fnType->GetResultType(), rloc);
 	}
 
@@ -1509,7 +1510,7 @@ Expression::ExprPtr Sema::ActOnMemberAccessExpr(natRefPointer<Scope> const& scop
 {
 	auto baseType = base->GetExprType();
 
-	LookupResult r{*this, id, {}, LookupNameType::LookupMemberName};
+	LookupResult r{ *this, id, {}, LookupNameType::LookupMemberName };
 
 	if (const auto pointerType = baseType.Cast<Type::PointerType>())
 	{
@@ -1551,7 +1552,7 @@ Expression::ExprPtr Sema::ActOnUnaryOp(natRefPointer<Scope> const& scope, Source
 
 	if (IsUnsafeOperation(opCode) && !scope->HasFlags(ScopeFlags::UnsafeScope))
 	{
-		// TODO: 报告错误：在安全上下文试图执行不安全的操作
+		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrUnsafeOperationInNotUnsafeScope);
 	}
 
 	return CreateBuiltinUnaryOp(loc, opCode, std::move(operand));
@@ -1602,11 +1603,45 @@ Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::B
 	case Expression::BinaryOperationType::And:
 	case Expression::BinaryOperationType::Xor:
 	case Expression::BinaryOperationType::Or:
+	{
+		auto resultType = GetBuiltinBinaryOpType(leftOperand, rightOperand);
+		if (resultType->GetType() == Type::Type::Pointer)
 		{
-			auto resultType = UsualArithmeticConversions(leftOperand, rightOperand);
-			return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType,
-														std::move(resultType), loc);
+			// 至少有一操作数是 pointer，或者存在可能的操作符重载导致结果为 pointer？
+			// 暂时不考虑后一种情况
+			if (Type::Type::GetUnderlyingType(leftOperand->GetExprType())->GetType() == Type::Type::Pointer)
+			{
+				if (Type::Type::GetUnderlyingType(rightOperand->GetExprType())->GetType() == Type::Type::Pointer)
+				{
+					if (binOpType != Expression::BinaryOperationType::Sub)
+					{
+						// TODO: 报告错误：不支持的操作
+						return nullptr;
+					}
+				}
+				else
+				{
+					if (binOpType != Expression::BinaryOperationType::Add && binOpType != Expression::BinaryOperationType::Sub)
+					{
+						// TODO: 报告错误：不支持的操作
+						return nullptr;
+					}
+				}
+			}
+			else
+			{
+				// 假设此时右操作数类型是指针类型
+				assert(Type::Type::GetUnderlyingType(rightOperand->GetExprType())->GetType() == Type::Type::Pointer);
+				if (binOpType != Expression::BinaryOperationType::Add)
+				{
+					// TODO: 报告错误：不支持的操作
+					return nullptr;
+				}
+			}
 		}
+		return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType,
+													std::move(resultType), loc);
+	}
 	case Expression::BinaryOperationType::LT:
 	case Expression::BinaryOperationType::GT:
 	case Expression::BinaryOperationType::LE:
@@ -1615,11 +1650,11 @@ Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::B
 	case Expression::BinaryOperationType::NE:
 	case Expression::BinaryOperationType::LAnd:
 	case Expression::BinaryOperationType::LOr:
-		{
-			auto resultType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
-			return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType,
-														std::move(resultType), loc);
-		}
+	{
+		auto resultType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
+		return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType,
+													std::move(resultType), loc);
+	}
 	case Expression::BinaryOperationType::Assign:
 	case Expression::BinaryOperationType::MulAssign:
 	case Expression::BinaryOperationType::DivAssign:
@@ -1660,11 +1695,13 @@ Expression::ExprPtr Sema::ActOnConditionalOp(SourceLocation questionLoc, SourceL
 {
 	const auto leftType = leftExpr->GetExprType(), rightType = rightExpr->GetExprType(), commonType = getCommonType(
 				   leftType, rightType);
-	const auto leftCastType = getCastType(leftExpr, commonType), rightCastType = getCastType(rightExpr, commonType);
+	const auto leftCastType = getCastType(leftExpr, commonType, true), rightCastType = getCastType(rightExpr, commonType, true);
 
 	return make_ref<Expression::ConditionalOperator>(std::move(condExpr), questionLoc,
-													 ImpCastExprToType(std::move(leftExpr), commonType, leftCastType), colonLoc,
-													 ImpCastExprToType(std::move(rightExpr), commonType, rightCastType), commonType);
+													 ImpCastExprToType(std::move(leftExpr), commonType, leftCastType),
+													 colonLoc,
+													 ImpCastExprToType(std::move(rightExpr), commonType, rightCastType),
+													 commonType);
 }
 
 Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id,
@@ -1697,43 +1734,43 @@ Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scope> const& s
 	switch (r.GetResultType())
 	{
 	case LookupResult::LookupResultType::Found:
+	{
+		assert(r.GetDeclSize() == 1);
+		auto decl = r.GetDecls().first();
+		const auto type = decl->GetType();
+
+		if (!baseExpr)
 		{
-			assert(r.GetDeclSize() == 1);
-			auto decl = r.GetDecls().first();
-			const auto type = decl->GetType();
+			// 隐式成员访问
 
-			if (!baseExpr)
+			if (type != Declaration::Decl::Field && type != Declaration::Decl::Method)
 			{
-				// 隐式成员访问
-
-				if (type != Declaration::Decl::Field && type != Declaration::Decl::Method)
-				{
-					// 访问的是静态成员
-					return BuildDeclarationNameExpr(nns, r.GetLookupId(), std::move(decl));
-				}
-
-				baseExpr = make_ref<Expression::ThisExpr>(SourceLocation{}, r.GetBaseObjectType(), true);
+				// 访问的是静态成员
+				return BuildDeclarationNameExpr(nns, r.GetLookupId(), std::move(decl));
 			}
 
-			if (auto field = decl.Cast<Declaration::FieldDecl>())
-			{
-				return BuildFieldReferenceExpr(std::move(baseExpr), opLoc, nns, std::move(field), r.GetLookupId());
-			}
-
-			if (auto var = decl.Cast<Declaration::VarDecl>())
-			{
-				return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(var), r.GetLookupId(),
-														var->GetValueType());
-			}
-
-			if (auto method = decl.Cast<Declaration::MethodDecl>())
-			{
-				return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(method), r.GetLookupId(),
-														method->GetValueType());
-			}
-
-			return nullptr;
+			baseExpr = make_ref<Expression::ThisExpr>(SourceLocation{}, r.GetBaseObjectType(), true);
 		}
+
+		if (auto field = decl.Cast<Declaration::FieldDecl>())
+		{
+			return BuildFieldReferenceExpr(std::move(baseExpr), opLoc, nns, std::move(field), r.GetLookupId());
+		}
+
+		if (auto var = decl.Cast<Declaration::VarDecl>())
+		{
+			return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(var), r.GetLookupId(),
+													var->GetValueType());
+		}
+
+		if (auto method = decl.Cast<Declaration::MethodDecl>())
+		{
+			return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(method), r.GetLookupId(),
+													method->GetValueType());
+		}
+
+		return nullptr;
+	}
 	case LookupResult::LookupResultType::FoundOverloaded:
 		// TODO: 处理重载的情况
 		nat_Throw(NotImplementedException);
@@ -1761,7 +1798,7 @@ Expression::ExprPtr Sema::BuildConstructExpr(natRefPointer<Type::ClassType> cons
 {
 	const auto classDecl = classType->GetDecl().Cast<Declaration::ClassDecl>();
 	assert(classDecl);
-	LookupResult r{*this, nullptr, {}, LookupNameType::LookupMemberName};
+	LookupResult r{ *this, nullptr, {}, LookupNameType::LookupMemberName };
 	if (!LookupConstructors(r, classDecl))
 	{
 		// TODO: 报告错误
@@ -1791,7 +1828,7 @@ Expression::ExprPtr Sema::BuildConstructExpr(natRefPointer<Type::ClassType> cons
 		 paramEnd; ++initExprIter, static_cast<void>(++paramIter))
 	{
 		auto paramType = (*paramIter)->GetValueType();
-		const auto castType = getCastType(*initExprIter, paramType);
+		const auto castType = getCastType(*initExprIter, paramType, true);
 		*initExprIter = ImpCastExprToType(*initExprIter, std::move(paramType), castType);
 	}
 
@@ -1842,12 +1879,93 @@ Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, Expression:
 	return make_ref<Expression::UnaryOperator>(std::move(operand), opCode, std::move(resultType), opLoc);
 }
 
+Type::TypePtr Sema::GetBuiltinBinaryOpType(Expression::ExprPtr& leftOperand, Expression::ExprPtr& rightOperand)
+{
+	auto leftType = Type::Type::GetUnderlyingType(leftOperand->GetExprType()),
+		 rightType = Type::Type::GetUnderlyingType(rightOperand->GetExprType());
+
+	assert(leftType && rightType);
+
+	switch (leftType->GetType())
+	{
+	case Type::Type::Builtin:
+	{
+		const auto builtinLeftType = leftType.UnsafeCast<Type::BuiltinType>();
+		switch (rightType->GetType())
+		{
+		case Type::Type::Builtin:
+			return UsualArithmeticConversions(leftOperand, rightOperand);
+		case Type::Type::Pointer:
+			if (builtinLeftType->IsIntegerType())
+			{
+				return rightType;
+			}
+			// TODO: 报告错误：不支持的操作
+			return nullptr;
+		case Type::Type::Array:
+		case Type::Type::Function:
+			// TODO: 报告错误：不支持的操作
+			return nullptr;
+		case Type::Type::Class:
+			break;
+		case Type::Type::Enum:
+			break;
+		default:
+			assert(!"Invalid type");
+			return nullptr;
+		}
+		break;
+	}
+	case Type::Type::Pointer:
+	{
+		const auto pointerLeftType = leftType.UnsafeCast<Type::PointerType>();
+		switch (rightType->GetType())
+		{
+		case Type::Type::Builtin:
+			if (const auto builtinRightType = rightType.UnsafeCast<Type::BuiltinType>(); builtinRightType->IsIntegerType())
+			{
+				return leftType;
+			}
+			// TODO: 报告错误：不支持的操作
+			return nullptr;
+		case Type::Type::Pointer:
+			// FIXME: 定义并使用 PtrDiffType
+			return m_Context.GetBuiltinType(Type::BuiltinType::Long);
+		case Type::Type::Array:
+		case Type::Type::Function:
+			// TODO: 报告错误：不支持的操作
+			return nullptr;
+		case Type::Type::Class:
+			break;
+		case Type::Type::Enum:
+			break;
+		default:
+			break;
+		}
+		break;
+	}
+	case Type::Type::Array:
+	case Type::Type::Function:
+		// TODO: 报告错误：不支持的操作
+		return nullptr;
+	case Type::Type::Class:
+		break;
+	case Type::Type::Enum:
+		break;
+	default:
+		assert(!"Invalid type");
+		return nullptr;
+	}
+
+	nat_Throw(NotImplementedException);
+}
+
 Type::TypePtr Sema::UsualArithmeticConversions(Expression::ExprPtr& leftOperand, Expression::ExprPtr& rightOperand)
 {
-	// TODO: 是否需要对左右操作数进行整数提升？
-
-	auto leftType = leftOperand->GetExprType().Cast<Type::BuiltinType>(),
-		rightType = rightOperand->GetExprType().Cast<Type::BuiltinType>();
+	assert(Type::Type::GetUnderlyingType(leftOperand->GetExprType())->GetType() == Type::Type::Builtin &&
+		Type::Type::GetUnderlyingType(rightOperand->GetExprType())->GetType() == Type::Type::Builtin);
+	auto leftType = Type::Type::GetUnderlyingType(leftOperand->GetExprType()).UnsafeCast<Type::BuiltinType>(),
+		 rightType = Type::Type::GetUnderlyingType(rightOperand->GetExprType()).UnsafeCast<Type::BuiltinType>();
 
 	if (leftType == rightType)
 	{
@@ -1935,7 +2053,7 @@ void Sema::prewarming()
 	compilerNamespace->RegisterAction(make_ref<ActionTypeOf>());
 }
 
-Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType)
+Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType, nBool isImplicit)
 {
 	toType = Type::Type::GetUnderlyingType(toType);
 	auto fromType = Type::Type::GetUnderlyingType(operand->GetExprType());
@@ -1949,9 +2067,11 @@ Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type:
 	}
 
 	// TODO
-	if (fromType->GetType() == Type::Type::Builtin)
+	switch (fromType->GetType())
 	{
-		const auto builtinFromType = fromType.Cast<Type::BuiltinType>();
+	case Type::Type::Builtin:
+	{
+		const auto builtinFromType = fromType.UnsafeCast<Type::BuiltinType>();
 
 		switch (toType->GetType())
 		{
@@ -1970,6 +2090,8 @@ Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type:
 		case Type::Type::Class:
 			// TODO: 添加用户定义转换
 			return Expression::CastType::Invalid;
+		case Type::Type::Pointer:
+			return !isImplicit && builtinFromType->IsIntegerType() ? Expression::CastType::BitCast : Expression::CastType::Invalid;
 		case Type::Type::Auto:
 		case Type::Type::Array:
 		case Type::Type::Function:
@@ -1978,6 +2100,50 @@ Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type:
 		default:
 			return Expression::CastType::Invalid;
 		}
+	}
+	case Type::Type::Pointer:
+		if (isImplicit)
+		{
+			return Expression::CastType::Invalid;
+		}
+
+		// TODO: 转换到 bool 也需要显式转换吗？
+		switch (toType->GetType())
+		{
+		case Type::Type::Builtin:
+		{
+			const auto builtinToType = toType.UnsafeCast<Type::BuiltinType>();
+			return builtinToType->IsIntegerType() ? Expression::CastType::BitCast : Expression::CastType::Invalid;
+		}
+		case Type::Type::Pointer:
+			return Expression::CastType::BitCast;
+		case Type::Type::Array:
+			break;
+		case Type::Type::Function:
+			break;
+		case Type::Type::Class:
+			break;
+		case Type::Type::Enum:
+			break;
+		default:
+			break;
+		}
+		break;
+	case Type::Type::Array:
+		break;
+	case Type::Type::Function:
+		break;
+	case Type::Type::Class:
+		break;
+	case Type::Type::Enum:
+		break;
+	case Type::Type::Paren:
+	case Type::Type::TypeOf:
+	case Type::Type::Auto:
+	case Type::Type::Unresolved:
+	default:
+		assert(!"Invalid type");
+		return Expression::CastType::Invalid;
 	}
 
 	// TODO
@@ -2083,8 +2249,8 @@ Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOperand, Type
 }
 
 LookupResult::LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType)
-	: m_Sema{sema}, m_LookupId{std::move(id)}, m_LookupLoc{loc}, m_LookupNameType{lookupNameType},
-	  m_IDNS{chooseIDNS(m_LookupNameType)}, m_Result{}, m_AmbiguousType{}
+	: m_Sema{ sema }, m_LookupId{ std::move(id) }, m_LookupLoc{ loc }, m_LookupNameType{ lookupNameType },
+	  m_IDNS{ chooseIDNS(m_LookupNameType) }, m_Result{}, m_AmbiguousType{}
 {
 }
 

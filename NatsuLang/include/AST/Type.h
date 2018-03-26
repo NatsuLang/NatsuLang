@@ -84,6 +84,8 @@ namespace NatsuLang::Type
 		///	@return	比较是否有意义
 		nBool CompareRankTo(NatsuLib::natRefPointer<BuiltinType> const& other, nInt& result) const noexcept;
 
+		nBool CompareRankTo(BuiltinClass other, nInt& result) const noexcept;
+
 	private:
 		const BuiltinClass m_BuiltinClass;
 	};

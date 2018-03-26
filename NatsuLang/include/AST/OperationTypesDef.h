@@ -11,6 +11,7 @@
 #endif
 
 CAST_OPERATION(NoOp)
+CAST_OPERATION(BitCast)
 CAST_OPERATION(IntegralCast)
 CAST_OPERATION(IntegralToBoolean)
 CAST_OPERATION(IntegralToFloating)
