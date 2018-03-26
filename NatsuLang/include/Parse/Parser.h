@@ -205,6 +205,7 @@ namespace NatsuLang::Syntax
 		///	@return	是否遇到EOF
 		nBool ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls);
 		std::vector<Declaration::DeclPtr> ParseExternalDeclaration();
+		void ParseCompilerActionArguments(Declaration::Context context, NatsuLib::natRefPointer<ICompilerAction>);
 
 		void ParseCompilerAction(Declaration::Context context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output = {});
 		NatsuLib::natRefPointer<ICompilerAction> ParseCompilerActionName();
@@ -221,6 +222,7 @@ namespace NatsuLang::Syntax
 			std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path);
 
 		std::vector<Declaration::DeclPtr> ParseDeclaration(Declaration::Context context, SourceLocation& declEnd);
+		Declaration::DeclPtr ParseAliasDeclaration(SourceLocation& declEnd);
 
 		Declaration::DeclPtr ParseFunctionBody(Declaration::DeclPtr decl, ParseScope& scope);
 
@@ -296,7 +298,6 @@ namespace NatsuLang::Syntax
 		void ParseSpecifier(Declaration::DeclaratorPtr const& decl);
 
 		void ParseType(Declaration::DeclaratorPtr const& decl);
-		void ParseTypeOfType(Declaration::DeclaratorPtr const& decl);
 		void ParseParenType(Declaration::DeclaratorPtr const& decl);
 		void ParseFunctionType(Declaration::DeclaratorPtr const& decl);
 		void ParseArrayOrPointerType(Declaration::DeclaratorPtr const& decl);

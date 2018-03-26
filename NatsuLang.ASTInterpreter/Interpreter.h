@@ -607,7 +607,6 @@ namespace NatsuLang
 					assert(!"Invalid type.");
 					[[fallthrough]];
 				case Type::Type::Paren:
-				case Type::Type::TypeOf:
 				case Type::Type::Auto:
 					return false;
 				}

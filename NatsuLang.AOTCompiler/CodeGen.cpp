@@ -13,6 +13,46 @@ using namespace NatsuLib;
 using namespace NatsuLang;
 using namespace Compiler;
 
+namespace
+{
+	nString GetQualifiedName(natRefPointer<Declaration::NamedDecl> const& decl)
+	{
+		nString qualifiedName = decl->GetName();
+		auto dc = decl->GetContext();
+
+		nString prefix;
+
+		while (const auto scopeDecl = Declaration::Decl::CastFromDeclContext(dc))
+		{
+			if (scopeDecl->GetType() == Declaration::Decl::TranslationUnit)
+			{
+				break;
+			}
+
+			prefix.Clear();  // NOLINT
+
+			if (const auto namedDecl = dynamic_cast<Declaration::NamedDecl*>(scopeDecl))
+			{
+				prefix = namedDecl->GetName();
+			}
+			else
+			{
+				prefix.Append(u8'(');
+				prefix.Append(Declaration::Decl::GetDeclTypeName(scopeDecl->GetType()));
+				prefix.Append(u8')');
+			}
+
+			prefix.Append(u8'.');
+			prefix.Append(qualifiedName);
+			qualifiedName = std::move(prefix);
+
+			dc = scopeDecl->GetContext();
+		}
+
+		return qualifiedName;
+	}
+}
+
 AotCompiler::AotDiagIdMap::AotDiagIdMap(natRefPointer<TextReader<StringType::Utf8>> const& reader)
 {
 	using DiagIDUnderlyingType = std::underlying_type_t<Diag::DiagnosticsEngine::DiagID>;
@@ -169,7 +209,8 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 		{
 			const auto functionType = llvm::dyn_cast<llvm::FunctionType>(m_Compiler.getCorrespondingType(funcDecl));
 			assert(functionType);
-			const auto functionName = funcDecl->GetIdentifierInfo()->GetName();
+
+			const auto functionName = GetQualifiedName(funcDecl);
 
 			const auto funcValue = llvm::Function::Create(functionType,
 				llvm::GlobalVariable::ExternalLinkage,
@@ -200,7 +241,8 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 		else if (auto varDecl = decl.first.Cast<Declaration::VarDecl>())
 		{
 			const auto varType = m_Compiler.getCorrespondingType(varDecl->GetValueType());
-			const auto varName = varDecl->GetName();
+
+			const auto varName = GetQualifiedName(varDecl);
 
 			// TODO: 修改成正儿八经的初始化
 			const auto initializer = varDecl->GetInitializer();
@@ -2213,7 +2255,6 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 		assert(!"Invalid type");
 		[[fallthrough]];
 	case Type::Type::Paren:
-	case Type::Type::TypeOf:
 	case Type::Type::Auto:
 		assert(!"Should never happen, check NatsuLang::Type::Type::GetUnderlyingType");
 		nat_Throw(AotCompilerException, u8"错误的类型"_nv);

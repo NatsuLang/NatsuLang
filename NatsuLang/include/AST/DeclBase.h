@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <unordered_set>
 #include <natMisc.h>
 #include <natRefObj.h>
 #include <natLinq.h>
@@ -35,6 +36,14 @@ namespace NatsuLang::Declaration
 	class DeclContext;
 	class NamedDecl;
 
+	struct IAttribute
+		: NatsuLib::natRefObj
+	{
+		virtual ~IAttribute() = 0;
+	};
+
+	using AttrPtr = NatsuLib::natRefPointer<IAttribute>;
+
 	class Decl
 		: public NatsuLib::natRefObjImpl<Decl, ASTNode>
 	{
@@ -51,6 +60,19 @@ namespace NatsuLang::Declaration
 		First##Base = Start, Last##Base = End
 #include "Basic/DeclDef.h"
 		};
+
+		static constexpr const char* GetDeclTypeName(DeclType value) noexcept
+		{
+			switch (value)
+			{
+#define DECL(Derived, Base) case DeclType::Derived: return #Derived;
+#define ABSTRACT_DECL(Decl)
+#include "Basic/DeclDef.h"
+			default:
+				assert(!"Invalid DeclType.");
+				return "";
+			}
+		}
 
 		~Decl();
 
@@ -93,6 +115,18 @@ namespace NatsuLang::Declaration
 
 		nBool IsFunction() const noexcept;
 
+		void AttachAttribute(AttrPtr attr)
+		{
+			m_AttributeSet.emplace(std::move(attr));
+		}
+
+		nBool DetachAttribute(AttrPtr const& attr)
+		{
+			return m_AttributeSet.erase(attr);
+		}
+
+		NatsuLib::Linq<NatsuLib::Valued<AttrPtr>> GetAttributes() const noexcept;
+
 	protected:
 		explicit Decl(DeclType type, DeclContext* context = nullptr, SourceLocation loc = {}) noexcept
 			: m_NextDeclInContext{ nullptr }, m_Type{ type }, m_Context{ context }, m_Location{ loc }
@@ -105,6 +139,8 @@ namespace NatsuLang::Declaration
 		DeclType m_Type;
 		DeclContext* m_Context;
 		SourceLocation m_Location;
+
+		std::unordered_set<AttrPtr> m_AttributeSet;
 
 		void SetNextDeclInContext(NatsuLib::natRefPointer<Decl> value) noexcept;
 	};

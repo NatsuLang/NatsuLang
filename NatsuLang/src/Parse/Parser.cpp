@@ -260,6 +260,25 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 	}
 }
 
+void Parser::ParseCompilerActionArguments(Declaration::Context context, const NatsuLib::natRefPointer<ICompilerAction> action)
+{
+	std::size_t argCount = 0;
+	if (m_CurrentToken.Is(TokenType::LeftParen))
+	{
+		argCount = ParseCompilerActionArgumentList(action, context, argCount);
+	}
+
+	if (!m_CurrentToken.IsAnyOf({ TokenType::Semi, TokenType::LeftBrace }))
+	{
+		argCount += ParseCompilerActionArgument(action, context, argCount);
+	}
+
+	if (m_CurrentToken.Is(TokenType::LeftBrace))
+	{
+		ParseCompilerActionArgumentSequence(action, context, argCount);
+	}
+}
+
 // compiler-action:
 //	'$' compiler-action-name ['(' compiler-action-argument-list ')'] [compiler-action-argument] ['{' compiler-action-argument-seq '}'] [;]
 // compiler-action-name:
@@ -285,21 +304,7 @@ void Parser::ParseCompilerAction(Declaration::Context context, std::function<nBo
 		action->EndAction(output);
 	});
 
-	std::size_t argCount = 0;
-	if (m_CurrentToken.Is(TokenType::LeftParen))
-	{
-		argCount = ParseCompilerActionArgumentList(action, context, argCount);
-	}
-
-	if (!m_CurrentToken.IsAnyOf({ TokenType::Semi, TokenType::LeftBrace }))
-	{
-		argCount += ParseCompilerActionArgument(action, context, argCount);
-	}
-
-	if (m_CurrentToken.Is(TokenType::LeftBrace))
-	{
-		ParseCompilerActionArgumentSequence(action, context, argCount);
-	}
+	ParseCompilerActionArguments(context, action);
 }
 
 natRefPointer<ICompilerAction> Parser::ParseCompilerActionName()
@@ -320,13 +325,9 @@ natRefPointer<ICompilerAction> Parser::ParseCompilerActionName()
 			}
 			ConsumeToken();
 		}
-		else if (m_CurrentToken.Is(TokenType::LeftParen))
-		{
-			return actionNamespace->GetAction(id->GetName());
-		}
 		else
 		{
-			break;
+			return actionNamespace->GetAction(id->GetName());
 		}
 	}
 
@@ -341,6 +342,11 @@ nBool Parser::ParseCompilerActionArgument(natRefPointer<ICompilerAction> const& 
 
 	const auto argType = requirement->GetExpectedArgumentType(startIndex);
 
+	if (argType == CompilerActionArgumentType::None)
+	{
+		return false;
+	}
+
 	// TODO: 替换成正儿八经的实现
 	// 禁止匹配过程中的错误报告
 	m_Diag.EnableDiag(false);
@@ -348,11 +354,6 @@ nBool Parser::ParseCompilerActionArgument(natRefPointer<ICompilerAction> const& 
 	{
 		m_Diag.EnableDiag(true);
 	});
-
-	if (argType == CompilerActionArgumentType::None)
-	{
-		return false;
-	}
 
 	// 最优先尝试匹配标识符
 	if (HasFlags(argType, CompilerActionArgumentType::Identifier) && m_CurrentToken.Is(TokenType::Identifier))
@@ -740,9 +741,75 @@ std::vector<Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context 
 
 		return { std::move(declaration) };
 	}
+	case TokenType::Kw_alias:
+		return { ParseAliasDeclaration(declEnd) };
 	default:
 		return {};
 	}
+}
+
+// alias-declaration:
+//	'alias' alias-id '=' type-name ';'
+//	'alias' alias-id '=' '$' compiler-action-name ';'
+// TODO: 可能需要延迟分析
+// TODO: 若要求别名 CompilerAction 需要特殊符号/语法调用的话会简单很多，以后再改。。。
+Declaration::DeclPtr Parser::ParseAliasDeclaration(SourceLocation& declEnd)
+{
+	assert(m_CurrentToken.Is(TokenType::Kw_alias));
+
+	const auto aliasLoc = m_CurrentToken.GetLocation();
+
+	ConsumeToken();
+
+	if (!m_CurrentToken.Is(TokenType::Identifier))
+	{
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::Identifier)
+			.AddArgument(m_CurrentToken.GetType());
+		return nullptr;
+	}
+
+	auto aliasId = m_CurrentToken.GetIdentifierInfo();
+
+	ConsumeToken();
+
+	if (!m_CurrentToken.Is(TokenType::Equal))
+	{
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::Equal)
+			.AddArgument(m_CurrentToken.GetType());
+		return nullptr;
+	}
+
+	ConsumeToken();
+
+	if (m_CurrentToken.Is(TokenType::Dollar))
+	{
+		ConsumeToken();
+		auto compilerAction = ParseCompilerActionName();
+		if (!compilerAction)
+		{
+			// TODO: 报告错误
+			return nullptr;
+		}
+
+		declEnd = m_CurrentToken.GetLocation();
+		return m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), aliasLoc, std::move(aliasId), std::move(compilerAction));
+	}
+
+	// 假设是类型
+
+	const auto decl = make_ref<Declaration::Declarator>(Declaration::Context::TypeName);
+	ParseType(decl);
+	auto type = decl->GetType();
+	if (!type)
+	{
+		// TODO: 报告错误
+		return nullptr;
+	}
+
+	declEnd = m_CurrentToken.GetLocation();
+	return m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), aliasLoc, std::move(aliasId), std::move(type));
 }
 
 Declaration::DeclPtr Parser::ParseFunctionBody(Declaration::DeclPtr decl, ParseScope& scope)
@@ -807,6 +874,7 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context, nBool ma
 		return m_Sema.ActOnNullStmt(loc);
 	}
 	case TokenType::Kw_def:
+	case TokenType::Kw_alias:
 	{
 		const auto declBegin = m_CurrentToken.GetLocation();
 		SourceLocation declEnd;
@@ -853,6 +921,42 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context, nBool ma
 		});
 		return result;
 	case TokenType::Identifier:
+	{
+		// TODO: 嵌套的别名如何处理？
+		const auto id = m_CurrentToken.GetIdentifierInfo();
+		const auto foundAlias = m_Sema.LookupAliasName(id, m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nullptr);
+		if (foundAlias)
+		{
+			const auto astNode = foundAlias->GetAliasAsAst();
+			if (const auto compilerAction = astNode.Cast<ICompilerAction>())
+			{
+				ConsumeToken();
+				compilerAction->StartAction(CompilerActionContext{ *this });
+				ParseCompilerActionArguments(context, compilerAction);
+				compilerAction->EndAction([this, &result](natRefPointer<ASTNode> const& node)
+				{
+					if (result)
+					{
+						// 多个语句是不允许的
+						return true;
+					}
+
+					if (const auto decl = static_cast<Declaration::DeclPtr>(node))
+					{
+						result = m_Sema.ActOnDeclStmt({ decl }, {}, {});
+					}
+					else
+					{
+						result = node;
+					}
+
+					return false;
+				});
+
+				return result;
+			}
+		}
+	}
 	default:
 		return ParseExprStatement(mayBeExpr);
 	}
@@ -1715,7 +1819,6 @@ void Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 
 // type-specifier:
 //	[auto]
-//	typeof-specifier
 //	type-identifier
 void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 {
@@ -1742,8 +1845,54 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 	{
 		// 用户自定义类型
 		// TODO: 处理 module
-		decl->SetType(m_Sema.LookupTypeName(m_CurrentToken.GetIdentifierInfo(), m_CurrentToken.GetLocation(),
-											m_Sema.GetCurrentScope(), nullptr));
+
+		const auto id = m_CurrentToken.GetIdentifierInfo();
+
+		if (auto type = m_Sema.LookupTypeName(id, m_CurrentToken.GetLocation(),
+								m_Sema.GetCurrentScope(), nullptr))
+		{
+			decl->SetType(std::move(type));
+		}
+		else if (const auto alias = m_Sema.LookupAliasName(id, m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nullptr))
+		{
+			const auto aliasAsAst = alias->GetAliasAsAst();
+			if (auto aliasType = aliasAsAst.Cast<Type::Type>())
+			{
+				decl->SetType(std::move(aliasType));
+			}
+			else if (const auto compilerAction = aliasAsAst.Cast<ICompilerAction>())
+			{
+				ConsumeToken();
+				compilerAction->StartAction(CompilerActionContext{ *this });
+				ParseCompilerActionArguments(context, compilerAction);
+				compilerAction->EndAction([&decl](ASTNodePtr node)
+				{
+					if (decl->GetType())
+					{
+						// 多个类型是不允许的
+						return true;
+					}
+
+					if (auto retType = node.Cast<Type::Type>())
+					{
+						decl->SetType(node);
+					}
+					else
+					{
+						// TODO: 报告错误
+						return true;
+					}
+
+					return false;
+				});
+			}
+			else
+			{
+				// TODO: 报告错误
+				return;
+			}
+		}
+
 		ConsumeToken();
 		break;
 	}
@@ -1761,11 +1910,6 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 
 		return;
 	}
-	case TokenType::Kw_typeof:
-	{
-		ParseTypeOfType(decl);
-		break;
-	}
 	case TokenType::Eof:
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF, m_CurrentToken.GetLocation());
 		break;
@@ -1779,7 +1923,15 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 				return true;
 			}
 
-			decl->SetType(node);
+			if (auto retType = node.Cast<Type::Type>())
+			{
+				decl->SetType(node);
+			}
+			else
+			{
+				// TODO: 报告错误
+			}
+
 			return false;
 		});
 		break;
@@ -1832,29 +1984,6 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 
 	// 数组的指针和指针的数组和指针的数组的指针
 	ParseArrayOrPointerType(decl);
-}
-
-void Parser::ParseTypeOfType(Declaration::DeclaratorPtr const& decl)
-{
-	assert(m_CurrentToken.Is(TokenType::Kw_typeof));
-	ConsumeToken();
-	if (!m_CurrentToken.Is(TokenType::LeftParen))
-	{
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-			  .AddArgument(TokenType::LeftParen)
-			  .AddArgument(m_CurrentToken.GetType());
-		return;
-	}
-
-	auto expr = ParseParenExpression();
-	if (!expr)
-	{
-		// TODO: 报告错误
-		return;
-	}
-
-	auto exprType = expr->GetExprType();
-	decl->SetType(m_Sema.ActOnTypeOfType(std::move(expr), std::move(exprType)));
 }
 
 void Parser::ParseParenType(Declaration::DeclaratorPtr const& decl)

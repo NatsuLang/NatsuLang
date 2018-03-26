@@ -85,6 +85,33 @@ namespace NatsuLang::Declaration
 		Identifier::IdPtr m_IdentifierInfo;
 	};
 
+	class AliasDecl
+		: public NamedDecl
+	{
+	public:
+		AliasDecl(DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, ASTNodePtr aliasAsAst)
+			: NamedDecl{ Label, context, loc, std::move(identifierInfo) }, m_AliasAsAst{ std::move(aliasAsAst) }
+		{
+		}
+
+		~AliasDecl();
+
+		ASTNodePtr GetAliasAsAst() const noexcept
+		{
+			return m_AliasAsAst;
+		}
+
+		void SetAliasAsAst(ASTNodePtr value) noexcept
+		{
+			m_AliasAsAst = std::move(value);
+		}
+
+		DEFAULT_ACCEPT_DECL;
+
+	private:
+		ASTNodePtr m_AliasAsAst;
+	};
+
 	class LabelDecl
 		: public NamedDecl
 	{
@@ -96,9 +123,7 @@ namespace NatsuLang::Declaration
 		{
 		}
 
-		~LabelDecl()
-		{
-		}
+		~LabelDecl();
 
 		LabelStmtPtr GetStmt() const noexcept
 		{

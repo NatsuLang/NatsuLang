@@ -170,6 +170,10 @@ namespace NatsuLang::Semantic
 		                             NatsuLib::natRefPointer<Scope> scope,
 		                             NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
 
+		NatsuLib::natRefPointer<Declaration::AliasDecl> LookupAliasName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
+			NatsuLib::natRefPointer<Scope> scope,
+			NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
+
 		Type::TypePtr BuildFunctionType(Type::TypePtr retType,
 		                                NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& paramType);
 		Type::TypePtr CreateUnresolvedType(std::vector<Lex::Token> tokens);
@@ -199,7 +203,6 @@ namespace NatsuLang::Semantic
 
 		NatsuLib::natRefPointer<Declaration::LabelDecl> LookupOrCreateLabel(Identifier::IdPtr id, SourceLocation loc);
 
-		Type::TypePtr ActOnTypeOfType(NatsuLib::natRefPointer<Expression::Expr> expr, Type::TypePtr underlyingType);
 		Type::TypePtr ActOnArrayType(Type::TypePtr elementType, std::size_t size);
 		Type::TypePtr ActOnPointerType(NatsuLib::natRefPointer<Scope> const& scope, Type::TypePtr pointeeType);
 
@@ -221,6 +224,8 @@ namespace NatsuLang::Semantic
 		                                                                 Declaration::DeclaratorPtr decl,
 		                                                                 Declaration::DeclPtr const& oldUnresolvedDeclPtr =
 			                                                                 nullptr);
+
+		NatsuLib::natRefPointer<Declaration::AliasDecl> ActOnAliasDeclaration(NatsuLib::natRefPointer<Scope> scope, SourceLocation loc, Identifier::IdPtr id, ASTNodePtr aliasAsAst);
 
 		Statement::StmtPtr ActOnNullStmt(SourceLocation loc = {});
 		Statement::StmtPtr ActOnDeclStmt(std::vector<Declaration::DeclPtr> decls, SourceLocation start, SourceLocation end);

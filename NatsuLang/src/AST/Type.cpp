@@ -331,26 +331,6 @@ nBool FunctionType::EqualTo(TypePtr const& other) const noexcept
 		});
 }
 
-TypeOfType::~TypeOfType()
-{
-}
-
-std::size_t TypeOfType::GetHashCode() const noexcept
-{
-	return std::hash<natRefPointer<Expression::Expr>>{}(m_Expr) ^ m_UnderlyingType->GetHashCode();
-}
-
-nBool TypeOfType::EqualTo(TypePtr const& other) const noexcept
-{
-	const auto realOther = other.Cast<TypeOfType>();
-	if (!realOther)
-	{
-		return false;
-	}
-
-	return m_UnderlyingType == realOther->m_UnderlyingType && m_Expr == realOther->m_Expr;
-}
-
 TagType::~TagType()
 {
 }

@@ -31,6 +31,14 @@ nStrView NamedDecl::GetName() const noexcept
 	return m_IdentifierInfo->GetName();
 }
 
+AliasDecl::~AliasDecl()
+{
+}
+
+LabelDecl::~LabelDecl()
+{
+}
+
 ModuleDecl::~ModuleDecl()
 {
 }

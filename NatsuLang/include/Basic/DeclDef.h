@@ -29,6 +29,12 @@ IMPORT(Import, Decl)
 #endif
 ABSTRACT_DECL(NAMED(Named, Decl))
 
+#ifndef ALIAS
+#define ALIAS(Type, Base) NAMED(Type, Base)
+#endif
+ALIAS(Alias, NamedDecl)
+#undef ALIAS
+
 #ifndef LABEL
 #define LABEL(Type, Base) NAMED(Type, Base)
 #endif
@@ -156,7 +162,7 @@ DECL_RANGE(Value, Unresolved, EnumConstant)
 
 #undef VALUE
 
-DECL_RANGE(Named, Label, EnumConstant)
+DECL_RANGE(Named, Alias, EnumConstant)
 
 #undef NAMED
 

@@ -201,36 +201,6 @@ namespace NatsuLang::Type
 		TypePtr m_ResultType;
 	};
 
-	class TypeOfType
-		: public Type
-	{
-	public:
-		TypeOfType(NatsuLib::natRefPointer<Expression::Expr> expr, TypePtr underlyingType)
-			: Type{ TypeOf }, m_Expr{ std::move(expr) }, m_UnderlyingType{ std::move(underlyingType) }
-		{
-		}
-
-		~TypeOfType();
-
-		NatsuLib::natRefPointer<Expression::Expr> GetExpr() const noexcept
-		{
-			return m_Expr;
-		}
-
-		TypePtr GetUnderlyingType() const noexcept
-		{
-			return m_UnderlyingType;
-		}
-
-		std::size_t GetHashCode() const noexcept override;
-		nBool EqualTo(TypePtr const& other) const noexcept override;
-		DEFAULT_ACCEPT_DECL;
-
-	private:
-		NatsuLib::natRefPointer<Expression::Expr> m_Expr;
-		TypePtr m_UnderlyingType;
-	};
-
 	class TagType
 		: public Type
 	{

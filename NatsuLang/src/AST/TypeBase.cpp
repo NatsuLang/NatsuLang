@@ -35,11 +35,6 @@ TypePtr NatsuLang::Type::Type::GetUnderlyingType(TypePtr const& type)
 		return GetUnderlyingType(deducedType->GetDeducedAsType());
 	}
 
-	if (const auto typeofType = type.Cast<TypeOfType>())
-	{
-		return GetUnderlyingType(typeofType->GetUnderlyingType());
-	}
-
 	if (const auto parenType = type.Cast<ParenType>())
 	{
 		return GetUnderlyingType(parenType->GetInnerType());

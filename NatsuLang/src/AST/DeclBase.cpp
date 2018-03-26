@@ -24,6 +24,10 @@ namespace
 	}
 }
 
+IAttribute::~IAttribute()
+{
+}
+
 Decl::~Decl()
 {
 }
@@ -46,7 +50,6 @@ DeclContext* Decl::CastToDeclContext(const Decl* decl)
 #define DECL(Name, Base)
 #define DECL_CONTEXT_BASE(Name) if (type >= First##Name && type <= Last##Name) return static_cast<Name##Decl*>(const_cast<Decl*>(decl));
 #include "Basic/DeclDef.h"
-
 		assert(!"Invalid type.");
 		return nullptr;
 	}
@@ -70,7 +73,6 @@ Decl* Decl::CastFromDeclContext(const DeclContext* declContext)
 #define DECL(Name, BASE)
 #define DECL_CONTEXT_BASE(Name) if (type >= First##Name && type <= Last##Name) return static_cast<Name##Decl*>(const_cast<DeclContext*>(declContext));
 #include "Basic/DeclDef.h"
-
 		assert(!"Invalid type.");
 		return nullptr;
 	}
@@ -86,6 +88,11 @@ nBool Decl::IsFunction() const noexcept
 	return m_Type >= FirstFunction && m_Type <= LastFunction;
 }
 
+Linq<Valued<AttrPtr>> Decl::GetAttributes() const noexcept
+{
+	return from(m_AttributeSet);
+}
+
 void Decl::SetNextDeclInContext(natRefPointer<Decl> value) noexcept
 {
 	m_NextDeclInContext = value;
@@ -96,7 +103,7 @@ const char* DeclContext::GetTypeName() const noexcept
 	return getTypeName(m_Type);
 }
 
-NatsuLib::Linq<NatsuLib::Valued<DeclPtr>> DeclContext::GetDecls() const
+Linq<Valued<DeclPtr>> DeclContext::GetDecls() const
 {
 	return from(DeclIterator{ m_FirstDecl }, DeclIterator{});
 }

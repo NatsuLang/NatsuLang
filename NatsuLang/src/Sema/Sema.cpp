@@ -348,6 +348,7 @@ natRefPointer<Declaration::ModuleDecl> Sema::ActOnModuleDecl(natRefPointer<Scope
 
 void Sema::ActOnStartModule(natRefPointer<Scope> const& scope, natRefPointer<Declaration::ModuleDecl> const& moduleDecl)
 {
+	PushOnScopeChains(moduleDecl, scope);
 	PushDeclContext(scope, moduleDecl.Get());
 }
 
@@ -383,9 +384,41 @@ Type::TypePtr Sema::LookupTypeName(natRefPointer<Identifier::IdentifierInfo> con
 	{
 		assert(result.GetDeclSize() == 1);
 		const auto decl = *result.GetDecls().begin();
-		if (auto typeDecl = decl.Cast<Declaration::TypeDecl>())
+		if (const auto typeDecl = decl.Cast<Declaration::TypeDecl>())
 		{
 			return typeDecl->GetTypeForDecl();
+		}
+		return nullptr;
+	}
+	}
+}
+
+natRefPointer<Declaration::AliasDecl> Sema::LookupAliasName(
+	natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
+	natRefPointer<Scope> scope, natRefPointer<NestedNameSpecifier> const& nns)
+{
+	assert(id && scope);
+	LookupResult result{ *this, id, nameLoc, LookupNameType::LookupOrdinaryName };
+	if (!LookupNestedName(result, std::move(scope), nns))
+	{
+		return nullptr;
+	}
+
+	switch (result.GetResultType())
+	{
+	default:
+		assert(!"Invalid result type."); [[fallthrough]];
+	case LookupResult::LookupResultType::NotFound:
+	case LookupResult::LookupResultType::FoundOverloaded:
+	case LookupResult::LookupResultType::Ambiguous:
+		return nullptr;
+	case LookupResult::LookupResultType::Found:
+	{
+		assert(result.GetDeclSize() == 1);
+		const auto decl = *result.GetDecls().begin();
+		if (auto aliasDecl = decl.Cast<Declaration::AliasDecl>())
+		{
+			return aliasDecl;
 		}
 		return nullptr;
 	}
@@ -708,11 +741,6 @@ natRefPointer<Declaration::LabelDecl> Sema::LookupOrCreateLabel(Identifier::IdPt
 	return labelDecl;
 }
 
-Type::TypePtr Sema::ActOnTypeOfType(natRefPointer<Expression::Expr> expr, Type::TypePtr underlyingType)
-{
-	return make_ref<Type::TypeOfType>(std::move(expr), std::move(underlyingType));
-}
-
 Type::TypePtr Sema::ActOnArrayType(Type::TypePtr elementType, std::size_t size)
 {
 	return m_Context.GetArrayType(std::move(elementType), size);
@@ -1004,6 +1032,33 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 	return retDecl;
 }
 
+natRefPointer<Declaration::AliasDecl> Sema::ActOnAliasDeclaration(natRefPointer<Scope> scope,
+	SourceLocation loc, Identifier::IdPtr id, ASTNodePtr aliasAsAst)
+{
+	while ((scope->GetFlags() & ScopeFlags::DeclarableScope) == ScopeFlags::None)
+	{
+		scope = scope->GetParent();
+	}
+
+	auto dc = scope->GetEntity();
+	if (!dc)
+	{
+		dc = Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get());
+	}
+
+	LookupResult previous{ *this, id, {}, LookupNameType::LookupOrdinaryName };
+	if (LookupName(previous, scope) && previous.GetDeclSize())
+	{
+		// TODO: 处理重载或覆盖的情况
+		return nullptr;
+	}
+
+	auto aliasDecl = make_ref<Declaration::AliasDecl>(dc, loc, std::move(id), std::move(aliasAsAst));
+	PushOnScopeChains(aliasDecl, scope);
+
+	return aliasDecl;
+}
+
 Statement::StmtPtr Sema::ActOnNullStmt(SourceLocation loc)
 {
 	return make_ref<Statement::NullStmt>(loc);
@@ -1266,7 +1321,6 @@ Expression::ExprPtr Sema::ActOnInitExpr(Type::TypePtr initType, SourceLocation l
 								  rightBraceLoc);
 	case Type::Type::Function:
 	case Type::Type::Paren:
-	case Type::Type::TypeOf:
 	case Type::Type::Auto:
 	case Type::Type::Unresolved:
 	default:
@@ -2095,7 +2149,6 @@ Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type:
 		case Type::Type::Auto:
 		case Type::Type::Array:
 		case Type::Type::Function:
-		case Type::Type::TypeOf:
 		case Type::Type::Paren:
 		default:
 			return Expression::CastType::Invalid;
@@ -2138,7 +2191,6 @@ Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type:
 	case Type::Type::Enum:
 		break;
 	case Type::Type::Paren:
-	case Type::Type::TypeOf:
 	case Type::Type::Auto:
 	case Type::Type::Unresolved:
 	default:

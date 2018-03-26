@@ -8,4 +8,6 @@ namespace NatsuLang
 	{
 		virtual ~ASTNode();
 	};
+
+	using ASTNodePtr = NatsuLib::natRefPointer<ASTNode>;
 }
