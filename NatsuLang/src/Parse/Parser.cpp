@@ -110,7 +110,7 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 		m_ResolveContext.Reset();
 	});
 
-	for (auto&& skippedTopLevelCompilerAction : m_SkippedTopLevelCompilerActions)
+	for (auto&& skippedTopLevelCompilerAction : m_SkippedTopLevelOrExternalCompilerActions)
 	{
 		pushCachedTokens(move(skippedTopLevelCompilerAction));
 		const auto compilerActionScope = make_scope([this]
@@ -142,7 +142,7 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 		}
 	}
 
-	m_SkippedTopLevelCompilerActions.clear();
+	m_SkippedTopLevelOrExternalCompilerActions.clear();
 
 	for (auto declPtr : m_Sema.GetCachedDeclarators())
 	{
@@ -167,18 +167,8 @@ nBool Parser::ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls)
 	case TokenType::Kw_import:
 		decls = ParseModuleImport();
 		return false;
-	case TokenType::Kw_module:
-		decls = { ParseModuleDecl() };
-		return false;
 	case TokenType::Eof:
 		return true;
-	case TokenType::Dollar:
-	{
-		std::vector<Token> cachedTokens;
-		SkipUntil({ TokenType::Semi }, false, &cachedTokens);
-		m_SkippedTopLevelCompilerActions.emplace_back(move(cachedTokens));
-		return false;
-	}
 	case TokenType::Kw_unsafe:
 	{
 		ConsumeToken();
@@ -232,6 +222,15 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 {
 	switch (m_CurrentToken.GetType())
 	{
+	case TokenType::Kw_module:
+		return { ParseModuleDecl() };
+	case TokenType::Dollar:
+	{
+		std::vector<Token> cachedTokens;
+		SkipUntil({ TokenType::Semi }, false, &cachedTokens);
+		m_SkippedTopLevelOrExternalCompilerActions.emplace_back(move(cachedTokens));
+		return {};
+	}
 	case TokenType::Semi:
 		// Empty Declaration
 		ConsumeToken();
@@ -922,40 +921,51 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context, nBool ma
 		return result;
 	case TokenType::Identifier:
 	{
-		// TODO: 嵌套的别名如何处理？
-		const auto id = m_CurrentToken.GetIdentifierInfo();
-		const auto foundAlias = m_Sema.LookupAliasName(id, m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nullptr);
-		if (foundAlias)
+		auto curToken = m_CurrentToken;
+		const auto memento = m_Preprocessor.SaveToMemento();
+
+		const auto qualifiedId = ParseMayBeQualifiedId();
+		if (qualifiedId.second)
 		{
-			const auto astNode = foundAlias->GetAliasAsAst();
-			if (const auto compilerAction = astNode.Cast<ICompilerAction>())
+			const auto foundAlias = m_Sema.LookupAliasName(qualifiedId.second, {}, m_Sema.GetCurrentScope(), qualifiedId.first);
+			if (foundAlias)
 			{
-				ConsumeToken();
-				compilerAction->StartAction(CompilerActionContext{ *this });
-				ParseCompilerActionArguments(context, compilerAction);
-				compilerAction->EndAction([this, &result](natRefPointer<ASTNode> const& node)
+				const auto astNode = foundAlias->GetAliasAsAst();
+				if (const auto compilerAction = astNode.Cast<ICompilerAction>())
 				{
-					if (result)
+					ConsumeToken();
+					compilerAction->StartAction(CompilerActionContext{ *this });
+					ParseCompilerActionArguments(context, compilerAction);
+					compilerAction->EndAction([this, &result](natRefPointer<ASTNode> const& node)
 					{
-						// 多个语句是不允许的
-						return true;
-					}
+						if (result)
+						{
+							// 多个语句是不允许的
+							return true;
+						}
 
-					if (const auto decl = static_cast<Declaration::DeclPtr>(node))
-					{
-						result = m_Sema.ActOnDeclStmt({ decl }, {}, {});
-					}
-					else
-					{
-						result = node;
-					}
+						if (const auto decl = static_cast<Declaration::DeclPtr>(node))
+						{
+							result = m_Sema.ActOnDeclStmt({ decl }, {}, {});
+						}
+						else
+						{
+							result = node;
+						}
 
-					return false;
-				});
+						return false;
+					});
 
-				return result;
+					return result;
+				}
 			}
 		}
+
+		// 匹配失败，还原 Preprocessor 状态以及 m_CurrentToken 状态
+		// TODO: 是否可以重用以上信息？
+		m_Preprocessor.RestoreFromMemento(memento);
+		m_CurrentToken = std::move(curToken);
+
 		[[fallthrough]];
 	}
 	default:
@@ -1228,7 +1238,7 @@ Statement::StmtPtr Parser::ParseBreakStatement()
 }
 
 // return-statement:
-//	'return' [expression] [;]
+//	'return' [expression] ;
 Statement::StmtPtr Parser::ParseReturnStatement()
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_return));
@@ -1318,11 +1328,17 @@ Expression::ExprPtr Parser::ParseUnaryExpression()
 		break;
 	case TokenType::Identifier:
 	{
-		auto id = m_CurrentToken.GetIdentifierInfo();
-		result = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), nullptr, std::move(id),
+		auto qualifiedId = ParseMayBeQualifiedId();
+		// 注意可能是成员访问操作符，这里可能误判
+		if (!qualifiedId.second)
+		{
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+				.AddArgument(TokenType::Identifier)
+				.AddArgument(m_CurrentToken.GetType());
+			return ParseExprError();
+		}
+		result = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), qualifiedId.first, std::move(qualifiedId.second),
 									m_CurrentToken.Is(TokenType::LeftParen), m_ResolveContext);
-		ConsumeToken();
-
 		break;
 	}
 	case TokenType::PlusPlus:
@@ -1511,15 +1527,14 @@ Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr pre
 		{
 			const auto periodLoc = m_CurrentToken.GetLocation();
 			ConsumeToken();
-			Identifier::IdPtr unqualifiedId;
-			if (!ParseUnqualifiedId(unqualifiedId))
+			if (!m_CurrentToken.Is(TokenType::Identifier))
 			{
 				prefix = ParseExprError();
 				break;
 			}
-
 			prefix = m_Sema.ActOnMemberAccessExpr(m_Sema.GetCurrentScope(), std::move(prefix), periodLoc, nullptr,
-												  unqualifiedId);
+				m_CurrentToken.GetIdentifierInfo());
+			ConsumeToken();
 
 			break;
 		}
@@ -1612,30 +1627,61 @@ Expression::ExprPtr Parser::ParseParenExpression()
 
 	ConsumeParen();
 	auto ret = ParseExpression();
-	if (!m_CurrentToken.Is(TokenType::RightParen))
+	if (m_CurrentToken.Is(TokenType::RightParen))
 	{
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-			  .AddArgument(TokenType::RightParen)
-			  .AddArgument(m_CurrentToken.GetType());
+		ConsumeParen();
 	}
 	else
 	{
-		ConsumeParen();
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::RightParen)
+			.AddArgument(m_CurrentToken.GetType());
 	}
 
 	return ret;
 }
 
-nBool Parser::ParseUnqualifiedId(Identifier::IdPtr& result)
+// TODO: 可能找到多个声明。。。先假设只能找到一个否则报错
+// 会至少吃掉一个 Token，会吃掉最后一个 Identifier Token，若最后一个不是 Identifier 则不会吃掉
+std::pair<natRefPointer<NestedNameSpecifier>, Identifier::IdPtr> Parser::ParseMayBeQualifiedId()
 {
-	if (!m_CurrentToken.Is(TokenType::Identifier))
+	assert(m_CurrentToken.Is(TokenType::Identifier));
+
+	natRefPointer<NestedNameSpecifier> nns;
+	while (m_CurrentToken.Is(TokenType::Identifier))
 	{
-		return false;
+		auto id = m_CurrentToken.GetIdentifierInfo();
+		ConsumeToken();
+
+		if (!m_CurrentToken.Is(TokenType::Period))
+		{
+			return { std::move(nns), std::move(id) };
+		}
+
+		Semantic::LookupResult r{ m_Sema, id, m_CurrentToken.GetLocation(), Semantic::Sema::LookupNameType::LookupAnyName };
+		// TODO: 处理其他情况
+		if (!m_Sema.LookupNestedName(r, m_Sema.GetCurrentScope(), nns) || r.GetResultType() != Semantic::LookupResult::LookupResultType::Found || r.GetDeclSize() != 1)
+		{
+			// 分析失败，返回已经分析的部分
+			return { std::move(nns), std::move(id) };
+		}
+
+		auto decl = r.GetDecls().first();
+		assert(decl);
+
+		if (!Declaration::Decl::CastToDeclContext(decl.Get()))
+		{
+			// 分析失败，返回已经分析的部分
+			return { std::move(nns), std::move(id) };
+		}
+
+		nns = NestedNameSpecifier::Create(m_Sema.GetASTContext(), std::move(nns), std::move(decl));  // NOLINT
+
+		// 延迟吃掉这个点
+		ConsumeToken();
 	}
 
-	result = m_CurrentToken.GetIdentifierInfo();
-	ConsumeToken();
-	return true;
+	return {};  // NOLINT
 }
 
 nBool Parser::ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs,
@@ -1847,14 +1893,21 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 		// 用户自定义类型
 		// TODO: 处理 module
 
-		const auto id = m_CurrentToken.GetIdentifierInfo();
+		const auto qualifiedId = ParseMayBeQualifiedId();
 
-		if (auto type = m_Sema.LookupTypeName(id, m_CurrentToken.GetLocation(),
-								m_Sema.GetCurrentScope(), nullptr))
+		if (!qualifiedId.second)
+		{
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
+				.AddArgument(m_CurrentToken.GetType());
+			return;
+		}
+
+		if (auto type = m_Sema.LookupTypeName(qualifiedId.second, m_CurrentToken.GetLocation(),
+								m_Sema.GetCurrentScope(), qualifiedId.first))
 		{
 			decl->SetType(std::move(type));
 		}
-		else if (const auto alias = m_Sema.LookupAliasName(id, m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), nullptr))
+		else if (const auto alias = m_Sema.LookupAliasName(qualifiedId.second, m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), qualifiedId.first))
 		{
 			const auto aliasAsAst = alias->GetAliasAsAst();
 			if (auto aliasType = aliasAsAst.Cast<Type::Type>())
@@ -1894,7 +1947,6 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 			}
 		}
 
-		ConsumeToken();
 		break;
 	}
 	case TokenType::LeftParen:
@@ -1950,37 +2002,6 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 		ConsumeToken();
 		break;
 	}
-	}
-
-	if (auto type = decl->GetType(); type && type->GetType() == Type::Type::Class)
-	{
-		natRefPointer<NestedNameSpecifier> nns;
-		while (m_CurrentToken.Is(TokenType::Period))
-		{
-			ConsumeToken();
-
-			if (!m_CurrentToken.Is(TokenType::Identifier))
-			{
-				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
-					  .AddArgument(tokenType);
-				break;
-			}
-
-			nns = NestedNameSpecifier::Create(m_Sema.GetASTContext(), std::move(nns), std::move(type));
-
-			type = m_Sema.LookupTypeName(m_CurrentToken.GetIdentifierInfo(), m_CurrentToken.GetLocation(),
-										 m_Sema.GetCurrentScope(), nns);
-			if (!type)
-			{
-				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
-					  .AddArgument(m_CurrentToken.GetIdentifierInfo());
-				return;
-			}
-
-			ConsumeToken();
-		}
-
-		decl->SetType(std::move(type));
 	}
 
 	// 数组的指针和指针的数组和指针的数组的指针
@@ -2127,6 +2148,9 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 		}));
 }
 
+// TODO: def arr: int[1, 2, 3];
+// arr[0, 1, 2] = 1;
+// 这样的语法比较好看，列入计划
 void Parser::ParseArrayOrPointerType(Declaration::DeclaratorPtr const& decl)
 {
 	while (true)
@@ -2347,10 +2371,12 @@ Declaration::DeclPtr Parser::ResolveDeclarator(Declaration::DeclaratorPtr decl)
 	const auto oldUnresolvedDecl = decl->GetDecl();
 	assert(oldUnresolvedDecl);
 
+	auto curToken = m_CurrentToken;
 	pushCachedTokens(decl->GetAndClearCachedTokens());
-	const auto tokensScope = make_scope([this]
+	const auto tokensScope = make_scope([this, curToken = std::move(curToken)]
 	{
 		popCachedTokens();
+		m_CurrentToken = curToken;
 	});
 
 	m_ResolveContext->StartResolvingDeclarator(decl);

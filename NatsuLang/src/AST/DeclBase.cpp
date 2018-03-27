@@ -50,7 +50,6 @@ DeclContext* Decl::CastToDeclContext(const Decl* decl)
 #define DECL(Name, Base)
 #define DECL_CONTEXT_BASE(Name) if (type >= First##Name && type <= Last##Name) return static_cast<Name##Decl*>(const_cast<Decl*>(decl));
 #include "Basic/DeclDef.h"
-		assert(!"Invalid type.");
 		return nullptr;
 	}
 }
@@ -73,7 +72,6 @@ Decl* Decl::CastFromDeclContext(const DeclContext* declContext)
 #define DECL(Name, BASE)
 #define DECL_CONTEXT_BASE(Name) if (type >= First##Name && type <= Last##Name) return static_cast<Name##Decl*>(const_cast<DeclContext*>(declContext));
 #include "Basic/DeclDef.h"
-		assert(!"Invalid type.");
 		return nullptr;
 	}
 }

@@ -284,9 +284,7 @@ namespace NatsuLang::Syntax
 		Expression::ExprPtr ParseThrowExpression();
 		Expression::ExprPtr ParseParenExpression();
 
-		// unqualified-id:
-		//	identifier
-		nBool ParseUnqualifiedId(Identifier::IdPtr& result);
+		std::pair<NatsuLib::natRefPointer<NestedNameSpecifier>, Identifier::IdPtr> ParseMayBeQualifiedId();
 
 		// argument-expression-list:
 		//	argument-expression
@@ -318,7 +316,7 @@ namespace NatsuLang::Syntax
 		nuInt m_ParenCount, m_BracketCount, m_BraceCount;
 
 		NatsuLib::natRefPointer<ResolveContext> m_ResolveContext;
-		std::vector<std::vector<Lex::Token>> m_SkippedTopLevelCompilerActions;
+		std::vector<std::vector<Lex::Token>> m_SkippedTopLevelOrExternalCompilerActions;
 
 		void pushCachedTokens(std::vector<Lex::Token> tokens);
 		void popCachedTokens();
