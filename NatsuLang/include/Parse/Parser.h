@@ -316,7 +316,7 @@ namespace NatsuLang::Syntax
 		nuInt m_ParenCount, m_BracketCount, m_BraceCount;
 
 		NatsuLib::natRefPointer<ResolveContext> m_ResolveContext;
-		std::vector<std::vector<Lex::Token>> m_SkippedTopLevelOrExternalCompilerActions;
+		std::vector<std::vector<Lex::Token>> m_SkippedExternalCompilerActions;
 
 		void pushCachedTokens(std::vector<Lex::Token> tokens);
 		void popCachedTokens();

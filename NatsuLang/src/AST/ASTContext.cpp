@@ -77,9 +77,9 @@ natRefPointer<Type::PointerType> ASTContext::GetPointerType(Type::TypePtr pointe
 	return ret;
 }
 
-natRefPointer<Type::FunctionType> ASTContext::GetFunctionType(Linq<NatsuLib::Valued<Type::TypePtr>> const& params, Type::TypePtr retType)
+natRefPointer<Type::FunctionType> ASTContext::GetFunctionType(Linq<Valued<Type::TypePtr>> const& params, Type::TypePtr retType, nBool hasVarArg)
 {
-	auto ret = make_ref<Type::FunctionType>(params, std::move(retType));
+	auto ret = make_ref<Type::FunctionType>(params, std::move(retType), hasVarArg);
 	const auto iter = m_FunctionTypes.find(ret);
 	if (iter != m_FunctionTypes.end())
 	{

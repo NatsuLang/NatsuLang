@@ -86,6 +86,11 @@ nBool Decl::IsFunction() const noexcept
 	return m_Type >= FirstFunction && m_Type <= LastFunction;
 }
 
+std::size_t Decl::GetAttributeCount() const noexcept
+{
+	return m_AttributeSet.size();
+}
+
 Linq<Valued<AttrPtr>> Decl::GetAttributes() const noexcept
 {
 	return from(m_AttributeSet);

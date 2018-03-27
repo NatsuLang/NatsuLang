@@ -175,7 +175,7 @@ namespace NatsuLang::Semantic
 			NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
 
 		Type::TypePtr BuildFunctionType(Type::TypePtr retType,
-		                                NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& paramType);
+		                                NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& paramType, nBool hasVarArg);
 		Type::TypePtr CreateUnresolvedType(std::vector<Lex::Token> tokens);
 
 		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope,

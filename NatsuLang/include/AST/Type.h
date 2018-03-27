@@ -172,8 +172,8 @@ namespace NatsuLang::Type
 		: public Type
 	{
 	public:
-		FunctionType(NatsuLib::Linq<NatsuLib::Valued<TypePtr>> const& params, TypePtr resultType)
-			: Type{ Function }, m_ParameterTypes{ params.begin(), params.end() }, m_ResultType{ std::move(resultType) }
+		FunctionType(NatsuLib::Linq<NatsuLib::Valued<TypePtr>> const& params, TypePtr resultType, nBool hasVarArg = false)
+			: Type{ Function }, m_ParameterTypes{ params.begin(), params.end() }, m_ResultType{ std::move(resultType) }, m_HasVarArg{ hasVarArg }
 		{
 		}
 
@@ -189,6 +189,16 @@ namespace NatsuLang::Type
 			m_ResultType = std::move(value);
 		}
 
+		nBool HasVarArg() const noexcept
+		{
+			return m_HasVarArg;
+		}
+
+		void SetHasVarArg(nBool value) noexcept
+		{
+			m_HasVarArg = value;
+		}
+
 		NatsuLib::Linq<NatsuLib::Valued<TypePtr>> GetParameterTypes() const noexcept;
 		std::size_t GetParameterCount() const noexcept;
 
@@ -199,6 +209,7 @@ namespace NatsuLang::Type
 	private:
 		std::vector<TypePtr> m_ParameterTypes;
 		TypePtr m_ResultType;
+		nBool m_HasVarArg;
 	};
 
 	class TagType

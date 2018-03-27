@@ -125,6 +125,7 @@ namespace NatsuLang::Declaration
 			return m_AttributeSet.erase(attr);
 		}
 
+		std::size_t GetAttributeCount() const noexcept;
 		NatsuLib::Linq<NatsuLib::Valued<AttrPtr>> GetAttributes() const noexcept;
 
 	protected:

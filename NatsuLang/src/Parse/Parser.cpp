@@ -110,7 +110,7 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 		m_ResolveContext.Reset();
 	});
 
-	for (auto&& skippedTopLevelCompilerAction : m_SkippedTopLevelOrExternalCompilerActions)
+	for (auto&& skippedTopLevelCompilerAction : m_SkippedExternalCompilerActions)
 	{
 		pushCachedTokens(move(skippedTopLevelCompilerAction));
 		const auto compilerActionScope = make_scope([this]
@@ -142,7 +142,7 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 		}
 	}
 
-	m_SkippedTopLevelOrExternalCompilerActions.clear();
+	m_SkippedExternalCompilerActions.clear();
 
 	for (auto declPtr : m_Sema.GetCachedDeclarators())
 	{
@@ -228,7 +228,7 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 	{
 		std::vector<Token> cachedTokens;
 		SkipUntil({ TokenType::Semi }, false, &cachedTokens);
-		m_SkippedTopLevelOrExternalCompilerActions.emplace_back(move(cachedTokens));
+		m_SkippedExternalCompilerActions.emplace_back(move(cachedTokens));
 		return {};
 	}
 	case TokenType::Semi:
@@ -2034,6 +2034,7 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 	ConsumeParen();
 
 	std::vector<Declaration::DeclaratorPtr> paramDecls;
+	auto hasVarArg = false;
 
 	auto mayBeParenType = true;
 
@@ -2054,6 +2055,26 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 
 		while (true)
 		{
+			if (m_CurrentToken.Is(TokenType::Ellipsis))
+			{
+				hasVarArg = true;
+				ConsumeToken();
+
+				if (m_CurrentToken.Is(TokenType::RightParen))
+				{
+					ConsumeParen();
+				}
+				else
+				{
+					// TODO: 报告错误：可变参数只能位于最后一个参数
+					m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+						.AddArgument(TokenType::RightParen)
+						.AddArgument(m_CurrentToken.GetType());
+				}
+
+				break;
+			}
+
 			auto param = make_ref<Declaration::Declarator>(Declaration::Context::Prototype);
 			ParseDeclarator(param);
 			if ((mayBeParenType && param->GetIdentifier()) || !param->GetType())
@@ -2083,15 +2104,15 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 
 			mayBeParenType = false;
 
-			if (!m_CurrentToken.Is(TokenType::Comma))
+			if (m_CurrentToken.Is(TokenType::Comma))
 			{
-				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-					  .AddArgument(TokenType::Comma)
-					  .AddArgument(m_CurrentToken.GetType());
+				ConsumeToken();
 			}
 			else
 			{
-				ConsumeToken();
+				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+					.AddArgument(TokenType::Comma)
+					.AddArgument(m_CurrentToken.GetType());
 			}
 		}
 	}
@@ -2139,7 +2160,7 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 										   .select([](Declaration::DeclaratorPtr const& paramDecl)
 										   {
 											   return paramDecl->GetType();
-										   })));
+										   }), hasVarArg));
 
 	decl->SetParams(from(paramDecls)
 		.select([this](Declaration::DeclaratorPtr const& paramDecl)

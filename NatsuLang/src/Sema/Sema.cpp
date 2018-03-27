@@ -425,9 +425,9 @@ natRefPointer<Declaration::AliasDecl> Sema::LookupAliasName(
 	}
 }
 
-Type::TypePtr Sema::BuildFunctionType(Type::TypePtr retType, Linq<Valued<Type::TypePtr>> const& paramType)
+Type::TypePtr Sema::BuildFunctionType(Type::TypePtr retType, Linq<Valued<Type::TypePtr>> const& paramType, nBool hasVarArg)
 {
-	return m_Context.GetFunctionType(from(paramType), std::move(retType));
+	return m_Context.GetFunctionType(from(paramType), std::move(retType), hasVarArg);
 }
 
 Type::TypePtr Sema::CreateUnresolvedType(std::vector<Lex::Token> tokens)
@@ -1513,9 +1513,7 @@ Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expre
 
 		// TODO: 处理有默认参数的情况
 		return make_ref<Expression::CallExpr>(std::move(nonMemberFunc), argExprs.zip(fnType->GetParameterTypes()).select(
-												  [this](
-												  std::pair<Expression::ExprPtr, Type::TypePtr
-												  > const& pair)
+												  [this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
 												  {
 													  return ImpCastExprToType(
 														  pair.first, pair.second,
@@ -1544,9 +1542,7 @@ Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expre
 		}
 
 		return make_ref<Expression::MemberCallExpr>(std::move(memberFunc), argExprs.zip(fnType->GetParameterTypes()).select(
-														[this](
-														std::pair<Expression::ExprPtr, Type::
-																  TypePtr> const& pair)
+														[this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
 														{
 															return ImpCastExprToType(
 																pair.first, pair.second,

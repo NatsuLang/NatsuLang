@@ -310,7 +310,7 @@ std::size_t FunctionType::GetHashCode() const noexcept
 	}).aggregate(m_ResultType->GetHashCode(), [](std::size_t ret, std::size_t cur)
 	{
 		return ret ^ cur;
-	});
+	}) << static_cast<std::size_t>(m_HasVarArg);
 }
 
 nBool FunctionType::EqualTo(TypePtr const& other) const noexcept
@@ -321,7 +321,7 @@ nBool FunctionType::EqualTo(TypePtr const& other) const noexcept
 		return false;
 	}
 
-	return m_ParameterTypes.size() == realOther->m_ParameterTypes.size() &&
+	return m_HasVarArg == realOther->m_HasVarArg && m_ParameterTypes.size() == realOther->m_ParameterTypes.size() &&
 		m_ResultType->EqualTo(realOther->m_ResultType) &&
 		from(m_ParameterTypes)
 		.zip(from(realOther->m_ParameterTypes))

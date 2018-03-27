@@ -15,8 +15,64 @@ using namespace Compiler;
 
 namespace
 {
+	class NameManglingRuleAttribute
+		: public natRefObjImpl<NameManglingRuleAttribute, Declaration::IAttribute>
+	{
+	public:
+		virtual nString GetMangledName(natRefPointer<Declaration::NamedDecl> const& decl) = 0;
+	};
+
+	class CallingConventionAttribute
+		: public natRefObjImpl<CallingConventionAttribute, Declaration::IAttribute>
+	{
+	public:
+		enum class CallingConvention
+		{
+			Cdecl,
+			Stdcall
+		};
+
+		explicit CallingConventionAttribute(CallingConvention callingConvention)
+			: m_CallingConvention{ callingConvention }
+		{
+		}
+
+		CallingConvention GetCallingConvention() const noexcept
+		{
+			return m_CallingConvention;
+		}
+
+		static constexpr llvm::CallingConv::ID ToLLVMCallingConv(CallingConvention value) noexcept
+		{
+			switch (value)
+			{
+			case CallingConvention::Cdecl:
+				return llvm::CallingConv::C;
+			case CallingConvention::Stdcall:
+				return llvm::CallingConv::X86_StdCall;
+			default:
+				assert(!"Invalid CallingConvention.");
+				std::terminate();
+			}
+		}
+
+	private:
+		CallingConvention m_CallingConvention;
+	};
+
 	nString GetQualifiedName(natRefPointer<Declaration::NamedDecl> const& decl)
 	{
+		const auto query = decl->GetAttributes().select([](Declaration::AttrPtr const& attr)
+		{
+			return attr.Cast<NameManglingRuleAttribute>();
+		}).where([](NameManglingRuleAttribute::RefPointer const& ptr) -> nBool { return ptr; });
+
+		if (!query.empty())
+		{
+			const auto attr = query.first();
+			return attr->GetMangledName(decl);
+		}
+
 		nString qualifiedName = decl->GetName();
 		auto dc = decl->GetContext();
 
@@ -216,6 +272,17 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 				llvm::GlobalVariable::ExternalLinkage,
 				llvm::StringRef{ functionName.cbegin(), functionName.size() },
 				m_Compiler.m_Module.get());
+
+			const auto query = funcDecl->GetAttributes().select([](Declaration::AttrPtr const& attr)
+			{
+				return attr.Cast<CallingConventionAttribute>();
+			}).where([](CallingConventionAttribute::RefPointer const& ptr) -> nBool { return ptr; });
+
+			if (!query.empty())
+			{
+				const auto attr = query.first();
+				funcValue->setCallingConv(CallingConventionAttribute::ToLLVMCallingConv(attr->GetCallingConvention()));
+			}
 
 			auto argIter = funcValue->arg_begin();
 			const auto argEnd = funcValue->arg_end();
