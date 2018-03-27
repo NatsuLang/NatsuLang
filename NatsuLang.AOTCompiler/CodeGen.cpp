@@ -9,6 +9,8 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/IR/LegacyPassManager.h>
 
+#include <Sema/DefaultActions.h>
+
 using namespace NatsuLib;
 using namespace NatsuLang;
 using namespace Compiler;
@@ -59,6 +61,90 @@ namespace
 	private:
 		CallingConvention m_CallingConvention;
 	};
+
+	class ActionCallingConvention
+		: public natRefObjImpl<ActionCallingConvention, ICompilerAction>
+	{
+	public:
+		ActionCallingConvention()
+			: m_Diag{}, m_AssignedCallingConvention{},
+			  m_CallingConvention{ CallingConventionAttribute::CallingConvention::Cdecl }
+		{
+		}
+
+		nStrView GetName() const noexcept override
+		{
+			return u8"CallingConvention"_nv;
+		}
+
+		natRefPointer<IArgumentRequirement> GetArgumentRequirement() override
+		{
+			return s_ArgumentRequirement;
+		}
+
+		void StartAction(CompilerActionContext const& context) override
+		{
+			m_Diag = &context.GetParser().GetDiagnosticsEngine();
+		}
+
+		void EndAction(std::function<nBool(natRefPointer<ASTNode>)> const& output) override
+		{
+			assert(m_Decl);
+			m_Decl->AttachAttribute(make_ref<CallingConventionAttribute>(m_CallingConvention));
+
+			if (output)
+			{
+				output(m_Decl);
+			}
+
+			m_Diag = nullptr;
+			m_AssignedCallingConvention = false;
+			m_CallingConvention = CallingConventionAttribute::CallingConvention::Cdecl;
+			m_Decl.Reset();
+		}
+
+		void AddArgument(natRefPointer<ASTNode> const& arg) override
+		{
+			if (!m_AssignedCallingConvention)
+			{
+				const auto idDecl = arg.Cast<Declaration::UnresolvedDecl>();
+				if (!idDecl)
+				{
+					m_Diag->Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier);
+					return;
+				}
+
+				const auto id = idDecl->GetName();
+				if (id == "Stdcall")
+				{
+					m_CallingConvention = CallingConventionAttribute::CallingConvention::Stdcall;
+				}
+				else
+				{
+					assert(id == "Cdecl");
+					m_CallingConvention = CallingConventionAttribute::CallingConvention::Cdecl;
+				}
+				m_AssignedCallingConvention = true;
+			}
+			else
+			{
+				m_Decl = arg;
+				if (!m_Decl)
+				{
+					m_Diag->Report(Diag::DiagnosticsEngine::DiagID::ErrExpected).AddArgument("Declaration");
+				}
+			}
+		}
+
+	private:
+		Diag::DiagnosticsEngine* m_Diag;
+		nBool m_AssignedCallingConvention;
+		CallingConventionAttribute::CallingConvention m_CallingConvention;
+		Declaration::DeclPtr m_Decl;
+		static const natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
+	};
+
+	const natRefPointer<IArgumentRequirement> ActionCallingConvention::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier, CompilerActionArgumentType::Declaration }) };
 
 	nString GetQualifiedName(natRefPointer<Declaration::NamedDecl> const& decl)
 	{
@@ -2026,6 +2112,8 @@ AotCompiler::AotCompiler(natRefPointer<TextReader<StringType::Utf8>> const& diag
 	LLVMInitializeX86TargetMC();
 	LLVMInitializeX86AsmParser();
 	LLVMInitializeX86AsmPrinter();
+
+	prewarm();
 }
 
 AotCompiler::~AotCompiler()
@@ -2206,6 +2294,13 @@ void AotCompiler::AotStmtVisitor::LexicalScope::ExplicitClean()
 void AotCompiler::AotStmtVisitor::LexicalScope::SetAlreadyCleaned() noexcept
 {
 	m_AlreadyCleaned = true;
+}
+
+void AotCompiler::prewarm()
+{
+	const auto topLevelNamespace = m_Sema.GetTopLevelActionNamespace();
+	const auto compilerNamespace = topLevelNamespace->GetSubNamespace(u8"Compiler"_nv);
+	compilerNamespace->RegisterAction(make_ref<ActionCallingConvention>());
 }
 
 llvm::GlobalVariable* AotCompiler::getStringLiteralValue(nStrView literalContent, nStrView literalName)

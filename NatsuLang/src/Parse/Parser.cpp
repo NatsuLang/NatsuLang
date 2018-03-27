@@ -130,7 +130,7 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 			return true;
 		});
 
-		if (m_CurrentToken.Is(TokenType::Semi))
+		/*if (m_CurrentToken.Is(TokenType::Semi))
 		{
 			ConsumeToken();
 		}
@@ -139,7 +139,7 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
 				.AddArgument(TokenType::Semi)
 				.AddArgument(m_CurrentToken.GetType());
-		}
+		}*/
 	}
 
 	m_SkippedExternalCompilerActions.clear();
@@ -427,9 +427,9 @@ std::size_t Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerActio
 
 		if (m_CurrentToken.Is(TokenType::RightParen))
 		{
+			ConsumeParen();
 			if (argType == CompilerActionArgumentType::None || HasFlags(argType, CompilerActionArgumentType::Optional))
 			{
-				ConsumeParen();
 				break;
 			}
 

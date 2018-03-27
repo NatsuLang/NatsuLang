@@ -345,6 +345,8 @@ namespace NatsuLang::Compiler
 
 		std::unordered_map<nString, llvm::GlobalVariable*> m_StringLiteralPool;
 
+		void prewarm();
+
 		llvm::GlobalVariable* getStringLiteralValue(nStrView literalContent, nStrView literalName = "String");
 
 		llvm::Type* getCorrespondingType(Type::TypePtr const& type);
