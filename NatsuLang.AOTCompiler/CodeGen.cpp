@@ -813,10 +813,21 @@ void AotCompiler::AotStmtVisitor::VisitThrowExpr(natRefPointer<Expression::Throw
 void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallExpr> const& expr)
 {
 	EvaluateValue(expr->GetCallee());
-	const auto callee = llvm::cast<llvm::Function>(m_LastVisitedValue);
+	const auto callee = m_LastVisitedValue;
+	llvm::FunctionType* calleeType;
+	if (const auto ptrType = llvm::dyn_cast_or_null<llvm::PointerType>(m_LastVisitedValue->getType()); ptrType &&
+		llvm::isa<llvm::FunctionType>(ptrType->getElementType()))
+	{
+		calleeType = llvm::cast<llvm::FunctionType>(ptrType->getElementType());
+	}
+	else
+	{
+		nat_Throw(AotCompilerException, u8"被调用者不是函数或者函数指针"_nv);
+	}
+
 	assert(callee);
 
-	if (callee->arg_size() != expr->GetArgCount())
+	if (calleeType->getNumParams() != expr->GetArgCount())
 	{
 		nat_Throw(AotCompilerException, u8"参数数量不匹配，这可能是默认参数功能未实现导致的"_nv);
 	}
@@ -834,7 +845,7 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 	}
 
 	const auto callInst = m_Compiler.m_IRBuilder.CreateCall(callee, args);
-	if (!callee->getReturnType()->isVoidTy())
+	if (!calleeType->getReturnType()->isVoidTy())
 	{
 		callInst->setName("ret");
 	}
@@ -1056,7 +1067,15 @@ void AotCompiler::AotStmtVisitor::VisitUnaryOperator(natRefPointer<Expression::U
 		break;
 	case Expression::UnaryOperationType::AddrOf:
 		// 返回值即为地址
-		EvaluateAsModifiableValue(operand);
+		if (operand->GetExprType().Cast<Type::FunctionType>())
+		{
+			EvaluateValue(operand);
+		}
+		else
+		{
+			EvaluateAsModifiableValue(operand);
+		}
+
 		break;
 	case Expression::UnaryOperationType::Deref:
 		EvaluateValue(operand);
@@ -1691,7 +1710,7 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitFunctionAddr(natRefPointer<Declara
 		nat_Throw(AotCompilerException, u8"无法找到这个函数"_nv);
 	}
 
-	nat_Throw(AotCompilerException, u8"无法修改函数地址"_nv);
+	nat_Throw(AotCompilerException, u8"无法修改函数"_nv);
 }
 
 void AotCompiler::AotStmtVisitor::EmitVarDecl(natRefPointer<Declaration::VarDecl> const& decl)

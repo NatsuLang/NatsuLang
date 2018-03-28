@@ -1515,6 +1515,31 @@ Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expre
 
 	func = func->IgnoreParens();
 
+	const auto exprType = func->GetExprType();
+
+	// 是函数指针
+	if (exprType->GetType() == Type::Type::Pointer)
+	{
+		const auto pointerType = exprType.UnsafeCast<Type::PointerType>();
+		const auto pointeeType = pointerType->GetPointeeType();
+		if (!pointeeType || pointeeType->GetType() != Type::Type::Function)
+		{
+			// TODO: 报告错误
+			return nullptr;
+		}
+		
+		const auto fnType = pointeeType.UnsafeCast<Type::FunctionType>();
+
+		// TODO: 处理有默认参数的情况
+		return make_ref<Expression::CallExpr>(std::move(func), argExprs.zip(fnType->GetParameterTypes()).select(
+			                                      [this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
+			                                      {
+				                                      return ImpCastExprToType(
+					                                      pair.first, pair.second,
+					                                      getCastType(pair.first, pair.second, true));
+			                                      }), fnType->GetResultType(), rloc);
+	}
+
 	if (auto nonMemberFunc = func.Cast<Expression::DeclRefExpr>())
 	{
 		const auto refFn = nonMemberFunc->GetDecl();
@@ -1734,27 +1759,75 @@ Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::B
 	case Expression::BinaryOperationType::AndAssign:
 	case Expression::BinaryOperationType::XorAssign:
 	case Expression::BinaryOperationType::OrAssign:
-		const auto builtinLHSType = leftOperand->GetExprType().Cast<Type::BuiltinType>(),
-				   builtinRHSType = rightOperand->GetExprType().Cast<Type::BuiltinType>();
+	{
+		const auto leftType = Type::Type::GetUnderlyingType(leftOperand->GetExprType()), rightType = Type::Type::GetUnderlyingType(rightOperand->GetExprType());
 
-		Expression::CastType castType;
-		if (builtinLHSType->IsIntegerType())
+		if (leftType == rightType)
 		{
-			castType = builtinRHSType->IsIntegerType()
-						   ? Expression::CastType::IntegralCast
-						   : Expression::CastType::FloatingToIntegral;
-		}
-		else
-		{
-			castType = builtinRHSType->IsIntegerType()
-						   ? Expression::CastType::IntegralToFloating
-						   : Expression::CastType::FloatingCast;
+			return make_ref<Expression::CompoundAssignOperator>(std::move(leftOperand), std::move(rightOperand), binOpType, leftType, loc);
 		}
 
-		return make_ref<Expression::CompoundAssignOperator>(std::move(leftOperand),
-															ImpCastExprToType(std::move(rightOperand), builtinLHSType,
-																			  castType), binOpType, builtinLHSType, loc);
+		switch (leftType->GetType())
+		{
+		case Type::Type::Builtin:
+		{
+			const auto builtinLeftType = leftType.UnsafeCast<Type::BuiltinType>();
+			switch (rightType->GetType())
+			{
+			case Type::Type::Builtin:
+			{
+				const auto builtinRightType = rightType.UnsafeCast<Type::BuiltinType>();
+				Expression::CastType castType;
+				if (builtinLeftType->IsIntegerType())
+				{
+					castType = builtinRightType->IsIntegerType()
+						? Expression::CastType::IntegralCast
+						: Expression::CastType::FloatingToIntegral;
+				}
+				else
+				{
+					castType = builtinRightType->IsIntegerType()
+						? Expression::CastType::IntegralToFloating
+						: Expression::CastType::FloatingCast;
+				}
+
+				return make_ref<Expression::CompoundAssignOperator>(std::move(leftOperand),
+					ImpCastExprToType(std::move(rightOperand), builtinLeftType,
+						castType), binOpType, builtinLeftType, loc);
+			}
+			case Type::Type::Pointer:
+				break;
+			case Type::Type::Array:
+				break;
+			case Type::Type::Function:
+				break;
+			case Type::Type::Class:
+				break;
+			case Type::Type::Enum:
+				break;
+			default:
+				break;
+			}
+			break;
+		}
+		case Type::Type::Pointer:
+			break;
+		case Type::Type::Array:
+			break;
+		case Type::Type::Function:
+			break;
+		case Type::Type::Class:
+			break;
+		case Type::Type::Enum:
+			break;
+		default:
+			break;
+		}
 	}
+	}
+
+	// TODO
+	nat_Throw(NotImplementedException);
 }
 
 Expression::ExprPtr Sema::ActOnConditionalOp(SourceLocation questionLoc, SourceLocation colonLoc,
@@ -1964,10 +2037,11 @@ Type::TypePtr Sema::GetBuiltinBinaryOpType(Expression::ExprPtr& leftOperand, Exp
 		case Type::Type::Builtin:
 			return UsualArithmeticConversions(leftOperand, rightOperand);
 		case Type::Type::Pointer:
-			if (builtinLeftType->IsIntegerType())
+			if (!rightType.UnsafeCast<Type::PointerType>()->GetPointeeType().Cast<Type::FunctionType>() && builtinLeftType->IsIntegerType())
 			{
 				return rightType;
 			}
+
 			// TODO: 报告错误：不支持的操作
 			return nullptr;
 		case Type::Type::Array:
@@ -1987,6 +2061,12 @@ Type::TypePtr Sema::GetBuiltinBinaryOpType(Expression::ExprPtr& leftOperand, Exp
 	case Type::Type::Pointer:
 	{
 		const auto pointerLeftType = leftType.UnsafeCast<Type::PointerType>();
+		if (pointerLeftType->GetPointeeType().Cast<Type::FunctionType>())
+		{
+			// TODO: 报告错误：不支持的操作
+			return nullptr;
+		}
+
 		switch (rightType->GetType())
 		{
 		case Type::Type::Builtin:
