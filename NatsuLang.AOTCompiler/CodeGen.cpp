@@ -195,6 +195,56 @@ namespace
 	}
 }
 
+Detail::LLVMPart::LLVMPart()
+	: m_TargetTriple{ llvm::sys::getDefaultTargetTriple() }, m_TargetMachine{}, m_IRBuilder{ m_LLVMContext }
+{
+	LLVMInitializeX86TargetInfo();
+	LLVMInitializeX86Target();
+	LLVMInitializeX86TargetMC();
+	LLVMInitializeX86AsmParser();
+	LLVMInitializeX86AsmPrinter();
+
+	std::string error;
+	const auto target = llvm::TargetRegistry::lookupTarget(m_TargetTriple, error);
+	if (!target)
+	{
+		nat_Throw(AotCompilerException, u8"初始化错误：无法查找目标：{0}"_nv, error);
+	}
+
+	const llvm::TargetOptions opt;
+	const llvm::Optional<llvm::Reloc::Model> RM{};
+	m_TargetMachine = target->createTargetMachine(m_TargetTriple, "generic", "", opt, RM, llvm::None, llvm::CodeGenOpt::Default);
+}
+
+llvm::DataLayout Detail::LLVMPart::GetDataLayout() const noexcept
+{
+	return m_TargetMachine->createDataLayout();
+}
+
+void Detail::LLVMPart::CreateDefauleModule(nStrView moduleName)
+{
+	m_Module = std::make_unique<llvm::Module>(llvm::StringRef(moduleName.begin(), moduleName.size()), m_LLVMContext);
+	m_Module->setTargetTriple(m_TargetTriple);
+	m_Module->setDataLayout(GetDataLayout());
+}
+
+void Detail::LLVMPart::DisposeModule(llvm::raw_pwrite_stream& stream, natLog& logger)
+{
+#if !defined(NDEBUG)
+	std::string buffer;
+	llvm::raw_string_ostream os{ buffer };
+	m_Module->print(os, nullptr);
+	logger.LogMsg(u8"编译成功，生成的 IR:\n{0}"_nv, buffer);
+#endif // NDEBUG
+
+	llvm::legacy::PassManager passManager;
+	m_TargetMachine->addPassesToEmitFile(passManager, stream, llvm::TargetMachine::CGFT_ObjectFile);
+	passManager.run(*m_Module);
+	stream.flush();
+
+	m_Module.reset();
+}
+
 AotCompiler::AotDiagIdMap::AotDiagIdMap(natRefPointer<TextReader<StringType::Utf8>> const& reader)
 {
 	using DiagIDUnderlyingType = std::underlying_type_t<Diag::DiagnosticsEngine::DiagID>;
@@ -1787,7 +1837,7 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarInit(Type::TypePtr const& varType, 
 			}
 
 			const auto stringLiteralPtr = m_Compiler.getStringLiteralValue(literalValue);
-			m_Compiler.m_IRBuilder.CreateMemCpy(varPtr, stringLiteralPtr, literalValue.GetSize() + 1, static_cast<unsigned>(typeInfo.Align));
+			m_Compiler.m_IRBuilder.CreateMemCpy(varPtr, static_cast<unsigned>(typeInfo.Align), stringLiteralPtr, static_cast<unsigned>(typeInfo.Align), literalValue.GetSize() + 1);
 		}
 		else
 		{
@@ -2102,17 +2152,15 @@ AotCompiler::AotCompiler(natRefPointer<TextReader<StringType::Utf8>> const& diag
 	m_Logger{ logger },
 	m_SourceManager{ m_Diag, m_FileManager },
 	m_Preprocessor{ m_Diag, m_SourceManager },
+	m_AstContext{ TargetInfo{ GetDataLayout().isBigEndian() ?
+			Environment::Endianness::BigEndian :
+			Environment::Endianness::LittleEndian,
+		GetDataLayout().getPointerSize(),
+		GetDataLayout().getPointerABIAlignment(0) } },
 	m_Consumer{ make_ref<AotAstConsumer>(*this) },
 	m_Sema{ m_Preprocessor, m_AstContext, m_Consumer },
-	m_Parser{ m_Preprocessor, m_Sema },
-	m_IRBuilder{ m_LLVMContext }
+	m_Parser{ m_Preprocessor, m_Sema }
 {
-	LLVMInitializeX86TargetInfo();
-	LLVMInitializeX86Target();
-	LLVMInitializeX86TargetMC();
-	LLVMInitializeX86AsmParser();
-	LLVMInitializeX86AsmPrinter();
-
 	prewarm();
 }
 
@@ -2122,22 +2170,7 @@ AotCompiler::~AotCompiler()
 
 void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 {
-	const auto path = uri.GetPath();
-	m_Module = std::make_unique<llvm::Module>(std::string(path.begin(), path.end()), m_LLVMContext);
-	const auto targetTriple = llvm::sys::getDefaultTargetTriple();
-	m_Module->setTargetTriple(targetTriple);
-	std::string error;
-	const auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
-	if (!target)
-	{
-		m_Logger.LogErr(u8"{0}"_nv, error);
-		return;
-	}
-
-	const llvm::TargetOptions opt;
-	const llvm::Optional<llvm::Reloc::Model> RM{};
-	const auto machine = target->createTargetMachine(targetTriple, "generic", "", opt, RM, llvm::None, llvm::CodeGenOpt::Default);
-	m_Module->setDataLayout(machine->createDataLayout());
+	CreateDefauleModule(uri.GetPath());
 
 	const auto fileId = m_SourceManager.GetFileID(uri);
 	const auto [succeed, content] = m_SourceManager.GetFileContent(fileId);
@@ -2159,19 +2192,7 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 		return;
 	}
 
-#if !defined(NDEBUG)
-	std::string buffer;
-	llvm::raw_string_ostream os{ buffer };
-	m_Module->print(os, nullptr);
-	m_Logger.LogMsg(u8"编译成功，生成的 IR:\n{0}"_nv, buffer);
-#endif // NDEBUG
-
-	llvm::legacy::PassManager passManager;
-	machine->addPassesToEmitFile(passManager, stream, llvm::TargetMachine::CGFT_ObjectFile);
-	passManager.run(*m_Module);
-	stream.flush();
-
-	m_Module.reset();
+	DisposeModule(stream, m_Logger);
 }
 
 AotCompiler::AotStmtVisitor::ICleanup::~ICleanup()

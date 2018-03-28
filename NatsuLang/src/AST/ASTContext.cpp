@@ -9,9 +9,50 @@ using namespace NatsuLang;
 
 namespace
 {
-	constexpr std::size_t AlignTo(std::size_t size, std::size_t alignment)
+	constexpr std::size_t AlignTo(std::size_t size, std::size_t alignment) noexcept
 	{
 		return (size + alignment - 1) / alignment * alignment;
+	}
+
+	constexpr ASTContext::TypeInfo GetBuiltinTypeInfo(Type::BuiltinType::BuiltinClass type) noexcept
+	{
+		switch (type)
+		{
+		case Type::BuiltinType::Void:
+			return { 0, 4 };
+		case Type::BuiltinType::Bool:
+			return { 1, 4 };
+		case Type::BuiltinType::Char:
+			return { 1, 4 };
+		case Type::BuiltinType::UShort:
+		case Type::BuiltinType::Short:
+			return { 2, 4 };
+		case Type::BuiltinType::UInt:
+		case Type::BuiltinType::Int:
+			return { 4, 4 };
+		case Type::BuiltinType::ULong:
+		case Type::BuiltinType::Long:
+			return { 8, 8 };
+		case Type::BuiltinType::ULongLong:
+		case Type::BuiltinType::LongLong:
+			return { 16, 16 };
+		case Type::BuiltinType::UInt128:
+		case Type::BuiltinType::Int128:
+			return { 16, 16 };
+		case Type::BuiltinType::Float:
+			return { 4, 4 };
+		case Type::BuiltinType::Double:
+			return { 8, 8 };
+		case Type::BuiltinType::LongDouble:
+			return { 16, 16 };
+		case Type::BuiltinType::Float128:
+			return { 16, 16 };
+		case Type::BuiltinType::Overload:
+		case Type::BuiltinType::BoundMember:
+		case Type::BuiltinType::BuiltinFn:
+		default:
+			return { 0, 0 };
+		}
 	}
 }
 
@@ -30,8 +71,8 @@ std::optional<std::pair<std::size_t, std::size_t>> ASTContext::ClassLayout::GetF
 	return std::optional<std::pair<std::size_t, std::size_t>>{ std::in_place, std::distance(FieldOffsets.cbegin(), iter), iter->second };
 }
 
-ASTContext::ASTContext()
-	: m_TUDecl{ make_ref<Declaration::TranslationUnitDecl>(*this) }
+ASTContext::ASTContext(TargetInfo targetInfo)
+	: m_TargetInfo{ targetInfo }, m_TUDecl{ make_ref<Declaration::TranslationUnitDecl>(*this) }
 {
 }
 
@@ -48,6 +89,56 @@ natRefPointer<Type::BuiltinType> ASTContext::GetBuiltinType(Type::BuiltinType::B
 	}
 
 	return ptr;
+}
+
+natRefPointer<Type::BuiltinType> ASTContext::GetSizeType()
+{
+	if (m_SizeType)
+	{
+		return m_SizeType;
+	}
+
+	const auto ptrSize = m_TargetInfo.GetPointerSize(), ptrAlign = m_TargetInfo.GetPointerAlign();
+
+	using BuiltinType = std::underlying_type_t<Type::BuiltinType::BuiltinClass>;
+
+	for (auto i = static_cast<BuiltinType>(Type::BuiltinType::Invalid) + 1; i < static_cast<BuiltinType>(Type::BuiltinType::BuiltinClass::LastType); ++i)
+	{
+		const auto typeInfo = GetBuiltinTypeInfo(static_cast<Type::BuiltinType::BuiltinClass>(i));
+		if (typeInfo.Size >= ptrSize && typeInfo.Align >= ptrAlign)
+		{
+			m_SizeType = GetBuiltinType(Type::BuiltinType::MakeUnsignedBuiltinClass(static_cast<Type::BuiltinType::BuiltinClass>(i)));
+			return m_SizeType;
+		}
+	}
+
+	assert(!"Not found");
+	return nullptr;
+}
+
+natRefPointer<Type::BuiltinType> ASTContext::GetPtrDiffType()
+{
+	if (m_PtrDiffType)
+	{
+		return m_PtrDiffType;
+	}
+
+	const auto ptrSize = m_TargetInfo.GetPointerSize(), ptrAlign = m_TargetInfo.GetPointerAlign();
+
+	using BuiltinType = std::underlying_type_t<Type::BuiltinType::BuiltinClass>;
+
+	for (auto i = static_cast<BuiltinType>(Type::BuiltinType::Invalid) + 1; i < static_cast<BuiltinType>(Type::BuiltinType::BuiltinClass::LastType); ++i)
+	{
+		const auto typeInfo = GetBuiltinTypeInfo(static_cast<Type::BuiltinType::BuiltinClass>(i));
+		if (typeInfo.Size >= ptrSize && typeInfo.Align >= ptrAlign)
+		{
+			m_PtrDiffType = GetBuiltinType(Type::BuiltinType::MakeSignedBuiltinClass(static_cast<Type::BuiltinType::BuiltinClass>(i)));
+			return m_PtrDiffType;
+		}
+	}
+
+	assert(!"Not found");
+	return nullptr;
 }
 
 natRefPointer<Type::ArrayType> ASTContext::GetArrayType(Type::TypePtr elementType, std::size_t arraySize)
@@ -190,55 +281,12 @@ ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 	switch (type->GetType())
 	{
 	case Type::Type::Builtin:
-	{
-		const auto builtinType = type.Cast<Type::BuiltinType>();
-		switch (builtinType->GetBuiltinClass())
-		{
-		case Type::BuiltinType::Void:
-			return { 0, 4 };
-		case Type::BuiltinType::Bool:
-			return { 1, 4 };
-		case Type::BuiltinType::Char:
-			return { 1, 4 };
-		case Type::BuiltinType::UShort:
-		case Type::BuiltinType::Short:
-			return { 2, 4 };
-		case Type::BuiltinType::UInt:
-		case Type::BuiltinType::Int:
-			return { 4, 4 };
-		case Type::BuiltinType::ULong:
-		case Type::BuiltinType::Long:
-			return { 8, 8 };
-		case Type::BuiltinType::ULongLong:
-		case Type::BuiltinType::LongLong:
-			return { 16, 16 };
-		case Type::BuiltinType::UInt128:
-		case Type::BuiltinType::Int128:
-			return { 16, 16 };
-		case Type::BuiltinType::Float:
-			return { 4, 4 };
-		case Type::BuiltinType::Double:
-			return { 8, 8 };
-		case Type::BuiltinType::LongDouble:
-			return { 16, 16 };
-		case Type::BuiltinType::Float128:
-			return { 16, 16 };
-		case Type::BuiltinType::Overload:
-		case Type::BuiltinType::BoundMember:
-		case Type::BuiltinType::BuiltinFn:
-		default:
-			assert(!"Unexpected type");
-			std::terminate();
-		}
-	}
+		return GetBuiltinTypeInfo(type.UnsafeCast<Type::BuiltinType>()->GetBuiltinClass());
 	case Type::Type::Pointer:
-	{
-		// FIXME: 务必替换成编译目标的值
-		return { 8, 8 };
-	}
+		return { m_TargetInfo.GetPointerSize(), m_TargetInfo.GetPointerAlign() };
 	case Type::Type::Array:
 	{
-		const auto arrayType = type.Cast<Type::ArrayType>();
+		const auto arrayType = type.UnsafeCast<Type::ArrayType>();
 		auto elemInfo = GetTypeInfo(arrayType->GetElementType());
 		elemInfo.Size *= arrayType->GetSize();
 		return elemInfo;
@@ -247,12 +295,12 @@ ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 		return { 0, 0 };
 	case Type::Type::Class:
 	{
-		const auto classLayout = GetClassLayout(type.Cast<Type::ClassType>()->GetDecl());
+		const auto classLayout = GetClassLayout(type.UnsafeCast<Type::ClassType>()->GetDecl());
 		return { classLayout.Size * 8, classLayout.Align * 8 };
 	}
 	case Type::Type::Enum:
 	{
-		const auto enumType = type.Cast<Type::EnumType>();
+		const auto enumType = type.UnsafeCast<Type::EnumType>();
 		const auto enumDecl = enumType->GetDecl().Cast<Declaration::EnumDecl>();
 		assert(enumDecl);
 		return GetTypeInfo(enumDecl->GetUnderlyingType());

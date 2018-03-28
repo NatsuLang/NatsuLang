@@ -4,12 +4,14 @@
 #include "Declaration.h"
 #include "Type.h"
 #include "NestedNameSpecifier.h"
+#include "Basic/TargetInfo.h"
 
 namespace NatsuLang
 {
 	class ASTContext
 		: public NatsuLib::natRefObjImpl<ASTContext>
 	{
+	public:
 		struct TypeInfo
 		{
 			std::size_t Size;
@@ -27,13 +29,14 @@ namespace NatsuLang
 			std::optional<std::pair<std::size_t, std::size_t>> GetFieldInfo(NatsuLib::natRefPointer<Declaration::FieldDecl> const& field) const noexcept;
 		};
 
-	public:
 		friend class NestedNameSpecifier;
 
-		ASTContext();
+		explicit ASTContext(TargetInfo targetInfo);
 		~ASTContext();
 
 		NatsuLib::natRefPointer<Type::BuiltinType> GetBuiltinType(Type::BuiltinType::BuiltinClass builtinClass);
+		NatsuLib::natRefPointer<Type::BuiltinType> GetSizeType();
+		NatsuLib::natRefPointer<Type::BuiltinType> GetPtrDiffType();
 		NatsuLib::natRefPointer<Type::ArrayType> GetArrayType(Type::TypePtr elementType, std::size_t arraySize);
 		NatsuLib::natRefPointer<Type::PointerType> GetPointerType(Type::TypePtr pointeeType);
 		NatsuLib::natRefPointer<Type::FunctionType> GetFunctionType(NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& params, Type::TypePtr retType, nBool hasVarArg);
@@ -47,6 +50,8 @@ namespace NatsuLang
 		ClassLayout const& GetClassLayout(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
 
 	private:
+		TargetInfo m_TargetInfo;
+
 		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> m_TUDecl;
 
 		template <typename T>
@@ -64,6 +69,7 @@ namespace NatsuLang
 		std::unordered_map<Type::TypePtr, TypeInfo> m_CachedTypeInfo;
 		std::unordered_map<NatsuLib::natRefPointer<Declaration::ClassDecl>, ClassLayout> m_CachedClassLayout;
 		std::unordered_map<Type::BuiltinType::BuiltinClass, NatsuLib::natRefPointer<Type::BuiltinType>> m_BuiltinTypeMap;
+		NatsuLib::natRefPointer<Type::BuiltinType> m_SizeType, m_PtrDiffType;
 
 		TypeInfo getTypeInfoImpl(Type::TypePtr const& type);
 	};

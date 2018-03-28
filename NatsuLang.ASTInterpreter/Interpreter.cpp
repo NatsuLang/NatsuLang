@@ -10,6 +10,7 @@ Interpreter::Interpreter(natRefPointer<TextReader<StringType::Utf8>> const& diag
 	  m_Logger{ logger },
 	  m_SourceManager{ m_Diag, m_FileManager },
 	  m_Preprocessor{ m_Diag, m_SourceManager },
+	  m_AstContext{ TargetInfo{ Environment::GetEndianness(), sizeof(void*), alignof(void*) } },
 	  m_Consumer{ make_ref<InterpreterASTConsumer>(*this) },
 	  m_Sema{ m_Preprocessor, m_AstContext, m_Consumer },
 	  m_Parser{ m_Preprocessor, m_Sema },

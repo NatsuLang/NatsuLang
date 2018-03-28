@@ -1997,8 +1997,7 @@ Type::TypePtr Sema::GetBuiltinBinaryOpType(Expression::ExprPtr& leftOperand, Exp
 			// TODO: 报告错误：不支持的操作
 			return nullptr;
 		case Type::Type::Pointer:
-			// FIXME: 定义并使用 PtrDiffType
-			return m_Context.GetBuiltinType(Type::BuiltinType::Long);
+			return m_Context.GetPtrDiffType();
 		case Type::Type::Array:
 		case Type::Type::Function:
 			// TODO: 报告错误：不支持的操作

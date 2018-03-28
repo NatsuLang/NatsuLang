@@ -206,6 +206,7 @@
     <ClInclude Include="include\Basic\SourceManager.h" />
     <ClInclude Include="include\Basic\Specifier.h" />
     <ClInclude Include="include\Basic\StmtDef.h" />
+    <ClInclude Include="include\Basic\TargetInfo.h" />
     <ClInclude Include="include\Basic\TextProvider.h" />
     <ClInclude Include="include\Basic\Token.h" />
     <ClInclude Include="include\Basic\TokenDef.h" />
