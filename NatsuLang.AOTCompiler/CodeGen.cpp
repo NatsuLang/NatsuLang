@@ -2341,6 +2341,28 @@ void AotCompiler::prewarm()
 	const auto topLevelNamespace = m_Sema.GetTopLevelActionNamespace();
 	const auto compilerNamespace = topLevelNamespace->GetSubNamespace(u8"Compiler"_nv);
 	compilerNamespace->RegisterAction(make_ref<ActionCallingConvention>());
+
+	Lex::Token dummy;
+	const auto nativeModule = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo("Native", dummy));
+	m_Sema.ActOnStartModule(m_Sema.GetCurrentScope(), nativeModule);
+	registerNativeType<short>(u8"Short"_nv);
+	registerNativeType<unsigned short>(u8"UShort"_nv);
+	registerNativeType<int>(u8"Int"_nv);
+	registerNativeType<unsigned int>(u8"UInt"_nv);
+	registerNativeType<long>(u8"Long"_nv);
+	registerNativeType<unsigned long>(u8"ULong"_nv);
+	registerNativeType<long long>(u8"LongLong"_nv);
+	registerNativeType<unsigned long long>(u8"ULongLong"_nv);
+
+#ifdef _WIN32
+	const auto win32Module = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo("Win32", dummy));
+	m_Sema.ActOnStartModule(m_Sema.GetCurrentScope(), win32Module);
+	registerNativeType<UINT>(u8"UINT"_nv);
+	registerNativeType<DWORD>(u8"DWORD"_nv);
+	m_Sema.ActOnFinishModule();
+#endif // _WIN32
+
+	m_Sema.ActOnFinishModule();
 }
 
 llvm::GlobalVariable* AotCompiler::getStringLiteralValue(nStrView literalContent, nStrView literalName)

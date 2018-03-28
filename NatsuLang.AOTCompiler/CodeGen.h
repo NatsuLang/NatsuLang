@@ -365,6 +365,30 @@ namespace NatsuLang::Compiler
 
 		std::unordered_map<nString, llvm::GlobalVariable*> m_StringLiteralPool;
 
+		template <typename T>
+		void registerNativeType(nStrView name)
+		{
+			Lex::Token dummy;
+			
+			auto builtinClass = m_AstContext.GetIntegerTypeAtLeast(sizeof(T), alignof(T), true);
+
+			if (builtinClass == Type::BuiltinType::Invalid)
+			{
+				nat_Throw(AotCompilerException, u8"Cannot register native type {0}."_nv, name);
+			}
+
+			if constexpr (std::is_signed_v<T>)
+			{
+				builtinClass = Type::BuiltinType::MakeSignedBuiltinClass(builtinClass);
+			}
+			else
+			{
+				builtinClass = Type::BuiltinType::MakeUnsignedBuiltinClass(builtinClass);
+			}
+
+			m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo(name, dummy),
+				m_AstContext.GetBuiltinType(builtinClass));
+		}
 		void prewarm();
 
 		llvm::GlobalVariable* getStringLiteralValue(nStrView literalContent, nStrView literalName = "String");
