@@ -342,13 +342,14 @@ void Sema::ActOnTranslationUnitScope(natRefPointer<Scope> scope)
 natRefPointer<Declaration::ModuleDecl> Sema::ActOnModuleDecl(natRefPointer<Scope> scope, SourceLocation startLoc,
 															 Identifier::IdPtr name)
 {
-	return make_ref<Declaration::ModuleDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()),
+	auto moduleDecl = make_ref<Declaration::ModuleDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()),
 											 SourceLocation{}, std::move(name), startLoc);
+	PushOnScopeChains(moduleDecl, scope);
+	return moduleDecl;
 }
 
 void Sema::ActOnStartModule(natRefPointer<Scope> const& scope, natRefPointer<Declaration::ModuleDecl> const& moduleDecl)
 {
-	PushOnScopeChains(moduleDecl, scope);
 	PushDeclContext(scope, moduleDecl.Get());
 }
 

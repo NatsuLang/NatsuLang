@@ -37,6 +37,7 @@ namespace NatsuLang
 		NatsuLib::natRefPointer<Type::BuiltinType> GetBuiltinType(Type::BuiltinType::BuiltinClass builtinClass);
 		NatsuLib::natRefPointer<Type::BuiltinType> GetSizeType();
 		NatsuLib::natRefPointer<Type::BuiltinType> GetPtrDiffType();
+		Type::BuiltinType::BuiltinClass GetIntegerTypeAtLeast(std::size_t size, std::size_t alignment, nBool exactly = false);
 		NatsuLib::natRefPointer<Type::ArrayType> GetArrayType(Type::TypePtr elementType, std::size_t arraySize);
 		NatsuLib::natRefPointer<Type::PointerType> GetPointerType(Type::TypePtr pointeeType);
 		NatsuLib::natRefPointer<Type::FunctionType> GetFunctionType(NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& params, Type::TypePtr retType, nBool hasVarArg);

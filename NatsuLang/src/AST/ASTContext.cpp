@@ -21,12 +21,12 @@ namespace
 		case Type::BuiltinType::Void:
 			return { 0, 4 };
 		case Type::BuiltinType::Bool:
-			return { 1, 4 };
+			return { 1, 1 };
 		case Type::BuiltinType::Char:
-			return { 1, 4 };
+			return { 1, 1 };
 		case Type::BuiltinType::UShort:
 		case Type::BuiltinType::Short:
-			return { 2, 4 };
+			return { 2, 2 };
 		case Type::BuiltinType::UInt:
 		case Type::BuiltinType::Int:
 			return { 4, 4 };
@@ -100,20 +100,16 @@ natRefPointer<Type::BuiltinType> ASTContext::GetSizeType()
 
 	const auto ptrSize = m_TargetInfo.GetPointerSize(), ptrAlign = m_TargetInfo.GetPointerAlign();
 
-	using BuiltinType = std::underlying_type_t<Type::BuiltinType::BuiltinClass>;
+	const auto builtinClass = GetIntegerTypeAtLeast(ptrSize, ptrAlign, false);
 
-	for (auto i = static_cast<BuiltinType>(Type::BuiltinType::Invalid) + 1; i < static_cast<BuiltinType>(Type::BuiltinType::BuiltinClass::LastType); ++i)
+	if (builtinClass == Type::BuiltinType::Invalid)
 	{
-		const auto typeInfo = GetBuiltinTypeInfo(static_cast<Type::BuiltinType::BuiltinClass>(i));
-		if (typeInfo.Size >= ptrSize && typeInfo.Align >= ptrAlign)
-		{
-			m_SizeType = GetBuiltinType(Type::BuiltinType::MakeUnsignedBuiltinClass(static_cast<Type::BuiltinType::BuiltinClass>(i)));
-			return m_SizeType;
-		}
+		assert(!"Not found");
+		return nullptr;
 	}
 
-	assert(!"Not found");
-	return nullptr;
+	m_SizeType = GetBuiltinType(Type::BuiltinType::MakeUnsignedBuiltinClass(builtinClass));
+	return m_SizeType;
 }
 
 natRefPointer<Type::BuiltinType> ASTContext::GetPtrDiffType()
@@ -125,20 +121,32 @@ natRefPointer<Type::BuiltinType> ASTContext::GetPtrDiffType()
 
 	const auto ptrSize = m_TargetInfo.GetPointerSize(), ptrAlign = m_TargetInfo.GetPointerAlign();
 
+	const auto builtinClass = GetIntegerTypeAtLeast(ptrSize, ptrAlign, false);
+
+	if (builtinClass == Type::BuiltinType::Invalid)
+	{
+		assert(!"Not found");
+		return nullptr;
+	}
+
+	m_PtrDiffType = GetBuiltinType(Type::BuiltinType::MakeSignedBuiltinClass(builtinClass));
+	return m_PtrDiffType;
+}
+
+Type::BuiltinType::BuiltinClass ASTContext::GetIntegerTypeAtLeast(std::size_t size, std::size_t alignment, nBool exactly)
+{
 	using BuiltinType = std::underlying_type_t<Type::BuiltinType::BuiltinClass>;
 
 	for (auto i = static_cast<BuiltinType>(Type::BuiltinType::Invalid) + 1; i < static_cast<BuiltinType>(Type::BuiltinType::BuiltinClass::LastType); ++i)
 	{
 		const auto typeInfo = GetBuiltinTypeInfo(static_cast<Type::BuiltinType::BuiltinClass>(i));
-		if (typeInfo.Size >= ptrSize && typeInfo.Align >= ptrAlign)
+		if (exactly ? typeInfo.Size == size && typeInfo.Align == alignment : typeInfo.Size >= size && typeInfo.Align >= alignment)
 		{
-			m_PtrDiffType = GetBuiltinType(Type::BuiltinType::MakeSignedBuiltinClass(static_cast<Type::BuiltinType::BuiltinClass>(i)));
-			return m_PtrDiffType;
+			return static_cast<Type::BuiltinType::BuiltinClass>(i);
 		}
 	}
 
-	assert(!"Not found");
-	return nullptr;
+	return Type::BuiltinType::Invalid;
 }
 
 natRefPointer<Type::ArrayType> ASTContext::GetArrayType(Type::TypePtr elementType, std::size_t arraySize)
