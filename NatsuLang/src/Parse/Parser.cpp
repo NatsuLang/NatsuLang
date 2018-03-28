@@ -2108,6 +2108,7 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 			if (m_CurrentToken.Is(TokenType::Ellipsis))
 			{
 				hasVarArg = true;
+				mayBeParenType = false;
 				ConsumeToken();
 
 				if (m_CurrentToken.Is(TokenType::RightParen))
@@ -2188,7 +2189,7 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 			if (mayBeParenType)
 			{
 				// 是括号类型，但是我们已经把Token处理完毕了。。。
-				*decl = std::move(*paramDecls[0]);
+				decl->SetType(paramDecls.front()->GetType());
 				return;
 			}
 
