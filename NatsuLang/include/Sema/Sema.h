@@ -172,7 +172,8 @@ namespace NatsuLang::Semantic
 
 		NatsuLib::natRefPointer<Declaration::AliasDecl> LookupAliasName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
 			NatsuLib::natRefPointer<Scope> scope,
-			NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
+			NatsuLib::natRefPointer<NestedNameSpecifier> const& nns,
+		    NatsuLib::natRefPointer<Syntax::ResolveContext> const& resolveContext);
 
 		Type::TypePtr BuildFunctionType(Type::TypePtr retType,
 		                                NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& paramType, nBool hasVarArg);
@@ -220,6 +221,7 @@ namespace NatsuLang::Semantic
 		NatsuLib::natRefPointer<Declaration::UnresolvedDecl> ActOnUnresolvedDeclarator(
 			NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
 		NatsuLib::natRefPointer<Declaration::UnresolvedDecl> ActOnCompilerActionIdentifierArgument(Identifier::IdPtr id);
+		void RemoveOldUnresolvedDecl(Declaration::DeclaratorPtr decl, Declaration::DeclPtr const& oldUnresolvedDeclPtr);
 		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> scope,
 		                                                                 Declaration::DeclaratorPtr decl,
 		                                                                 Declaration::DeclPtr const& oldUnresolvedDeclPtr =
@@ -259,6 +261,9 @@ namespace NatsuLang::Semantic
 
 		Expression::ExprPtr ActOnInitExpr(Type::TypePtr initType, SourceLocation leftBraceLoc,
 		                                  std::vector<Expression::ExprPtr> initExprs, SourceLocation rightBraceLoc);
+
+		NatsuLib::natRefPointer<Declaration::NamedDecl> ResolveDeclarator(NatsuLib::natRefPointer<Syntax::ResolveContext> const& resolveContext,
+		                                                                  const NatsuLib::natRefPointer<Declaration::UnresolvedDecl>& unresolvedDecl);
 
 		Expression::ExprPtr ActOnIdExpr(NatsuLib::natRefPointer<Scope> const& scope,
 		                                NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id,

@@ -222,7 +222,8 @@ namespace NatsuLang::Syntax
 			std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path);
 
 		std::vector<Declaration::DeclPtr> ParseDeclaration(Declaration::Context context, SourceLocation& declEnd);
-		Declaration::DeclPtr ParseAliasDeclaration(SourceLocation& declEnd);
+		Declaration::DeclPtr ParseAliasDeclaration(Declaration::Context context, SourceLocation& declEnd);
+		Declaration::DeclPtr ParseAliasBody(Identifier::IdPtr aliasId, SourceLocation aliasLoc, Declaration::Context context, SourceLocation& declEnd);
 
 		Declaration::DeclPtr ParseFunctionBody(Declaration::DeclPtr decl, ParseScope& scope);
 

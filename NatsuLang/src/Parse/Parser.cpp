@@ -243,6 +243,7 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF, m_CurrentToken.GetLocation());
 		return {};
 	case TokenType::Kw_def:
+	case TokenType::Kw_alias:
 	{
 		SourceLocation declEnd;
 		return ParseDeclaration(Declaration::Context::Global, declEnd);
@@ -741,7 +742,7 @@ std::vector<Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context 
 		return { std::move(declaration) };
 	}
 	case TokenType::Kw_alias:
-		return { ParseAliasDeclaration(declEnd) };
+		return { ParseAliasDeclaration(context, declEnd) };
 	default:
 		return {};
 	}
@@ -752,7 +753,7 @@ std::vector<Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context 
 //	'alias' alias-id '=' '$' compiler-action-name ';'
 // TODO: 可能需要延迟分析
 // TODO: 若要求别名 CompilerAction 需要特殊符号/语法调用的话会简单很多，以后再改。。。
-Declaration::DeclPtr Parser::ParseAliasDeclaration(SourceLocation& declEnd)
+Declaration::DeclPtr Parser::ParseAliasDeclaration(Declaration::Context context, SourceLocation& declEnd)
 {
 	assert(m_CurrentToken.Is(TokenType::Kw_alias));
 
@@ -782,6 +783,24 @@ Declaration::DeclPtr Parser::ParseAliasDeclaration(SourceLocation& declEnd)
 
 	ConsumeToken();
 
+	if (m_Sema.GetCurrentPhase() == Semantic::Sema::Phase::Phase1)
+	{
+		// 假 declarator
+		auto declarator = make_ref<Declaration::Declarator>(context);
+		declarator->SetRange({ aliasLoc, aliasLoc });
+		declarator->SetAlias(true);
+		declarator->SetIdentifier(std::move(aliasId));
+		std::vector<Token> cachedTokens;
+		SkipUntil({ TokenType::Semi }, false, &cachedTokens);
+		declarator->SetCachedTokens(std::move(cachedTokens));
+		return m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), declarator);
+	}
+
+	return ParseAliasBody(std::move(aliasId), aliasLoc, context, declEnd);
+}
+
+Declaration::DeclPtr Parser::ParseAliasBody(Identifier::IdPtr aliasId, SourceLocation aliasLoc, Declaration::Context context, SourceLocation& declEnd)
+{
 	if (m_CurrentToken.Is(TokenType::Dollar))
 	{
 		ConsumeToken();
@@ -792,8 +811,39 @@ Declaration::DeclPtr Parser::ParseAliasDeclaration(SourceLocation& declEnd)
 			return nullptr;
 		}
 
-		declEnd = m_CurrentToken.GetLocation();
-		return m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), aliasLoc, std::move(aliasId), std::move(compilerAction));
+		if (m_CurrentToken.Is(TokenType::Semi))
+		{
+			ConsumeToken();
+			declEnd = m_CurrentToken.GetLocation();
+			return m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), aliasLoc, std::move(aliasId), std::move(compilerAction));
+		}
+
+		compilerAction->StartAction(CompilerActionContext{ *this });
+		ParseCompilerActionArguments(context, compilerAction);
+		ASTNodePtr astNode;
+		compilerAction->EndAction([&astNode](ASTNodePtr ast)
+		{
+			if (!astNode)
+			{
+				astNode = std::move(ast);
+			}
+
+			return true;
+		});
+
+		if (m_CurrentToken.Is(TokenType::Semi))
+		{
+			ConsumeToken();
+		}
+		else
+		{
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+				.AddArgument(TokenType::Semi)
+				.AddArgument(m_CurrentToken.GetType());
+		}
+
+		// 直接拿返回值做别名
+		return m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), aliasLoc, std::move(aliasId), std::move(astNode));
 	}
 
 	// 假设是类型
@@ -927,7 +977,7 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context, nBool ma
 		const auto qualifiedId = ParseMayBeQualifiedId();
 		if (qualifiedId.second)
 		{
-			const auto foundAlias = m_Sema.LookupAliasName(qualifiedId.second, {}, m_Sema.GetCurrentScope(), qualifiedId.first);
+			const auto foundAlias = m_Sema.LookupAliasName(qualifiedId.second, {}, m_Sema.GetCurrentScope(), qualifiedId.first, m_ResolveContext);
 			if (foundAlias)
 			{
 				const auto astNode = foundAlias->GetAliasAsAst();
@@ -1907,7 +1957,7 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 		{
 			decl->SetType(std::move(type));
 		}
-		else if (const auto alias = m_Sema.LookupAliasName(qualifiedId.second, m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), qualifiedId.first))
+		else if (const auto alias = m_Sema.LookupAliasName(qualifiedId.second, m_CurrentToken.GetLocation(), m_Sema.GetCurrentScope(), qualifiedId.first, m_ResolveContext))
 		{
 			const auto aliasAsAst = alias->GetAliasAsAst();
 			if (auto aliasType = aliasAsAst.Cast<Type::Type>())
@@ -2414,6 +2464,13 @@ Declaration::DeclPtr Parser::ResolveDeclarator(Declaration::DeclaratorPtr decl)
 		});
 	m_Sema.SetCurrentScope(decl->GetDeclarationScope());
 	m_Sema.SetDeclContext(decl->GetDeclarationContext());
+
+	if (decl->IsAlias())
+	{
+		SourceLocation dummy;
+		m_Sema.RemoveOldUnresolvedDecl(decl, oldUnresolvedDecl);
+		return ParseAliasBody(decl->GetIdentifier(), decl->GetRange().GetBegin(), decl->GetContext(), dummy);
+	}
 
 	ParseDeclarator(decl, true);
 	return m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), std::move(decl), oldUnresolvedDecl);

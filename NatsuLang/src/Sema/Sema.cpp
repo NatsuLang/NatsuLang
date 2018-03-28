@@ -395,7 +395,8 @@ Type::TypePtr Sema::LookupTypeName(natRefPointer<Identifier::IdentifierInfo> con
 
 natRefPointer<Declaration::AliasDecl> Sema::LookupAliasName(
 	natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
-	natRefPointer<Scope> scope, natRefPointer<NestedNameSpecifier> const& nns)
+	natRefPointer<Scope> scope, natRefPointer<NestedNameSpecifier> const& nns,
+	natRefPointer<Syntax::ResolveContext> const& resolveContext)
 {
 	assert(id && scope);
 	LookupResult result{ *this, id, nameLoc, LookupNameType::LookupOrdinaryName };
@@ -420,6 +421,12 @@ natRefPointer<Declaration::AliasDecl> Sema::LookupAliasName(
 		{
 			return aliasDecl;
 		}
+
+		if (const auto unresolvedDecl = decl.Cast<Declaration::UnresolvedDecl>())
+		{
+			return ResolveDeclarator(resolveContext, unresolvedDecl);
+		}
+
 		return nullptr;
 	}
 	}
@@ -930,6 +937,19 @@ natRefPointer<Declaration::UnresolvedDecl> Sema::ActOnCompilerActionIdentifierAr
 												 nullptr);
 }
 
+void Sema::RemoveOldUnresolvedDecl(Declaration::DeclaratorPtr decl, Declaration::DeclPtr const& oldUnresolvedDeclPtr)
+{
+	const auto declScope = decl->GetDeclarationScope();
+	const auto declContext = decl->GetDeclarationContext();
+	assert(declScope && declContext);
+	const auto contextRecoveryScope = make_scope([this, curContext = std::move(m_CurrentDeclContext)]
+	{
+		m_CurrentDeclContext = curContext;
+	});
+	m_CurrentDeclContext = declContext;
+	RemoveFromScopeChains(oldUnresolvedDeclPtr, declScope);
+}
+
 natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> scope,
 															 Declaration::DeclaratorPtr decl,
 															 Declaration::DeclPtr const& oldUnresolvedDeclPtr)
@@ -971,15 +991,7 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 
 	if (oldUnresolvedDeclPtr)
 	{
-		const auto declScope = decl->GetDeclarationScope();
-		const auto declContext = decl->GetDeclarationContext();
-		assert(declScope && declContext);
-		const auto contextRecoveryScope = make_scope([this, curContext = std::move(m_CurrentDeclContext)]
-		{
-			m_CurrentDeclContext = curContext;
-		});
-		m_CurrentDeclContext = declContext;
-		RemoveFromScopeChains(oldUnresolvedDeclPtr, declScope);
+		RemoveOldUnresolvedDecl(decl, oldUnresolvedDeclPtr);
 	}
 
 	LookupResult previous{ *this, id, {}, LookupNameType::LookupOrdinaryName };
@@ -1329,6 +1341,35 @@ Expression::ExprPtr Sema::ActOnInitExpr(Type::TypePtr initType, SourceLocation l
 	}
 }
 
+natRefPointer<Declaration::NamedDecl> Sema::ResolveDeclarator(natRefPointer<Syntax::ResolveContext> const& resolveContext, const natRefPointer<Declaration::UnresolvedDecl>& unresolvedDecl)
+{
+	auto declarator = unresolvedDecl->GetDeclaratorPtr().Lock();
+	assert(declarator && declarator->IsUnresolved());
+	if (resolveContext)
+	{
+		const auto resolvingState = resolveContext->GetDeclaratorResolvingState(declarator);
+		switch (resolvingState)
+		{
+		default:
+			assert(!"Invalid resolvingState");
+		case Syntax::ResolveContext::ResolvingState::Unknown:
+			return resolveContext->GetParser().ResolveDeclarator(std::move(declarator));
+		case Syntax::ResolveContext::ResolvingState::Resolving:
+			// TODO: 报告环形依赖
+			break;
+		case Syntax::ResolveContext::ResolvingState::Resolved:
+			assert(!"Should never happen.");
+			break;
+		}
+	}
+	else
+	{
+		// TODO: 报告错误
+	}
+
+	return nullptr;
+}
+
 Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefPointer<NestedNameSpecifier> const& nns,
 									  Identifier::IdPtr id, nBool hasTraillingLParen,
 									  natRefPointer<Syntax::ResolveContext> const& resolveContext)
@@ -1362,30 +1403,7 @@ Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefP
 		{
 			if (const auto unresolvedDecl = decl.Cast<Declaration::UnresolvedDecl>())
 			{
-				auto declarator = unresolvedDecl->GetDeclaratorPtr().Lock();
-				assert(declarator && declarator->IsUnresolved());
-				if (resolveContext)
-				{
-					const auto resolvingState = resolveContext->GetDeclaratorResolvingState(declarator);
-					switch (resolvingState)
-					{
-					default:
-						assert(!"Invalid resolvingState");
-					case Syntax::ResolveContext::ResolvingState::Unknown:
-						decl = resolveContext->GetParser().ResolveDeclarator(std::move(declarator));
-						break;
-					case Syntax::ResolveContext::ResolvingState::Resolving:
-						// TODO: 报告环形依赖
-						break;
-					case Syntax::ResolveContext::ResolvingState::Resolved:
-						assert(!"Should never happen.");
-						break;
-					}
-				}
-				else
-				{
-					// TODO: 报告错误
-				}
+				decl = ResolveDeclarator(resolveContext, unresolvedDecl);
 			}
 		}
 

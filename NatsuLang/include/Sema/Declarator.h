@@ -58,7 +58,7 @@ namespace NatsuLang::Declaration
 	public:
 		explicit Declarator(Context context)
 			: m_Context{ context }, m_StorageClass{ Specifier::StorageClass::None }, m_Accessibility{ Specifier::Access::None },
-			  m_Safety{ Specifier::Safety::None }
+			  m_Safety{ Specifier::Safety::None }, m_IsAlias{ false }
 		{
 		}
 
@@ -238,6 +238,16 @@ namespace NatsuLang::Declaration
 			return !m_CachedTokens.empty();
 		}
 
+		nBool IsAlias() const noexcept
+		{
+			return m_IsAlias;
+		}
+
+		void SetAlias(nBool value) noexcept
+		{
+			m_IsAlias = value;
+		}
+
 	private:
 		struct ConstructorTag
 		{
@@ -266,6 +276,8 @@ namespace NatsuLang::Declaration
 
 		NatsuLib::natRefPointer<Semantic::Scope> m_DeclarationScope;
 		DeclPtr m_DeclarationContext;
+
+		nBool m_IsAlias;
 	};
 
 	using DeclaratorPtr = NatsuLib::natRefPointer<Declarator>;
