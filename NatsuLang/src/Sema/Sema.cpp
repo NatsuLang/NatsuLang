@@ -918,12 +918,12 @@ natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
 		auto classDecl = Declaration::Decl::CastFromDeclContext(dc)->ForkRef<Declaration::ClassDecl>();
 		if (decl->IsConstructor())
 		{
-			funcDecl = make_ref<Declaration::ConstructorDecl>(std::move(classDecl), SourceLocation{},
+			funcDecl = make_ref<Declaration::ConstructorDecl>(dc, SourceLocation{},
 															  std::move(asId), std::move(type), decl->GetStorageClass());
 		}
 		else if (decl->IsDestructor())
 		{
-			funcDecl = make_ref<Declaration::DestructorDecl>(std::move(classDecl), SourceLocation{},
+			funcDecl = make_ref<Declaration::DestructorDecl>(dc, SourceLocation{},
 															 std::move(asId), std::move(type), decl->GetStorageClass());
 		}
 		else

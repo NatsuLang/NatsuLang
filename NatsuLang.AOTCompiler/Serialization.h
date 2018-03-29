@@ -43,9 +43,9 @@ namespace NatsuLang::Serialization
 		}
 
 		// 利用这对方法读取复杂属性
-		virtual nBool StartEntry(nStrView key) = 0;
+		virtual nBool StartEntry(nStrView key, nBool isArray = false) = 0;
 		virtual nBool NextElement() = 0;
-		virtual std::size_t GetEntryCount() = 0;
+		virtual std::size_t GetEntryElementCount() = 0;
 		virtual void EndEntry() = 0;
 
 		virtual ASTContext& GetASTContext() = 0;
@@ -105,6 +105,8 @@ namespace NatsuLang::Serialization
 		std::unordered_map<nString, Statement::Stmt::StmtType> m_StmtTypeMap;
 		std::unordered_map<nString, Declaration::Decl::DeclType> m_DeclTypeMap;
 		std::unordered_map<nString, Type::Type::TypeClass> m_TypeClassMap;
+
+		Identifier::IdPtr getId(nStrView name) const;
 	};
 
 	class Serializer

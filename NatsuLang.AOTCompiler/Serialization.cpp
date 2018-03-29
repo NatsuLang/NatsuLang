@@ -1,6 +1,9 @@
 ﻿#include "Serialization.h"
 #include "Basic/Identifier.h"
 #include "AST/NestedNameSpecifier.h"
+#include "Lex/Preprocessor.h"
+#include "Sema/Declarator.h"
+#include "AST/ASTContext.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang;
@@ -113,6 +116,7 @@ ASTNodePtr Deserializer::Deserialize()
 	case NatsuLang::ASTNodeType::CompilerAction:
 		return DeserializeCompilerAction();
 	default:
+		assert(!"Invalid type.");
 		ThrowInvalidData();
 	}
 }
@@ -127,43 +131,254 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 
 	switch (type)
 	{
+	case NatsuLang::Declaration::Decl::TranslationUnit:
 	case NatsuLang::Declaration::Decl::Empty:
-		break;
 	case NatsuLang::Declaration::Decl::Import:
 		break;
-	case NatsuLang::Declaration::Decl::Alias:
-		break;
-	case NatsuLang::Declaration::Decl::Label:
-		break;
-	case NatsuLang::Declaration::Decl::Module:
-		break;
-	case NatsuLang::Declaration::Decl::Enum:
-		break;
-	case NatsuLang::Declaration::Decl::Class:
-		break;
-	case NatsuLang::Declaration::Decl::Unresolved:
-		break;
-	case NatsuLang::Declaration::Decl::Field:
-		break;
-	case NatsuLang::Declaration::Decl::Function:
-		break;
-	case NatsuLang::Declaration::Decl::Method:
-		break;
-	case NatsuLang::Declaration::Decl::Constructor:
-		break;
-	case NatsuLang::Declaration::Decl::Destructor:
-		break;
-	case NatsuLang::Declaration::Decl::Var:
-		break;
-	case NatsuLang::Declaration::Decl::ImplicitParam:
-		break;
-	case NatsuLang::Declaration::Decl::ParmVar:
-		break;
-	case NatsuLang::Declaration::Decl::EnumConstant:
-		break;
-	case NatsuLang::Declaration::Decl::TranslationUnit:
-		break;
 	default:
+		if (type >= Declaration::Decl::FirstNamed && type <= Declaration::Decl::LastNamed)
+		{
+			nString name;
+			if (!m_Archive->ReadString(u8"Name", name))
+			{
+				ThrowInvalidData();
+			}
+
+			auto id = getId(name);
+
+			switch (type)
+			{
+			case NatsuLang::Declaration::Decl::Alias:
+			{
+				if (!m_Archive->StartEntry(u8"AliasAs"))
+				{
+					ThrowInvalidData();
+				}
+
+				auto aliasAs = Deserialize();
+
+				m_Archive->EndEntry();
+
+				return m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, std::move(id), std::move(aliasAs));
+			}
+			case NatsuLang::Declaration::Decl::Label:
+				break;
+			case NatsuLang::Declaration::Decl::Module:
+			{
+				auto module = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, std::move(id));
+				if (!m_Archive->StartEntry(u8"Members", true))
+				{
+					ThrowInvalidData();
+				}
+
+				if (m_Archive->GetEntryElementCount())
+				{
+					do
+					{
+						auto ast = Deserialize();
+						if (auto namedDecl = ast.Cast<Declaration::NamedDecl>())
+						{
+							m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
+						}
+					} while (m_Archive->NextElement());
+				}
+
+				m_Archive->EndEntry();
+				return module;
+			}
+			case NatsuLang::Declaration::Decl::Enum:
+			case NatsuLang::Declaration::Decl::Class:
+			{
+				Type::TagType::TagTypeClass tagType;
+
+				if (!m_Archive->ReadNumType(u8"TagType", tagType))
+				{
+					ThrowInvalidData();
+				}
+
+				Type::TypePtr underlyingType;
+
+				if (tagType == Type::TagType::TagTypeClass::Enum)
+				{
+					m_Archive->StartEntry(u8"UnderlyingType");
+					underlyingType = Deserialize();
+					if (!underlyingType)
+					{
+						ThrowInvalidData();
+					}
+				}
+
+				auto tagDecl = m_Sema.ActOnTag(m_Sema.GetCurrentScope(), tagType, {}, Specifier::Access::None, std::move(id), {}, underlyingType);
+				m_Sema.ActOnTagStartDefinition(m_Sema.GetCurrentScope(), tagDecl);
+				if (!m_Archive->StartEntry(u8"Members", true))
+				{
+					ThrowInvalidData();
+				}
+
+				if (m_Archive->GetEntryElementCount())
+				{
+					do
+					{
+						auto ast = Deserialize();
+						if (auto namedDecl = ast.Cast<Declaration::NamedDecl>())
+						{
+							m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
+						}
+					} while (m_Archive->NextElement());
+				}
+
+				m_Archive->EndEntry();
+				m_Sema.ActOnTagFinishDefinition();
+				return tagDecl;
+			}
+			case NatsuLang::Declaration::Decl::Unresolved:
+				break;
+			default:
+				if (type >= Declaration::Decl::FirstValue && type <= Declaration::Decl::LastValue)
+				{
+					m_Archive->StartEntry(u8"DeclType");
+					Type::TypePtr valueType = Deserialize();
+					if (!valueType)
+					{
+						ThrowInvalidData();
+					}
+					m_Archive->EndEntry();
+
+					auto dc = Declaration::Decl::CastToDeclContext(m_Sema.GetDeclContext().Get());
+
+					switch (type)
+					{
+					case NatsuLang::Declaration::Decl::Field:
+					{
+						auto fieldDecl = make_ref<Declaration::FieldDecl>(Declaration::Decl::Field, dc, SourceLocation{},
+							SourceLocation{}, std::move(id), std::move(valueType));
+						m_Sema.PushOnScopeChains(fieldDecl, m_Sema.GetCurrentScope());
+						return fieldDecl;
+					}
+					default:
+						if (type >= Declaration::Decl::FirstVar && type <= Declaration::Decl::LastVar)
+						{
+							natRefPointer<Declaration::VarDecl> decl;
+
+							Specifier::StorageClass storageClass;
+							if (!m_Archive->ReadNumType(u8"StorageClass", storageClass))
+							{
+								ThrowInvalidData();
+							}
+
+							Expression::ExprPtr initializer;
+
+							if (m_Archive->StartEntry(u8"Initializer"))
+							{
+								initializer = Deserialize();
+								if (!initializer)
+								{
+									ThrowInvalidData();
+								}
+								m_Archive->EndEntry();
+							}
+
+							switch (type)
+							{
+							case NatsuLang::Declaration::Decl::Var:
+								decl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, SourceLocation{},
+									SourceLocation{}, std::move(id), std::move(valueType),
+									storageClass);
+								if (initializer)
+								{
+									decl->SetInitializer(std::move(initializer));
+								}
+								break;
+							case NatsuLang::Declaration::Decl::ImplicitParam:
+								nat_Throw(NotImplementedException);
+							case NatsuLang::Declaration::Decl::ParmVar:
+								decl = make_ref<Declaration::ParmVarDecl>(Declaration::Decl::ParmVar,
+									m_Sema.GetASTContext().GetTranslationUnit().Get(), SourceLocation{}, SourceLocation{},
+									std::move(id), std::move(valueType), Specifier::StorageClass::None,
+									initializer);
+								break;
+							case NatsuLang::Declaration::Decl::EnumConstant:
+								nat_Throw(NotImplementedException);
+							default:
+								if (type >= Declaration::Decl::FirstFunction && type <= Declaration::Decl::LastFunction)
+								{
+									if (!m_Archive->StartEntry(u8"Params"))
+									{
+										ThrowInvalidData();
+									}
+
+									std::vector<natRefPointer<Declaration::ParmVarDecl>> params;
+
+									const auto paramCount = m_Archive->GetEntryElementCount();
+
+									params.reserve(paramCount);
+
+									if (m_Archive->GetEntryElementCount())
+									{
+										do
+										{
+											if (auto param = Deserialize().Cast<Declaration::ParmVarDecl>())
+											{
+												params.emplace_back(std::move(param));
+											}
+											else
+											{
+												ThrowInvalidData();
+											}
+										} while (m_Archive->NextElement());
+									}
+
+									m_Archive->EndEntry();
+
+									m_Archive->StartEntry(u8"Body");
+									auto body = Deserialize().Cast<Statement::Stmt>();
+									if (!body)
+									{
+										ThrowInvalidData();
+									}
+									m_Archive->EndEntry();
+
+									natRefPointer<Declaration::FunctionDecl> funcDecl;
+
+									switch (type)
+									{
+									case NatsuLang::Declaration::Decl::Function:
+										funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
+											SourceLocation{}, SourceLocation{}, std::move(id), std::move(valueType),
+											storageClass);
+										break;
+									case NatsuLang::Declaration::Decl::Method:
+										funcDecl = make_ref<Declaration::MethodDecl>(Declaration::Decl::Function, dc,
+											SourceLocation{}, SourceLocation{}, std::move(id), std::move(valueType),
+											storageClass);
+										break;
+									case NatsuLang::Declaration::Decl::Constructor:
+										funcDecl = make_ref<Declaration::ConstructorDecl>(dc, SourceLocation{},
+											std::move(id), std::move(valueType), storageClass);
+										break;
+									case NatsuLang::Declaration::Decl::Destructor:
+										funcDecl = make_ref<Declaration::DestructorDecl>(dc, SourceLocation{},
+											std::move(id), std::move(valueType), storageClass);
+										break;
+									default:
+										ThrowInvalidData();
+									}
+
+									funcDecl->SetBody(std::move(body));
+									decl = std::move(funcDecl);
+								}
+								ThrowInvalidData();
+							}
+
+							m_Sema.PushOnScopeChains(decl, m_Sema.GetCurrentScope());
+							return decl;
+						}
+						break;
+					}
+				}
+				break;
+			}
+		}
 		break;
 	}
 
@@ -315,6 +530,12 @@ natRefPointer<ICompilerAction> Deserializer::DeserializeCompilerAction()
 	}
 
 	nat_Throw(NotImplementedException);
+}
+
+Identifier::IdPtr Deserializer::getId(nStrView name) const
+{
+	Lex::Token dummy;
+	return m_Sema.GetPreprocessor().FindIdentifierInfo(name, dummy);
 }
 
 Serializer::Serializer(NatsuLib::natRefPointer<ISerializationArchiveWriter> archive,
@@ -758,7 +979,16 @@ void Serializer::VisitValueDecl(natRefPointer<Declaration::ValueDecl> const& dec
 void Serializer::VisitFunctionDecl(natRefPointer<Declaration::FunctionDecl> const& decl)
 {
 	VisitVarDecl(decl);
-
+	m_Archive->StartEntry(u8"Params", true);
+	for (const auto& param : decl->GetParams())
+	{
+		DeclVisitor::Visit(param);
+		m_Archive->NextElement();
+	}
+	m_Archive->EndEntry();
+	m_Archive->StartEntry(u8"Body");
+	StmtVisitor::Visit(decl->GetBody());
+	m_Archive->EndEntry();
 }
 
 void Serializer::VisitVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
