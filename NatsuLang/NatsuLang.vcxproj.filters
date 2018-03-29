@@ -126,9 +126,6 @@
     <ClInclude Include="include\Basic\Specifier.h">
       <Filter>Basic\include</Filter>
     </ClInclude>
-    <ClInclude Include="include\Basic\Module.h">
-      <Filter>Basic\include</Filter>
-    </ClInclude>
     <ClInclude Include="include\Sema\Declarator.h">
       <Filter>Sema\include</Filter>
     </ClInclude>
@@ -229,9 +226,6 @@
     </ClCompile>
     <ClCompile Include="src\AST\TypeBase.cpp">
       <Filter>AST\src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Basic\Module.cpp">
-      <Filter>Basic\src</Filter>
     </ClCompile>
     <ClCompile Include="src\Sema\Scope.cpp">
       <Filter>Sema\src</Filter>

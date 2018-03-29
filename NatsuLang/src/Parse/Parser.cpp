@@ -165,6 +165,7 @@ nBool Parser::ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls)
 	switch (m_CurrentToken.GetType())
 	{
 	case TokenType::Kw_import:
+		// 不可以引入本翻译单元的模块，因此不考虑延迟分析
 		decls = ParseModuleImport();
 		return false;
 	case TokenType::Eof:
@@ -613,16 +614,45 @@ void Parser::ParseMemberSpecification(SourceLocation startLoc, Declaration::Decl
 std::vector<Declaration::DeclPtr> Parser::ParseModuleImport()
 {
 	assert(m_CurrentToken.Is(Lex::TokenType::Kw_import));
-	auto startLoc = m_CurrentToken.GetLocation();
+	const auto startLoc = m_CurrentToken.GetLocation();
 	ConsumeToken();
 
-	std::vector<std::pair<natRefPointer<Identifier::IdentifierInfo>, SourceLocation>> path;
-	if (!ParseModuleName(path))
+	const auto qualifiedId = ParseMayBeQualifiedId();
+
+	if (!qualifiedId.second)
 	{
+		// TODO: 报告错误
 		return {};
 	}
 
-	nat_Throw(NotImplementedException);
+	if (m_CurrentToken.Is(TokenType::Semi))
+	{
+		ConsumeToken();
+	}
+	else
+	{
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::Semi)
+			.AddArgument(m_CurrentToken.GetType());
+	}
+
+	const auto module = m_Sema.LookupModuleName(qualifiedId.second, {}, m_Sema.GetCurrentScope(), qualifiedId.first);
+
+	if (!module)
+	{
+		// TODO: 报告错误
+		return {};
+	}
+
+	std::vector<Declaration::DeclPtr> ret{ m_Sema.ActOnModuleImport(m_Sema.GetCurrentScope(), startLoc, startLoc, module) };
+
+	for (auto decl : module->GetDecls())
+	{
+		m_Sema.MarkImportedFrom(decl, module);
+		ret.emplace_back(std::move(decl));
+	}
+
+	return ret;
 }
 
 // module-decl:
@@ -681,29 +711,6 @@ Declaration::DeclPtr Parser::ParseModuleDecl()
 	}
 
 	return moduleDecl;
-}
-
-nBool Parser::ParseModuleName(std::vector<std::pair<natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path)
-{
-	while (true)
-	{
-		if (!m_CurrentToken.Is(TokenType::Identifier))
-		{
-			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
-			// SkipUntil({ TokenType::Semi });
-			return false;
-		}
-
-		path.emplace_back(m_CurrentToken.GetIdentifierInfo(), m_CurrentToken.GetLocation());
-		ConsumeToken();
-
-		if (!m_CurrentToken.Is(TokenType::Period))
-		{
-			return true;
-		}
-
-		ConsumeToken();
-	}
 }
 
 // declaration:

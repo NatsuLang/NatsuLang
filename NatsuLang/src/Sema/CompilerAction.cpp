@@ -19,6 +19,16 @@ void ICompilerAction::EndArgumentSequence()
 {
 }
 
+void ICompilerAction::AttachTo(natWeakRefPointer<CompilerActionNamespace> parent) noexcept
+{
+	m_Parent = parent;
+}
+
+natWeakRefPointer<CompilerActionNamespace> ICompilerAction::GetParent() const noexcept
+{
+	return m_Parent;
+}
+
 CompilerActionNamespace::CompilerActionNamespace(nString name)
 	: m_Name{ std::move(name) }
 {
@@ -58,10 +68,27 @@ natRefPointer<ICompilerAction> CompilerActionNamespace::GetAction(nStrView name)
 nBool CompilerActionNamespace::RegisterSubNamespace(nStrView name)
 {
 	const auto subNamespace = make_ref<CompilerActionNamespace>(name);
-	return m_SubNamespace.emplace(subNamespace->GetName(), subNamespace).second;
+	if (m_SubNamespace.emplace(subNamespace->GetName(), subNamespace).second)
+	{
+		subNamespace->m_Parent = ForkWeakRef();
+		return true;
+	}
+
+	return false;
 }
 
 nBool CompilerActionNamespace::RegisterAction(natRefPointer<ICompilerAction> const& action)
 {
-	return m_Actions.emplace(action->GetName(), action).second;
+	if (m_Actions.emplace(action->GetName(), action).second)
+	{
+		action->AttachTo(ForkWeakRef());
+		return true;
+	}
+
+	return false;
+}
+
+natWeakRefPointer<CompilerActionNamespace> CompilerActionNamespace::GetParent() const noexcept
+{
+	return m_Parent;
 }

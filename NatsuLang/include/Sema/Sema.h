@@ -82,8 +82,6 @@ namespace NatsuLang::Semantic
 			Phase2 // 解析顶层的 CompilerAction 及对各保留的声明符进行分析，主要工作为解析类型为真实类型及解析初始化器等
 		};
 
-		using ModulePathType = std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>;
-
 		Sema(Preprocessor& preprocessor, ASTContext& astContext, NatsuLib::natRefPointer<ASTConsumer> astConsumer);
 		~Sema();
 
@@ -163,8 +161,11 @@ namespace NatsuLang::Semantic
 		void ActOnStartModule(NatsuLib::natRefPointer<Scope> const& scope,
 		                      NatsuLib::natRefPointer<Declaration::ModuleDecl> const& moduleDecl);
 		void ActOnFinishModule();
-		NatsuLib::natRefPointer<Declaration::Decl> ActOnModuleImport(SourceLocation startLoc, SourceLocation importLoc,
-		                                                             ModulePathType const& path);
+
+		NatsuLib::natRefPointer<Declaration::ImportDecl> ActOnModuleImport(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation startLoc, SourceLocation importLoc,
+			NatsuLib::natRefPointer<Declaration::ModuleDecl> const& moduleDecl);
+
+		void MarkImportedFrom(Declaration::DeclPtr const& decl, NatsuLib::natRefPointer<Declaration::ModuleDecl> const& moduleDecl);
 
 		Type::TypePtr LookupTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
 		                             NatsuLib::natRefPointer<Scope> scope,
@@ -174,6 +175,10 @@ namespace NatsuLang::Semantic
 			NatsuLib::natRefPointer<Scope> scope,
 			NatsuLib::natRefPointer<NestedNameSpecifier> const& nns,
 		    NatsuLib::natRefPointer<Syntax::ResolveContext> const& resolveContext);
+
+		NatsuLib::natRefPointer<Declaration::ModuleDecl> LookupModuleName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
+			NatsuLib::natRefPointer<Scope> scope,
+			NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
 
 		Type::TypePtr BuildFunctionType(Type::TypePtr retType,
 		                                NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& paramType, nBool hasVarArg);
@@ -337,6 +342,7 @@ namespace NatsuLang::Semantic
 		Phase m_CurrentPhase;
 		std::vector<Declaration::DeclaratorPtr> m_Declarators;
 
+		// 以下4个是在并行分析过程中需要特别注意的
 		NatsuLib::natRefPointer<Scope> m_TranslationUnitScope;
 		NatsuLib::natRefPointer<Scope> m_CurrentScope;
 

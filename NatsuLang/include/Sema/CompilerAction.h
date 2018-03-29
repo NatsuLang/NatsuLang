@@ -56,6 +56,8 @@ namespace NatsuLang
 		Syntax::Parser* m_Parser;
 	};
 
+	class CompilerActionNamespace;
+
 	////////////////////////////////////////////////////////////////////////////////
 	///	@brief	编译器动作接口
 	////////////////////////////////////////////////////////////////////////////////
@@ -90,6 +92,12 @@ namespace NatsuLang
 
 		///	@brief	结束参数序列
 		virtual void EndArgumentSequence();
+
+		void AttachTo(NatsuLib::natWeakRefPointer<CompilerActionNamespace> parent) noexcept;
+		NatsuLib::natWeakRefPointer<CompilerActionNamespace> GetParent() const noexcept;
+
+	private:
+		NatsuLib::natWeakRefPointer<CompilerActionNamespace> m_Parent;
 	};
 
 	class CompilerActionNamespace final
@@ -107,8 +115,11 @@ namespace NatsuLang
 		nBool RegisterSubNamespace(nStrView name);
 		nBool RegisterAction(NatsuLib::natRefPointer<ICompilerAction> const& action);
 
+		NatsuLib::natWeakRefPointer<CompilerActionNamespace> GetParent() const noexcept;
+
 	private:
 		const nString m_Name;
+		NatsuLib::natWeakRefPointer<CompilerActionNamespace> m_Parent;
 		std::unordered_map<nStrView, NatsuLib::natRefPointer<CompilerActionNamespace>> m_SubNamespace;
 		std::unordered_map<nStrView, NatsuLib::natRefPointer<ICompilerAction>> m_Actions;
 	};

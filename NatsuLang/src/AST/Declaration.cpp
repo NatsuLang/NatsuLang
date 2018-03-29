@@ -8,6 +8,25 @@ using namespace NatsuLib;
 using namespace NatsuLang;
 using namespace NatsuLang::Declaration;
 
+ImportedFromAttribute::ImportedFromAttribute(natRefPointer<ModuleDecl> module)
+	: m_ImportedFromModule{ std::move(module) }
+{
+}
+
+ImportedFromAttribute::~ImportedFromAttribute()
+{
+}
+
+nStrView ImportedFromAttribute::GetName() const noexcept
+{
+	return u8"ImportedFrom";
+}
+
+natRefPointer<ModuleDecl> ImportedFromAttribute::GetImportedFromModule() const noexcept
+{
+	return m_ImportedFromModule;
+}
+
 TranslationUnitDecl::TranslationUnitDecl(ASTContext& context)
 	: Decl{ TranslationUnit }, DeclContext{ TranslationUnit }, m_Context{ context }
 {
@@ -17,7 +36,7 @@ TranslationUnitDecl::~TranslationUnitDecl()
 {
 }
 
-NatsuLang::ASTContext& TranslationUnitDecl::GetASTContext() const noexcept
+ASTContext& TranslationUnitDecl::GetASTContext() const noexcept
 {
 	return m_Context;
 }
@@ -41,6 +60,16 @@ LabelDecl::~LabelDecl()
 
 ModuleDecl::~ModuleDecl()
 {
+}
+
+natRefPointer<ImportedFromAttribute> ModuleDecl::GetImportedFromAttr()
+{
+	if (!m_ImportedFromAttr)
+	{
+		m_ImportedFromAttr = make_ref<ImportedFromAttribute>(ForkRef<ModuleDecl>());
+	}
+
+	return m_ImportedFromAttr;
 }
 
 ValueDecl::~ValueDecl()

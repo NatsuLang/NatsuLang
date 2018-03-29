@@ -218,8 +218,6 @@ namespace NatsuLang::Syntax
 
 		std::vector<Declaration::DeclPtr> ParseModuleImport();
 		Declaration::DeclPtr ParseModuleDecl();
-		nBool ParseModuleName(
-			std::vector<std::pair<NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceLocation>>& path);
 
 		std::vector<Declaration::DeclPtr> ParseDeclaration(Declaration::Context context, SourceLocation& declEnd);
 		Declaration::DeclPtr ParseAliasDeclaration(Declaration::Context context, SourceLocation& declEnd);

@@ -6,6 +6,7 @@ namespace NatsuLang
 	namespace Statement
 	{
 		class Stmt;
+		using StmtPtr = NatsuLib::natRefPointer<Stmt>;
 
 #define STMT(StmtType, Base) class StmtType;
 #define EXPR(ExprType, Base)
@@ -24,12 +25,12 @@ namespace NatsuLang
 	{
 		virtual ~StmtVisitor() = 0;
 
-		virtual void Visit(NatsuLib::natRefPointer<Statement::Stmt> const& stmt);
+		virtual void Visit(Statement::StmtPtr const& stmt);
 
 #define STMT(Type, Base) virtual void Visit##Type(NatsuLib::natRefPointer<Statement::Type> const& stmt);
 #define EXPR(Type, Base) virtual void Visit##Type(NatsuLib::natRefPointer<Expression::Type> const& expr);
 #include "Basic/StmtDef.h"
 
-		virtual void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt);
+		virtual void VisitStmt(Statement::StmtPtr const& stmt);
 	};
 }

@@ -39,6 +39,11 @@ namespace
 		{
 		}
 
+		nStrView GetName() const noexcept override
+		{
+			return "CallingConvention";
+		}
+
 		CallingConvention GetCallingConvention() const noexcept
 		{
 			return m_CallingConvention;

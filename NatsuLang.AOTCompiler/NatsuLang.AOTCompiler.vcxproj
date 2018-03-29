@@ -177,6 +177,7 @@
   <ItemGroup>
     <ClCompile Include="CodeGen.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Serialization.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\NatsuLang\NatsuLang.vcxproj">
@@ -188,6 +189,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CodeGen.h" />
+    <ClInclude Include="Serialization.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

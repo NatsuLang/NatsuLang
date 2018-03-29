@@ -307,6 +307,8 @@ void Sema::PopScope()
 void Sema::PushOnScopeChains(natRefPointer<Declaration::NamedDecl> decl, natRefPointer<Scope> const& scope,
 							 nBool addToContext)
 {
+	assert(decl);
+
 	// 处理覆盖声明的情况
 
 	if (addToContext)
@@ -358,10 +360,15 @@ void Sema::ActOnFinishModule()
 	PopDeclContext();
 }
 
-natRefPointer<Declaration::Decl> Sema::ActOnModuleImport(SourceLocation startLoc, SourceLocation importLoc,
-														 ModulePathType const& path)
+natRefPointer<Declaration::ImportDecl> Sema::ActOnModuleImport(natRefPointer<Scope> const& scope, SourceLocation startLoc, SourceLocation importLoc,
+	natRefPointer<Declaration::ModuleDecl> const& moduleDecl)
 {
-	nat_Throw(NatsuLib::NotImplementedException);
+	return make_ref<Declaration::ImportDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()), importLoc, moduleDecl);
+}
+
+void Sema::MarkImportedFrom(Declaration::DeclPtr const& decl, natRefPointer<Declaration::ModuleDecl> const& moduleDecl)
+{
+	decl->AttachAttribute(moduleDecl->GetImportedFromAttr());
 }
 
 Type::TypePtr Sema::LookupTypeName(natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
@@ -428,6 +435,36 @@ natRefPointer<Declaration::AliasDecl> Sema::LookupAliasName(
 			return ResolveDeclarator(resolveContext, unresolvedDecl);
 		}
 
+		return nullptr;
+	}
+	}
+}
+
+natRefPointer<Declaration::ModuleDecl> Sema::LookupModuleName(natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
+	natRefPointer<Scope> scope, natRefPointer<NestedNameSpecifier> const& nns)
+{
+	LookupResult result{ *this, id, nameLoc, LookupNameType::LookupOrdinaryName };
+	if (!LookupNestedName(result, std::move(scope), nns))
+	{
+		return nullptr;
+	}
+
+	switch (result.GetResultType())
+	{
+	default:
+		assert(!"Invalid result type."); [[fallthrough]];
+	case LookupResult::LookupResultType::NotFound:
+	case LookupResult::LookupResultType::FoundOverloaded:
+	case LookupResult::LookupResultType::Ambiguous:
+		return nullptr;
+	case LookupResult::LookupResultType::Found:
+	{
+		assert(result.GetDeclSize() == 1);
+		const auto decl = result.GetDecls().first();
+		if (decl->GetType() == Declaration::Decl::Module)
+		{
+			return decl.UnsafeCast<Declaration::ModuleDecl>();
+		}
 		return nullptr;
 	}
 	}
@@ -581,16 +618,12 @@ nBool Sema::LookupName(LookupResult& result, natRefPointer<Scope> scope) const
 	for (; scope; scope = scope->GetParent())
 	{
 		Linq<Valued<natRefPointer<Declaration::NamedDecl>>> query = scope->GetDecls().select(
-			[](natRefPointer<Declaration::NamedDecl> const&
-			namedDecl)
+			[](natRefPointer<Declaration::NamedDecl> const& namedDecl)
 			{
 				return namedDecl;
-			}).where([&id](
-			natRefPointer<Declaration::NamedDecl> const&
-			namedDecl)
+			}).where([&id](natRefPointer<Declaration::NamedDecl> const& namedDecl)
 			{
-				return namedDecl && namedDecl->
-					GetIdentifierInfo() == id;
+				return namedDecl && namedDecl->GetIdentifierInfo() == id;
 			});
 
 		switch (lookupType)

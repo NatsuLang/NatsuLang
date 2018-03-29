@@ -10,7 +10,7 @@ StmtVisitor::~StmtVisitor()
 {
 }
 
-void StmtVisitor::Visit(natRefPointer<Statement::Stmt> const& stmt)
+void StmtVisitor::Visit(Statement::StmtPtr const& stmt)
 {
 	stmt->Accept(natRefPointer<StmtVisitor>{ this });
 }
@@ -19,6 +19,6 @@ void StmtVisitor::Visit(natRefPointer<Statement::Stmt> const& stmt)
 #define EXPR(Type, Base) void StmtVisitor::Visit##Type(natRefPointer<Expression::Type> const& expr) { Visit##Base(expr); }
 #include "Basic/StmtDef.h"
 
-void StmtVisitor::VisitStmt(natRefPointer<Statement::Stmt> const& stmt)
+void StmtVisitor::VisitStmt(Statement::StmtPtr const& stmt)
 {
 }

@@ -39,7 +39,11 @@ namespace NatsuLang::Declaration
 	struct IAttribute
 		: NatsuLib::natRefObj
 	{
-		virtual ~IAttribute() = 0;
+		virtual ~IAttribute();
+
+		// 仅用于在元数据中标识特定属性以便序列化，必须唯一
+		// 属性有义务提供获取所有构造必需的信息的接口
+		virtual nStrView GetName() const noexcept = 0;
 	};
 
 	using AttrPtr = NatsuLib::natRefPointer<IAttribute>;
