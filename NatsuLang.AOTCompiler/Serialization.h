@@ -8,6 +8,8 @@
 #include "Sema/Sema.h"
 #include "Sema/Scope.h"
 
+#include <natBinary.h>
+
 namespace NatsuLang::Serialization
 {
 	DeclareException(SerializationException, NatsuLib::natException, u8"Exception generated in serialization.");
@@ -43,12 +45,10 @@ namespace NatsuLang::Serialization
 		}
 
 		// 利用这对方法读取复杂属性
-		virtual nBool StartEntry(nStrView key, nBool isArray = false) = 0;
-		virtual nBool NextElement() = 0;
+		virtual nBool StartReadingEntry(nStrView key, nBool isArray = false) = 0;
+		virtual nBool NextReadingElement() = 0;
 		virtual std::size_t GetEntryElementCount() = 0;
-		virtual void EndEntry() = 0;
-
-		virtual ASTContext& GetASTContext() = 0;
+		virtual void EndReadingEntry() = 0;
 	};
 
 	struct ISerializationArchiveWriter
@@ -76,15 +76,57 @@ namespace NatsuLang::Serialization
 		}
 
 		// 利用这对方法写入复杂属性
-		virtual void StartEntry(nStrView key, nBool isArray = false) = 0;
-		virtual void NextElement() = 0;
-		virtual void EndEntry() = 0;
+		virtual void StartWritingEntry(nStrView key, nBool isArray = false) = 0;
+		virtual void NextWritingElement() = 0;
+		virtual void EndWritingEntry() = 0;
 	};
+
+	class BinarySerializationArchiveReader
+		: public NatsuLib::natRefObjImpl<BinarySerializationArchiveReader, ISerializationArchiveReader>
+	{
+	public:
+		explicit BinarySerializationArchiveReader(NatsuLib::natRefPointer<NatsuLib::natBinaryReader> reader);
+		~BinarySerializationArchiveReader();
+
+		nBool ReadSourceLocation(nStrView key, SourceLocation& out) override;
+		nBool ReadString(nStrView key, nString& out) override;
+		nBool ReadInteger(nStrView key, nuLong& out, std::size_t widthHint) override;
+		nBool ReadFloat(nStrView key, nDouble& out, std::size_t widthHint) override;
+		nBool StartReadingEntry(nStrView key, nBool isArray) override;
+		nBool NextReadingElement() override;
+		std::size_t GetEntryElementCount() override;
+		void EndReadingEntry() override;
+
+	private:
+		NatsuLib::natRefPointer<NatsuLib::natBinaryReader> m_Reader;
+		std::vector<std::pair<nBool, std::size_t>> m_EntryElementCount;
+	};
+
+	class BinarySerializationArchiveWriter
+		: public NatsuLib::natRefObjImpl<BinarySerializationArchiveWriter, ISerializationArchiveWriter>
+	{
+	public:
+		explicit BinarySerializationArchiveWriter(NatsuLib::natRefPointer<NatsuLib::natBinaryWriter> writer);
+		~BinarySerializationArchiveWriter();
+
+		void WriteSourceLocation(nStrView key, SourceLocation const& value) override;
+		void WriteString(nStrView key, nStrView value) override;
+		void WriteInteger(nStrView key, nuLong value, std::size_t widthHint) override;
+		void WriteFloat(nStrView key, nDouble value, std::size_t widthHint) override;
+		void StartWritingEntry(nStrView key, nBool isArray) override;
+		void NextWritingElement() override;
+		void EndWritingEntry() override;
+
+	private:
+		NatsuLib::natRefPointer<NatsuLib::natBinaryWriter> m_Writer;
+		std::vector<std::tuple<nBool, nLen, std::size_t>> m_EntryElementCount;
+	};
+
 
 	class Deserializer
 	{
 	public:
-		Deserializer(Semantic::Sema& sema, NatsuLib::natRefPointer<ISerializationArchiveReader> archive,
+		Deserializer(Syntax::Parser& parser, NatsuLib::natRefPointer<ISerializationArchiveReader> archive,
 			NatsuLib::natRefPointer<Misc::TextProvider<Statement::Stmt::StmtType>> const& stmtTypeMap = nullptr,
 			NatsuLib::natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> const& declTypeMap = nullptr,
 			NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> const& typeClassMap = nullptr);
@@ -100,6 +142,7 @@ namespace NatsuLang::Serialization
 		NatsuLib::natRefPointer<ICompilerAction> DeserializeCompilerAction();
 
 	private:
+		Syntax::Parser& m_Parser;
 		Semantic::Sema& m_Sema;
 		NatsuLib::natRefPointer<ISerializationArchiveReader> m_Archive;
 		std::unordered_map<nString, Statement::Stmt::StmtType> m_StmtTypeMap;
@@ -107,6 +150,7 @@ namespace NatsuLang::Serialization
 		std::unordered_map<nString, Type::Type::TypeClass> m_TypeClassMap;
 
 		Identifier::IdPtr getId(nStrView name) const;
+		NatsuLib::natRefPointer<Declaration::NamedDecl> parseQualifiedName(nStrView name);
 	};
 
 	class Serializer
@@ -118,6 +162,9 @@ namespace NatsuLang::Serialization
 			NatsuLib::natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> declTypeMap = nullptr,
 			NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> typeClassMap = nullptr);
 		~Serializer();
+
+		void StartSerialize();
+		void EndSerialize();
 
 		void VisitCatchStmt(NatsuLib::natRefPointer<Statement::CatchStmt> const& stmt) override;
 		void VisitTryStmt(NatsuLib::natRefPointer<Statement::TryStmt> const& stmt) override;
@@ -192,6 +239,11 @@ namespace NatsuLang::Serialization
 		void Visit(Type::TypePtr const& type) override;
 
 		void SerializeCompilerAction(NatsuLib::natRefPointer<ICompilerAction> const& action);
+
+		std::size_t GetRefCount() const volatile noexcept override;
+		nBool TryAddRef() const volatile override;
+		void AddRef() const volatile override;
+		nBool Release() const volatile override;
 
 	private:
 		NatsuLib::natRefPointer<ISerializationArchiveWriter> m_Archive;

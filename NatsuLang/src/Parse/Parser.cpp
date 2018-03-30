@@ -1356,6 +1356,21 @@ Expression::ExprPtr Parser::ParseExpression()
 	return ParseRightOperandOfBinaryExpression(ParseAssignmentExpression());
 }
 
+Expression::ExprPtr Parser::ParseIdExpr()
+{
+	auto qualifiedId = ParseMayBeQualifiedId();
+	// 注意可能是成员访问操作符，这里可能误判
+	if (!qualifiedId.second)
+	{
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+		      .AddArgument(TokenType::Identifier)
+		      .AddArgument(m_CurrentToken.GetType());
+		return ParseExprError();
+	}
+	return m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), qualifiedId.first, std::move(qualifiedId.second),
+	                            m_CurrentToken.Is(TokenType::LeftParen), m_ResolveContext);
+}
+
 Expression::ExprPtr Parser::ParseUnaryExpression()
 {
 	Expression::ExprPtr result;
@@ -1385,17 +1400,7 @@ Expression::ExprPtr Parser::ParseUnaryExpression()
 		break;
 	case TokenType::Identifier:
 	{
-		auto qualifiedId = ParseMayBeQualifiedId();
-		// 注意可能是成员访问操作符，这里可能误判
-		if (!qualifiedId.second)
-		{
-			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-				.AddArgument(TokenType::Identifier)
-				.AddArgument(m_CurrentToken.GetType());
-			return ParseExprError();
-		}
-		result = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), qualifiedId.first, std::move(qualifiedId.second),
-									m_CurrentToken.Is(TokenType::LeftParen), m_ResolveContext);
+		result = ParseIdExpr();
 		break;
 	}
 	case TokenType::PlusPlus:
@@ -2247,7 +2252,7 @@ void Parser::ParseArrayOrPointerType(Declaration::DeclaratorPtr const& decl)
 				// TODO: 报告错误
 			}
 
-			decl->SetType(m_Sema.ActOnArrayType(decl->GetType(), static_cast<std::size_t>(result)));
+			decl->SetType(m_Sema.ActOnArrayType(decl->GetType(), result));
 
 			if (!m_CurrentToken.Is(TokenType::RightSquare))
 			{

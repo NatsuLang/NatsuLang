@@ -142,7 +142,7 @@ namespace NatsuLang::Type
 		: public Type
 	{
 	public:
-		ArrayType(TypePtr elementType, std::size_t arraySize)
+		ArrayType(TypePtr elementType, nuLong arraySize)
 			: Type{ Array }, m_ElementType{ std::move(elementType) }, m_ArraySize{ arraySize }
 		{
 		}
@@ -154,7 +154,7 @@ namespace NatsuLang::Type
 			return m_ElementType;
 		}
 
-		std::size_t GetSize() const noexcept
+		nuLong GetSize() const noexcept
 		{
 			return m_ArraySize;
 		}
@@ -165,7 +165,7 @@ namespace NatsuLang::Type
 
 	private:
 		TypePtr m_ElementType;
-		std::size_t m_ArraySize;
+		nuLong m_ArraySize;
 	};
 
 	class FunctionType

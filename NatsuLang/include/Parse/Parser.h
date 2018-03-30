@@ -240,6 +240,7 @@ namespace NatsuLang::Syntax
 		Statement::StmtPtr ParseExprStatement(nBool mayBeExpr = false);
 
 		Expression::ExprPtr ParseExpression();
+		Expression::ExprPtr ParseIdExpr();
 
 		// unary-expression:
 		//	postfix-expression

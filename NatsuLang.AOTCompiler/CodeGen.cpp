@@ -1,4 +1,5 @@
 ﻿#include "CodeGen.h"
+#include "Serialization.h"
 
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
@@ -2209,6 +2210,18 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	m_Parser.ConsumeToken();
 	ParseAST(m_Parser);
 	EndParsingAST(m_Parser);
+
+	const auto testFile = make_ref<natFileStream>(u8"Test.bin"_nv, false, true);
+	const auto binWriter = make_ref<natBinaryWriter>(testFile);
+	const auto writer = make_ref<Serialization::BinarySerializationArchiveWriter>(binWriter);
+	Serialization::Serializer serializer{ writer };
+	serializer.StartSerialize();
+	const auto metadata = m_AstContext.CreateMetadata();
+	for (const auto& decl : metadata.GetDecls())
+	{
+		serializer.Visit(decl);
+	}
+	serializer.EndSerialize();
 
 	if (m_DiagConsumer->IsErrored())
 	{

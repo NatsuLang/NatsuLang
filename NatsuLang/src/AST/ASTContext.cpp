@@ -149,7 +149,7 @@ Type::BuiltinType::BuiltinClass ASTContext::GetIntegerTypeAtLeast(std::size_t si
 	return Type::BuiltinType::Invalid;
 }
 
-natRefPointer<Type::ArrayType> ASTContext::GetArrayType(Type::TypePtr elementType, std::size_t arraySize)
+natRefPointer<Type::ArrayType> ASTContext::GetArrayType(Type::TypePtr elementType, nuLong arraySize)
 {
 	// 能否省去此次构造？
 	auto ret = make_ref<Type::ArrayType>(std::move(elementType), arraySize);
@@ -321,7 +321,7 @@ ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 	{
 		const auto arrayType = type.UnsafeCast<Type::ArrayType>();
 		auto elemInfo = GetTypeInfo(arrayType->GetElementType());
-		elemInfo.Size *= arrayType->GetSize();
+		elemInfo.Size *= static_cast<nuLong>(arrayType->GetSize());
 		return elemInfo;
 	}
 	case Type::Type::Function:

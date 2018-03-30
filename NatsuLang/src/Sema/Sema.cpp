@@ -1324,7 +1324,7 @@ Expression::ExprPtr Sema::ActOnStringLiteral(Lex::Token const& token)
 	auto value = literalParser.GetValue();
 	// 多一个 0
 	return make_ref<Expression::StringLiteral>(
-		value, m_Context.GetArrayType(m_Context.GetBuiltinType(Type::BuiltinType::Char), value.GetSize() + 1),
+		value, m_Context.GetArrayType(m_Context.GetBuiltinType(Type::BuiltinType::Char), static_cast<nuLong>(value.GetSize() + 1)),
 		token.GetLocation());
 }
 
@@ -1566,12 +1566,12 @@ Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expre
 
 		// TODO: 处理有默认参数的情况
 		return make_ref<Expression::CallExpr>(std::move(func), argExprs.zip(fnType->GetParameterTypes()).select(
-			                                      [this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
-			                                      {
-				                                      return ImpCastExprToType(
-					                                      pair.first, pair.second,
-					                                      getCastType(pair.first, pair.second, true));
-			                                      }), fnType->GetResultType(), rloc);
+												  [this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
+												  {
+													  return ImpCastExprToType(
+														  pair.first, pair.second,
+														  getCastType(pair.first, pair.second, true));
+												  }), fnType->GetResultType(), rloc);
 	}
 
 	if (auto nonMemberFunc = func.Cast<Expression::DeclRefExpr>())
@@ -1879,8 +1879,9 @@ Expression::ExprPtr Sema::ActOnConditionalOp(SourceLocation questionLoc, SourceL
 													 commonType);
 }
 
-Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id,
-												   natRefPointer<Declaration::NamedDecl> decl)
+NatsuLib::natRefPointer<Expression::DeclRefExpr> Sema::BuildDeclarationNameExpr(
+	natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id,
+	natRefPointer<Declaration::NamedDecl> decl)
 {
 	auto valueDecl = decl.Cast<Declaration::ValueDecl>();
 	if (!valueDecl)
@@ -1893,8 +1894,10 @@ Expression::ExprPtr Sema::BuildDeclarationNameExpr(natRefPointer<NestedNameSpeci
 	return BuildDeclRefExpr(std::move(valueDecl), std::move(type), std::move(id), nns);
 }
 
-Expression::ExprPtr Sema::BuildDeclRefExpr(natRefPointer<Declaration::ValueDecl> decl, Type::TypePtr type,
-										   Identifier::IdPtr id, natRefPointer<NestedNameSpecifier> const& nns)
+NatsuLib::natRefPointer<Expression::DeclRefExpr> Sema::BuildDeclRefExpr(natRefPointer<Declaration::ValueDecl> decl,
+																		Type::TypePtr type,
+																		Identifier::IdPtr id,
+																		natRefPointer<NestedNameSpecifier> const& nns)
 {
 	static_cast<void>(id);
 	return make_ref<Expression::DeclRefExpr>(nns, std::move(decl), SourceLocation{}, std::move(type));

@@ -9,6 +9,7 @@
 #include "AST/OperationTypes.h"
 #include "CompilerAction.h"
 #include "AST/Statement.h"
+#include "AST/Expression.h"
 
 namespace NatsuLang
 {
@@ -300,11 +301,13 @@ namespace NatsuLang::Semantic
 		                                       Expression::ExprPtr condExpr, Expression::ExprPtr leftExpr,
 		                                       Expression::ExprPtr rightExpr);
 
-		Expression::ExprPtr BuildDeclarationNameExpr(NatsuLib::natRefPointer<NestedNameSpecifier> const& nns,
-		                                             Identifier::IdPtr id,
-		                                             NatsuLib::natRefPointer<Declaration::NamedDecl> decl);
-		Expression::ExprPtr BuildDeclRefExpr(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Type::TypePtr type,
-		                                     Identifier::IdPtr id, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
+		NatsuLib::natRefPointer<Expression::DeclRefExpr> BuildDeclarationNameExpr(
+			NatsuLib::natRefPointer<NestedNameSpecifier> const& nns,
+			Identifier::IdPtr id,
+			NatsuLib::natRefPointer<Declaration::NamedDecl> decl);
+		NatsuLib::natRefPointer<Expression::DeclRefExpr> BuildDeclRefExpr(
+			NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Type::TypePtr type,
+			Identifier::IdPtr id, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
 		Expression::ExprPtr BuildMemberReferenceExpr(NatsuLib::natRefPointer<Scope> const& scope,
 		                                             Expression::ExprPtr baseExpr, Type::TypePtr baseType,
 		                                             SourceLocation opLoc,
