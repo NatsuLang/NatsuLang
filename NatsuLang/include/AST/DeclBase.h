@@ -1,5 +1,7 @@
 ﻿#pragma once
 #include <unordered_set>
+#include <unordered_map>
+#include <typeindex>
 #include <natMisc.h>
 #include <natRefObj.h>
 #include <natLinq.h>
@@ -121,16 +123,33 @@ namespace NatsuLang::Declaration
 
 		void AttachAttribute(AttrPtr attr)
 		{
-			m_AttributeSet.emplace(std::move(attr));
+			m_AttributeSet[typeid(attr)].emplace(std::move(attr));
 		}
 
 		nBool DetachAttribute(AttrPtr const& attr)
 		{
-			return m_AttributeSet.erase(attr);
+			if (const auto iter = m_AttributeSet.find(typeid(attr)); iter != m_AttributeSet.cend())
+			{
+				return iter->second.erase(attr);
+			}
+
+			return false;
 		}
 
-		std::size_t GetAttributeCount() const noexcept;
-		NatsuLib::Linq<NatsuLib::Valued<AttrPtr>> GetAttributes() const noexcept;
+		std::size_t GetAttributeTotalCount() const noexcept;
+		std::size_t GetAttributeCount(std::type_index const& type) const noexcept;
+		std::size_t GetAttributeTypeCount() const noexcept;
+		NatsuLib::Linq<NatsuLib::Valued<AttrPtr>> GetAllAttributes() const noexcept;
+		NatsuLib::Linq<NatsuLib::Valued<AttrPtr>> GetAttributes(std::type_index const& type) const noexcept;
+
+		template <typename Attr>
+		auto GetAttributes() const noexcept
+		{
+			return GetAttributes(typeid(Attr)).select([](AttrPtr const& attr)
+			{
+				return attr.Cast<Attr>();
+			});
+		}
 
 	protected:
 		explicit Decl(DeclType type, DeclContext* context = nullptr, SourceLocation loc = {}) noexcept
@@ -145,7 +164,7 @@ namespace NatsuLang::Declaration
 		DeclContext* m_Context;
 		SourceLocation m_Location;
 
-		std::unordered_set<AttrPtr> m_AttributeSet;
+		std::unordered_map<std::type_index, std::unordered_set<AttrPtr>> m_AttributeSet;
 
 		void SetNextDeclInContext(NatsuLib::natRefPointer<Decl> value) noexcept;
 	};

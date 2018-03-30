@@ -16,6 +16,16 @@ using namespace Semantic;
 
 namespace
 {
+	class ImportedAttribute
+		: public natRefObjImpl<ImportedAttribute, Declaration::IAttribute>
+	{
+	public:
+		nStrView GetName() const noexcept override
+		{
+			return u8"Imported"_nv;
+		}
+	};
+
 	constexpr Declaration::IdentifierNamespace chooseIDNS(Sema::LookupNameType lookupNameType) noexcept
 	{
 		using Declaration::IdentifierNamespace;
@@ -286,7 +296,10 @@ Metadata Sema::CreateMetadata() const
 {
 	Metadata metadata;
 	const auto tu = m_Context.GetTranslationUnit();
-	metadata.AddDecls(tu->GetDecls());
+	metadata.AddDecls(tu->GetDecls().where([](Declaration::DeclPtr const& decl)
+	{
+		return !decl->GetAttributeCount(typeid(ImportedAttribute));
+	}));
 
 	return metadata;
 }
@@ -300,6 +313,11 @@ void Sema::LoadMetadata(Metadata const& metadata)
 			PushOnScopeChains(std::move(namedDecl), m_TranslationUnitScope, false);
 		}
 	}
+}
+
+void Sema::MarkAsImported(Declaration::DeclPtr const& decl) const
+{
+	decl->AttachAttribute(make_ref<ImportedAttribute>());
 }
 
 void Sema::SetDeclContext(Declaration::DeclPtr dc) noexcept
@@ -362,7 +380,7 @@ void Sema::ActOnTranslationUnitScope(natRefPointer<Scope> scope)
 }
 
 natRefPointer<Declaration::ModuleDecl> Sema::ActOnModuleDecl(natRefPointer<Scope> scope, SourceLocation startLoc,
-															 Identifier::IdPtr name)
+															 Identifier::IdPtr name, nBool addToContext)
 {
 	natRefPointer<Declaration::ModuleDecl> moduleDecl;
 
@@ -375,7 +393,7 @@ natRefPointer<Declaration::ModuleDecl> Sema::ActOnModuleDecl(natRefPointer<Scope
 	{
 		moduleDecl = make_ref<Declaration::ModuleDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()),
 			SourceLocation{}, std::move(name), startLoc);
-		PushOnScopeChains(moduleDecl, scope);
+		PushOnScopeChains(moduleDecl, scope, addToContext);
 	}
 
 	return moduleDecl;
@@ -590,10 +608,10 @@ natRefPointer<Declaration::FunctionDecl> Sema::GetParsingFunction() const noexce
 	return nullptr;
 }
 
-Declaration::DeclPtr Sema::ActOnTag(natRefPointer<Scope> const& scope,
+natRefPointer<Declaration::TagDecl> Sema::ActOnTag(natRefPointer<Scope> const& scope,
 									Type::TagType::TagTypeClass tagTypeClass, SourceLocation kwLoc,
 									Specifier::Access accessSpecifier,
-									Identifier::IdPtr name, SourceLocation nameLoc, Type::TypePtr underlyingType)
+									Identifier::IdPtr name, SourceLocation nameLoc, Type::TypePtr underlyingType, nBool addToContext)
 {
 	if (tagTypeClass == Type::TagType::TagTypeClass::Enum && !underlyingType)
 	{
@@ -619,7 +637,7 @@ Declaration::DeclPtr Sema::ActOnTag(natRefPointer<Scope> const& scope,
 													  nameLoc, name, kwLoc);
 	classDecl->SetTypeForDecl(make_ref<Type::ClassType>(classDecl));
 
-	PushOnScopeChains(classDecl, scope, false);
+	PushOnScopeChains(classDecl, scope, addToContext);
 
 	return classDecl;
 }
@@ -1105,7 +1123,7 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 }
 
 natRefPointer<Declaration::AliasDecl> Sema::ActOnAliasDeclaration(natRefPointer<Scope> scope,
-	SourceLocation loc, Identifier::IdPtr id, ASTNodePtr aliasAsAst)
+	SourceLocation loc, Identifier::IdPtr id, ASTNodePtr aliasAsAst, nBool addToContext)
 {
 	while ((scope->GetFlags() & ScopeFlags::DeclarableScope) == ScopeFlags::None)
 	{
@@ -1126,7 +1144,7 @@ natRefPointer<Declaration::AliasDecl> Sema::ActOnAliasDeclaration(natRefPointer<
 	}
 
 	auto aliasDecl = make_ref<Declaration::AliasDecl>(dc, loc, std::move(id), std::move(aliasAsAst));
-	PushOnScopeChains(aliasDecl, scope);
+	PushOnScopeChains(aliasDecl, scope, addToContext);
 
 	return aliasDecl;
 }

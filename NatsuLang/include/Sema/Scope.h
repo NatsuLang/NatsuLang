@@ -25,6 +25,7 @@ namespace NatsuLang::Semantic
 		EnumScope					= 0x0800,
 		CompoundStmtScope			= 0x1000,
 		UnsafeScope					= 0x2000,
+		ModuleScope					= 0x4000,
 	};
 
 	MAKE_ENUM_CLASS_BITMASK_TYPE(ScopeFlags);

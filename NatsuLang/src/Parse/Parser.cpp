@@ -679,7 +679,7 @@ Declaration::DeclPtr Parser::ParseModuleDecl()
 	auto moduleDecl = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), startLoc, std::move(moduleName));
 
 	{
-		ParseScope moduleScope{ this, Semantic::ScopeFlags::DeclarableScope };
+		ParseScope moduleScope{ this, Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::ModuleScope };
 		m_Sema.ActOnStartModule(m_Sema.GetCurrentScope(), moduleDecl);
 		const auto scope = make_scope([this]
 		{

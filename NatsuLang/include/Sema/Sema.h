@@ -123,6 +123,11 @@ namespace NatsuLang::Semantic
 			m_CurrentScope = std::move(value);
 		}
 
+		NatsuLib::natRefPointer<Scope> GetTranslationUnitScope() const noexcept
+		{
+			return m_TranslationUnitScope;
+		}
+
 		Phase GetCurrentPhase() const noexcept
 		{
 			return m_CurrentPhase;
@@ -144,6 +149,7 @@ namespace NatsuLang::Semantic
 
 		Metadata CreateMetadata() const;
 		void LoadMetadata(Metadata const& metadata);
+		void MarkAsImported(Declaration::DeclPtr const& decl) const;
 
 		// 仅在解析声明符时恢复上下文时使用，不应该在其他地方使用
 		void SetDeclContext(Declaration::DeclPtr dc) noexcept;
@@ -162,7 +168,7 @@ namespace NatsuLang::Semantic
 		void ActOnTranslationUnitScope(NatsuLib::natRefPointer<Scope> scope);
 
 		NatsuLib::natRefPointer<Declaration::ModuleDecl> ActOnModuleDecl(NatsuLib::natRefPointer<Scope> scope,
-		                                                                 SourceLocation startLoc, Identifier::IdPtr name);
+		                                                                 SourceLocation startLoc, Identifier::IdPtr name, nBool addToContext = true);
 		void ActOnStartModule(NatsuLib::natRefPointer<Scope> const& scope,
 		                      NatsuLib::natRefPointer<Declaration::ModuleDecl> const& moduleDecl);
 		void ActOnFinishModule();
@@ -196,9 +202,9 @@ namespace NatsuLang::Semantic
 		///	@return	若当前并未在分析函数，则返回 nullptr，否则返回最近的一个函数声明
 		NatsuLib::natRefPointer<Declaration::FunctionDecl> GetParsingFunction() const noexcept;
 
-		Declaration::DeclPtr ActOnTag(NatsuLib::natRefPointer<Scope> const& scope, Type::TagType::TagTypeClass tagTypeClass,
+		NatsuLib::natRefPointer<Declaration::TagDecl> ActOnTag(NatsuLib::natRefPointer<Scope> const& scope, Type::TagType::TagTypeClass tagTypeClass,
 		                              SourceLocation kwLoc, Specifier::Access accessSpecifier, Identifier::IdPtr name,
-		                              SourceLocation nameLoc, Type::TypePtr underlyingType = nullptr);
+		                              SourceLocation nameLoc, Type::TypePtr underlyingType = nullptr, nBool addToContext = true);
 		void ActOnTagStartDefinition(NatsuLib::natRefPointer<Scope> const& scope,
 		                             NatsuLib::natRefPointer<Declaration::TagDecl> const& tagDecl);
 		void ActOnTagFinishDefinition();
@@ -235,7 +241,7 @@ namespace NatsuLang::Semantic
 		                                                                 Declaration::DeclPtr const& oldUnresolvedDeclPtr =
 			                                                                 nullptr);
 
-		NatsuLib::natRefPointer<Declaration::AliasDecl> ActOnAliasDeclaration(NatsuLib::natRefPointer<Scope> scope, SourceLocation loc, Identifier::IdPtr id, ASTNodePtr aliasAsAst);
+		NatsuLib::natRefPointer<Declaration::AliasDecl> ActOnAliasDeclaration(NatsuLib::natRefPointer<Scope> scope, SourceLocation loc, Identifier::IdPtr id, ASTNodePtr aliasAsAst, nBool addToContext = true);
 
 		Statement::StmtPtr ActOnNullStmt(SourceLocation loc = {});
 		Statement::StmtPtr ActOnDeclStmt(std::vector<Declaration::DeclPtr> decls, SourceLocation start, SourceLocation end);

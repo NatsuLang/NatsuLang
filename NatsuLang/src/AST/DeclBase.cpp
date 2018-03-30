@@ -86,14 +86,50 @@ nBool Decl::IsFunction() const noexcept
 	return m_Type >= FirstFunction && m_Type <= LastFunction;
 }
 
-std::size_t Decl::GetAttributeCount() const noexcept
+std::size_t Decl::GetAttributeTotalCount() const noexcept
+{
+	std::size_t size{};
+	for (const auto& set : m_AttributeSet)
+	{
+		size += set.second.size();
+	}
+	return size;
+}
+
+std::size_t Decl::GetAttributeCount(std::type_index const& type) const noexcept
+{
+	if (const auto iter = m_AttributeSet.find(type); iter != m_AttributeSet.cend())
+	{
+		return iter->second.size();
+	}
+
+	return 0;
+}
+
+std::size_t Decl::GetAttributeTypeCount() const noexcept
 {
 	return m_AttributeSet.size();
 }
 
-Linq<Valued<AttrPtr>> Decl::GetAttributes() const noexcept
+Linq<Valued<AttrPtr>> Decl::GetAllAttributes() const noexcept
 {
-	return from(m_AttributeSet);
+	Linq<Valued<AttrPtr>> query = from_empty<AttrPtr>();
+	for (const auto& set : m_AttributeSet)
+	{
+		query = query.concat(from(set.second));
+	}
+	return query;
+}
+
+Linq<Valued<AttrPtr>> Decl::GetAttributes(std::type_index const& type) const noexcept
+{
+	const auto iter = m_AttributeSet.find(type);
+	if (iter == m_AttributeSet.cend())
+	{
+		return from_empty<AttrPtr>();
+	}
+
+	return from(iter->second);
 }
 
 void Decl::SetNextDeclInContext(natRefPointer<Decl> value) noexcept

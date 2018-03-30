@@ -154,12 +154,7 @@ namespace
 
 	nString GetQualifiedName(natRefPointer<Declaration::NamedDecl> const& decl)
 	{
-		const auto query = decl->GetAttributes().select([](Declaration::AttrPtr const& attr)
-		{
-			return attr.Cast<NameManglingRuleAttribute>();
-		}).where([](NameManglingRuleAttribute::RefPointer const& ptr) -> nBool { return ptr; });
-
-		if (!query.empty())
+		if (const auto query = decl->GetAttributes<NameManglingRuleAttribute>(); !query.empty())
 		{
 			const auto attr = query.first();
 			return attr->GetMangledName(decl);
@@ -415,10 +410,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 				llvm::StringRef{ functionName.cbegin(), functionName.size() },
 				m_Compiler.m_Module.get());
 
-			const auto query = funcDecl->GetAttributes().select([](Declaration::AttrPtr const& attr)
-			{
-				return attr.Cast<CallingConventionAttribute>();
-			}).where([](CallingConventionAttribute::RefPointer const& ptr) -> nBool { return ptr; });
+			const auto query = funcDecl->GetAttributes<CallingConventionAttribute>();
 
 			if (!query.empty())
 			{
@@ -2195,21 +2187,22 @@ AotCompiler::~AotCompiler()
 
 void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 {
-	{
-		Metadata m;
-		const auto testFile = make_ref<natFileStream>(u8"Test.bin"_nv, true, false);
-		const auto binReader = make_ref<natBinaryReader>(testFile);
-		const auto reader = make_ref<Serialization::BinarySerializationArchiveReader>(binReader);
-		Serialization::Deserializer deserializer{ m_Parser, reader };
-		const auto size = deserializer.StartDeserialize();
-		std::vector<ASTNodePtr> ast;
-		ast.reserve(size);
-		for (std::size_t i = 0; i < size; ++i)
-		{
-			ast.emplace_back(deserializer.Deserialize());
-		}
-		m.AddDecls(ast);
-	}
+	//{
+	//	Metadata m;
+	//	const auto testFile = make_ref<natFileStream>(u8"Test.bin"_nv, true, false);
+	//	const auto binReader = make_ref<natBinaryReader>(testFile);
+	//	const auto reader = make_ref<Serialization::BinarySerializationArchiveReader>(binReader);
+	//	Serialization::Deserializer deserializer{ m_Parser, reader };
+	//	const auto size = deserializer.StartDeserialize();
+	//	std::vector<ASTNodePtr> ast;
+	//	ast.reserve(size);
+	//	for (std::size_t i = 0; i < size; ++i)
+	//	{
+	//		ast.emplace_back(deserializer.Deserialize());
+	//	}
+	//	deserializer.EndDeserialize();
+	//	m.AddDecls(ast);
+	//}
 
 	CreateDefauleModule(uri.GetPath());
 
@@ -2227,7 +2220,7 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	ParseAST(m_Parser);
 	EndParsingAST(m_Parser);
 
-	const auto testFile = make_ref<natFileStream>(u8"Test.bin"_nv, false, true);
+	const auto testFile = make_ref<natFileStream>(u8"Test2.bin"_nv, false, true);
 	const auto binWriter = make_ref<natBinaryWriter>(testFile);
 	const auto writer = make_ref<Serialization::BinarySerializationArchiveWriter>(binWriter);
 	Serialization::Serializer serializer{ writer };
@@ -2378,6 +2371,7 @@ void AotCompiler::prewarm()
 
 	Lex::Token dummy;
 	const auto nativeModule = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo("Native", dummy));
+	m_Sema.PushScope(Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::ModuleScope);
 	m_Sema.ActOnStartModule(m_Sema.GetCurrentScope(), nativeModule);
 	registerNativeType<short>(u8"Short"_nv);
 	registerNativeType<unsigned short>(u8"UShort"_nv);
@@ -2390,13 +2384,16 @@ void AotCompiler::prewarm()
 
 #ifdef _WIN32
 	const auto win32Module = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo("Win32", dummy));
+	m_Sema.PushScope(Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::ModuleScope);
 	m_Sema.ActOnStartModule(m_Sema.GetCurrentScope(), win32Module);
 	registerNativeType<UINT>(u8"UINT"_nv);
 	registerNativeType<DWORD>(u8"DWORD"_nv);
 	m_Sema.ActOnFinishModule();
+	m_Sema.PopScope();
 #endif // _WIN32
 
 	m_Sema.ActOnFinishModule();
+	m_Sema.PopScope();
 }
 
 llvm::GlobalVariable* AotCompiler::getStringLiteralValue(nStrView literalContent, nStrView literalName)

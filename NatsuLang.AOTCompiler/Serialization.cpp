@@ -245,6 +245,11 @@ Deserializer::~Deserializer()
 std::size_t Deserializer::StartDeserialize(nBool isImporting)
 {
 	m_IsImporting = isImporting;
+	m_Sema.PushScope(Semantic::ScopeFlags::DeclarableScope);
+	m_PesudoTranslationUnit = make_ref<Declaration::TranslationUnitDecl>(m_Sema.GetASTContext());
+	// 假装属于真正的翻译单元，不会真的加进去
+	m_PesudoTranslationUnit->SetContext(m_Sema.GetASTContext().GetTranslationUnit().Get());
+	m_Sema.PushDeclContext(m_Sema.GetCurrentScope(), m_PesudoTranslationUnit.Get());
 	m_Archive->StartReadingEntry(u8"Content", true);
 	return m_Archive->GetEntryElementCount();
 }
@@ -252,6 +257,9 @@ std::size_t Deserializer::StartDeserialize(nBool isImporting)
 void Deserializer::EndDeserialize()
 {
 	m_Archive->EndReadingEntry();
+	m_Sema.PopDeclContext();
+	m_Sema.PopScope();
+	m_PesudoTranslationUnit.Reset();
 }
 
 ASTNodePtr Deserializer::Deserialize()
@@ -323,23 +331,29 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 			case NatsuLang::Declaration::Decl::Module:
 			{
 				auto module = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, std::move(id));
-				if (!m_Archive->StartReadingEntry(u8"Members", true))
 				{
-					ThrowInvalidData();
-				}
-
-				const auto count = m_Archive->GetEntryElementCount();
-				for (std::size_t i = 0; i < count; ++i)
-				{
-					auto ast = Deserialize();
-					if (auto namedDecl = ast.Cast<Declaration::NamedDecl>())
+					Syntax::Parser::ParseScope moduleScope{ &m_Parser, Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::ModuleScope };
+					m_Sema.ActOnStartModule(m_Sema.GetCurrentScope(), module);
+					if (!m_Archive->StartReadingEntry(u8"Members", true))
 					{
-						m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
+						ThrowInvalidData();
 					}
-					m_Archive->NextReadingElement();
+
+					const auto count = m_Archive->GetEntryElementCount();
+					for (std::size_t i = 0; i < count; ++i)
+					{
+						auto ast = Deserialize();
+						if (auto namedDecl = ast.Cast<Declaration::NamedDecl>())
+						{
+							m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
+						}
+						m_Archive->NextReadingElement();
+					}
+
+					m_Archive->EndReadingEntry();
+					m_Sema.ActOnFinishModule();
 				}
 
-				m_Archive->EndReadingEntry();
 				return module;
 			}
 			case NatsuLang::Declaration::Decl::Enum:
@@ -368,25 +382,51 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 				}
 
 				auto tagDecl = m_Sema.ActOnTag(m_Sema.GetCurrentScope(), tagType, {}, Specifier::Access::None, std::move(id), {}, underlyingType);
-				m_Sema.ActOnTagStartDefinition(m_Sema.GetCurrentScope(), tagDecl);
-				if (!m_Archive->StartReadingEntry(u8"Members", true))
+				if (type == Declaration::Decl::Class)
 				{
-					ThrowInvalidData();
+					tagDecl->SetTypeForDecl(make_ref<Type::ClassType>(tagDecl));
+				}
+				else
+				{
+					assert(type == Declaration::Decl::Enum);
+					tagDecl->SetTypeForDecl(std::move(underlyingType));
 				}
 
-				const auto count = m_Archive->GetEntryElementCount();
-				for (std::size_t i = 0; i < count; ++i)
 				{
-					auto ast = Deserialize();
-					if (auto namedDecl = ast.Cast<Declaration::NamedDecl>())
+					auto flag = Semantic::ScopeFlags::DeclarableScope;
+					if (type == Declaration::Decl::Class)
 					{
-						m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
+						flag |= Semantic::ScopeFlags::ClassScope;
 					}
-					m_Archive->NextReadingElement();
+					else
+					{
+						assert(type == Declaration::Decl::Enum);
+						flag |= Semantic::ScopeFlags::EnumScope;
+					}
+
+					Syntax::Parser::ParseScope tagScope{ &m_Parser, flag };
+					m_Sema.ActOnTagStartDefinition(m_Sema.GetCurrentScope(), tagDecl);
+
+					if (!m_Archive->StartReadingEntry(u8"Members", true))
+					{
+						ThrowInvalidData();
+					}
+
+					const auto count = m_Archive->GetEntryElementCount();
+					for (std::size_t i = 0; i < count; ++i)
+					{
+						auto ast = Deserialize();
+						if (auto namedDecl = ast.Cast<Declaration::NamedDecl>())
+						{
+							m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
+						}
+						m_Archive->NextReadingElement();
+					}
+
+					m_Archive->EndReadingEntry();
+					m_Sema.ActOnTagFinishDefinition();
 				}
 
-				m_Archive->EndReadingEntry();
-				m_Sema.ActOnTagFinishDefinition();
 				return tagDecl;
 			}
 			case NatsuLang::Declaration::Decl::Unresolved:
@@ -1288,9 +1328,6 @@ void Serializer::VisitModuleDecl(NatsuLib::natRefPointer<Declaration::ModuleDecl
 void Serializer::VisitTypeDecl(NatsuLib::natRefPointer<Declaration::TypeDecl> const& decl)
 {
 	VisitNamedDecl(decl);
-	m_Archive->StartWritingEntry(u8"DeclaredType");
-	TypeVisitor::Visit(decl->GetTypeForDecl());
-	m_Archive->EndWritingEntry();
 }
 
 void Serializer::VisitTagDecl(NatsuLib::natRefPointer<Declaration::TagDecl> const& decl)

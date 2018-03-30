@@ -99,6 +99,7 @@ namespace NatsuLang::Syntax
 
 	class Parser
 	{
+	public:
 		class ParseScope
 			: NatsuLib::nonmovable
 		{
@@ -112,7 +113,6 @@ namespace NatsuLang::Syntax
 			Parser* m_Self;
 		};
 
-	public:
 		Parser(Preprocessor& preprocessor, Semantic::Sema& sema);
 		~Parser();
 
