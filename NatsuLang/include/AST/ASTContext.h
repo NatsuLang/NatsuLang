@@ -5,7 +5,6 @@
 #include "Type.h"
 #include "NestedNameSpecifier.h"
 #include "Basic/TargetInfo.h"
-#include "Metadata.h"
 
 namespace NatsuLang
 {
@@ -50,8 +49,6 @@ namespace NatsuLang
 
 		TypeInfo GetTypeInfo(Type::TypePtr const& type);
 		ClassLayout const& GetClassLayout(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
-
-		Metadata CreateMetadata();
 
 	private:
 		TargetInfo m_TargetInfo;

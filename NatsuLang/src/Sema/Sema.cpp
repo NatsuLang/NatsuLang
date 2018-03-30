@@ -282,6 +282,26 @@ void Sema::PopDeclContext()
 	m_CurrentDeclContext = Declaration::Decl::CastFromDeclContext(parentDc)->ForkRef();
 }
 
+Metadata Sema::CreateMetadata() const
+{
+	Metadata metadata;
+	const auto tu = m_Context.GetTranslationUnit();
+	metadata.AddDecls(tu->GetDecls());
+
+	return metadata;
+}
+
+void Sema::LoadMetadata(Metadata const& metadata)
+{
+	for (const auto& decl : metadata.GetDecls())
+	{
+		if (auto namedDecl = decl.Cast<Declaration::NamedDecl>())
+		{
+			PushOnScopeChains(std::move(namedDecl), m_TranslationUnitScope, false);
+		}
+	}
+}
+
 void Sema::SetDeclContext(Declaration::DeclPtr dc) noexcept
 {
 	m_CurrentDeclContext = std::move(dc);
@@ -344,9 +364,20 @@ void Sema::ActOnTranslationUnitScope(natRefPointer<Scope> scope)
 natRefPointer<Declaration::ModuleDecl> Sema::ActOnModuleDecl(natRefPointer<Scope> scope, SourceLocation startLoc,
 															 Identifier::IdPtr name)
 {
-	auto moduleDecl = make_ref<Declaration::ModuleDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()),
-											 SourceLocation{}, std::move(name), startLoc);
-	PushOnScopeChains(moduleDecl, scope);
+	natRefPointer<Declaration::ModuleDecl> moduleDecl;
+
+	LookupResult r{ *this, name, startLoc, LookupNameType::LookupModuleName };
+	if (LookupName(r, m_CurrentScope) && r.GetDeclSize() > 0)
+	{
+		moduleDecl = r.GetDecls().first();
+	}
+	else
+	{
+		moduleDecl = make_ref<Declaration::ModuleDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()),
+			SourceLocation{}, std::move(name), startLoc);
+		PushOnScopeChains(moduleDecl, scope);
+	}
+
 	return moduleDecl;
 }
 
@@ -364,11 +395,6 @@ natRefPointer<Declaration::ImportDecl> Sema::ActOnModuleImport(natRefPointer<Sco
 	natRefPointer<Declaration::ModuleDecl> const& moduleDecl)
 {
 	return make_ref<Declaration::ImportDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()), importLoc, moduleDecl);
-}
-
-void Sema::MarkImportedFrom(Declaration::DeclPtr const& decl, natRefPointer<Declaration::ModuleDecl> const& moduleDecl)
-{
-	decl->AttachAttribute(moduleDecl->GetImportedFromAttr());
 }
 
 Type::TypePtr Sema::LookupTypeName(natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,

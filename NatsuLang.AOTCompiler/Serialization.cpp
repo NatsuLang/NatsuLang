@@ -94,12 +94,14 @@ nBool BinarySerializationArchiveReader::ReadString(nStrView key, nString& out)
 nBool BinarySerializationArchiveReader::ReadInteger(nStrView key, nuLong& out, std::size_t widthHint)
 {
 	// TODO: 注意端序
+	out = 0;
 	return m_Reader->GetUnderlyingStream()->ReadBytes(reinterpret_cast<nData>(&out), widthHint);
 }
 
 nBool BinarySerializationArchiveReader::ReadFloat(nStrView key, nDouble& out, std::size_t widthHint)
 {
 	// TODO: 注意端序
+	out = 0;
 	return m_Reader->GetUnderlyingStream()->ReadBytes(reinterpret_cast<nData>(&out), widthHint);
 }
 
@@ -203,7 +205,7 @@ Deserializer::Deserializer(Syntax::Parser& parser, NatsuLib::natRefPointer<ISeri
 	NatsuLib::natRefPointer<Misc::TextProvider<Statement::Stmt::StmtType>> const& stmtTypeMap,
 	NatsuLib::natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> const& declTypeMap,
 	NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> const& typeClassMap)
-	: m_Parser{ parser }, m_Sema{ parser.GetSema() }, m_Archive{ std::move(archive) }
+	: m_Parser{ parser }, m_Sema{ parser.GetSema() }, m_Archive{ std::move(archive) }, m_IsImporting{ false }
 {
 	if (stmtTypeMap)
 	{
@@ -240,9 +242,11 @@ Deserializer::~Deserializer()
 {
 }
 
-void Deserializer::StartDeserialize()
+std::size_t Deserializer::StartDeserialize(nBool isImporting)
 {
-	m_Archive->StartReadingEntry(u8"Content");
+	m_IsImporting = isImporting;
+	m_Archive->StartReadingEntry(u8"Content", true);
+	return m_Archive->GetEntryElementCount();
 }
 
 void Deserializer::EndDeserialize()
@@ -324,16 +328,15 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 					ThrowInvalidData();
 				}
 
-				if (m_Archive->GetEntryElementCount())
+				const auto count = m_Archive->GetEntryElementCount();
+				for (std::size_t i = 0; i < count; ++i)
 				{
-					do
+					auto ast = Deserialize();
+					if (auto namedDecl = ast.Cast<Declaration::NamedDecl>())
 					{
-						auto ast = Deserialize();
-						if (auto namedDecl = ast.Cast<Declaration::NamedDecl>())
-						{
-							m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
-						}
-					} while (m_Archive->NextReadingElement());
+						m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
+					}
+					m_Archive->NextReadingElement();
 				}
 
 				m_Archive->EndReadingEntry();
@@ -371,16 +374,15 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 					ThrowInvalidData();
 				}
 
-				if (m_Archive->GetEntryElementCount())
+				const auto count = m_Archive->GetEntryElementCount();
+				for (std::size_t i = 0; i < count; ++i)
 				{
-					do
+					auto ast = Deserialize();
+					if (auto namedDecl = ast.Cast<Declaration::NamedDecl>())
 					{
-						auto ast = Deserialize();
-						if (auto namedDecl = ast.Cast<Declaration::NamedDecl>())
-						{
-							m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
-						}
-					} while (m_Archive->NextReadingElement());
+						m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
+					}
+					m_Archive->NextReadingElement();
 				}
 
 				m_Archive->EndReadingEntry();
@@ -425,16 +427,35 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 								ThrowInvalidData();
 							}
 
+							if (m_IsImporting)
+							{
+								if (storageClass != Specifier::StorageClass::Static)
+								{
+									storageClass = Specifier::StorageClass::Extern;
+								}
+							}
+
 							Expression::ExprPtr initializer;
 
-							if (m_Archive->StartReadingEntry(u8"Initializer"))
+							nBool hasInitializer;
+							if (m_Archive->ReadBool(u8"HasInitializer", hasInitializer))
 							{
-								initializer = Deserialize();
-								if (!initializer)
+								if (hasInitializer)
 								{
-									ThrowInvalidData();
+									if (m_Archive->StartReadingEntry(u8"Initializer"))
+									{
+										initializer = Deserialize();
+										if (!initializer)
+										{
+											ThrowInvalidData();
+										}
+										m_Archive->EndReadingEntry();
+									}
+									else
+									{
+										ThrowInvalidData();
+									}
 								}
-								m_Archive->EndReadingEntry();
 							}
 
 							switch (type)
@@ -461,7 +482,7 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 							default:
 								if (type >= Declaration::Decl::FirstFunction && type <= Declaration::Decl::LastFunction)
 								{
-									if (!m_Archive->StartReadingEntry(u8"Params"))
+									if (!m_Archive->StartReadingEntry(u8"Params", true))
 									{
 										ThrowInvalidData();
 									}
@@ -472,33 +493,42 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 
 									params.reserve(paramCount);
 
-									if (m_Archive->GetEntryElementCount())
+									for (std::size_t i = 0; i < paramCount; ++i)
 									{
-										do
+										if (auto param = Deserialize().Cast<Declaration::ParmVarDecl>())
 										{
-											if (auto param = Deserialize().Cast<Declaration::ParmVarDecl>())
+											params.emplace_back(std::move(param));
+										}
+										else
+										{
+											ThrowInvalidData();
+										}
+										m_Archive->NextReadingElement();
+									}
+
+									m_Archive->EndReadingEntry();
+
+									Statement::StmtPtr body;
+									nBool hasBody;
+									if (m_Archive->ReadBool(u8"HasBody", hasBody))
+									{
+										if (hasBody)
+										{
+											if (m_Archive->StartReadingEntry(u8"Body"))
 											{
-												params.emplace_back(std::move(param));
+												body = Deserialize().Cast<Statement::Stmt>();
+												if (!body)
+												{
+													ThrowInvalidData();
+												}
+												m_Archive->EndReadingEntry();
 											}
 											else
 											{
 												ThrowInvalidData();
 											}
-										} while (m_Archive->NextReadingElement());
+										}
 									}
-
-									m_Archive->EndReadingEntry();
-
-									if (!m_Archive->StartReadingEntry(u8"Body"))
-									{
-										ThrowInvalidData();
-									}
-									auto body = Deserialize().Cast<Statement::Stmt>();
-									if (!body)
-									{
-										ThrowInvalidData();
-									}
-									m_Archive->EndReadingEntry();
 
 									natRefPointer<Declaration::FunctionDecl> funcDecl;
 
@@ -528,8 +558,16 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 
 									funcDecl->SetBody(std::move(body));
 									decl = std::move(funcDecl);
+									break;
 								}
+
 								ThrowInvalidData();
+							}
+
+							// 不导入内部链接性的声明
+							if (m_IsImporting && storageClass == Specifier::StorageClass::Static)
+							{
+								return nullptr;
 							}
 
 							m_Sema.PushOnScopeChains(decl, m_Sema.GetCurrentScope());
@@ -714,13 +752,14 @@ Type::TypePtr Deserializer::DeserializeType()
 		if (const auto count = m_Archive->GetEntryElementCount())
 		{
 			args.reserve(count);
-			do
+			for (std::size_t i = 0; i < count; ++i)
 			{
 				if (auto argType = Deserialize().Cast<Type::Type>())
 				{
 					args.emplace_back(std::move(argType));
 				}
-			} while (m_Archive->NextReadingElement());
+				m_Archive->NextReadingElement();
+			}
 		}
 		m_Archive->EndReadingEntry();
 
@@ -836,7 +875,8 @@ Serializer::Serializer(NatsuLib::natRefPointer<ISerializationArchiveWriter> arch
 	NatsuLib::natRefPointer<Misc::TextProvider<Statement::Stmt::StmtType>> stmtTypeMap,
 	NatsuLib::natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> declTypeMap,
 	NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> typeClassMap)
-	: m_Archive{ std::move(archive) }, m_StmtTypeMap{ std::move(stmtTypeMap) }, m_DeclTypeMap{ std::move(declTypeMap) }, m_TypeClassMap{ std::move(typeClassMap) }
+	: m_Archive{ std::move(archive) }, m_StmtTypeMap{ std::move(stmtTypeMap) }, m_DeclTypeMap{ std::move(declTypeMap) },
+	  m_TypeClassMap{ std::move(typeClassMap) }, m_IsExporting{ false }
 {
 }
 
@@ -844,8 +884,9 @@ Serializer::~Serializer()
 {
 }
 
-void Serializer::StartSerialize()
+void Serializer::StartSerialize(nBool isExporting)
 {
+	m_IsExporting = isExporting;
 	m_Archive->StartWritingEntry(u8"Content", true);
 }
 
@@ -1112,9 +1153,14 @@ void Serializer::VisitIfStmt(natRefPointer<Statement::IfStmt> const& stmt)
 	m_Archive->EndWritingEntry();
 	if (const auto elseStmt = stmt->GetElse())
 	{
+		m_Archive->WriteBool(u8"HasElse", true);
 		m_Archive->StartWritingEntry(u8"Else");
 		StmtVisitor::Visit(elseStmt);
 		m_Archive->EndWritingEntry();
+	}
+	else
+	{
+		m_Archive->WriteBool(u8"HasElse", false);
 	}
 }
 
@@ -1286,11 +1332,16 @@ void Serializer::VisitFunctionDecl(natRefPointer<Declaration::FunctionDecl> cons
 		m_Archive->NextWritingElement();
 	}
 	m_Archive->EndWritingEntry();
-	if (const auto body = decl->GetBody())
+	if (const auto body = decl->GetBody(); !m_IsExporting && body)
 	{
+		m_Archive->WriteBool(u8"HasBody", true);
 		m_Archive->StartWritingEntry(u8"Body");
 		StmtVisitor::Visit(body);
 		m_Archive->EndWritingEntry();
+	}
+	else
+	{
+		m_Archive->WriteBool(u8"HasBody", false);
 	}
 }
 
@@ -1298,11 +1349,16 @@ void Serializer::VisitVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
 {
 	VisitDeclaratorDecl(decl);
 	m_Archive->WriteNumType(u8"StorageClass", decl->GetStorageClass());
-	if (const auto initializer = decl->GetInitializer())
+	if (const auto initializer = decl->GetInitializer(); !m_IsExporting && initializer)
 	{
+		m_Archive->WriteBool(u8"HasInitializer", true);
 		m_Archive->StartWritingEntry(u8"Initializer");
 		StmtVisitor::Visit(initializer);
 		m_Archive->EndWritingEntry();
+	}
+	else
+	{
+		m_Archive->WriteBool(u8"HasInitializer", false);
 	}
 }
 

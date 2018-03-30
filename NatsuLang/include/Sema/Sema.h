@@ -10,6 +10,7 @@
 #include "CompilerAction.h"
 #include "AST/Statement.h"
 #include "AST/Expression.h"
+#include "AST/Metadata.h"
 
 namespace NatsuLang
 {
@@ -141,6 +142,9 @@ namespace NatsuLang::Semantic
 		void PushDeclContext(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclContext* dc);
 		void PopDeclContext();
 
+		Metadata CreateMetadata() const;
+		void LoadMetadata(Metadata const& metadata);
+
 		// 仅在解析声明符时恢复上下文时使用，不应该在其他地方使用
 		void SetDeclContext(Declaration::DeclPtr dc) noexcept;
 		Declaration::DeclPtr GetDeclContext() const noexcept;
@@ -165,8 +169,6 @@ namespace NatsuLang::Semantic
 
 		NatsuLib::natRefPointer<Declaration::ImportDecl> ActOnModuleImport(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation startLoc, SourceLocation importLoc,
 			NatsuLib::natRefPointer<Declaration::ModuleDecl> const& moduleDecl);
-
-		void MarkImportedFrom(Declaration::DeclPtr const& decl, NatsuLib::natRefPointer<Declaration::ModuleDecl> const& moduleDecl);
 
 		Type::TypePtr LookupTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
 		                             NatsuLib::natRefPointer<Scope> scope,

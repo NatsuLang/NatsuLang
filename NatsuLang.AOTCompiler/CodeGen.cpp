@@ -2195,6 +2195,22 @@ AotCompiler::~AotCompiler()
 
 void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 {
+	{
+		Metadata m;
+		const auto testFile = make_ref<natFileStream>(u8"Test.bin"_nv, true, false);
+		const auto binReader = make_ref<natBinaryReader>(testFile);
+		const auto reader = make_ref<Serialization::BinarySerializationArchiveReader>(binReader);
+		Serialization::Deserializer deserializer{ m_Parser, reader };
+		const auto size = deserializer.StartDeserialize();
+		std::vector<ASTNodePtr> ast;
+		ast.reserve(size);
+		for (std::size_t i = 0; i < size; ++i)
+		{
+			ast.emplace_back(deserializer.Deserialize());
+		}
+		m.AddDecls(ast);
+	}
+
 	CreateDefauleModule(uri.GetPath());
 
 	const auto fileId = m_SourceManager.GetFileID(uri);
@@ -2216,7 +2232,7 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	const auto writer = make_ref<Serialization::BinarySerializationArchiveWriter>(binWriter);
 	Serialization::Serializer serializer{ writer };
 	serializer.StartSerialize();
-	const auto metadata = m_AstContext.CreateMetadata();
+	const auto metadata = m_Sema.CreateMetadata();
 	for (const auto& decl : metadata.GetDecls())
 	{
 		serializer.Visit(decl);

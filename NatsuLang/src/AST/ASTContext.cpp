@@ -283,31 +283,6 @@ ASTContext::ClassLayout const& ASTContext::GetClassLayout(natRefPointer<Declarat
 	return ret.first->second;
 }
 
-Metadata ASTContext::CreateMetadata()
-{
-	Metadata metadata;
-
-	metadata.AddDecls(m_TUDecl->GetDecls().where([](Declaration::DeclPtr const& decl)
-	{
-		if (!decl->GetAttributeCount())
-		{
-			return true;
-		}
-
-		for (const auto& attr : decl->GetAttributes())
-		{
-			if (attr.Cast<ImportedFromAttribute>())
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}));
-
-	return metadata;
-}
-
 // TODO: 使用编译目标的值
 ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 {

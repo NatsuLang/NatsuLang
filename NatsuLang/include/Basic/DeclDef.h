@@ -97,6 +97,11 @@ UNRESOLVED(Unresolved, DeclaratorDecl)
 FIELD(Field, DeclaratorDecl)
 #undef FIELD
 
+#ifndef VAR
+#define VAR(Type, Base) DECLARATOR(Type, Base)
+#endif
+VAR(Var, DeclaratorDecl)
+
 #ifndef FUNCTION
 #define FUNCTION(Type, Base) DECLARATOR(Type, Base)
 #endif
@@ -126,11 +131,6 @@ DECL_RANGE(Method, Method, Destructor)
 DECL_RANGE(Function, Function, Destructor)
 
 #undef FUNCTION
-
-#ifndef VAR
-#define VAR(Type, Base) DECLARATOR(Type, Base)
-#endif
-VAR(Var, DeclaratorDecl)
 
 #ifndef IMPLICITPARAM
 #  define IMPLICITPARAM(Type, Base) VAR(Type, Base)

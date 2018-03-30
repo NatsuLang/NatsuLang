@@ -122,7 +122,6 @@ namespace NatsuLang::Serialization
 		std::vector<std::tuple<nBool, nLen, std::size_t>> m_EntryElementCount;
 	};
 
-
 	class Deserializer
 	{
 	public:
@@ -132,7 +131,7 @@ namespace NatsuLang::Serialization
 			NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> const& typeClassMap = nullptr);
 		~Deserializer();
 
-		void StartDeserialize();
+		std::size_t StartDeserialize(nBool isImporting = true);
 		void EndDeserialize();
 
 		ASTNodePtr Deserialize();
@@ -149,6 +148,8 @@ namespace NatsuLang::Serialization
 		std::unordered_map<nString, Declaration::Decl::DeclType> m_DeclTypeMap;
 		std::unordered_map<nString, Type::Type::TypeClass> m_TypeClassMap;
 
+		nBool m_IsImporting;
+
 		Identifier::IdPtr getId(nStrView name) const;
 		NatsuLib::natRefPointer<Declaration::NamedDecl> parseQualifiedName(nStrView name);
 	};
@@ -163,7 +164,7 @@ namespace NatsuLang::Serialization
 			NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> typeClassMap = nullptr);
 		~Serializer();
 
-		void StartSerialize();
+		void StartSerialize(nBool isExporting = true);
 		void EndSerialize();
 
 		void VisitCatchStmt(NatsuLib::natRefPointer<Statement::CatchStmt> const& stmt) override;
@@ -250,5 +251,7 @@ namespace NatsuLang::Serialization
 		NatsuLib::natRefPointer<Misc::TextProvider<Statement::Stmt::StmtType>> m_StmtTypeMap;
 		NatsuLib::natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> m_DeclTypeMap;
 		NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> m_TypeClassMap;
+
+		nBool m_IsExporting;
 	};
 }

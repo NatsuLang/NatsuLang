@@ -12,20 +12,6 @@ namespace NatsuLang
 	{
 		class ModuleDecl;
 	}
-
-	class ImportedFromAttribute
-		: public NatsuLib::natRefObjImpl<ImportedFromAttribute, Declaration::IAttribute>
-	{
-	public:
-		explicit ImportedFromAttribute(NatsuLib::natRefPointer<Declaration::ModuleDecl> module);
-		~ImportedFromAttribute();
-
-		nStrView GetName() const noexcept override;
-		NatsuLib::natRefPointer<Declaration::ModuleDecl> GetImportedFromModule() const noexcept;
-
-	private:
-		NatsuLib::natRefPointer<Declaration::ModuleDecl> m_ImportedFromModule;
-	};
 }
 
 namespace NatsuLang::Identifier
@@ -106,7 +92,7 @@ namespace NatsuLang::Declaration
 	{
 	public:
 		AliasDecl(DeclContext* context, SourceLocation loc, Identifier::IdPtr identifierInfo, ASTNodePtr aliasAsAst)
-			: NamedDecl{ Label, context, loc, std::move(identifierInfo) }, m_AliasAsAst{ std::move(aliasAsAst) }
+			: NamedDecl{ Alias, context, loc, std::move(identifierInfo) }, m_AliasAsAst{ std::move(aliasAsAst) }
 		{
 		}
 
@@ -188,13 +174,10 @@ namespace NatsuLang::Declaration
 			m_End = value;
 		}
 
-		NatsuLib::natRefPointer<ImportedFromAttribute> GetImportedFromAttr();
-
 		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 
 	private:
 		SourceLocation m_Start, m_End;
-		NatsuLib::natRefPointer<ImportedFromAttribute> m_ImportedFromAttr;
 	};
 
 	class ValueDecl
