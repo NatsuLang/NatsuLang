@@ -178,10 +178,12 @@ namespace NatsuLang::Compiler
 				void SetBeginIterator(CleanupIterator const& iter) noexcept;
 
 				void ExplicitClean();
+				void ExplicitPop();
 				void SetAlreadyCleaned() noexcept;
 
 			private:
-				nBool m_AlreadyCleaned;
+				nBool m_AlreadyCleaned : 1;
+				nBool m_AlreadyPopped : 1;
 				CleanupIterator m_BeginIterator;
 				AotStmtVisitor& m_Visitor;
 				SourceRange m_Range;

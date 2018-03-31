@@ -84,6 +84,20 @@ def Func1 : (arg : int) -> int
 	}
 }
 
+def CleanupTest : () -> int
+{
+	def _1 : Test = { 1 };
+
+	if (Func1(_1.GetContent()) > 1)
+	{
+		def _2 : Test = { 2 };
+		return _2.GetContent();
+	}
+
+	def _3 : Test = { 3 };
+	return _3.GetContent();
+}
+
 def Gcd : (a : int, b : int) -> int
 {
 	while (b)
