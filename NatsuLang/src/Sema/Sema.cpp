@@ -310,7 +310,8 @@ void Sema::LoadMetadata(Metadata const& metadata)
 	{
 		if (auto namedDecl = decl.Cast<Declaration::NamedDecl>())
 		{
-			PushOnScopeChains(std::move(namedDecl), m_TranslationUnitScope, false);
+			MarkAsImported(decl);
+			PushOnScopeChains(std::move(namedDecl), m_TranslationUnitScope);
 		}
 	}
 }

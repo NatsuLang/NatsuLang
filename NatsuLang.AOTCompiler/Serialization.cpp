@@ -47,6 +47,24 @@ namespace
 
 		return name;
 	}
+
+	class UnresolvedId
+		: public natRefObjImpl<UnresolvedId, ASTNode>
+	{
+	public:
+		explicit UnresolvedId(nString name)
+			: m_Name{ std::move(name) }
+		{
+		}
+
+		nStrView GetName() const noexcept
+		{
+			return m_Name;
+		}
+
+	private:
+		nString m_Name;
+	};
 }
 
 ISerializationArchiveReader::~ISerializationArchiveReader()
@@ -257,6 +275,12 @@ std::size_t Deserializer::StartDeserialize(nBool isImporting)
 void Deserializer::EndDeserialize()
 {
 	m_Archive->EndReadingEntry();
+
+	if (!m_UnresolvedDeclFixers.empty())
+	{
+		ThrowInvalidData();
+	}
+
 	m_Sema.PopDeclContext();
 	m_Sema.PopScope();
 	m_PesudoTranslationUnit.Reset();
@@ -286,7 +310,7 @@ ASTNodePtr Deserializer::Deserialize()
 	}
 }
 
-Declaration::DeclPtr Deserializer::DeserializeDecl()
+ASTNodePtr Deserializer::DeserializeDecl()
 {
 	Declaration::Decl::DeclType type;
 	if (!m_Archive->ReadNumType(u8"Type", type))
@@ -324,7 +348,25 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 
 				m_Archive->EndReadingEntry();
 
-				return m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, std::move(id), std::move(aliasAs));
+				auto ret = m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, std::move(id), aliasAs);
+
+				if (const auto& unresolved = aliasAs.Cast<UnresolvedId>())
+				{
+					m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [ret](natRefPointer<Declaration::NamedDecl> decl)
+					{
+						if (const auto tag = decl.Cast<Declaration::TagDecl>())
+						{
+							ret->SetAliasAsAst(tag->GetTypeForDecl());
+						}
+						else
+						{
+							ret->SetAliasAsAst(decl);
+						}
+					});
+				}
+
+				tryResolve(ret);
+				return ret;
 			}
 			case NatsuLang::Declaration::Decl::Label:
 				break;
@@ -354,6 +396,7 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 					m_Sema.ActOnFinishModule();
 				}
 
+				tryResolve(module);
 				return module;
 			}
 			case NatsuLang::Declaration::Decl::Enum:
@@ -366,7 +409,7 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 					ThrowInvalidData();
 				}
 
-				Type::TypePtr underlyingType;
+				ASTNodePtr underlyingType;
 
 				if (tagType == Type::TagType::TagTypeClass::Enum)
 				{
@@ -389,7 +432,17 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 				else
 				{
 					assert(type == Declaration::Decl::Enum);
-					tagDecl->SetTypeForDecl(std::move(underlyingType));
+					if (const auto& unresolved = underlyingType.Cast<UnresolvedId>())
+					{
+						m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [tagDecl](natRefPointer<Declaration::NamedDecl> const& decl)
+						{
+							tagDecl->SetTypeForDecl(decl.Cast<Declaration::TagDecl>()->GetTypeForDecl());
+						});
+					}
+					else
+					{
+						tagDecl->SetTypeForDecl(std::move(underlyingType));
+					}
 				}
 
 				{
@@ -427,6 +480,7 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 					m_Sema.ActOnTagFinishDefinition();
 				}
 
+				tryResolve(tagDecl);
 				return tagDecl;
 			}
 			case NatsuLang::Declaration::Decl::Unresolved:
@@ -454,6 +508,7 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 						auto fieldDecl = make_ref<Declaration::FieldDecl>(Declaration::Decl::Field, dc, SourceLocation{},
 							SourceLocation{}, std::move(id), std::move(valueType));
 						m_Sema.PushOnScopeChains(fieldDecl, m_Sema.GetCurrentScope());
+						tryResolve(fieldDecl);
 						return fieldDecl;
 					}
 					default:
@@ -611,6 +666,7 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 							}
 
 							m_Sema.PushOnScopeChains(decl, m_Sema.GetCurrentScope());
+							tryResolve(decl);
 							return decl;
 						}
 						break;
@@ -625,7 +681,7 @@ Declaration::DeclPtr Deserializer::DeserializeDecl()
 	nat_Throw(NotImplementedException);
 }
 
-Statement::StmtPtr Deserializer::DeserializeStmt()
+ASTNodePtr Deserializer::DeserializeStmt()
 {
 	Statement::Stmt::StmtType type;
 	if (!m_Archive->ReadNumType(u8"Type", type))
@@ -726,7 +782,7 @@ Statement::StmtPtr Deserializer::DeserializeStmt()
 	nat_Throw(NotImplementedException);
 }
 
-Type::TypePtr Deserializer::DeserializeType()
+ASTNodePtr Deserializer::DeserializeType()
 {
 	Type::Type::TypeClass type;
 	if (!m_Archive->ReadNumType(u8"Type", type))
@@ -837,7 +893,7 @@ Type::TypePtr Deserializer::DeserializeType()
 		const auto tagDecl = parseQualifiedName(tagDeclName).Cast<Declaration::TagDecl>();
 		if (!tagDecl)
 		{
-			ThrowInvalidData();
+			return make_ref<UnresolvedId>(std::move(tagDeclName));
 		}
 
 		return tagDecl->GetTypeForDecl();
@@ -865,7 +921,7 @@ Type::TypePtr Deserializer::DeserializeType()
 	nat_Throw(NotImplementedException);
 }
 
-natRefPointer<ICompilerAction> Deserializer::DeserializeCompilerAction()
+ASTNodePtr Deserializer::DeserializeCompilerAction()
 {
 	nString name;
 	if (!m_Archive->ReadString(u8"Name", name))
@@ -879,6 +935,7 @@ natRefPointer<ICompilerAction> Deserializer::DeserializeCompilerAction()
 	});
 
 	m_Parser.GetPreprocessor().SetLexer(make_ref<Lex::Lexer>(name, m_Parser.GetPreprocessor()));
+	m_Parser.ConsumeToken();
 	return m_Parser.ParseCompilerActionName();
 }
 
@@ -896,19 +953,46 @@ natRefPointer<Declaration::NamedDecl> Deserializer::parseQualifiedName(nStrView 
 	});
 
 	m_Parser.GetPreprocessor().SetLexer(make_ref<Lex::Lexer>(name, m_Parser.GetPreprocessor()));
-	auto idExpr = m_Parser.ParseIdExpr();
+	m_Parser.ConsumeToken();
+	auto qualifiedId = m_Parser.ParseMayBeQualifiedId();
 
-	if (const auto declRefExpr = idExpr.Cast<Expression::DeclRefExpr>())
+	if (const auto type = m_Sema.LookupTypeName(qualifiedId.second, {},
+		m_Sema.GetCurrentScope(), qualifiedId.first))
 	{
-		return declRefExpr->GetDecl();
+		if (const auto tagType = type.Cast<Type::TagType>())
+		{
+			return tagType->GetDecl();
+		}
+
+		ThrowInvalidData();
 	}
 
-	if (const auto memberRefExpr = idExpr.Cast<Expression::MemberExpr>())
+	if (auto mayBeIdExpr = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), qualifiedId.first, std::move(qualifiedId.second),
+		false, nullptr))
 	{
-		return memberRefExpr->GetMemberDecl();
+		if (const auto declRefExpr = mayBeIdExpr.Cast<Expression::DeclRefExpr>())
+		{
+			return declRefExpr->GetDecl();
+		}
+
+		if (const auto memberRefExpr = mayBeIdExpr.Cast<Expression::MemberExpr>())
+		{
+			return memberRefExpr->GetMemberDecl();
+		}
+
+		ThrowInvalidData();
 	}
 
-	ThrowInvalidData();
+	return nullptr;
+}
+
+void Deserializer::tryResolve(natRefPointer<Declaration::NamedDecl> const& namedDecl)
+{
+	if (const auto iter = m_UnresolvedDeclFixers.find(GetQualifiedName(namedDecl)); iter != m_UnresolvedDeclFixers.end())
+	{
+		iter->second(namedDecl);
+		m_UnresolvedDeclFixers.erase(iter);
+	}
 }
 
 Serializer::Serializer(NatsuLib::natRefPointer<ISerializationArchiveWriter> archive,
@@ -1528,9 +1612,14 @@ void Serializer::SerializeCompilerAction(natRefPointer<ICompilerAction> const& a
 
 	nString qualifiedName = action->GetName();
 	auto parent = action->GetParent();
-	while (parent)
+	assert(parent);
+	while (true)
 	{
 		const auto parentRef = parent.Lock();
+		if (!parentRef->GetParent())
+		{
+			break;
+		}
 		qualifiedName = parentRef->GetName() + (u8"."_nv + qualifiedName);
 		parent = parentRef->GetParent();
 	}

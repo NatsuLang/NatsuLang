@@ -135,10 +135,10 @@ namespace NatsuLang::Serialization
 		void EndDeserialize();
 
 		ASTNodePtr Deserialize();
-		Declaration::DeclPtr DeserializeDecl();
-		Statement::StmtPtr DeserializeStmt();
-		Type::TypePtr DeserializeType();
-		NatsuLib::natRefPointer<ICompilerAction> DeserializeCompilerAction();
+		ASTNodePtr DeserializeDecl();
+		ASTNodePtr DeserializeStmt();
+		ASTNodePtr DeserializeType();
+		ASTNodePtr DeserializeCompilerAction();
 
 	private:
 		Syntax::Parser& m_Parser;
@@ -149,10 +149,14 @@ namespace NatsuLang::Serialization
 		std::unordered_map<nString, Declaration::Decl::DeclType> m_DeclTypeMap;
 		std::unordered_map<nString, Type::Type::TypeClass> m_TypeClassMap;
 
+		std::unordered_map<nString, std::function<void(NatsuLib::natRefPointer<Declaration::NamedDecl> const&)>> m_UnresolvedDeclFixers;
+
 		nBool m_IsImporting;
 
 		Identifier::IdPtr getId(nStrView name) const;
 		NatsuLib::natRefPointer<Declaration::NamedDecl> parseQualifiedName(nStrView name);
+
+		void tryResolve(NatsuLib::natRefPointer<Declaration::NamedDecl> const& namedDecl);
 	};
 
 	class Serializer
