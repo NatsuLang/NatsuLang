@@ -86,6 +86,23 @@ nBool Decl::IsFunction() const noexcept
 	return m_Type >= FirstFunction && m_Type <= LastFunction;
 }
 
+void Decl::AttachAttribute(AttrPtr attr)
+{
+	const auto& ref = *attr;
+	m_AttributeSet[typeid(ref)].emplace(std::move(attr));
+}
+
+nBool Decl::DetachAttribute(AttrPtr const& attr)
+{
+	const auto& ref = *attr;
+	if (const auto iter = m_AttributeSet.find(typeid(ref)); iter != m_AttributeSet.cend())
+	{
+		return iter->second.erase(attr);
+	}
+
+	return false;
+}
+
 std::size_t Decl::GetAttributeTotalCount() const noexcept
 {
 	std::size_t size{};

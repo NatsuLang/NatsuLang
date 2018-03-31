@@ -2371,6 +2371,7 @@ void AotCompiler::prewarm()
 
 	Lex::Token dummy;
 	const auto nativeModule = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo("Native", dummy));
+	m_Sema.MarkAsImported(nativeModule);
 	m_Sema.PushScope(Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::ModuleScope);
 	m_Sema.ActOnStartModule(m_Sema.GetCurrentScope(), nativeModule);
 	registerNativeType<short>(u8"Short"_nv);

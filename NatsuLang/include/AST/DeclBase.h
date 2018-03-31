@@ -121,20 +121,8 @@ namespace NatsuLang::Declaration
 
 		nBool IsFunction() const noexcept;
 
-		void AttachAttribute(AttrPtr attr)
-		{
-			m_AttributeSet[typeid(attr)].emplace(std::move(attr));
-		}
-
-		nBool DetachAttribute(AttrPtr const& attr)
-		{
-			if (const auto iter = m_AttributeSet.find(typeid(attr)); iter != m_AttributeSet.cend())
-			{
-				return iter->second.erase(attr);
-			}
-
-			return false;
-		}
+		void AttachAttribute(AttrPtr attr);
+		nBool DetachAttribute(AttrPtr const& attr);
 
 		std::size_t GetAttributeTotalCount() const noexcept;
 		std::size_t GetAttributeCount(std::type_index const& type) const noexcept;
