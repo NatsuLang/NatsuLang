@@ -467,6 +467,10 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 			m_Compiler.m_GlobalVariableMap.emplace(std::move(varDecl), varValue);
 			decl.second = varValue;
 		}
+		else if (const auto dc = Declaration::Decl::CastToDeclContext(decl.first.Get()))
+		{
+			HandleTopLevelDecl(dc->GetDecls());
+		}
 	}
 
 	// 生成定义
@@ -1289,7 +1293,7 @@ void AotCompiler::AotStmtVisitor::StartVisit()
 
 	if (const auto compoundStmt = body.Cast<Statement::CompoundStmt>())
 	{
-		EmitCompoundStmt(compoundStmt);
+		EmitCompoundStmtWithoutScope(compoundStmt);
 	}
 	else
 	{
@@ -1299,7 +1303,6 @@ void AotCompiler::AotStmtVisitor::StartVisit()
 
 void AotCompiler::AotStmtVisitor::EndVisit()
 {
-	//PopCleanupStack(m_CleanupStack.end());
 	EmitBlock(m_ReturnBlock.GetBlock());
 	EmitFunctionEpilog();
 }
@@ -1318,6 +1321,8 @@ llvm::Function* AotCompiler::AotStmtVisitor::GetFunction() const
 
 void AotCompiler::AotStmtVisitor::EmitFunctionEpilog()
 {
+	PopCleanupStack(m_CleanupStack.end());
+
 	if (!m_ReturnValue)
 	{
 		assert(m_CurrentFunction->GetValueType().Cast<Type::FunctionType>()->GetResultType()->IsVoid());
@@ -1383,7 +1388,13 @@ void AotCompiler::AotStmtVisitor::EmitBranchWithCleanup(JumpDest const& target)
 		return;
 	}
 
-	PopCleanupStack(target.GetCleanupIterator(), false);
+	const auto scope = LookupLexicalScopeAfter(target.GetCleanupIterator());
+
+	if (scope)
+	{
+		PopCleanupStack(scope->GetBeginIterator(), false);
+	}
+
 	if (m_CurrentLexicalScope)
 	{
 		m_CurrentLexicalScope->SetAlreadyCleaned();
@@ -2163,6 +2174,17 @@ bool AotCompiler::AotStmtVisitor::CleanupEncloses(CleanupIterator const& a, Clea
 	return b != m_CleanupStack.cend() && a->first >= b->first;
 }
 
+AotCompiler::AotStmtVisitor::LexicalScope* AotCompiler::AotStmtVisitor::LookupLexicalScopeAfter(CleanupIterator const& iter)
+{
+	auto cur = m_CurrentLexicalScope;
+	while (cur && !CleanupEncloses(iter, cur->GetBeginIterator()))
+	{
+		cur = cur->GetParent();
+	}
+
+	return cur;
+}
+
 AotCompiler::AotCompiler(natRefPointer<TextReader<StringType::Utf8>> const& diagIdMapFile, natLog& logger)
 	: m_DiagConsumer{ make_ref<AotDiagConsumer>(*this) },
 	m_Diag{ make_ref<AotDiagIdMap>(diagIdMapFile), m_DiagConsumer },
@@ -2187,25 +2209,25 @@ AotCompiler::~AotCompiler()
 
 void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 {
-	//{
-	//	Metadata m;
-	//	const auto testFile = make_ref<natFileStream>(u8"Test2.bin"_nv, true, false);
-	//	const auto binReader = make_ref<natBinaryReader>(testFile);
-	//	const auto reader = make_ref<Serialization::BinarySerializationArchiveReader>(binReader);
-	//	Serialization::Deserializer deserializer{ m_Parser, reader };
-	//	const auto size = deserializer.StartDeserialize();
-	//	std::vector<ASTNodePtr> ast;
-	//	ast.reserve(size);
-	//	for (std::size_t i = 0; i < size; ++i)
-	//	{
-	//		ast.emplace_back(deserializer.Deserialize());
-	//	}
-	//	deserializer.EndDeserialize();
-	//	m.AddDecls(ast);
-	//	m_Sema.LoadMetadata(m);
-	//}
-
 	CreateDefauleModule(uri.GetPath());
+
+	{
+		Metadata m;
+		const auto testFile = make_ref<natFileStream>(u8"Test2.bin"_nv, true, false);
+		const auto binReader = make_ref<natBinaryReader>(testFile);
+		const auto reader = make_ref<Serialization::BinarySerializationArchiveReader>(binReader);
+		Serialization::Deserializer deserializer{ m_Parser, reader };
+		const auto size = deserializer.StartDeserialize();
+		std::vector<ASTNodePtr> ast;
+		ast.reserve(size);
+		for (std::size_t i = 0; i < size; ++i)
+		{
+			ast.emplace_back(deserializer.Deserialize());
+		}
+		deserializer.EndDeserialize();
+		m.AddDecls(ast);
+		m_Sema.LoadMetadata(m);
+	}
 
 	const auto fileId = m_SourceManager.GetFileID(uri);
 	const auto [succeed, content] = m_SourceManager.GetFileContent(fileId);
@@ -2330,6 +2352,11 @@ AotCompiler::AotStmtVisitor::LexicalScope::~LexicalScope()
 	}
 }
 
+AotCompiler::AotStmtVisitor::LexicalScope* AotCompiler::AotStmtVisitor::LexicalScope::GetParent() const noexcept
+{
+	return m_Parent;
+}
+
 SourceRange AotCompiler::AotStmtVisitor::LexicalScope::GetRange() const noexcept
 {
 	return m_Range;
@@ -2339,6 +2366,11 @@ void AotCompiler::AotStmtVisitor::LexicalScope::AddLabel(natRefPointer<Declarati
 {
 	assert(!m_AlreadyCleaned);
 	m_Labels.emplace_back(std::move(label));
+}
+
+AotCompiler::AotStmtVisitor::CleanupIterator AotCompiler::AotStmtVisitor::LexicalScope::GetBeginIterator() const noexcept
+{
+	return m_BeginIterator;
 }
 
 void AotCompiler::AotStmtVisitor::LexicalScope::SetBeginIterator(CleanupIterator const& iter) noexcept

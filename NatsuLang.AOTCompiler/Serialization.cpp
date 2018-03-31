@@ -573,6 +573,32 @@ ASTNodePtr Deserializer::DeserializeDecl()
 							default:
 								if (type >= Declaration::Decl::FirstFunction && type <= Declaration::Decl::LastFunction)
 								{
+									natRefPointer<Declaration::FunctionDecl> funcDecl;
+
+									switch (type)
+									{
+									case NatsuLang::Declaration::Decl::Function:
+										funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
+											SourceLocation{}, SourceLocation{}, std::move(id), std::move(valueType),
+											storageClass);
+										break;
+									case NatsuLang::Declaration::Decl::Method:
+										funcDecl = make_ref<Declaration::MethodDecl>(Declaration::Decl::Method, dc,
+											SourceLocation{}, SourceLocation{}, std::move(id), std::move(valueType),
+											storageClass);
+										break;
+									case NatsuLang::Declaration::Decl::Constructor:
+										funcDecl = make_ref<Declaration::ConstructorDecl>(dc, SourceLocation{},
+											std::move(id), std::move(valueType), storageClass);
+										break;
+									case NatsuLang::Declaration::Decl::Destructor:
+										funcDecl = make_ref<Declaration::DestructorDecl>(dc, SourceLocation{},
+											std::move(id), std::move(valueType), storageClass);
+										break;
+									default:
+										ThrowInvalidData();
+									}
+
 									if (!m_Archive->StartReadingEntry(u8"Params", true))
 									{
 										ThrowInvalidData();
@@ -604,33 +630,9 @@ ASTNodePtr Deserializer::DeserializeDecl()
 										}
 									}
 
+									funcDecl->SetParams(from(params));
+
 									m_Archive->EndReadingEntry();
-
-									natRefPointer<Declaration::FunctionDecl> funcDecl;
-
-									switch (type)
-									{
-									case NatsuLang::Declaration::Decl::Function:
-										funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
-											SourceLocation{}, SourceLocation{}, std::move(id), std::move(valueType),
-											storageClass);
-										break;
-									case NatsuLang::Declaration::Decl::Method:
-										funcDecl = make_ref<Declaration::MethodDecl>(Declaration::Decl::Function, dc,
-											SourceLocation{}, SourceLocation{}, std::move(id), std::move(valueType),
-											storageClass);
-										break;
-									case NatsuLang::Declaration::Decl::Constructor:
-										funcDecl = make_ref<Declaration::ConstructorDecl>(dc, SourceLocation{},
-											std::move(id), std::move(valueType), storageClass);
-										break;
-									case NatsuLang::Declaration::Decl::Destructor:
-										funcDecl = make_ref<Declaration::DestructorDecl>(dc, SourceLocation{},
-											std::move(id), std::move(valueType), storageClass);
-										break;
-									default:
-										ThrowInvalidData();
-									}
 
 									Statement::StmtPtr body;
 									nBool hasBody;

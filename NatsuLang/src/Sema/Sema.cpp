@@ -314,6 +314,8 @@ void Sema::LoadMetadata(Metadata const& metadata)
 			PushOnScopeChains(std::move(namedDecl), m_TranslationUnitScope);
 		}
 	}
+
+	m_Consumer->HandleTopLevelDecl(metadata.GetDecls());
 }
 
 void Sema::MarkAsImported(Declaration::DeclPtr const& decl) const
@@ -2243,7 +2245,6 @@ nBool Sema::CheckFunctionReturn(Statement::StmtEnumerable const& funcBody)
 		case Statement::Stmt::CatchStmtClass:
 		case Statement::Stmt::TryStmtClass:
 		case Statement::Stmt::CompoundStmtClass:
-		case Statement::Stmt::ContinueStmtClass:
 		case Statement::Stmt::DeclStmtClass:
 		case Statement::Stmt::DoStmtClass:
 		case Statement::Stmt::ForStmtClass:
@@ -2263,6 +2264,9 @@ nBool Sema::CheckFunctionReturn(Statement::StmtEnumerable const& funcBody)
 		}
 		case Statement::Stmt::ReturnStmtClass:
 			return true;
+		case Statement::Stmt::BreakStmtClass:
+		case Statement::Stmt::ContinueStmtClass:
+			// TODO
 		default:
 			break;
 		}

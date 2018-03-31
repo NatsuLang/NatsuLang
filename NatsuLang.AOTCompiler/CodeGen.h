@@ -168,10 +168,13 @@ namespace NatsuLang::Compiler
 				LexicalScope(AotStmtVisitor& visitor, SourceRange range);
 				~LexicalScope();
 
+				LexicalScope* GetParent() const noexcept;
+
 				SourceRange GetRange() const noexcept;
 
 				void AddLabel(NatsuLib::natRefPointer<Declaration::LabelDecl> label);
 
+				CleanupIterator GetBeginIterator() const noexcept;
 				void SetBeginIterator(CleanupIterator const& iter) noexcept;
 
 				void ExplicitClean();
@@ -323,6 +326,8 @@ namespace NatsuLang::Compiler
 			void InsertCleanupStack(CleanupIterator const& pos, NatsuLib::natRefPointer<ICleanup> cleanup);
 			void PopCleanupStack(CleanupIterator const& iter, nBool popStack = true);
 			bool CleanupEncloses(CleanupIterator const& a, CleanupIterator const& b) const noexcept;
+
+			LexicalScope* LookupLexicalScopeAfter(CleanupIterator const& iter);
 
 		private:
 			AotCompiler& m_Compiler;
