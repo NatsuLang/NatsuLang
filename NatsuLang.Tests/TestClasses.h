@@ -9,6 +9,8 @@
 #include <Basic/FileManager.h>
 #include <Basic/SourceManager.h>
 #include <Parse/Parser.h>
+#include <Sema/Sema.h>
+#include <Sema/Scope.h>
 
 using namespace NatsuLib;
 using namespace NatsuLang;
@@ -43,11 +45,11 @@ public:
 	{
 		if (level >= Diag::DiagnosticsEngine::Level::Error)
 		{
-			FAIL(diag.GetDiagMessage().data());
+			INFO(diag.GetDiagMessage().data());
 		}
 		else if (level == Diag::DiagnosticsEngine::Level::Warning)
 		{
-			WARN(diag.GetDiagMessage().data());
+			INFO(diag.GetDiagMessage().data());
 		}
 		else
 		{

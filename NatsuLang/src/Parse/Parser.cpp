@@ -623,6 +623,7 @@ std::vector<Declaration::DeclPtr> Parser::ParseModuleImport()
 	{
 		// TODO: 修改 Context
 		m_Sema.ActOnCodeComplete(m_Sema.GetCurrentScope(), m_CurrentToken.GetLocation(), qualifiedId.first, qualifiedId.second, Declaration::Context::Block);
+		ConsumeToken();
 		return {};
 	}
 
@@ -987,6 +988,11 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context, nBool ma
 			return false;
 		});
 		return result;
+	case TokenType::CodeCompletion:
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::CodeCompletion);
+		ConsumeToken();
+		return nullptr;
 	case TokenType::Identifier:
 	{
 		auto curToken = m_CurrentToken;
@@ -997,6 +1003,7 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context, nBool ma
 		if (m_CurrentToken.Is(TokenType::CodeCompletion))
 		{
 			m_Sema.ActOnCodeComplete(m_Sema.GetCurrentScope(), m_CurrentToken.GetLocation(), qualifiedId.first, qualifiedId.second, context);
+			ConsumeToken();
 			return nullptr;
 		}
 
@@ -1382,6 +1389,7 @@ Expression::ExprPtr Parser::ParseIdExpr()
 	{
 		// TODO: 修改 Context
 		m_Sema.ActOnCodeComplete(m_Sema.GetCurrentScope(), m_CurrentToken.GetLocation(), qualifiedId.first, qualifiedId.second, Declaration::Context::Block);
+		ConsumeToken();
 		return nullptr;
 	}
 
@@ -1986,6 +1994,7 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 		if (m_CurrentToken.Is(TokenType::CodeCompletion))
 		{
 			m_Sema.ActOnCodeComplete(m_Sema.GetCurrentScope(), m_CurrentToken.GetLocation(), qualifiedId.first, qualifiedId.second, context);
+			ConsumeToken();
 			return;
 		}
 
@@ -2351,9 +2360,12 @@ void Parser::ParseInitializer(Declaration::DeclaratorPtr const& decl)
 		}
 		else
 		{
-			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-				.AddArgument(TokenType::Semi)
-				.AddArgument(m_CurrentToken.GetType());
+			if (decl->GetContext() != Declaration::Context::Prototype)
+			{
+				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+					.AddArgument(TokenType::Semi)
+					.AddArgument(m_CurrentToken.GetType());
+			}
 		}
 
 		return;
@@ -2549,6 +2561,7 @@ void NatsuLang::ParseAST(Preprocessor& pp, ASTContext& astContext, natRefPointer
 	Parser parser{ pp, sema };
 
 	ParseAST(parser);
+	EndParsingAST(parser);
 }
 
 void NatsuLang::ParseAST(Parser& parser)

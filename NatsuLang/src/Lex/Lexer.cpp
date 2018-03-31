@@ -38,7 +38,16 @@ NextToken:
 		switch (*cur)
 		{
 		case 0:
-			result.SetType(m_CodeCompletionEnabled && cur != end ? TokenType::CodeCompletion : TokenType::Eof);
+			if (m_CodeCompletionEnabled)
+			{
+				result.SetType(TokenType::CodeCompletion);
+				++m_Current;
+			}
+			else
+			{
+				result.SetType(TokenType::Eof);
+			}
+
 			result.SetLength(0);
 			result.SetLocation(m_CurLoc);
 			return true;

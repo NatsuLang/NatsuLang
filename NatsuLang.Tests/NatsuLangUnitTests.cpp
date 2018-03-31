@@ -15,7 +15,7 @@ def Increase : (arg : int = 1) -> int
 	SourceManager sourceManager{ diag, fileManager };
 	Preprocessor pp{ diag, sourceManager };
 	pp.SetLexer(make_ref<Lex::Lexer>(testCode, pp));
-	ASTContext context;
+	ASTContext context{ TargetInfo{ Environment::GetEndianness(), sizeof(void*), alignof(void*) } };
 	const auto consumer = make_ref<TestAstConsumer>();
 	ParseAST(pp, context, consumer);
 
@@ -75,4 +75,49 @@ def Increase : (arg : int = 1) -> int
 			REQUIRE(retValueExpr);
 		}
 	}
+}
+
+class CodeCompleter
+	: public natRefObjImpl<CodeCompleter, ICodeCompleter>
+{
+public:
+	void HandleCodeCompleteResult(CodeCompleteResult const& result) override
+	{
+		for (const auto& ast : result.GetResults())
+		{
+			if (const auto& named = ast.Cast<Declaration::NamedDecl>())
+			{
+				INFO(named->GetName().data());
+			}
+		}
+	}
+};
+
+TEST_CASE("Code Completion", "[Lexer][Parser][Sema]")
+{
+	const auto testCode =
+		u8R"(
+def Main : () -> void
+{
+	def abc = 0;
+	a)" "\0" R"(
+}
+)"_nv;
+
+	Diag::DiagnosticsEngine diag{ make_ref<IDMap>(), make_ref<TestDiagConsumer>() };
+	FileManager fileManager{};
+	SourceManager sourceManager{ diag, fileManager };
+	Preprocessor pp{ diag, sourceManager };
+	pp.SetLexer(make_ref<Lex::Lexer>(testCode, pp));
+	pp.GetLexer()->EnableCodeCompletion(true);
+	ASTContext context{ TargetInfo{ Environment::GetEndianness(), sizeof(void*), alignof(void*) } };
+	const auto consumer = make_ref<TestAstConsumer>();
+
+	Semantic::Sema sema{ pp, context, consumer };
+	Syntax::Parser parser{ pp, sema };
+
+	sema.SetCodeCompleter(make_ref<CodeCompleter>());
+
+	ParseAST(parser);
+	EndParsingAST(parser);
 }
