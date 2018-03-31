@@ -208,6 +208,20 @@ void DeclContext::RemoveDecl(DeclPtr const& decl)
 	}
 
 	decl->SetNextDeclInContext(nullptr);
+	decl->SetContext(nullptr);
+}
+
+void DeclContext::RemoveAllDecl()
+{
+	for (auto decl = m_FirstDecl; decl;)
+	{
+		auto next = decl->GetNextDeclInContext();
+		decl->SetNextDeclInContext(nullptr);
+		decl->SetContext(nullptr);
+		decl = std::move(next);
+	}
+
+	m_FirstDecl = m_LastDecl = nullptr;
 }
 
 nBool DeclContext::ContainsDecl(DeclPtr const& decl)

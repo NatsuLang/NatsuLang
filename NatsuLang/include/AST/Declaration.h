@@ -631,7 +631,7 @@ namespace NatsuLang::Declaration
 		DestructorDecl(DeclContext* dc, SourceLocation startLoc,
 		               Identifier::IdPtr identifierInfo, Type::TypePtr type, Specifier::StorageClass storageClass)
 			: MethodDecl{
-				Constructor, dc, startLoc, {}, std::move(identifierInfo), std::move(type),
+				Destructor, dc, startLoc, {}, std::move(identifierInfo), std::move(type),
 				storageClass
 			}
 		{

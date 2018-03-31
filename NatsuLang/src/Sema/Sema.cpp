@@ -861,7 +861,7 @@ natRefPointer<Declaration::ParmVarDecl> Sema::ActOnParamDeclarator(natRefPointer
 												  std::move(id), decl->GetType(), Specifier::StorageClass::None,
 												  decl->GetInitializer());
 
-	scope->AddDecl(ret);
+	PushOnScopeChains(ret, scope, false);
 
 	return ret;
 }

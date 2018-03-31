@@ -283,6 +283,7 @@ void Deserializer::EndDeserialize()
 
 	m_Sema.PopDeclContext();
 	m_Sema.PopScope();
+	m_PesudoTranslationUnit->RemoveAllDecl();
 	m_PesudoTranslationUnit.Reset();
 }
 
@@ -385,10 +386,6 @@ ASTNodePtr Deserializer::DeserializeDecl()
 					for (std::size_t i = 0; i < count; ++i)
 					{
 						auto ast = Deserialize();
-						if (auto namedDecl = ast.Cast<Declaration::NamedDecl>())
-						{
-							m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
-						}
 						m_Archive->NextReadingElement();
 					}
 
@@ -469,10 +466,6 @@ ASTNodePtr Deserializer::DeserializeDecl()
 					for (std::size_t i = 0; i < count; ++i)
 					{
 						auto ast = Deserialize();
-						if (auto namedDecl = ast.Cast<Declaration::NamedDecl>())
-						{
-							m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
-						}
 						m_Archive->NextReadingElement();
 					}
 
@@ -553,6 +546,8 @@ ASTNodePtr Deserializer::DeserializeDecl()
 								}
 							}
 
+							auto addToContext = true;
+
 							switch (type)
 							{
 							case NatsuLang::Declaration::Decl::Var:
@@ -571,6 +566,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 									m_Sema.GetASTContext().GetTranslationUnit().Get(), SourceLocation{}, SourceLocation{},
 									std::move(id), std::move(valueType), Specifier::StorageClass::None,
 									initializer);
+								addToContext = false;
 								break;
 							case NatsuLang::Declaration::Decl::EnumConstant:
 								nat_Throw(NotImplementedException);
@@ -588,42 +584,27 @@ ASTNodePtr Deserializer::DeserializeDecl()
 
 									params.reserve(paramCount);
 
-									for (std::size_t i = 0; i < paramCount; ++i)
 									{
-										if (auto param = Deserialize().Cast<Declaration::ParmVarDecl>())
-										{
-											params.emplace_back(std::move(param));
-										}
-										else
-										{
-											ThrowInvalidData();
-										}
-										m_Archive->NextReadingElement();
-									}
+										Syntax::Parser::ParseScope prototypeScope{
+											&m_Parser,
+											Semantic::ScopeFlags::FunctionDeclarationScope | Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::FunctionPrototypeScope
+										};
 
-									m_Archive->EndReadingEntry();
-
-									Statement::StmtPtr body;
-									nBool hasBody;
-									if (m_Archive->ReadBool(u8"HasBody", hasBody))
-									{
-										if (hasBody)
+										for (std::size_t i = 0; i < paramCount; ++i)
 										{
-											if (m_Archive->StartReadingEntry(u8"Body"))
+											if (auto param = Deserialize().Cast<Declaration::ParmVarDecl>())
 											{
-												body = Deserialize().Cast<Statement::Stmt>();
-												if (!body)
-												{
-													ThrowInvalidData();
-												}
-												m_Archive->EndReadingEntry();
+												params.emplace_back(std::move(param));
 											}
 											else
 											{
 												ThrowInvalidData();
 											}
+											m_Archive->NextReadingElement();
 										}
 									}
+
+									m_Archive->EndReadingEntry();
 
 									natRefPointer<Declaration::FunctionDecl> funcDecl;
 
@@ -651,6 +632,43 @@ ASTNodePtr Deserializer::DeserializeDecl()
 										ThrowInvalidData();
 									}
 
+									Statement::StmtPtr body;
+									nBool hasBody;
+									if (m_Archive->ReadBool(u8"HasBody", hasBody))
+									{
+										if (hasBody)
+										{
+											if (m_Archive->StartReadingEntry(u8"Body"))
+											{
+												{
+													Syntax::Parser::ParseScope bodyScope{
+														&m_Parser,
+														Semantic::ScopeFlags::FunctionScope | Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::CompoundStmtScope
+													};
+													m_Sema.PushDeclContext(m_Sema.GetCurrentScope(), funcDecl.Get());
+
+													for (auto param : params)
+													{
+														m_Sema.PushOnScopeChains(std::move(param), m_Sema.GetCurrentScope());
+													}
+
+													body = Deserialize().Cast<Statement::Stmt>();
+													m_Sema.PopDeclContext();
+												}
+
+												if (!body)
+												{
+													ThrowInvalidData();
+												}
+												m_Archive->EndReadingEntry();
+											}
+											else
+											{
+												ThrowInvalidData();
+											}
+										}
+									}
+
 									funcDecl->SetBody(std::move(body));
 									decl = std::move(funcDecl);
 									break;
@@ -665,7 +683,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 								return nullptr;
 							}
 
-							m_Sema.PushOnScopeChains(decl, m_Sema.GetCurrentScope());
+							m_Sema.PushOnScopeChains(decl, m_Sema.GetCurrentScope(), addToContext);
 							tryResolve(decl);
 							return decl;
 						}

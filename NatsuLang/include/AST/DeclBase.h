@@ -181,6 +181,7 @@ namespace NatsuLang::Declaration
 
 		void AddDecl(DeclPtr decl);
 		void RemoveDecl(DeclPtr const& decl);
+		void RemoveAllDecl();
 		nBool ContainsDecl(DeclPtr const& decl);
 
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<NamedDecl>>> Lookup(
