@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
 
 	try
 	{
-		if (argc == 2)
+		if (argc >= 2)
 		{
 			AotCompiler compiler{ make_ref<natStreamReader<nStrView::UsingStringType>>(make_ref<natFileStream>("DiagIdMap.txt", true, false)), logger };
 
@@ -90,16 +90,21 @@ int main(int argc, char* argv[])
 				return EXIT_FAILURE;
 			}
 
-			compiler.Compile(uri, output);
+			compiler.Compile(uri, from(argv + 2, argv + argc).select([](const char* arg)
+			{
+				return Uri{ arg };
+			}), output);
 		}
 		else
 		{
 			console.WriteLine(u8"Aki 版本 0.1\n"
 				"NatsuLang 的 AOT 编译器\n"
-				"请将欲编译的源码文件作为命令行参数传入\n"
+				"请将欲编译的源码文件作为第一个命令行参数传入\n"
+				"若有需要导入的元数据文件请作为之后的参数传入\n"
 				"例如：\n"
-				"\t{0} file://./example.nat\n"
-				"其中 \"file://./example.nat\" 是将要编译的源码文件路径，使用标准 uri 形式表示"_nv, argv[0]);
+				"\t{0} file:///example.nat file:///library.meta\n"
+				"其中 \"file:///example.nat\" 是将要编译的源码文件路径，"
+				"\"file:///library.meta\" 是将要导入的元数据文件，使用标准 uri 形式表示"_nv, argv[0]);
 		}
 
 		console.ReadLine();

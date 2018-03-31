@@ -1,6 +1,8 @@
 ﻿#include "CodeGen.h"
 #include "Serialization.h"
 
+#include <natLocalFileScheme.h>
+
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/Support/Host.h>
@@ -2231,15 +2233,32 @@ AotCompiler::~AotCompiler()
 {
 }
 
-void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
+void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, llvm::raw_pwrite_stream& stream)
 {
 	CreateDefauleModule(uri.GetPath());
 
+	auto& vfs = m_SourceManager.GetFileManager().GetVFS();
+
+	for (const auto& meta : metadatas)
 	{
-		Metadata m;
-		const auto testFile = make_ref<natFileStream>(u8"Test2.bin"_nv, true, false);
-		const auto binReader = make_ref<natBinaryReader>(testFile);
-		const auto reader = make_ref<Serialization::BinarySerializationArchiveReader>(binReader);
+		Metadata metadata;
+		const auto request = vfs.CreateRequest(meta);
+		if (!request)
+		{
+			nat_Throw(AotCompilerException, u8"无法创建对元数据文件 \"{0}\" 的请求", meta.GetUnderlyingString());
+		}
+		const auto response = request->GetResponse();
+		if (!response)
+		{
+			nat_Throw(AotCompilerException, u8"无法获得对元数据文件 \"{0}\" 的请求的响应", meta.GetUnderlyingString());
+		}
+		const auto metaStream = response->GetResponseStream();
+		if (!metaStream)
+		{
+			nat_Throw(AotCompilerException, u8"无法打开元数据文件 \"{0}\" 的流", meta.GetUnderlyingString());
+		}
+
+		const auto reader = make_ref<Serialization::BinarySerializationArchiveReader>(make_ref<natBinaryReader>(metaStream));
 		Serialization::Deserializer deserializer{ m_Parser, reader };
 		const auto size = deserializer.StartDeserialize();
 		std::vector<ASTNodePtr> ast;
@@ -2249,8 +2268,8 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 			ast.emplace_back(deserializer.Deserialize());
 		}
 		deserializer.EndDeserialize();
-		m.AddDecls(ast);
-		m_Sema.LoadMetadata(m);
+		metadata.AddDecls(ast);
+		m_Sema.LoadMetadata(metadata);
 	}
 
 	const auto fileId = m_SourceManager.GetFileID(uri);
@@ -2267,18 +2286,6 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	ParseAST(m_Parser);
 	EndParsingAST(m_Parser);
 
-	const auto testFile = make_ref<natFileStream>(u8"Test.bin"_nv, false, true);
-	const auto binWriter = make_ref<natBinaryWriter>(testFile);
-	const auto writer = make_ref<Serialization::BinarySerializationArchiveWriter>(binWriter);
-	Serialization::Serializer serializer{ writer };
-	serializer.StartSerialize();
-	const auto metadata = m_Sema.CreateMetadata();
-	for (const auto& decl : metadata.GetDecls())
-	{
-		serializer.Visit(decl);
-	}
-	serializer.EndSerialize();
-
 	if (m_DiagConsumer->IsErrored())
 	{
 		m_Logger.LogErr(u8"编译文件 \"{0}\" 失败"_nv, uri.GetUnderlyingString());
@@ -2286,6 +2293,40 @@ void AotCompiler::Compile(Uri const& uri, llvm::raw_pwrite_stream& stream)
 	}
 
 	DisposeModule(stream, m_Logger);
+
+	{
+		Uri meta{ uri.GetUnderlyingString() + u8".meta"_ns };
+		const auto request = vfs.CreateRequest(meta);
+		if (!request)
+		{
+			nat_Throw(AotCompilerException, u8"无法创建对元数据文件 \"{0}\" 的请求", meta.GetUnderlyingString());
+		}
+		// TODO: 消除硬编码
+		if (const auto fileRequest = request.Cast<NatsuLib::LocalFileRequest>())
+		{
+			fileRequest->SetWritable(true);
+		}
+
+		const auto response = request->GetResponse();
+		if (!response)
+		{
+			nat_Throw(AotCompilerException, u8"无法获得对元数据文件 \"{0}\" 的请求的响应", meta.GetUnderlyingString());
+		}
+		const auto metaStream = response->GetResponseStream();
+		if (!metaStream)
+		{
+			nat_Throw(AotCompilerException, u8"无法打开元数据文件 \"{0}\" 的流", meta.GetUnderlyingString());
+		}
+		const auto writer = make_ref<Serialization::BinarySerializationArchiveWriter>(make_ref<natBinaryWriter>(metaStream));
+		Serialization::Serializer serializer{ writer };
+		serializer.StartSerialize();
+		const auto metadata = m_Sema.CreateMetadata();
+		for (const auto& decl : metadata.GetDecls())
+		{
+			serializer.Visit(decl);
+		}
+		serializer.EndSerialize();
+	}
 }
 
 AotCompiler::AotStmtVisitor::ICleanup::~ICleanup()
