@@ -21,11 +21,23 @@ namespace NatsuLang
 			nuInt GetFileID() const noexcept;
 			void SetFileID(nuInt value) noexcept;
 
+			void EnableCodeCompletion(nBool value) noexcept
+			{
+				m_CodeCompletionEnabled = value;
+			}
+
+			nBool IsCodeCompletionEnabled() const noexcept
+			{
+				return m_CodeCompletionEnabled;
+			}
+
 		private:
 			using Iterator = nStrView::const_iterator;
 			using CharType = nStrView::CharType;
 
 			Preprocessor& m_Preprocessor;
+
+			nBool m_CodeCompletionEnabled;
 
 			SourceLocation m_CurLoc;
 			nStrView m_Buffer;

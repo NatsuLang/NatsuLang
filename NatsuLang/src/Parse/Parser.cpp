@@ -619,6 +619,13 @@ std::vector<Declaration::DeclPtr> Parser::ParseModuleImport()
 
 	const auto qualifiedId = ParseMayBeQualifiedId();
 
+	if (m_CurrentToken.Is(TokenType::CodeCompletion))
+	{
+		// TODO: 修改 Context
+		m_Sema.ActOnCodeComplete(m_Sema.GetCurrentScope(), m_CurrentToken.GetLocation(), qualifiedId.first, qualifiedId.second, Declaration::Context::Block);
+		return {};
+	}
+
 	if (!qualifiedId.second)
 	{
 		// TODO: 报告错误
@@ -651,7 +658,8 @@ std::vector<Declaration::DeclPtr> Parser::ParseModuleImport()
 	{
 		if (auto namedDecl = decl.Cast<Declaration::NamedDecl>())
 		{
-			m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope(), false);
+			m_Sema.MarkAsImported(namedDecl);
+			m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
 		}
 	}
 
@@ -985,6 +993,13 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context, nBool ma
 		const auto memento = m_Preprocessor.SaveToMemento();
 
 		const auto qualifiedId = ParseMayBeQualifiedId();
+
+		if (m_CurrentToken.Is(TokenType::CodeCompletion))
+		{
+			m_Sema.ActOnCodeComplete(m_Sema.GetCurrentScope(), m_CurrentToken.GetLocation(), qualifiedId.first, qualifiedId.second, context);
+			return nullptr;
+		}
+
 		if (qualifiedId.second)
 		{
 			const auto foundAlias = m_Sema.LookupAliasName(qualifiedId.second, {}, m_Sema.GetCurrentScope(), qualifiedId.first, m_ResolveContext);
@@ -1362,6 +1377,14 @@ Expression::ExprPtr Parser::ParseExpression()
 Expression::ExprPtr Parser::ParseIdExpr()
 {
 	auto qualifiedId = ParseMayBeQualifiedId();
+
+	if (m_CurrentToken.Is(TokenType::CodeCompletion))
+	{
+		// TODO: 修改 Context
+		m_Sema.ActOnCodeComplete(m_Sema.GetCurrentScope(), m_CurrentToken.GetLocation(), qualifiedId.first, qualifiedId.second, Declaration::Context::Block);
+		return nullptr;
+	}
+
 	// 注意可能是成员访问操作符，这里可能误判
 	if (!qualifiedId.second)
 	{
@@ -1746,7 +1769,7 @@ std::pair<natRefPointer<NestedNameSpecifier>, Identifier::IdPtr> Parser::ParseMa
 		ConsumeToken();
 	}
 
-	return {};  // NOLINT
+	return { std::move(nns), nullptr };  // NOLINT
 }
 
 nBool Parser::ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs,
@@ -1959,6 +1982,12 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 		// TODO: 处理 module
 
 		const auto qualifiedId = ParseMayBeQualifiedId();
+
+		if (m_CurrentToken.Is(TokenType::CodeCompletion))
+		{
+			m_Sema.ActOnCodeComplete(m_Sema.GetCurrentScope(), m_CurrentToken.GetLocation(), qualifiedId.first, qualifiedId.second, context);
+			return;
+		}
 
 		if (!qualifiedId.second)
 		{

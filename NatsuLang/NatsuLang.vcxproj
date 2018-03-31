@@ -178,6 +178,7 @@
     <ClInclude Include="include\AST\ASTConsumer.h" />
     <ClInclude Include="include\AST\ASTContext.h" />
     <ClInclude Include="include\AST\ASTNode.h" />
+    <ClInclude Include="include\AST\CodeCompletion.h" />
     <ClInclude Include="include\AST\Declaration.h" />
     <ClInclude Include="include\AST\DeclBase.h" />
     <ClInclude Include="include\AST\DeclVisitor.h" />
@@ -225,6 +226,7 @@
     <ClCompile Include="src\AST\ASTConsumer.cpp" />
     <ClCompile Include="src\AST\ASTContext.cpp" />
     <ClCompile Include="src\AST\ASTNode.cpp" />
+    <ClCompile Include="src\AST\CodeCompletion.cpp" />
     <ClCompile Include="src\AST\Declaration.cpp" />
     <ClCompile Include="src\AST\DeclBase.cpp" />
     <ClCompile Include="src\AST\DeclVisitor.cpp" />

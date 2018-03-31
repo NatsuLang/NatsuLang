@@ -185,7 +185,7 @@ namespace NatsuLang::Declaration
 		nBool ContainsDecl(DeclPtr const& decl);
 
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<NamedDecl>>> Lookup(
-			NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& info) const;
+			NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& info, nBool isCodeCompletion = false) const;
 
 	private:
 		Decl::DeclType m_Type;

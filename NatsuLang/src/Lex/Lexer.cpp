@@ -8,7 +8,7 @@ using namespace Lex;
 using namespace CharInfo;
 
 Lexer::Lexer(nStrView buffer, Preprocessor& preprocessor)
-	: m_Preprocessor{ preprocessor }, m_Buffer{ buffer }, m_Current{ m_Buffer.cbegin() }
+	: m_Preprocessor{ preprocessor }, m_CodeCompletionEnabled{ false }, m_Buffer{ buffer }, m_Current{ m_Buffer.cbegin() }
 {
 	if (m_Buffer.empty())
 	{
@@ -38,7 +38,7 @@ NextToken:
 		switch (*cur)
 		{
 		case 0:
-			result.SetType(TokenType::Eof);
+			result.SetType(m_CodeCompletionEnabled && cur != end ? TokenType::CodeCompletion : TokenType::Eof);
 			result.SetLength(0);
 			result.SetLocation(m_CurLoc);
 			return true;

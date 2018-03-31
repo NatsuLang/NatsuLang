@@ -229,17 +229,19 @@ nBool DeclContext::ContainsDecl(DeclPtr const& decl)
 	return decl->GetContext() == this && (decl->GetNextDeclInContext() || decl == m_LastDecl);
 }
 
-NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<NamedDecl>>> DeclContext::Lookup(
-	natRefPointer<Identifier::IdentifierInfo> const& info) const
+Linq<Valued<natRefPointer<NamedDecl>>> DeclContext::Lookup(
+	natRefPointer<Identifier::IdentifierInfo> const& info, nBool isCodeCompletion) const
 {
-	return GetDecls().where([info] (DeclPtr const& decl)
+	return GetDecls().where([info, isCodeCompletion] (DeclPtr const& decl)
 	{
 		const auto namedDecl = decl.Cast<NamedDecl>();
 		if (!namedDecl)
 		{
 			return false;
 		}
-		return namedDecl->GetIdentifierInfo() == info;
+		return isCodeCompletion ?
+			!info || namedDecl->GetIdentifierInfo()->GetName().Find(info->GetName()) != nString::npos || info->GetName().Find(namedDecl->GetIdentifierInfo()->GetName()) != nString::npos :
+			namedDecl->GetIdentifierInfo() == info;
 	}).select([] (DeclPtr const& decl) { return decl.Cast<NamedDecl>(); });
 }
 

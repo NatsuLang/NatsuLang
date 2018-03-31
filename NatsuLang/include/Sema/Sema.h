@@ -12,6 +12,7 @@
 #include "AST/Statement.h"
 #include "AST/Expression.h"
 #include "AST/Metadata.h"
+#include "AST/CodeCompletion.h"
 
 namespace NatsuLang
 {
@@ -22,6 +23,7 @@ namespace NatsuLang
 
 	namespace Declaration
 	{
+		enum class Context;
 		class Declarator;
 		using DeclaratorPtr = NatsuLib::natRefPointer<Declarator>;
 	}
@@ -130,6 +132,16 @@ namespace NatsuLang::Semantic
 			return m_Consumer;
 		}
 
+		NatsuLib::natRefPointer<ICodeCompleter> GetCodeCompleter() const noexcept
+		{
+			return m_CodeCompleter;
+		}
+
+		void SetCodeCompleter(NatsuLib::natRefPointer<ICodeCompleter> codeCompleter) noexcept
+		{
+			m_CodeCompleter = std::move(codeCompleter);
+		}
+
 		Diag::DiagnosticsEngine& GetDiagnosticsEngine() const noexcept
 		{
 			return m_Diag;
@@ -191,6 +203,8 @@ namespace NatsuLang::Semantic
 		                       NatsuLib::natRefPointer<Scope> const& scope, nBool addToContext = true);
 		void RemoveFromScopeChains(NatsuLib::natRefPointer<Declaration::NamedDecl> const& decl,
 		                           NatsuLib::natRefPointer<Scope> const& scope, nBool removeFromContext = true);
+
+		void ActOnCodeComplete(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr const& id, Declaration::Context context);
 
 		NatsuLib::natRefPointer<CompilerActionNamespace> GetTopLevelActionNamespace() noexcept;
 
@@ -387,6 +401,7 @@ namespace NatsuLang::Semantic
 		Preprocessor& m_Preprocessor;
 		ASTContext& m_Context;
 		NatsuLib::natRefPointer<ASTConsumer> m_Consumer;
+		NatsuLib::natRefPointer<ICodeCompleter> m_CodeCompleter;
 		Diag::DiagnosticsEngine& m_Diag;
 		SourceManager& m_SourceManager;
 
@@ -432,7 +447,12 @@ namespace NatsuLang::Semantic
 			// TODO
 		};
 
-		LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType);
+		LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType, nBool isCodeCompletion = false);
+
+		nBool IsCodeCompletion() const noexcept
+		{
+			return m_IsCodeCompletion;
+		}
 
 		Identifier::IdPtr GetLookupId() const noexcept
 		{
@@ -484,6 +504,7 @@ namespace NatsuLang::Semantic
 	private:
 		// 查找参数
 		Sema& m_Sema;
+		nBool m_IsCodeCompletion;
 		Identifier::IdPtr m_LookupId;
 		SourceLocation m_LookupLoc;
 		Sema::LookupNameType m_LookupNameType;

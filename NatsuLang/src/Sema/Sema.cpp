@@ -405,6 +405,22 @@ void Sema::RemoveFromScopeChains(natRefPointer<Declaration::NamedDecl> const& de
 	scope->RemoveDecl(decl);
 }
 
+void Sema::ActOnCodeComplete(natRefPointer<Scope> const& scope, SourceLocation loc,
+	natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr const& id, Declaration::Context context)
+{
+	if (!m_CodeCompleter)
+	{
+		// TODO: 报告错误
+		return;
+	}
+
+	LookupResult r{ *this, id, loc, LookupNameType::LookupAnyName, true };
+	LookupNestedName(r, scope, nns);
+
+	const CodeCompleteResult result{ r.GetDecls() };
+	m_CodeCompleter->HandleCodeCompleteResult(result);
+}
+
 natRefPointer<CompilerActionNamespace> Sema::GetTopLevelActionNamespace() noexcept
 {
 	return m_TopLevelActionNamespace;
@@ -702,9 +718,11 @@ nBool Sema::LookupName(LookupResult& result, natRefPointer<Scope> scope) const
 			[](natRefPointer<Declaration::NamedDecl> const& namedDecl)
 			{
 				return namedDecl;
-			}).where([&id](natRefPointer<Declaration::NamedDecl> const& namedDecl)
+			}).where([&id, isCodeCompletion = result.IsCodeCompletion()](natRefPointer<Declaration::NamedDecl> const& namedDecl)
 			{
-				return namedDecl && namedDecl->GetIdentifierInfo() == id;
+				return namedDecl && isCodeCompletion ?
+					!id || namedDecl->GetIdentifierInfo()->GetName().Find(id->GetName()) != nString::npos || id->GetName().Find(namedDecl->GetIdentifierInfo()->GetName()) != nString::npos :
+					namedDecl->GetIdentifierInfo() == id;
 			});
 
 		switch (lookupType)
@@ -2543,8 +2561,9 @@ Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOperand, Type
 	return rightOperandType;
 }
 
-LookupResult::LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType)
-	: m_Sema{ sema }, m_LookupId{ std::move(id) }, m_LookupLoc{ loc }, m_LookupNameType{ lookupNameType },
+LookupResult::LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType, nBool isCodeCompletion)
+	: m_Sema{ sema }, m_IsCodeCompletion{ isCodeCompletion }, m_LookupId{ std::move(id) }, m_LookupLoc{ loc },
+	  m_LookupNameType{ lookupNameType },
 	  m_IDNS{ chooseIDNS(m_LookupNameType) }, m_Result{}, m_AmbiguousType{}
 {
 }
