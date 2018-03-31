@@ -67,27 +67,6 @@ namespace
 	};
 }
 
-ISerializationArchiveReader::~ISerializationArchiveReader()
-{
-}
-
-nBool ISerializationArchiveReader::ReadBool(nStrView key, nBool& out)
-{
-	nuLong dummy;
-	const auto ret = ReadInteger(key, dummy, 1);
-	out = !!dummy;
-	return ret;
-}
-
-ISerializationArchiveWriter::~ISerializationArchiveWriter()
-{
-}
-
-void ISerializationArchiveWriter::WriteBool(nStrView key, nBool value)
-{
-	WriteInteger(key, value, 1);
-}
-
 BinarySerializationArchiveReader::BinarySerializationArchiveReader(natRefPointer<natBinaryReader> reader)
 	: m_Reader{ std::move(reader) }
 {
@@ -319,6 +298,30 @@ ASTNodePtr Deserializer::DeserializeDecl()
 		ThrowInvalidData();
 	}
 
+	std::vector<Declaration::AttrPtr> attributes;
+	if (!m_Archive->StartReadingEntry(u8"Attributes", true))
+	{
+		ThrowInvalidData();
+	}
+
+	{
+		nString attrName;
+		const auto count = m_Archive->GetEntryElementCount();
+		attributes.reserve(count);
+		for (std::size_t i = 0; i < count; ++i)
+		{
+			if (!m_Archive->ReadString(u8"Name", attrName))
+			{
+				ThrowInvalidData();
+			}
+
+			attributes.emplace_back(m_Sema.DeserializeAttribute(attrName, m_Archive));
+			m_Archive->NextReadingElement();
+		}
+	}
+
+	m_Archive->EndReadingEntry();
+
 	switch (type)
 	{
 	case NatsuLang::Declaration::Decl::TranslationUnit:
@@ -367,6 +370,10 @@ ASTNodePtr Deserializer::DeserializeDecl()
 				}
 
 				tryResolve(ret);
+				for (auto attr : attributes)
+				{
+					ret->AttachAttribute(std::move(attr));
+				}
 				return ret;
 			}
 			case NatsuLang::Declaration::Decl::Label:
@@ -394,6 +401,10 @@ ASTNodePtr Deserializer::DeserializeDecl()
 				}
 
 				tryResolve(module);
+				for (auto attr : attributes)
+				{
+					module->AttachAttribute(std::move(attr));
+				}
 				return module;
 			}
 			case NatsuLang::Declaration::Decl::Enum:
@@ -474,6 +485,10 @@ ASTNodePtr Deserializer::DeserializeDecl()
 				}
 
 				tryResolve(tagDecl);
+				for (auto attr : attributes)
+				{
+					tagDecl->AttachAttribute(std::move(attr));
+				}
 				return tagDecl;
 			}
 			case NatsuLang::Declaration::Decl::Unresolved:
@@ -502,6 +517,10 @@ ASTNodePtr Deserializer::DeserializeDecl()
 							SourceLocation{}, std::move(id), std::move(valueType));
 						m_Sema.PushOnScopeChains(fieldDecl, m_Sema.GetCurrentScope());
 						tryResolve(fieldDecl);
+						for (auto attr : attributes)
+						{
+							fieldDecl->AttachAttribute(std::move(attr));
+						}
 						return fieldDecl;
 					}
 					default:
@@ -687,6 +706,10 @@ ASTNodePtr Deserializer::DeserializeDecl()
 
 							m_Sema.PushOnScopeChains(decl, m_Sema.GetCurrentScope(), addToContext);
 							tryResolve(decl);
+							for (auto attr : attributes)
+							{
+								decl->AttachAttribute(std::move(attr));
+							}
 							return decl;
 						}
 						break;
@@ -1015,11 +1038,11 @@ void Deserializer::tryResolve(natRefPointer<Declaration::NamedDecl> const& named
 	}
 }
 
-Serializer::Serializer(NatsuLib::natRefPointer<ISerializationArchiveWriter> archive,
+Serializer::Serializer(Semantic::Sema& sema, NatsuLib::natRefPointer<ISerializationArchiveWriter> archive,
 	NatsuLib::natRefPointer<Misc::TextProvider<Statement::Stmt::StmtType>> stmtTypeMap,
 	NatsuLib::natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> declTypeMap,
 	NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> typeClassMap)
-	: m_Archive{ std::move(archive) }, m_StmtTypeMap{ std::move(stmtTypeMap) }, m_DeclTypeMap{ std::move(declTypeMap) },
+	: m_Sema{ sema }, m_Archive{ std::move(archive) }, m_StmtTypeMap{ std::move(stmtTypeMap) }, m_DeclTypeMap{ std::move(declTypeMap) },
 	  m_TypeClassMap{ std::move(typeClassMap) }, m_IsExporting{ false }
 {
 }
@@ -1533,6 +1556,15 @@ void Serializer::VisitDecl(Declaration::DeclPtr const& decl)
 	{
 		m_Archive->WriteNumType(u8"Type", decl->GetType());
 	}
+
+	m_Archive->StartWritingEntry(u8"Attributes", true);
+	for (const auto& attr : decl->GetAllAttributes())
+	{
+		m_Archive->WriteString(u8"Name", attr->GetName());
+		m_Sema.SerializeAttribute(attr, m_Archive);
+		m_Archive->NextWritingElement();
+	}
+	m_Archive->EndWritingEntry();
 }
 
 void Serializer::Visit(Declaration::DeclPtr const& decl)

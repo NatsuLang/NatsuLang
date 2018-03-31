@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include "Basic/SourceLocation.h"
 #include "Basic/Identifier.h"
+#include "Basic/SerializationArchive.h"
 #include "AST/Declaration.h"
 #include "AST/Type.h"
 #include "AST/OperationTypes.h"
@@ -46,6 +47,33 @@ namespace NatsuLang
 	struct ASTConsumer;
 	class NestedNameSpecifier;
 	class SourceManager;
+
+	class ImportedAttribute;
+
+	// 每个 Attribute 都要实现
+	struct IAttributeSerializer
+		: NatsuLib::natRefObj
+	{
+		~IAttributeSerializer();
+
+		virtual void Serialize(NatsuLib::natRefPointer<Declaration::IAttribute> const& attribute, NatsuLib::natRefPointer<ISerializationArchiveWriter> const& writer) = 0;
+		virtual NatsuLib::natRefPointer<Declaration::IAttribute> Deserialize(NatsuLib::natRefPointer<ISerializationArchiveReader> const& reader) = 0;
+	};
+
+	template <typename T>
+	class NoDataAttributeSerializer
+		: public NatsuLib::natRefObjImpl<NoDataAttributeSerializer<T>, IAttributeSerializer>
+	{
+	public:
+		void Serialize(NatsuLib::natRefPointer<Declaration::IAttribute> const& /*attribute*/, NatsuLib::natRefPointer<ISerializationArchiveWriter> const& /*writer*/) override
+		{
+		}
+
+		NatsuLib::natRefPointer<Declaration::IAttribute> Deserialize(NatsuLib::natRefPointer<ISerializationArchiveReader> const& /*reader*/) override
+		{
+			return NatsuLib::make_ref<T>();
+		}
+	};
 }
 
 namespace NatsuLang::Semantic
@@ -150,6 +178,7 @@ namespace NatsuLang::Semantic
 		Metadata CreateMetadata() const;
 		void LoadMetadata(Metadata const& metadata);
 		void MarkAsImported(Declaration::DeclPtr const& decl) const;
+		NatsuLib::natRefPointer<ImportedAttribute> GetImportedAttribute() const noexcept;
 
 		// 仅在解析声明符时恢复上下文时使用，不应该在其他地方使用
 		void SetDeclContext(Declaration::DeclPtr dc) noexcept;
@@ -340,6 +369,17 @@ namespace NatsuLang::Semantic
 
 		nBool CheckFunctionReturn(Statement::StmtEnumerable const& funcBody);
 
+		void RegisterAttributeSerializer(nString attributeName, NatsuLib::natRefPointer<IAttributeSerializer> serializer);
+
+		template <typename T>
+		void RegisterNoDataAttributeSerializer(nString attributeName)
+		{
+			RegisterAttributeSerializer(std::move(attributeName), NatsuLib::make_ref<NoDataAttributeSerializer<T>>());
+		}
+
+		void SerializeAttribute(NatsuLib::natRefPointer<Declaration::IAttribute> const& attr, NatsuLib::natRefPointer<ISerializationArchiveWriter> const& writer);
+		NatsuLib::natRefPointer<Declaration::IAttribute> DeserializeAttribute(nStrView attributeName, NatsuLib::natRefPointer<ISerializationArchiveReader> const& reader);
+
 	private:
 		static constexpr nStrView::CharType ConstructorName[] = ".Ctor";
 		static constexpr nStrView::CharType DestructorName[] = ".Dtor";
@@ -352,6 +392,10 @@ namespace NatsuLang::Semantic
 
 		Phase m_CurrentPhase;
 		std::vector<Declaration::DeclaratorPtr> m_Declarators;
+
+		NatsuLib::natRefPointer<ImportedAttribute> m_ImportedAttribute;
+
+		std::unordered_map<nString, NatsuLib::natRefPointer<IAttributeSerializer>> m_AttributeSerializerMap;
 
 		// 以下4个是在并行分析过程中需要特别注意的
 		NatsuLib::natRefPointer<Scope> m_TranslationUnitScope;

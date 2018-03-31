@@ -180,6 +180,9 @@
     <ClInclude Include="include\Basic\TargetInfo.h">
       <Filter>Basic\include</Filter>
     </ClInclude>
+    <ClInclude Include="include\Basic\SerializationArchive.h">
+      <Filter>Basic\include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Basic\Diagnostic.cpp">
@@ -265,6 +268,9 @@
     </ClCompile>
     <ClCompile Include="src\AST\DeclVisitor.cpp">
       <Filter>AST\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Basic\SerializationArchive.cpp">
+      <Filter>Basic\src</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

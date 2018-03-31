@@ -31,6 +31,29 @@ namespace
 		: public natRefObjImpl<CallingConventionAttribute, Declaration::IAttribute>
 	{
 	public:
+		class CallingConventionAttributeSerializer
+			: public natRefObjImpl<CallingConventionAttributeSerializer, IAttributeSerializer>
+		{
+		public:
+			void Serialize(natRefPointer<IAttribute> const& attribute, natRefPointer<ISerializationArchiveWriter> const& writer) override
+			{
+				const auto callingConvention = attribute.Cast<CallingConventionAttribute>();
+				assert(callingConvention);
+				writer->WriteNumType(u8"CallingConvention", callingConvention->GetCallingConvention());
+			}
+
+			natRefPointer<IAttribute> Deserialize(natRefPointer<ISerializationArchiveReader> const& reader) override
+			{
+				CallingConvention callingConvention;
+				if (!reader->ReadNumType(u8"CallingConvention", callingConvention))
+				{
+					nat_Throw(AotCompilerException, u8"无法读取调用约定的值"_nv);
+				}
+
+				return make_ref<CallingConventionAttribute>(callingConvention);
+			}
+		};
+
 		enum class CallingConvention
 		{
 			Cdecl,
@@ -2318,7 +2341,7 @@ void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, ll
 			nat_Throw(AotCompilerException, u8"无法打开元数据文件 \"{0}\" 的流", meta.GetUnderlyingString());
 		}
 		const auto writer = make_ref<Serialization::BinarySerializationArchiveWriter>(make_ref<natBinaryWriter>(metaStream));
-		Serialization::Serializer serializer{ writer };
+		Serialization::Serializer serializer{ m_Sema, writer };
 		serializer.StartSerialize();
 		const auto metadata = m_Sema.CreateMetadata();
 		for (const auto& decl : metadata.GetDecls())
@@ -2478,6 +2501,8 @@ void AotCompiler::prewarm()
 	const auto topLevelNamespace = m_Sema.GetTopLevelActionNamespace();
 	const auto compilerNamespace = topLevelNamespace->GetSubNamespace(u8"Compiler"_nv);
 	compilerNamespace->RegisterAction(make_ref<ActionCallingConvention>());
+
+	m_Sema.RegisterAttributeSerializer(u8"CallingConvention", make_ref<CallingConventionAttribute::CallingConventionAttributeSerializer>());
 
 	Lex::Token dummy;
 	const auto nativeModule = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo("Native", dummy));

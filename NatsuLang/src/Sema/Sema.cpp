@@ -16,16 +16,6 @@ using namespace Semantic;
 
 namespace
 {
-	class ImportedAttribute
-		: public natRefObjImpl<ImportedAttribute, Declaration::IAttribute>
-	{
-	public:
-		nStrView GetName() const noexcept override
-		{
-			return u8"Imported"_nv;
-		}
-	};
-
 	constexpr Declaration::IdentifierNamespace chooseIDNS(Sema::LookupNameType lookupNameType) noexcept
 	{
 		using Declaration::IdentifierNamespace;
@@ -239,6 +229,45 @@ namespace
 	}
 }
 
+namespace NatsuLang
+{
+	IAttributeSerializer::~IAttributeSerializer()
+	{
+	}
+
+	class ImportedAttribute
+		: public natRefObjImpl<ImportedAttribute, Declaration::IAttribute>
+	{
+	public:
+		nStrView GetName() const noexcept override
+		{
+			return u8"Imported"_nv;
+		}
+	};
+
+	class ImportedAttributeSerializer
+		: public natRefObjImpl<ImportedAttributeSerializer, IAttributeSerializer>
+	{
+	public:
+		explicit ImportedAttributeSerializer(Sema& sema)
+			: m_Sema{ sema }
+		{
+		}
+
+		void Serialize(natRefPointer<Declaration::IAttribute> const& /*attribute*/, natRefPointer<ISerializationArchiveWriter> const& /*writer*/) override
+		{
+		}
+
+		natRefPointer<Declaration::IAttribute> Deserialize(natRefPointer<ISerializationArchiveReader> const& /*reader*/) override
+		{
+			return m_Sema.GetImportedAttribute();
+		}
+
+	private:
+		Sema & m_Sema;
+	};
+}
+
 Sema::Sema(Preprocessor& preprocessor, ASTContext& astContext, natRefPointer<ASTConsumer> astConsumer)
 	: m_Preprocessor{ preprocessor }, m_Context{ astContext }, m_Consumer{ std::move(astConsumer) },
 	  m_Diag{ preprocessor.GetDiag() },
@@ -320,7 +349,12 @@ void Sema::LoadMetadata(Metadata const& metadata)
 
 void Sema::MarkAsImported(Declaration::DeclPtr const& decl) const
 {
-	decl->AttachAttribute(make_ref<ImportedAttribute>());
+	decl->AttachAttribute(m_ImportedAttribute);
+}
+
+natRefPointer<ImportedAttribute> Sema::GetImportedAttribute() const noexcept
+{
+	return m_ImportedAttribute;
 }
 
 void Sema::SetDeclContext(Declaration::DeclPtr dc) noexcept
@@ -2275,6 +2309,33 @@ nBool Sema::CheckFunctionReturn(Statement::StmtEnumerable const& funcBody)
 	return false;
 }
 
+void Sema::RegisterAttributeSerializer(nString attributeName, NatsuLib::natRefPointer<IAttributeSerializer> serializer)
+{
+	m_AttributeSerializerMap.emplace(std::move(attributeName), std::move(serializer));
+}
+
+void Sema::SerializeAttribute(natRefPointer<Declaration::IAttribute> const& attr, natRefPointer<ISerializationArchiveWriter> const& writer)
+{
+	if (const auto iter = m_AttributeSerializerMap.find(attr->GetName()); iter != m_AttributeSerializerMap.cend())
+	{
+		iter->second->Serialize(attr, writer);
+	}
+	else
+	{
+		nat_Throw(natErrException, NatErr::NatErr_NotFound, u8"No serializer found for attribute \"{0}\""_nv, attr->GetName());
+	}
+}
+
+natRefPointer<Declaration::IAttribute> Sema::DeserializeAttribute(nStrView attributeName, natRefPointer<ISerializationArchiveReader> const& reader)
+{
+	if (const auto iter = m_AttributeSerializerMap.find(attributeName); iter != m_AttributeSerializerMap.cend())
+	{
+		return iter->second->Deserialize(reader);
+	}
+
+	nat_Throw(natErrException, NatErr::NatErr_NotFound, u8"No serializer found for attribute \"{0}\""_nv, attributeName);
+}
+
 void Sema::prewarming()
 {
 	m_TopLevelActionNamespace->RegisterSubNamespace(u8"Compiler"_nv);
@@ -2284,6 +2345,9 @@ void Sema::prewarming()
 	compilerNamespace->RegisterAction(make_ref<ActionDumpIf>());
 	compilerNamespace->RegisterAction(make_ref<ActionIsDefined>());
 	compilerNamespace->RegisterAction(make_ref<ActionTypeOf>());
+
+	m_ImportedAttribute = make_ref<ImportedAttribute>();
+	RegisterAttributeSerializer(u8"Imported"_nv, make_ref<ImportedAttributeSerializer>(*this));
 }
 
 Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type::TypePtr toType, nBool isImplicit)
