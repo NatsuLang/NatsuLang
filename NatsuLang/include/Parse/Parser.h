@@ -22,6 +22,7 @@ namespace NatsuLang::Declaration
 {
 	class Decl;
 	using DeclPtr = NatsuLib::natRefPointer<Decl>;
+	class EnumDecl;
 }
 
 namespace NatsuLang::Statement
@@ -215,6 +216,9 @@ namespace NatsuLang::Syntax
 
 		Declaration::DeclPtr ParseClassDeclaration();
 		void ParseMemberSpecification(SourceLocation startLoc, Declaration::DeclPtr const& tagDecl);
+
+		Declaration::DeclPtr ParseEnumDeclaration();
+		void ParseEnumeratorList(NatsuLib::natRefPointer<Declaration::EnumDecl> const& tagDecl);
 
 		std::vector<Declaration::DeclPtr> ParseModuleImport();
 		Declaration::DeclPtr ParseModuleDecl();

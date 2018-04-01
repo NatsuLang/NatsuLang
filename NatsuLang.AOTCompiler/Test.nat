@@ -71,7 +71,7 @@ def Fib : (arg : int) -> int
 
 def Func1 : (arg : int) -> int
 {
-	def t : Test = { 1 };
+	def t : Test = { Enum.Enum6 as int };
 	t.GetContent();
 
 	if (arg < 0)

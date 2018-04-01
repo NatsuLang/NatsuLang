@@ -252,6 +252,10 @@ namespace NatsuLang::Semantic
 		                             NatsuLib::natRefPointer<Declaration::TagDecl> const& tagDecl);
 		void ActOnTagFinishDefinition();
 
+		NatsuLib::natRefPointer<Declaration::EnumConstantDecl> ActOnEnumerator(NatsuLib::natRefPointer<Scope> const& scope,
+			NatsuLib::natRefPointer<Declaration::EnumDecl> const& enumDecl,
+			NatsuLib::natRefPointer<Declaration::EnumConstantDecl> const& lastEnumerator, Identifier::IdPtr name, Expression::ExprPtr initializer);
+
 		nBool LookupName(LookupResult& result, NatsuLib::natRefPointer<Scope> scope) const;
 		nBool LookupQualifiedName(LookupResult& result, Declaration::DeclContext* context) const;
 		nBool LookupNestedName(LookupResult& result, NatsuLib::natRefPointer<Scope> scope,

@@ -958,6 +958,17 @@ void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::Dec
 		return;
 	}
 
+	if (const auto enumeratorDecl = decl.Cast<Declaration::EnumConstantDecl>())
+	{
+		if (m_RequiredModifiableValue)
+		{
+			nat_Throw(AotCompilerException, u8"此定义不可变"_nv);
+		}
+
+		m_LastVisitedValue = llvm::ConstantInt::get(m_Compiler.getCorrespondingType(enumeratorDecl->GetValueType()), static_cast<std::uint64_t>(enumeratorDecl->GetValue()));
+		return;
+	}
+
 	nat_Throw(AotCompilerException, u8"定义引用表达式引用了不存在或不合法的定义"_nv);
 }
 

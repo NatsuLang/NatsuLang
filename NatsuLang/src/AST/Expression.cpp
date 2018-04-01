@@ -361,6 +361,37 @@ namespace
 				m_LastVisitSucceed = false;
 			}
 		}
+
+		void VisitConditionalOperator(natRefPointer<ConditionalOperator> const& expr) override
+		{
+			Visit(expr->GetCondition());
+			if (!m_LastVisitSucceed)
+			{
+				return;
+			}
+
+			if (m_Result.Result.index() != 0)
+			{
+				m_LastVisitSucceed = false;
+				return;
+			}
+
+			Visit(std::get<0>(m_Result.Result) ? expr->GetLeftOperand() : expr->GetRightOperand());
+		}
+
+		void VisitDeclRefExpr(natRefPointer<DeclRefExpr> const& expr) override
+		{
+			const auto decl = expr->GetDecl();
+
+			if (const auto enumeratorDecl = decl.Cast<Declaration::EnumConstantDecl>())
+			{
+				m_Result.Result.emplace<0>(enumeratorDecl->GetValue());
+				m_LastVisitSucceed = true;
+			}
+
+			// TODO: 支持常量成员
+			m_LastVisitSucceed = false;
+		}
 	};
 
 	class FloatExprEvaluator
@@ -495,6 +526,23 @@ namespace
 			default:
 				m_LastVisitSucceed = false;
 			}
+		}
+
+		void VisitConditionalOperator(natRefPointer<ConditionalOperator> const& expr) override
+		{
+			Visit(expr->GetCondition());
+			if (!m_LastVisitSucceed)
+			{
+				return;
+			}
+
+			if (m_Result.Result.index() != 0)
+			{
+				m_LastVisitSucceed = false;
+				return;
+			}
+
+			Visit(std::get<0>(m_Result.Result) ? expr->GetLeftOperand() : expr->GetRightOperand());
 		}
 	};
 

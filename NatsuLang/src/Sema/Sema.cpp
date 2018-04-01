@@ -683,15 +683,14 @@ natRefPointer<Declaration::TagDecl> Sema::ActOnTag(natRefPointer<Scope> const& s
 		auto enumDecl = make_ref<Declaration::EnumDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()),
 														nameLoc, name, kwLoc);
 		enumDecl->SetUnderlyingType(underlyingType);
+		PushOnScopeChains(enumDecl, scope, addToContext);
 		return enumDecl;
 	}
 
 	auto classDecl = make_ref<Declaration::ClassDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()),
 													  nameLoc, name, kwLoc);
 	classDecl->SetTypeForDecl(make_ref<Type::ClassType>(classDecl));
-
 	PushOnScopeChains(classDecl, scope, addToContext);
-
 	return classDecl;
 }
 
@@ -704,6 +703,38 @@ void Sema::ActOnTagStartDefinition(natRefPointer<Scope> const& scope,
 void Sema::ActOnTagFinishDefinition()
 {
 	PopDeclContext();
+}
+
+natRefPointer<Declaration::EnumConstantDecl> Sema::ActOnEnumerator(natRefPointer<Scope> const& scope,
+	natRefPointer<Declaration::EnumDecl> const& enumDecl,
+	natRefPointer<Declaration::EnumConstantDecl> const& lastEnumerator, Identifier::IdPtr name, Expression::ExprPtr initializer)
+{
+	LookupResult r{ *this, name, {}, LookupNameType::LookupOrdinaryName };
+	if (LookupName(r, scope) && (r.GetResultType() != LookupResult::LookupResultType::NotFound))
+	{
+		// TODO: 报告错误：重复定义
+		return nullptr;
+	}
+
+	nuLong value;
+	if (initializer)
+	{
+		if (!initializer->EvaluateAsInt(value, m_Context))
+		{
+			// TODO: 报告错误：无法求值为常量表达式
+			return nullptr;
+		}
+	}
+	else
+	{
+		value = lastEnumerator ? lastEnumerator->GetValue() + 1 : 0;
+	}
+
+	const auto dc = Declaration::Decl::CastToDeclContext(enumDecl.Get());
+
+	auto enumerator = make_ref<Declaration::EnumConstantDecl>(dc, SourceLocation{}, std::move(name), enumDecl->GetUnderlyingType(), std::move(initializer), value);
+	PushOnScopeChains(enumerator, scope);
+	return enumerator;
 }
 
 nBool Sema::LookupName(LookupResult& result, natRefPointer<Scope> scope) const

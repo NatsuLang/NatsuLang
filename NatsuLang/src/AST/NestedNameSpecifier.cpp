@@ -25,17 +25,12 @@ NestedNameSpecifier::SpecifierType NestedNameSpecifier::GetType() const noexcept
 	return m_SpecifierType;
 }
 
-Identifier::IdPtr NestedNameSpecifier::GetAsIdentifier() const noexcept
-{
-	return m_Specifier;
-}
-
 natRefPointer<Declaration::ModuleDecl> NestedNameSpecifier::GetAsModule() const noexcept
 {
 	return m_Specifier;
 }
 
-Type::TypePtr NestedNameSpecifier::GetAsType() const noexcept
+natRefPointer<Declaration::TagDecl> NestedNameSpecifier::GetAsTag() const noexcept
 {
 	return m_Specifier;
 }
@@ -46,48 +41,36 @@ Declaration::DeclContext* NestedNameSpecifier::GetAsDeclContext(ASTContext const
 	{
 	case SpecifierType::Module:
 		return GetAsModule().Get();
-	case SpecifierType::Type:
-	{
-		const auto ret = GetAsType().Cast<Type::TagType>();
-		assert(ret);
-		return ret->GetDecl().Get();
-	}
+	case SpecifierType::Tag:
+		return GetAsTag().Get();
 	case SpecifierType::Global:
 		return context.GetTranslationUnit().Get();
 	case SpecifierType::Outer:
 		// TODO: 完成获得外层名称的DeclContext
-	case SpecifierType::Identifier:
 	default: 
 		return nullptr;
 	}
 }
 
-natRefPointer<NestedNameSpecifier> NestedNameSpecifier::Create(ASTContext const& context, natRefPointer<NestedNameSpecifier> prefix, Identifier::IdPtr id)
+natRefPointer<NestedNameSpecifier> NestedNameSpecifier::Create(ASTContext const& context, natRefPointer<NestedNameSpecifier> prefix, Declaration::DeclPtr decl)
 {
 	auto ret = make_ref<NestedNameSpecifier>();
 	ret->m_Prefix = std::move(prefix);
-	ret->m_Specifier = id;
-	ret->m_SpecifierType = SpecifierType::Identifier;
 
-	return FindOrInsert(context, std::move(ret));
-}
+	if (decl.Cast<Declaration::ModuleDecl>())
+	{
+		ret->m_SpecifierType = SpecifierType::Module;
+	}
+	else if (decl.Cast<Declaration::TagDecl>())
+	{
+		ret->m_SpecifierType = SpecifierType::Tag;
+	}
+	else
+	{
+		return nullptr;
+	}
 
-natRefPointer<NestedNameSpecifier> NestedNameSpecifier::Create(ASTContext const& context, natRefPointer<NestedNameSpecifier> prefix, natRefPointer<Declaration::ModuleDecl> module)
-{
-	auto ret = make_ref<NestedNameSpecifier>();
-	ret->m_Prefix = std::move(prefix);
-	ret->m_Specifier = module;
-	ret->m_SpecifierType = SpecifierType::Module;
-
-	return FindOrInsert(context, std::move(ret));
-}
-
-natRefPointer<NestedNameSpecifier> NestedNameSpecifier::Create(ASTContext const& context, natRefPointer<NestedNameSpecifier> prefix, Type::TypePtr type)
-{
-	auto ret = make_ref<NestedNameSpecifier>();
-	ret->m_Prefix = std::move(prefix);
-	ret->m_Specifier = type;
-	ret->m_SpecifierType = SpecifierType::Type;
+	ret->m_Specifier = std::move(decl);
 
 	return FindOrInsert(context, std::move(ret));
 }

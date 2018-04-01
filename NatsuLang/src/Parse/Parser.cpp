@@ -251,6 +251,8 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 	}
 	case TokenType::Kw_class:
 		return { ParseClassDeclaration() };
+	case TokenType::Kw_enum:
+		return { ParseEnumDeclaration() };
 	default:
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
 			  .AddArgument(m_CurrentToken.GetType());
@@ -539,7 +541,7 @@ Declaration::DeclPtr Parser::ParseClassDeclaration()
 
 	if (!m_CurrentToken.Is(TokenType::Identifier))
 	{
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot)
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
 			  .AddArgument(TokenType::Identifier)
 			  .AddArgument(m_CurrentToken.GetType());
 		return ParseDeclError();
@@ -582,7 +584,7 @@ void Parser::ParseMemberSpecification(SourceLocation startLoc, Declaration::Decl
 	else
 	{
 		// 可能缺失的左大括号
-		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot)
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
 			  .AddArgument(TokenType::LeftBrace)
 			  .AddArgument(m_CurrentToken.GetType());
 	}
@@ -590,21 +592,155 @@ void Parser::ParseMemberSpecification(SourceLocation startLoc, Declaration::Decl
 	// 开始成员声明
 	while (!m_CurrentToken.Is(TokenType::RightBrace))
 	{
-		switch (m_CurrentToken.GetType())
-		{
-		case TokenType::Kw_def:
+		if (m_CurrentToken.Is(TokenType::Kw_def))
 		{
 			SourceLocation declEnd;
 			ParseDeclaration(Declaration::Context::Member, declEnd);
-			break;
 		}
-		case TokenType::Eof:
-			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot)
-				  .AddArgument(TokenType::RightBrace)
-				  .AddArgument(TokenType::Eof);
+		else
+		{
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
+				.AddArgument(m_CurrentToken.GetType());
 			return;
-		default:
-			break;
+		}
+	}
+
+	ConsumeBrace();
+}
+
+Declaration::DeclPtr Parser::ParseEnumDeclaration()
+{
+	assert(m_CurrentToken.Is(TokenType::Kw_enum));
+
+	const auto enumLoc = m_CurrentToken.GetLocation();
+	ConsumeToken();
+
+	auto accessSpecifier = Specifier::Access::None;
+	switch (m_CurrentToken.GetType())
+	{
+	case TokenType::Kw_public:
+		accessSpecifier = Specifier::Access::Public;
+		ConsumeToken();
+		break;
+	case TokenType::Kw_protected:
+		accessSpecifier = Specifier::Access::Protected;
+		ConsumeToken();
+		break;
+	case TokenType::Kw_internal:
+		accessSpecifier = Specifier::Access::Internal;
+		ConsumeToken();
+		break;
+	case TokenType::Kw_private:
+		accessSpecifier = Specifier::Access::Private;
+		ConsumeToken();
+		break;
+	default:
+		break;
+	}
+
+	if (!m_CurrentToken.Is(TokenType::Identifier))
+	{
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::Identifier)
+			.AddArgument(m_CurrentToken.GetType());
+		return ParseDeclError();
+	}
+
+	auto enumId = m_CurrentToken.GetIdentifierInfo();
+	const auto enumIdLoc = m_CurrentToken.GetLocation();
+	ConsumeToken();
+
+	Type::TypePtr underlyingType;
+	if (m_CurrentToken.Is(TokenType::Colon))
+	{
+		ConsumeToken();
+		const auto decl = make_ref<Declaration::Declarator>(Declaration::Context::TypeName);
+		if (!ParseType(decl))
+		{
+			return ParseDeclError();
+		}
+		underlyingType = decl->GetType();
+	}
+	else
+	{
+		underlyingType = m_Sema.GetASTContext().GetBuiltinType(Type::BuiltinType::Int);
+	}
+
+	if (!m_CurrentToken.Is(TokenType::LeftBrace))
+	{
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::LeftBrace)
+			.AddArgument(m_CurrentToken.GetType());
+		return ParseDeclError();
+	}
+
+	auto enumDecl = m_Sema.ActOnTag(m_Sema.GetCurrentScope(), Type::TagType::TagTypeClass::Enum, enumLoc, accessSpecifier, std::move(enumId), enumIdLoc, std::move(underlyingType));
+
+	ParseEnumeratorList(enumDecl);
+
+	return enumDecl;
+}
+
+void Parser::ParseEnumeratorList(natRefPointer<Declaration::EnumDecl> const& tagDecl)
+{
+	ParseScope scope{ this, Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::EnumScope };
+
+	m_Sema.ActOnTagStartDefinition(m_Sema.GetCurrentScope(), tagDecl);
+	const auto tagScope = make_scope([this]
+	{
+		m_Sema.ActOnTagFinishDefinition();
+	});
+
+	if (m_CurrentToken.Is(TokenType::LeftBrace))
+	{
+		ConsumeBrace();
+	}
+	else
+	{
+		// 可能缺失的左大括号
+		m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+			.AddArgument(TokenType::LeftBrace)
+			.AddArgument(m_CurrentToken.GetType());
+	}
+
+	// 开始成员声明
+	auto hasNextMemeber = true;
+	natRefPointer<Declaration::EnumConstantDecl> lastDecl;
+	while (!m_CurrentToken.Is(TokenType::RightBrace))
+	{
+		if (m_CurrentToken.Is(TokenType::Identifier))
+		{
+			if (!hasNextMemeber)
+			{
+				// TODO: 报告缺失的逗号
+			}
+
+			auto id = m_CurrentToken.GetIdentifierInfo();
+			ConsumeToken();
+
+			Expression::ExprPtr initializer;
+			if (m_CurrentToken.Is(TokenType::Equal))
+			{
+				ConsumeToken();
+				initializer = ParseExpression();
+			}
+
+			lastDecl = m_Sema.ActOnEnumerator(m_Sema.GetCurrentScope(), tagDecl, lastDecl, std::move(id), std::move(initializer));
+
+			if (m_CurrentToken.Is(TokenType::Comma))
+			{
+				ConsumeToken();
+				hasNextMemeber = true;
+			}
+			else
+			{
+				hasNextMemeber = false;
+			}
+		}
+		else
+		{
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
+				.AddArgument(m_CurrentToken.GetType());
 		}
 	}
 

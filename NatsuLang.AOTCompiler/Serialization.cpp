@@ -417,40 +417,10 @@ ASTNodePtr Deserializer::DeserializeDecl()
 					ThrowInvalidData();
 				}
 
-				ASTNodePtr underlyingType;
-
-				if (tagType == Type::TagType::TagTypeClass::Enum)
-				{
-					if (!m_Archive->StartReadingEntry(u8"UnderlyingType"))
-					{
-						ThrowInvalidData();
-					}
-					underlyingType = Deserialize();
-					if (!underlyingType)
-					{
-						ThrowInvalidData();
-					}
-				}
-
-				auto tagDecl = m_Sema.ActOnTag(m_Sema.GetCurrentScope(), tagType, {}, Specifier::Access::None, std::move(id), {}, underlyingType);
+				auto tagDecl = m_Sema.ActOnTag(m_Sema.GetCurrentScope(), tagType, {}, Specifier::Access::None, std::move(id), {}, nullptr);
 				if (type == Declaration::Decl::Class)
 				{
 					tagDecl->SetTypeForDecl(make_ref<Type::ClassType>(tagDecl));
-				}
-				else
-				{
-					assert(type == Declaration::Decl::Enum);
-					if (const auto& unresolved = underlyingType.Cast<UnresolvedId>())
-					{
-						m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [tagDecl](natRefPointer<Declaration::NamedDecl> const& decl)
-						{
-							tagDecl->SetTypeForDecl(decl.Cast<Declaration::TagDecl>()->GetTypeForDecl());
-						});
-					}
-					else
-					{
-						tagDecl->SetTypeForDecl(std::move(underlyingType));
-					}
 				}
 
 				{
@@ -482,6 +452,32 @@ ASTNodePtr Deserializer::DeserializeDecl()
 
 					m_Archive->EndReadingEntry();
 					m_Sema.ActOnTagFinishDefinition();
+				}
+
+				if (tagType == Type::TagType::TagTypeClass::Enum)
+				{
+					if (!m_Archive->StartReadingEntry(u8"UnderlyingType"))
+					{
+						ThrowInvalidData();
+					}
+					auto underlyingType = Deserialize();
+					if (!underlyingType)
+					{
+						ThrowInvalidData();
+					}
+
+					assert(type == Declaration::Decl::Enum);
+					if (const auto& unresolved = underlyingType.Cast<UnresolvedId>())
+					{
+						m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [tagDecl](natRefPointer<Declaration::NamedDecl> const& decl)
+						{
+							tagDecl->SetTypeForDecl(decl.Cast<Declaration::TagDecl>()->GetTypeForDecl());
+						});
+					}
+					else
+					{
+						tagDecl->SetTypeForDecl(std::move(underlyingType));
+					}
 				}
 
 				tryResolve(tagDecl);
@@ -522,6 +518,22 @@ ASTNodePtr Deserializer::DeserializeDecl()
 							fieldDecl->AttachAttribute(std::move(attr));
 						}
 						return fieldDecl;
+					}
+					case NatsuLang::Declaration::Decl::EnumConstant:
+					{
+						nuLong value;
+						if (!m_Archive->ReadNumType(u8"Value", value))
+						{
+							ThrowInvalidData();
+						}
+						const auto enumeratorDecl = make_ref<Declaration::EnumConstantDecl>(dc, SourceLocation{}, std::move(id), std::move(valueType), nullptr, value);
+						m_Sema.PushOnScopeChains(enumeratorDecl, m_Sema.GetCurrentScope());
+						tryResolve(enumeratorDecl);
+						for (auto attr : attributes)
+						{
+							enumeratorDecl->AttachAttribute(std::move(attr));
+						}
+						return enumeratorDecl;
 					}
 					default:
 						if (type >= Declaration::Decl::FirstVar && type <= Declaration::Decl::LastVar)
@@ -587,8 +599,6 @@ ASTNodePtr Deserializer::DeserializeDecl()
 									initializer);
 								addToContext = false;
 								break;
-							case NatsuLang::Declaration::Decl::EnumConstant:
-								nat_Throw(NotImplementedException);
 							default:
 								if (type >= Declaration::Decl::FirstFunction && type <= Declaration::Decl::LastFunction)
 								{
@@ -1536,9 +1546,7 @@ void Serializer::VisitImplicitParamDecl(NatsuLib::natRefPointer<Declaration::Imp
 void Serializer::VisitEnumConstantDecl(NatsuLib::natRefPointer<Declaration::EnumConstantDecl> const& decl)
 {
 	VisitValueDecl(decl);
-	m_Archive->StartWritingEntry(u8"InitExpr");
-	StmtVisitor::Visit(decl->GetInitExpr());
-	m_Archive->EndWritingEntry();
+	m_Archive->WriteNumType(u8"Value", decl->GetValue());
 }
 
 void Serializer::VisitTranslationUnitDecl(NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> const& decl)
