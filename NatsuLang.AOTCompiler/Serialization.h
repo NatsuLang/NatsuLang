@@ -59,13 +59,13 @@ namespace NatsuLang::Serialization
 	class Deserializer
 	{
 	public:
-		Deserializer(Syntax::Parser& parser, NatsuLib::natRefPointer<ISerializationArchiveReader> archive,
+		Deserializer(Syntax::Parser& parser,
 			NatsuLib::natRefPointer<Misc::TextProvider<Statement::Stmt::StmtType>> const& stmtTypeMap = nullptr,
 			NatsuLib::natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> const& declTypeMap = nullptr,
 			NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> const& typeClassMap = nullptr);
 		~Deserializer();
 
-		std::size_t StartDeserialize(nBool isImporting = true);
+		std::size_t StartDeserialize(NatsuLib::natRefPointer<ISerializationArchiveReader> archive, nBool isImporting = true);
 		void EndDeserialize();
 
 		ASTNodePtr Deserialize();
@@ -97,13 +97,13 @@ namespace NatsuLang::Serialization
 		: public NatsuLib::natRefObjImpl<Serializer>, public StmtVisitor, public DeclVisitor, public TypeVisitor
 	{
 	public:
-		explicit Serializer(Semantic::Sema& sema, NatsuLib::natRefPointer<ISerializationArchiveWriter> archive,
+		explicit Serializer(Semantic::Sema& sema,
 			NatsuLib::natRefPointer<Misc::TextProvider<Statement::Stmt::StmtType>> stmtTypeMap = nullptr,
 			NatsuLib::natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> declTypeMap = nullptr,
 			NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> typeClassMap = nullptr);
 		~Serializer();
 
-		void StartSerialize(nBool isExporting = true);
+		void StartSerialize(NatsuLib::natRefPointer<ISerializationArchiveWriter> archive, nBool isExporting = true);
 		void EndSerialize();
 
 		void VisitCatchStmt(NatsuLib::natRefPointer<Statement::CatchStmt> const& stmt) override;

@@ -198,11 +198,11 @@ void BinarySerializationArchiveWriter::EndWritingEntry()
 	m_EntryElementCount.pop_back();
 }
 
-Deserializer::Deserializer(Syntax::Parser& parser, NatsuLib::natRefPointer<ISerializationArchiveReader> archive,
+Deserializer::Deserializer(Syntax::Parser& parser,
 	NatsuLib::natRefPointer<Misc::TextProvider<Statement::Stmt::StmtType>> const& stmtTypeMap,
 	NatsuLib::natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> const& declTypeMap,
 	NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> const& typeClassMap)
-	: m_Parser{ parser }, m_Sema{ parser.GetSema() }, m_Archive{ std::move(archive) }, m_IsImporting{ false }
+	: m_Parser{ parser }, m_Sema{ parser.GetSema() }, m_IsImporting{ false }
 {
 	if (stmtTypeMap)
 	{
@@ -237,10 +237,15 @@ Deserializer::Deserializer(Syntax::Parser& parser, NatsuLib::natRefPointer<ISeri
 
 Deserializer::~Deserializer()
 {
+	if (!m_UnresolvedDeclFixers.empty())
+	{
+		ThrowInvalidData();
+	}
 }
 
-std::size_t Deserializer::StartDeserialize(nBool isImporting)
+std::size_t Deserializer::StartDeserialize(natRefPointer<ISerializationArchiveReader> archive, nBool isImporting)
 {
+	m_Archive = std::move(archive);
 	m_IsImporting = isImporting;
 	m_Sema.PushScope(Semantic::ScopeFlags::DeclarableScope);
 	m_PesudoTranslationUnit = make_ref<Declaration::TranslationUnitDecl>(m_Sema.GetASTContext());
@@ -254,11 +259,6 @@ std::size_t Deserializer::StartDeserialize(nBool isImporting)
 void Deserializer::EndDeserialize()
 {
 	m_Archive->EndReadingEntry();
-
-	if (!m_UnresolvedDeclFixers.empty())
-	{
-		ThrowInvalidData();
-	}
 
 	m_Sema.PopDeclContext();
 	m_Sema.PopScope();
@@ -1038,11 +1038,11 @@ void Deserializer::tryResolve(natRefPointer<Declaration::NamedDecl> const& named
 	}
 }
 
-Serializer::Serializer(Semantic::Sema& sema, NatsuLib::natRefPointer<ISerializationArchiveWriter> archive,
+Serializer::Serializer(Semantic::Sema& sema,
 	NatsuLib::natRefPointer<Misc::TextProvider<Statement::Stmt::StmtType>> stmtTypeMap,
 	NatsuLib::natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> declTypeMap,
 	NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> typeClassMap)
-	: m_Sema{ sema }, m_Archive{ std::move(archive) }, m_StmtTypeMap{ std::move(stmtTypeMap) }, m_DeclTypeMap{ std::move(declTypeMap) },
+	: m_Sema{ sema }, m_StmtTypeMap{ std::move(stmtTypeMap) }, m_DeclTypeMap{ std::move(declTypeMap) },
 	  m_TypeClassMap{ std::move(typeClassMap) }, m_IsExporting{ false }
 {
 }
@@ -1051,8 +1051,9 @@ Serializer::~Serializer()
 {
 }
 
-void Serializer::StartSerialize(nBool isExporting)
+void Serializer::StartSerialize(NatsuLib::natRefPointer<ISerializationArchiveWriter> archive, nBool isExporting)
 {
+	m_Archive = std::move(archive);
 	m_IsExporting = isExporting;
 	m_Archive->StartWritingEntry(u8"Content", true);
 }

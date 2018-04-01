@@ -350,8 +350,9 @@ namespace NatsuLang::Compiler
 		AotCompiler(NatsuLib::natRefPointer<NatsuLib::TextReader<NatsuLib::StringType::Utf8>> const& diagIdMapFile, NatsuLib::natLog& logger);
 		~AotCompiler();
 
-		void Compile(NatsuLib::Uri const& uri, NatsuLib::Linq<NatsuLib::Valued<NatsuLib::Uri>> const& metadatas, llvm::raw_pwrite_stream& stream);
-		void Compile(nStrView const& content, nStrView const& name, llvm::raw_pwrite_stream& stream);
+		void Compile(NatsuLib::Uri const& uri, NatsuLib::Linq<NatsuLib::Valued<NatsuLib::Uri>> const& metadatas, llvm::raw_pwrite_stream& objectStream,
+			NatsuLib::natRefPointer<NatsuLib::natStream> const& metadataStream);
+		void Compile(nStrView const& content, nStrView const& name, llvm::raw_pwrite_stream& objectStream, NatsuLib::natRefPointer<NatsuLib::natStream> const& metadataStream);
 
 	private:
 		NatsuLib::natRefPointer<AotDiagConsumer> m_DiagConsumer;

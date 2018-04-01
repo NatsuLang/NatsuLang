@@ -2256,11 +2256,13 @@ AotCompiler::~AotCompiler()
 {
 }
 
-void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, llvm::raw_pwrite_stream& stream)
+void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, llvm::raw_pwrite_stream& objectStream, natRefPointer<natStream> const& metadataStream)
 {
 	CreateDefauleModule(uri.GetPath());
 
 	auto& vfs = m_SourceManager.GetFileManager().GetVFS();
+
+	Serialization::Deserializer deserializer{ m_Parser };
 
 	for (const auto& meta : metadatas)
 	{
@@ -2281,9 +2283,8 @@ void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, ll
 			nat_Throw(AotCompilerException, u8"无法打开元数据文件 \"{0}\" 的流", meta.GetUnderlyingString());
 		}
 
-		const auto reader = make_ref<Serialization::BinarySerializationArchiveReader>(make_ref<natBinaryReader>(metaStream));
-		Serialization::Deserializer deserializer{ m_Parser, reader };
-		const auto size = deserializer.StartDeserialize();
+		auto reader = make_ref<Serialization::BinarySerializationArchiveReader>(make_ref<natBinaryReader>(metaStream));
+		const auto size = deserializer.StartDeserialize(std::move(reader));
 		std::vector<ASTNodePtr> ast;
 		ast.reserve(size);
 		for (std::size_t i = 0; i < size; ++i)
@@ -2315,34 +2316,13 @@ void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, ll
 		return;
 	}
 
-	DisposeModule(stream, m_Logger);
+	DisposeModule(objectStream, m_Logger);
 
+	if (metadataStream)
 	{
-		Uri meta{ uri.GetUnderlyingString() + u8".meta"_ns };
-		const auto request = vfs.CreateRequest(meta);
-		if (!request)
-		{
-			nat_Throw(AotCompilerException, u8"无法创建对元数据文件 \"{0}\" 的请求", meta.GetUnderlyingString());
-		}
-		// TODO: 消除硬编码
-		if (const auto fileRequest = request.Cast<NatsuLib::LocalFileRequest>())
-		{
-			fileRequest->SetWritable(true);
-		}
-
-		const auto response = request->GetResponse();
-		if (!response)
-		{
-			nat_Throw(AotCompilerException, u8"无法获得对元数据文件 \"{0}\" 的请求的响应", meta.GetUnderlyingString());
-		}
-		const auto metaStream = response->GetResponseStream();
-		if (!metaStream)
-		{
-			nat_Throw(AotCompilerException, u8"无法打开元数据文件 \"{0}\" 的流", meta.GetUnderlyingString());
-		}
-		const auto writer = make_ref<Serialization::BinarySerializationArchiveWriter>(make_ref<natBinaryWriter>(metaStream));
-		Serialization::Serializer serializer{ m_Sema, writer };
-		serializer.StartSerialize();
+		auto writer = make_ref<Serialization::BinarySerializationArchiveWriter>(make_ref<natBinaryWriter>(metadataStream));
+		Serialization::Serializer serializer{ m_Sema };
+		serializer.StartSerialize(std::move(writer));
 		const auto metadata = m_Sema.CreateMetadata();
 		for (const auto& decl : metadata.GetDecls())
 		{

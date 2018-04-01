@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
 	{
 		if (argc >= 2)
 		{
-			AotCompiler compiler{ make_ref<natStreamReader<nStrView::UsingStringType>>(make_ref<natFileStream>("DiagIdMap.txt", true, false)), logger };
+			AotCompiler compiler{ make_ref<natStreamReader<nStrView::UsingStringType>>(make_ref<natFileStream>(u8"DiagIdMap.txt"_nv, true, false)), logger };
 
 			Uri uri{ argv[1] };
 
@@ -90,10 +90,12 @@ int main(int argc, char* argv[])
 				return EXIT_FAILURE;
 			}
 
+			const auto metadata = make_ref<natFileStream>(uri.GetPath() + u8".meta"_nv, false, true);
+
 			compiler.Compile(uri, from(argv + 2, argv + argc).select([](const char* arg)
 			{
 				return Uri{ arg };
-			}), output);
+			}), output, metadata);
 		}
 		else
 		{
