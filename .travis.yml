@@ -8,10 +8,11 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-      - llvm-toolchain-precise-3.6
+      - llvm-toolchain-trusty
     packages:
       - gcc-7
       - g++-7
+      - llvm-7-dev
 compiler: gcc
 install:
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
@@ -24,5 +25,5 @@ install:
       fi
 
 script:
-  - cmake .
-  - make
+  - cmake -DBUILD_AOTCOMPILER=ON ..
+  - make -j4

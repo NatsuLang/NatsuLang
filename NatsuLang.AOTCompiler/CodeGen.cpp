@@ -224,11 +224,16 @@ namespace
 Detail::LLVMPart::LLVMPart()
 	: m_TargetTriple{ llvm::sys::getDefaultTargetTriple() }, m_TargetMachine{}, m_IRBuilder{ m_LLVMContext }
 {
-	LLVMInitializeX86TargetInfo();
-	LLVMInitializeX86Target();
-	LLVMInitializeX86TargetMC();
-	LLVMInitializeX86AsmParser();
-	LLVMInitializeX86AsmPrinter();
+	llvm::InitializeAllTargetInfos();
+	llvm::InitializeAllTargets();
+	llvm::InitializeAllTargetMCs();
+	llvm::InitializeAllAsmParsers();
+	llvm::InitializeAllAsmPrinters();
+	//LLVMInitializeX86TargetInfo();
+	//LLVMInitializeX86Target();
+	//LLVMInitializeX86TargetMC();
+	//LLVMInitializeX86AsmParser();
+	//LLVMInitializeX86AsmPrinter();
 
 	std::string error;
 	const auto target = llvm::TargetRegistry::lookupTarget(m_TargetTriple, error);

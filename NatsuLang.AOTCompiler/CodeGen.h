@@ -38,6 +38,7 @@ namespace NatsuLang::Compiler
 			void DisposeModule(llvm::raw_pwrite_stream& stream, NatsuLib::natLog& logger);
 
 		protected:
+			llvm::llvm_shutdown_obj m_LLVMShutdown;
 			llvm::LLVMContext m_LLVMContext;
 			std::string m_TargetTriple;
 			llvm::TargetMachine* m_TargetMachine;
