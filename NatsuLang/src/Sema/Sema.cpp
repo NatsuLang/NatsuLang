@@ -465,7 +465,17 @@ void Sema::ActOnFinishModule()
 natRefPointer<Declaration::ImportDecl> Sema::ActOnModuleImport(natRefPointer<Scope> const& scope, SourceLocation startLoc, SourceLocation importLoc,
 	natRefPointer<Declaration::ModuleDecl> const& moduleDecl)
 {
-	return make_ref<Declaration::ImportDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()), importLoc, moduleDecl);
+	auto importDecl = make_ref<Declaration::ImportDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()), importLoc, moduleDecl);
+	for (const auto& decl : moduleDecl->GetDecls())
+	{
+		if (auto namedDecl = decl.Cast<Declaration::NamedDecl>())
+		{
+			MarkAsImported(namedDecl);
+			PushOnScopeChains(std::move(namedDecl), scope, false);
+		}
+	}
+
+	return importDecl;
 }
 
 Type::TypePtr Sema::LookupTypeName(natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,

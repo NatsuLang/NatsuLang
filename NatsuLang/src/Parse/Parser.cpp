@@ -788,19 +788,7 @@ std::vector<Declaration::DeclPtr> Parser::ParseModuleImport()
 		return {};
 	}
 
-	auto importDecl = m_Sema.ActOnModuleImport(m_Sema.GetCurrentScope(), startLoc, startLoc, module);
-
-	// TODO: 把下面的工作移动到 Sema 里做
-	for (const auto& decl : module->GetDecls())
-	{
-		if (auto namedDecl = decl.Cast<Declaration::NamedDecl>())
-		{
-			m_Sema.MarkAsImported(namedDecl);
-			m_Sema.PushOnScopeChains(std::move(namedDecl), m_Sema.GetCurrentScope());
-		}
-	}
-
-	return { std::move(importDecl) };
+	return { m_Sema.ActOnModuleImport(m_Sema.GetCurrentScope(), startLoc, startLoc, module) };
 }
 
 // module-decl:

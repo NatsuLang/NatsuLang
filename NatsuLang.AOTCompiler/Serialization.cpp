@@ -1407,10 +1407,7 @@ void Serializer::Visit(Statement::StmtPtr const& stmt)
 
 void Serializer::VisitImportDecl(natRefPointer<Declaration::ImportDecl> const& decl)
 {
-	VisitDecl(decl);
-	m_Archive->StartWritingEntry(u8"ImportedModule");
-	DeclVisitor::Visit(decl->GetModule());
-	m_Archive->EndWritingEntry();
+	// 不导出 import
 }
 
 void Serializer::VisitNamedDecl(natRefPointer<Declaration::NamedDecl> const& decl)
