@@ -25,5 +25,5 @@ install:
       fi
 
 script:
-  - cmake -DBUILD_AOTCOMPILER=ON ..
+  - cmake -DBUILD_AOTCOMPILER=ON .
   - make -j4
