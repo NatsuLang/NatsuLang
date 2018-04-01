@@ -1,17 +1,17 @@
-
+﻿
 set(CMAKE_CXX_STANDARD 17)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-        if(MSVC_VERSION GREATER_EQUAL "1900")
-                include(CheckCXXCompilerFlag)
-                CHECK_CXX_COMPILER_FLAG("/std:c++latest" _cpp_latest_flag_supported)
-                if(_cpp_latest_flag_supported)
-                        add_compile_options("/std:c++latest")
-                endif()
-        endif()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3 /WX /wd4100 /wd4996")
+	if(MSVC_VERSION GREATER_EQUAL "1900")
+		include(CheckCXXCompilerFlag)
+		CHECK_CXX_COMPILER_FLAG("/std:c++latest" _cpp_latest_flag_supported)
+		if(_cpp_latest_flag_supported)
+				add_compile_options("/std:c++latest")
+		endif()
+	endif()
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3 /WX /wd4100 /wd4996")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused -Werror")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused -Werror")
 endif()
 
 set(PrecompiledHeader

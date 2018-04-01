@@ -977,7 +977,7 @@ ASTNodePtr Deserializer::DeserializeCompilerAction()
 		m_Parser.GetPreprocessor().SetLexer(std::move(oldLexer));
 	});
 
-	m_Parser.GetPreprocessor().SetLexer(make_ref<Lex::Lexer>(name, m_Parser.GetPreprocessor()));
+	m_Parser.GetPreprocessor().SetLexer(make_ref<Lex::Lexer>(0, name, m_Parser.GetPreprocessor()));
 	m_Parser.ConsumeToken();
 	return m_Parser.ParseCompilerActionName();
 }
@@ -995,7 +995,7 @@ natRefPointer<Declaration::NamedDecl> Deserializer::parseQualifiedName(nStrView 
 		m_Parser.GetPreprocessor().SetLexer(std::move(oldLexer));
 	});
 
-	m_Parser.GetPreprocessor().SetLexer(make_ref<Lex::Lexer>(name, m_Parser.GetPreprocessor()));
+	m_Parser.GetPreprocessor().SetLexer(make_ref<Lex::Lexer>(0, name, m_Parser.GetPreprocessor()));
 	m_Parser.ConsumeToken();
 	auto qualifiedId = m_Parser.ParseMayBeQualifiedId();
 

@@ -37,6 +37,19 @@ nuInt SourceManager::GetFileID(Uri const& uri)
 	return GetFileID(uri.GetUnderlyingString());
 }
 
+nStrView SourceManager::FindFileUri(nuInt fileID) const
+{
+	if (const auto iter = std::find_if(m_FileIDMap.cbegin(), m_FileIDMap.cend(), [fileID](std::pair<nStrView, nuInt> const& pair)
+	{
+		return pair.second == fileID;
+	}); iter != m_FileIDMap.cend())
+	{
+		return iter->first;
+	}
+
+	return {};
+}
+
 std::pair<nBool, nStrView> SourceManager::GetFileContent(nuInt fileID)
 {
 	if (!fileID)

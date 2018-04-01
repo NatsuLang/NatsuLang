@@ -292,15 +292,15 @@ namespace NatsuLang::Syntax
 		nBool ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::vector<SourceLocation>& commaLocs,
 		                          Lex::TokenType endToken = Lex::TokenType::Eof);
 
-		void ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipIdentifier = false);
-		void ParseSpecifier(Declaration::DeclaratorPtr const& decl);
+		nBool ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipIdentifier = false);
+		nBool ParseSpecifier(Declaration::DeclaratorPtr const& decl);
 
-		void ParseType(Declaration::DeclaratorPtr const& decl);
+		nBool ParseType(Declaration::DeclaratorPtr const& decl);
 		void ParseParenType(Declaration::DeclaratorPtr const& decl);
 		void ParseFunctionType(Declaration::DeclaratorPtr const& decl);
 		void ParseArrayOrPointerType(Declaration::DeclaratorPtr const& decl);
 
-		void ParseInitializer(Declaration::DeclaratorPtr const& decl);
+		nBool ParseInitializer(Declaration::DeclaratorPtr const& decl);
 
 		nBool SkipUntil(std::initializer_list<Lex::TokenType> list, nBool dontConsume = false,
 		                std::vector<Lex::Token>* skippedTokens = nullptr);

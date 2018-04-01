@@ -44,6 +44,7 @@ namespace NatsuLang
 
 		nuInt GetFileID(nStrView uri);
 		nuInt GetFileID(NatsuLib::Uri const& uri);
+		nStrView FindFileUri(nuInt fileID) const;
 		std::pair<nBool, nStrView> GetFileContent(nuInt fileID);
 
 	private:

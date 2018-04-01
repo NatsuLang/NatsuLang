@@ -17,6 +17,8 @@ Interpreter::InterpreterDiagIdMap::InterpreterDiagIdMap(natRefPointer<TextReader
 		}
 	}
 
+	reader->SetNewLine(u8"\n"_nv);
+
 	nString diagIDName;
 	while (true)
 	{

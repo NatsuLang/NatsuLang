@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include <natException.h>
 #include "Basic/Token.h"
+#include <map>
 
 namespace NatsuLang
 {
@@ -14,12 +15,11 @@ namespace NatsuLang
 			: public NatsuLib::natRefObjImpl<Lexer>, public NatsuLib::nonmovable
 		{
 		public:
-			explicit Lexer(nStrView buffer, Preprocessor& preprocessor);
+			explicit Lexer(nuInt fileID, nStrView buffer, Preprocessor& preprocessor);
 
 			nBool Lex(Token& result);
 
 			nuInt GetFileID() const noexcept;
-			void SetFileID(nuInt value) noexcept;
 
 			void EnableCodeCompletion(nBool value) noexcept
 			{
@@ -31,6 +31,11 @@ namespace NatsuLang
 				return m_CodeCompletionEnabled;
 			}
 
+			///	@brief	获取指定位置所处的行的范围
+			///	@param	loc	要获取行范围的位置
+			///	@return	行号及范围，若发生错误则全为空
+			std::pair<nuInt, SourceRange> GetLine(SourceLocation loc) const noexcept;
+
 		private:
 			using Iterator = nStrView::const_iterator;
 			using CharType = nStrView::CharType;
@@ -39,10 +44,17 @@ namespace NatsuLang
 
 			nBool m_CodeCompletionEnabled;
 
-			SourceLocation m_CurLoc;
-			nStrView m_Buffer;
+			const nStrView m_Buffer;
 			// 当前处理的指针，指向下一次被处理的字符
 			Iterator m_Current;
+
+			const nuInt m_FileID;
+
+			nuInt m_CurrentLine;
+
+			// Key: 起始
+			// Value: 行数，结束
+			std::map<Iterator, std::pair<nuInt, Iterator>> m_LineCache;
 
 			nBool skipWhitespace(Token& result, Iterator cur);
 			nBool skipLineComment(Token& result, Iterator cur);
@@ -58,13 +70,14 @@ namespace NatsuLang
 			{
 				friend class Lexer;
 
-				constexpr Memento(SourceLocation curLoc, Iterator current) noexcept
-					: m_CurLoc{ curLoc }, m_Current{ current }
+				Memento(nuInt currentLine, Iterator current, std::map<Iterator, std::pair<nuInt, Iterator>>::const_iterator lineCacheIter) noexcept
+					: m_CurrentLine{ currentLine }, m_Current{ current }, m_LineCacheIter{ lineCacheIter }
 				{
 				}
 
-				SourceLocation m_CurLoc;
+				nuInt m_CurrentLine;
 				Iterator m_Current;
+				std::map<Iterator, std::pair<nuInt, Iterator>>::const_iterator m_LineCacheIter;
 			};
 
 			Memento SaveToMemento() const noexcept;

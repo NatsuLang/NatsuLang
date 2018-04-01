@@ -24,7 +24,8 @@ Interpreter::~Interpreter()
 
 void Interpreter::Run(Uri const& uri)
 {
-	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(m_SourceManager.GetFileContent(m_SourceManager.GetFileID(uri)).second, m_Preprocessor));
+	const auto fileID = m_SourceManager.GetFileID(uri);
+	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(fileID, m_SourceManager.GetFileContent(fileID).second, m_Preprocessor));
 	m_Parser.ConsumeToken();
 	m_Sema.SetCurrentPhase(Semantic::Sema::Phase::Phase1);
 	ParseAST(m_Parser);
@@ -37,7 +38,7 @@ void Interpreter::Run(nStrView content)
 	// 解释器的 REPL 模式将视为第2阶段
 	m_Sema.SetCurrentPhase(Semantic::Sema::Phase::Phase2);
 
-	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(content, m_Preprocessor));
+	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(0, content, m_Preprocessor));
 	m_Parser.ConsumeToken();
 	const auto stmt = m_Parser.ParseStatement(Declaration::Context::Block, true);
 	if (!stmt || m_DiagConsumer->IsErrored())

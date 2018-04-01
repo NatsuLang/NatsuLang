@@ -748,8 +748,10 @@ std::vector<Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context 
 
 		const auto decl = make_ref<Declaration::Declarator>(context);
 		// 这不意味着 specifier 是 declarator 的一部分，至少目前如此
-		ParseSpecifier(decl);
-		ParseDeclarator(decl);
+		if (!ParseSpecifier(decl) || !ParseDeclarator(decl))
+		{
+			return {};
+		}
 
 		auto declaration = m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), decl);
 
@@ -1648,8 +1650,7 @@ Expression::ExprPtr Parser::ParsePostfixExpressionSuffix(Expression::ExprPtr pre
 			ConsumeToken();
 
 			const auto decl = make_ref<Declaration::Declarator>(Declaration::Context::TypeName);
-			ParseDeclarator(decl);
-			if (!decl->IsValid())
+			if (!ParseDeclarator(decl) || !decl->IsValid())
 			{
 				// TODO: 报告错误
 				prefix = ParseExprError();
@@ -1813,7 +1814,7 @@ nBool Parser::ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::
 
 // declarator:
 //	[identifier] [: type] [initializer]
-void Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipIdentifier)
+nBool Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipIdentifier)
 {
 	const auto context = decl->GetContext();
 	if (!skipIdentifier)
@@ -1833,7 +1834,7 @@ void Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipI
 					m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
 						  .AddArgument(TokenType::Kw_this)
 						  .AddArgument(m_CurrentToken.GetType());
-					return;
+					return false;
 				}
 
 				decl->SetDestructor();
@@ -1848,7 +1849,7 @@ void Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipI
 		else if (context != Declaration::Context::Prototype && context != Declaration::Context::TypeName)
 		{
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
-			return;
+			return false;
 		}
 	}
 
@@ -1877,7 +1878,10 @@ void Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipI
 		if (m_CurrentToken.Is(TokenType::Colon) || ((context == Declaration::Context::Prototype || context == Declaration::
 			Context::TypeName) && !decl->GetIdentifier()))
 		{
-			ParseType(decl);
+			if (!ParseType(decl))
+			{
+				return false;
+			}
 		}
 
 		// 声明函数原型时也可以指定initializer？
@@ -1885,9 +1889,14 @@ void Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipI
 			decl->GetStorageClass() != Specifier::StorageClass::Extern &&
 			m_CurrentToken.IsAnyOf({ TokenType::Equal, TokenType::LeftBrace }))
 		{
-			ParseInitializer(decl);
+			if (!ParseInitializer(decl))
+			{
+				return false;
+			}
 		}
 	}
+
+	return true;
 }
 
 // specifier-seq:
@@ -1896,7 +1905,7 @@ void Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipI
 // specifier:
 //	storage-class-specifier
 //	access-specifier
-void Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
+nBool Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 {
 	while (true)
 	{
@@ -1906,6 +1915,7 @@ void Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 			if (decl->GetStorageClass() != Specifier::StorageClass::None)
 			{
 				// TODO: 报告错误：多个存储类说明符
+				return false;
 			}
 			decl->SetStorageClass(Specifier::StorageClass::Extern);
 			break;
@@ -1913,6 +1923,7 @@ void Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 			if (decl->GetStorageClass() != Specifier::StorageClass::None)
 			{
 				// TODO: 报告错误：多个存储类说明符
+				return false;
 			}
 			decl->SetStorageClass(Specifier::StorageClass::Static);
 			break;
@@ -1920,6 +1931,7 @@ void Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 			if (decl->GetAccessibility() != Specifier::Access::None)
 			{
 				// TODO: 报告错误：多个访问说明符
+				return false;
 			}
 			decl->SetAccessibility(Specifier::Access::Public);
 			break;
@@ -1927,6 +1939,7 @@ void Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 			if (decl->GetAccessibility() != Specifier::Access::None)
 			{
 				// TODO: 报告错误：多个访问说明符
+				return false;
 			}
 			decl->SetAccessibility(Specifier::Access::Protected);
 			break;
@@ -1934,6 +1947,7 @@ void Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 			if (decl->GetAccessibility() != Specifier::Access::None)
 			{
 				// TODO: 报告错误：多个访问说明符
+				return false;
 			}
 			decl->SetAccessibility(Specifier::Access::Internal);
 			break;
@@ -1941,6 +1955,7 @@ void Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 			if (decl->GetAccessibility() != Specifier::Access::None)
 			{
 				// TODO: 报告错误：多个访问说明符
+				return false;
 			}
 			decl->SetAccessibility(Specifier::Access::Private);
 			break;
@@ -1948,12 +1963,13 @@ void Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 			if (decl->GetSafety() != Specifier::Safety::None)
 			{
 				// TODO: 报告错误：多个安全说明符
+				return false;
 			}
 			decl->SetSafety(Specifier::Safety::Unsafe);
 			break;
 		default:
 			// 不是错误
-			return;
+			return true;
 		}
 
 		ConsumeToken();
@@ -1963,7 +1979,7 @@ void Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 // type-specifier:
 //	[auto]
 //	type-identifier
-void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
+nBool Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 {
 	const auto context = decl->GetContext();
 
@@ -1973,7 +1989,7 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 		{
 			// 在非声明函数原型的上下文中不显式写出类型，视为隐含auto
 			// auto的声明符在指定initializer之后决定实际类型
-			return;
+			return true;
 		}
 	}
 	else
@@ -1995,14 +2011,14 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 		{
 			m_Sema.ActOnCodeComplete(m_Sema.GetCurrentScope(), m_CurrentToken.GetLocation(), qualifiedId.first, qualifiedId.second, context);
 			ConsumeToken();
-			return;
+			return false;
 		}
 
 		if (!qualifiedId.second)
 		{
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
 				.AddArgument(m_CurrentToken.GetType());
-			return;
+			return false;
 		}
 
 		if (auto type = m_Sema.LookupTypeName(qualifiedId.second, m_CurrentToken.GetLocation(),
@@ -2046,7 +2062,7 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 			else
 			{
 				// TODO: 报告错误
-				return;
+				return false;
 			}
 		}
 
@@ -2064,7 +2080,7 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 			  .AddArgument(TokenType::RightParen);
 		ConsumeParen();
 
-		return;
+		return false;
 	}
 	case TokenType::Eof:
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpectEOF, m_CurrentToken.GetLocation());
@@ -2099,7 +2115,7 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 			// 对于无效类型的处理
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedTypeSpecifierGot, m_CurrentToken.GetLocation())
 				  .AddArgument(tokenType);
-			return;
+			return false;
 		}
 		decl->SetType(m_Sema.GetASTContext().GetBuiltinType(builtinClass));
 		ConsumeToken();
@@ -2109,6 +2125,7 @@ void Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 
 	// 数组的指针和指针的数组和指针的数组的指针
 	ParseArrayOrPointerType(decl);
+	return true;
 }
 
 void Parser::ParseParenType(Declaration::DeclaratorPtr const& decl)
@@ -2318,7 +2335,7 @@ void Parser::ParseArrayOrPointerType(Declaration::DeclaratorPtr const& decl)
 //	= expression
 //	= { expression-list }
 //	compound-statement
-void Parser::ParseInitializer(Declaration::DeclaratorPtr const& decl)
+nBool Parser::ParseInitializer(Declaration::DeclaratorPtr const& decl)
 {
 	if (m_CurrentToken.Is(TokenType::Equal))
 	{
@@ -2331,7 +2348,7 @@ void Parser::ParseInitializer(Declaration::DeclaratorPtr const& decl)
 			if (!decl->GetType())
 			{
 				// TODO: 报告错误：此形式要求指定类型
-				return;
+				return false;
 			}
 
 			std::vector<Expression::ExprPtr> argExprs;
@@ -2340,7 +2357,7 @@ void Parser::ParseInitializer(Declaration::DeclaratorPtr const& decl)
 			if (!ParseExpressionList(argExprs, commaLocs, TokenType::RightBrace))
 			{
 				// 应该已经报告了错误，仅返回即可
-				return;
+				return false;
 			}
 
 			// 如果到达此处说明当前 Token 是右大括号
@@ -2365,10 +2382,11 @@ void Parser::ParseInitializer(Declaration::DeclaratorPtr const& decl)
 				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
 					.AddArgument(TokenType::Semi)
 					.AddArgument(m_CurrentToken.GetType());
+				return false;
 			}
 		}
 
-		return;
+		return true;
 	}
 
 	if (m_CurrentToken.Is(TokenType::LeftBrace))
@@ -2376,7 +2394,7 @@ void Parser::ParseInitializer(Declaration::DeclaratorPtr const& decl)
 		if (decl->GetType()->GetType() != Type::Type::Function)
 		{
 			// TODO: 报告错误
-			return;
+			return false;
 		}
 
 		// TODO: 考虑分离声明和定义的分析，或者在声明分析过时跳过再次对声明生成新的定义，这样可以允许环形引用函数
@@ -2389,6 +2407,7 @@ void Parser::ParseInitializer(Declaration::DeclaratorPtr const& decl)
 	}
 
 	// 不是 initializer，返回
+	return true;
 }
 
 nBool Parser::SkipUntil(std::initializer_list<Lex::TokenType> list, nBool dontConsume,
@@ -2591,7 +2610,10 @@ void NatsuLang::EndParsingAST(Parser& parser)
 	// 进入2阶段，解析所有声明符
 	parser.DivertPhase(decls);
 
-	consumer->HandleTopLevelDecl(from(decls));
+	if (!consumer->HandleTopLevelDecl(from(decls)))
+	{
+		return;
+	}
 
 	consumer->HandleTranslationUnit(sema.GetASTContext());
 }

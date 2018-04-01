@@ -1,13 +1,13 @@
 ﻿#pragma once
-#include <natType.h>
+#include <natString.h>
 
 namespace NatsuLang
 {
 	class SourceLocation
 	{
 	public:
-		constexpr SourceLocation(nuInt fileID = 0, nuInt line = 0, nuInt col = 0) noexcept
-			: m_FileID{ fileID }, m_Line{ line }, m_Column{ col }
+		constexpr SourceLocation(nuInt fileID = 0, nStrView::const_iterator pos = nullptr) noexcept
+			: m_FileID{ fileID }, m_Pos{ pos }
 		{
 		}
 
@@ -26,38 +26,19 @@ namespace NatsuLang
 			m_FileID = value;
 		}
 
-		constexpr nBool HasLineInfo() const noexcept
+		constexpr nStrView::const_iterator GetPos() const noexcept
 		{
-			return m_Line;
+			return m_Pos;
 		}
 
-		constexpr nuInt GetLineInfo() const noexcept
+		constexpr void SetPos(nStrView::const_iterator pos) noexcept
 		{
-			return m_Line;
-		}
-
-		constexpr void SetLineInfo(nuInt value) noexcept
-		{
-			m_Line = value;
-		}
-
-		constexpr nBool HasColumnInfo() const noexcept
-		{
-			return m_Column;
-		}
-
-		constexpr nuInt GetColumnInfo() const noexcept
-		{
-			return m_Column;
-		}
-
-		constexpr void SetColumnInfo(nuInt value) noexcept
-		{
-			m_Column = value;
+			m_Pos = pos;
 		}
 
 	private:
-		nuInt m_FileID, m_Line, m_Column;
+		nuInt m_FileID;
+		nStrView::const_iterator m_Pos;
 	};
 
 	constexpr nBool operator<(SourceLocation const& loc1, SourceLocation const& loc2) noexcept
@@ -67,17 +48,12 @@ namespace NatsuLang
 			return loc1.GetFileID() < loc2.GetFileID();
 		}
 
-		if (loc1.GetLineInfo() != loc2.GetLineInfo())
-		{
-			return loc1.GetLineInfo() < loc2.GetLineInfo();
-		}
-
-		return loc1.GetColumnInfo() < loc2.GetColumnInfo();
+		return loc1.GetPos() < loc2.GetPos();
 	}
 
 	constexpr nBool operator==(SourceLocation const& loc1, SourceLocation const& loc2) noexcept
 	{
-		return loc1.GetFileID() == loc2.GetFileID() && loc1.GetLineInfo() == loc2.GetLineInfo() && loc1.GetColumnInfo() == loc2.GetColumnInfo();
+		return loc1.GetFileID() == loc2.GetFileID() && loc1.GetPos() == loc2.GetPos();
 	}
 
 	constexpr nBool operator!=(SourceLocation const& loc1, SourceLocation const& loc2) noexcept
@@ -88,10 +64,7 @@ namespace NatsuLang
 	class SourceRange
 	{
 	public:
-		constexpr SourceRange() noexcept
-			: m_Begin{}, m_End{}
-		{
-		}
+		constexpr SourceRange() = default;
 
 		constexpr SourceRange(SourceLocation loc) noexcept
 			: m_Begin{ loc }, m_End{ loc }

@@ -7,13 +7,16 @@ using namespace NatsuLang;
 using namespace Lex;
 using namespace CharInfo;
 
-Lexer::Lexer(nStrView buffer, Preprocessor& preprocessor)
-	: m_Preprocessor{ preprocessor }, m_CodeCompletionEnabled{ false }, m_Buffer{ buffer }, m_Current{ m_Buffer.cbegin() }
+Lexer::Lexer(nuInt fileID, nStrView buffer, Preprocessor& preprocessor)
+	: m_Preprocessor{ preprocessor }, m_CodeCompletionEnabled{ false }, m_Buffer{ buffer }, m_Current{ m_Buffer.cbegin() },
+	  m_FileID{ fileID }, m_CurrentLine{}
 {
 	if (m_Buffer.empty())
 	{
 		nat_Throw(LexerException, "buffer is empty."_nv);
 	}
+
+	m_LineCache.insert({ m_Current, {} });
 }
 
 nBool Lexer::Lex(Token& result)
@@ -28,7 +31,7 @@ NextToken:
 	{
 		result.SetType(TokenType::Eof);
 		result.SetLength(0);
-		result.SetLocation(m_CurLoc);
+		result.SetLocation({ m_FileID, cur });
 		return true;
 	}
 
@@ -49,7 +52,7 @@ NextToken:
 			}
 
 			result.SetLength(0);
-			result.SetLocation(m_CurLoc);
+			result.SetLocation({ m_FileID, m_Current });
 			return true;
 		case '\n':
 		case '\r':
@@ -365,10 +368,9 @@ NextToken:
 	{
 		// TODO: ???
 	}
-	
+
 	cur += charCount;
-	result.SetLocation(m_CurLoc);
-	m_CurLoc.SetColumnInfo(static_cast<nuInt>(m_CurLoc.GetColumnInfo() + static_cast<nuInt>(cur - m_Current)));
+	result.SetLocation({ m_FileID, cur });
 	result.SetLength(static_cast<nuInt>(cur - m_Current));
 
 	m_Current = cur;
@@ -377,31 +379,60 @@ NextToken:
 
 nuInt Lexer::GetFileID() const noexcept
 {
-	return m_CurLoc.GetFileID();
+	return m_FileID;
 }
 
-void Lexer::SetFileID(nuInt value) noexcept
+std::pair<nuInt, SourceRange> Lexer::GetLine(SourceLocation loc) const noexcept
 {
-	m_CurLoc = SourceLocation{ value, 1, 1 };
+	const auto fileID = loc.GetFileID();
+	if (fileID != m_FileID)
+	{
+		return {};
+	}
+
+	auto iter = m_LineCache.upper_bound(loc.GetPos());
+	if (iter == m_LineCache.cend())
+	{
+		return {};
+	}
+
+	// 获得的是后一行，所以减一
+	--iter;
+	return { iter->second.first, { { fileID, iter->first }, { fileID, iter->second.second } } };
 }
 
 nBool Lexer::skipWhitespace(Token& result, Iterator cur)
 {
+	const auto lastLine = std::prev(m_LineCache.end());
 	const auto end = m_Buffer.end();
 
+	auto lineCacheAdded = false;
 	while (cur != end && IsWhitespace(*cur))
 	{
-		if (m_CurLoc.IsValid() && IsVerticalWhitespace(*cur))
+		if (IsVerticalWhitespace(*cur))
 		{
-			m_CurLoc.SetLineInfo(m_CurLoc.GetLineInfo() + 1);
-			m_CurLoc.SetColumnInfo(1);
-		}
-		else
-		{
-			m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
-		}
+			if (!lineCacheAdded)
+			{
+				lastLine->second.first = m_CurrentLine;
+				lastLine->second.second = cur;
+				lineCacheAdded = true;
+			}
+			++m_CurrentLine;
 
+			const auto oldCur = cur++;
+			if ((*oldCur == '\r' && *cur == '\n') || (*oldCur == '\n' && *cur == '\r'))
+			{
+				++cur;
+			}
+
+			continue;
+		}
 		++cur;
+	}
+
+	if (lineCacheAdded && cur != end)
+	{
+		m_LineCache.insert({ cur, {} });
 	}
 
 	m_Current = cur;
@@ -415,7 +446,6 @@ nBool Lexer::skipLineComment(Token& result, Iterator cur)
 	while (cur != end && *cur != '\r' && *cur != '\n')
 	{
 		++cur;
-		m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 	}
 
 	m_Current = cur;
@@ -424,28 +454,43 @@ nBool Lexer::skipLineComment(Token& result, Iterator cur)
 
 nBool Lexer::skipBlockComment(Token& result, Iterator cur)
 {
+	const auto lastLine = std::prev(m_LineCache.end());
 	const auto end = m_Buffer.end();
 
+	auto newLine = false;
 	while (cur != end)
 	{
 		if (*cur == '*' && *(cur + 1) == '/')
 		{
 			cur += 2;
-			m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 2);
 			break;
 		}
 
-		if (m_CurLoc.IsValid() && IsVerticalWhitespace(*cur))
+		if (IsVerticalWhitespace(*cur))
 		{
-			m_CurLoc.SetLineInfo(m_CurLoc.GetLineInfo() + 1);
-			m_CurLoc.SetColumnInfo(1);
-		}
-		else
-		{
-			m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
+			newLine = true;
+			++m_CurrentLine;
+
+			const auto oldCur = cur++;
+			if ((*oldCur == '\r' && *cur == '\n') || (*oldCur == '\n' && *cur == '\r'))
+			{
+				++cur;
+			}
+
+			continue;
 		}
 
 		++cur;
+	}
+
+	if (newLine)
+	{
+		lastLine->second.first = m_CurrentLine;
+		lastLine->second.second = cur;
+		if (cur != end)
+		{
+			m_LineCache.insert({ cur, {} });
+		}
 	}
 
 	m_Current = cur;
@@ -459,8 +504,6 @@ nBool Lexer::lexNumericLiteral(Token& result, Iterator cur)
 
 	assert(IsNumericLiteralBody(curChar));
 
-	const auto startLoc = m_CurLoc;
-
 	while (cur != end && IsNumericLiteralBody(curChar))
 	{
 		prevChar = curChar;
@@ -472,7 +515,6 @@ nBool Lexer::lexNumericLiteral(Token& result, Iterator cur)
 		}
 
 		++cur;
-		m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 	}
 
 	// 科学计数法，例如1E+10
@@ -488,7 +530,7 @@ nBool Lexer::lexNumericLiteral(Token& result, Iterator cur)
 
 	result.SetType(TokenType::NumericLiteral);
 	result.SetLiteralContent({ start, cur });
-	result.SetLocation(startLoc);
+	result.SetLocation({ m_FileID, cur });
 	m_Current = cur;
 	return true;
 }
@@ -497,11 +539,7 @@ nBool Lexer::lexIdentifier(Token& result, Iterator cur)
 {
 	const auto start = cur, end = m_Buffer.end();
 
-	const auto startLoc = m_CurLoc;
-
 	auto curChar = *cur++;
-	m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
-
 	assert(IsIdentifierHead(curChar));
 
 	while (cur != end)
@@ -514,7 +552,6 @@ nBool Lexer::lexIdentifier(Token& result, Iterator cur)
 		}
 
 		++cur;
-		m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 	}
 
 	m_Current = cur;
@@ -522,7 +559,7 @@ nBool Lexer::lexIdentifier(Token& result, Iterator cur)
 	auto info = m_Preprocessor.FindIdentifierInfo(nStrView{ start, cur }, result);
 	// 不需要对info进行操作，因为已经在FindIdentifierInfo中处理完毕
 	static_cast<void>(info);
-	result.SetLocation(startLoc);
+	result.SetLocation({ m_FileID, cur });
 
 	return true;
 }
@@ -533,11 +570,9 @@ nBool Lexer::lexCharLiteral(Token& result, Iterator cur)
 
 	const auto start = cur, end = m_Buffer.end();
 
-	const auto startLoc = m_CurLoc;
 	auto prevChar = *cur++;
 	while (cur != end)
 	{
-		m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 		if (*cur == '\'' && prevChar != '\\')
 		{
 			++cur;
@@ -549,7 +584,7 @@ nBool Lexer::lexCharLiteral(Token& result, Iterator cur)
 
 	result.SetType(TokenType::CharLiteral);
 	result.SetLiteralContent({ start, cur });
-	result.SetLocation(startLoc);
+	result.SetLocation({ m_FileID, cur });
 
 	m_Current = cur;
 	return true;
@@ -561,12 +596,9 @@ nBool Lexer::lexStringLiteral(Token& result, Iterator cur)
 
 	const auto start = cur, end = m_Buffer.end();
 
-	const auto startLoc = m_CurLoc;
 	auto prevChar = *cur++;
-	m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 	while (cur != end)
 	{
-		m_CurLoc.SetColumnInfo(m_CurLoc.GetColumnInfo() + 1);
 		if (*cur == '"' && prevChar != '\\')
 		{
 			++cur;
@@ -578,7 +610,7 @@ nBool Lexer::lexStringLiteral(Token& result, Iterator cur)
 
 	result.SetType(TokenType::StringLiteral);
 	result.SetLiteralContent({ start, cur });
-	result.SetLocation(startLoc);
+	result.SetLocation({ m_FileID, cur });
 
 	m_Current = cur;
 	return true;
@@ -586,11 +618,12 @@ nBool Lexer::lexStringLiteral(Token& result, Iterator cur)
 
 Lexer::Memento Lexer::SaveToMemento() const noexcept
 {
-	return { m_CurLoc, m_Current };
+	return { m_CurrentLine, m_Current, m_LineCache.cend() };
 }
 
 void Lexer::RestoreFromMemento(Memento memento) noexcept
 {
-	m_CurLoc = memento.m_CurLoc;
+	m_CurrentLine = memento.m_CurrentLine;
 	m_Current = memento.m_Current;
+	m_LineCache.erase(memento.m_LineCacheIter, m_LineCache.cend());
 }

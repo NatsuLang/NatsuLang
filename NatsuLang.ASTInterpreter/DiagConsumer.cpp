@@ -41,33 +41,14 @@ void Interpreter::InterpreterDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEng
 	const auto loc = diag.GetSourceLocation();
 	if (loc.GetFileID())
 	{
-		const auto [succeed, fileContent] = m_Interpreter.m_SourceManager.GetFileContent(loc.GetFileID());
-		if (const auto line = loc.GetLineInfo(); succeed && line)
+		const auto fileUri = m_Interpreter.m_SourceManager.FindFileUri(loc.GetFileID());
+		const auto[line, range] = m_Interpreter.m_Preprocessor.GetLexer()->GetLine(loc);
+		if (range.IsValid())
 		{
-			size_t offset{};
-			for (nuInt i = 1; i < line; ++i)
-			{
-				offset = fileContent.Find(Environment::GetNewLine(), static_cast<ptrdiff_t>(offset));
-				if (offset == nStrView::npos)
-				{
-					// TODO: 无法定位到源文件
-					return;
-				}
-
-				offset += Environment::GetNewLine().GetSize();
-			}
-
-			const auto nextNewLine = fileContent.Find(Environment::GetNewLine(), static_cast<ptrdiff_t>(offset));
-			const auto column = loc.GetColumnInfo();
-			offset += column ? column - 1 : 0;
-			if (nextNewLine <= offset)
-			{
-				// TODO: 无法定位到源文件
-				return;
-			}
-
-			m_Interpreter.m_Logger.Log(levelId, fileContent.Slice(static_cast<ptrdiff_t>(offset), nextNewLine == nStrView::npos ? -1 : static_cast<ptrdiff_t>(nextNewLine)));
-			m_Interpreter.m_Logger.Log(levelId, u8"^"_nv);
+			m_Interpreter.m_Logger.Log(levelId, u8"在文件 \"{0}\"，第 {1} 行："_nv, fileUri.empty() ? u8"未知"_nv : fileUri, line + 1);
+			m_Interpreter.m_Logger.Log(levelId, nStrView{ range.GetBegin().GetPos(), range.GetEnd().GetPos() });
+			nString indentation(u8' ', loc.GetPos() - range.GetBegin().GetPos());
+			m_Interpreter.m_Logger.Log(levelId, u8"{0}^"_nv, indentation);
 		}
 	}
 }
