@@ -187,8 +187,8 @@ namespace NatsuLang::Semantic
 		void PushDeclContext(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclContext* dc);
 		void PopDeclContext();
 
-		Metadata CreateMetadata() const;
-		void LoadMetadata(Metadata const& metadata);
+		Metadata CreateMetadata(nBool includeImported = false) const;
+		void LoadMetadata(Metadata const& metadata, nBool feedAstConsumer = true);
 		void MarkAsImported(Declaration::DeclPtr const& decl) const;
 		NatsuLib::natRefPointer<ImportedAttribute> GetImportedAttribute() const noexcept;
 

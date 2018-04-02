@@ -391,14 +391,15 @@ std::pair<nuInt, SourceRange> Lexer::GetLine(SourceLocation loc) const noexcept
 	}
 
 	auto iter = m_LineCache.upper_bound(loc.GetPos());
-	if (iter == m_LineCache.cend())
+
+	// 获得的是后一行，所以减一，没有找到和找到了但是位于最后一行的结果是一样的，不过这里可以统一处理
+	--iter;
+	if (iter->second.second && iter->second.second >= loc.GetPos())
 	{
-		return {};
+		return { iter->second.first, { { fileID, iter->first },{ fileID, iter->second.second } } };
 	}
 
-	// 获得的是后一行，所以减一
-	--iter;
-	return { iter->second.first, { { fileID, iter->first }, { fileID, iter->second.second } } };
+	return {};
 }
 
 nBool Lexer::skipWhitespace(Token& result, Iterator cur)

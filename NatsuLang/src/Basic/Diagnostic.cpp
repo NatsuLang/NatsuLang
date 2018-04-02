@@ -20,7 +20,7 @@ void Diag::DiagnosticsEngine::Clear() noexcept
 	m_CurrentID = DiagID::Invalid;
 	m_CurrentDiagDesc.Clear();
 	m_CurrentRequiredArgs = 0;
-	m_CurrentSourceLocation = {};
+	m_CurrentSourceRange = {};
 }
 
 nBool Diag::DiagnosticsEngine::EmitDiag()
@@ -165,7 +165,7 @@ std::pair<Diag::DiagnosticsEngine::ArgumentType, Diag::DiagnosticsEngine::Argume
 	return m_Arguments.at(i);
 }
 
-Diag::DiagnosticsEngine::DiagnosticBuilder Diag::DiagnosticsEngine::Report(DiagID id, SourceLocation sourceLocation)
+Diag::DiagnosticsEngine::DiagnosticBuilder Diag::DiagnosticsEngine::Report(DiagID id, SourceRange sourcerange)
 {
 	// 之前的诊断还未处理？
 	if (m_CurrentID != DiagID::Invalid)
@@ -178,7 +178,7 @@ Diag::DiagnosticsEngine::DiagnosticBuilder Diag::DiagnosticsEngine::Report(DiagI
 
 	m_CurrentID = id;
 	m_CurrentRequiredArgs = getDiagArgCount(id);
-	m_CurrentSourceLocation = sourceLocation;
+	m_CurrentSourceRange = sourcerange;
 
 	return { *this };
 }

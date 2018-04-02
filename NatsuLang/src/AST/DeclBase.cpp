@@ -103,6 +103,16 @@ nBool Decl::DetachAttribute(AttrPtr const& attr)
 	return false;
 }
 
+nBool Decl::DetachAttributes(std::type_index const& type)
+{
+	return m_AttributeSet.erase(type);
+}
+
+void Decl::DetachAllAttributes()
+{
+	m_AttributeSet.clear();
+}
+
 std::size_t Decl::GetAttributeTotalCount() const noexcept
 {
 	std::size_t size{};

@@ -123,6 +123,8 @@ namespace NatsuLang::Declaration
 
 		void AttachAttribute(AttrPtr attr);
 		nBool DetachAttribute(AttrPtr const& attr);
+		nBool DetachAttributes(std::type_index const& type);
+		void DetachAllAttributes();
 
 		std::size_t GetAttributeTotalCount() const noexcept;
 		std::size_t GetAttributeCount(std::type_index const& type) const noexcept;

@@ -321,19 +321,31 @@ void Sema::PopDeclContext()
 	m_CurrentDeclContext = Declaration::Decl::CastFromDeclContext(parentDc)->ForkRef();
 }
 
-Metadata Sema::CreateMetadata() const
+Metadata Sema::CreateMetadata(nBool includeImported) const
 {
 	Metadata metadata;
 	const auto tu = m_Context.GetTranslationUnit();
-	metadata.AddDecls(tu->GetDecls().where([](Declaration::DeclPtr const& decl)
+	const auto decls = tu->GetDecls();
+	if (includeImported)
 	{
-		return !decl->GetAttributeCount(typeid(ImportedAttribute));
-	}));
+		metadata.AddDecls(decls.select([this](Declaration::DeclPtr const& decl)
+		{
+			decl->DetachAttributes(typeid(ImportedAttribute));
+			return decl;
+		}));
+	}
+	else
+	{
+		metadata.AddDecls(decls.where([](Declaration::DeclPtr const& decl)
+		{
+			return !decl->GetAttributeCount(typeid(ImportedAttribute));
+		}));
+	}
 
 	return metadata;
 }
 
-void Sema::LoadMetadata(Metadata const& metadata)
+void Sema::LoadMetadata(Metadata const& metadata, nBool feedAstConsumer)
 {
 	for (const auto& decl : metadata.GetDecls())
 	{
@@ -344,7 +356,10 @@ void Sema::LoadMetadata(Metadata const& metadata)
 		}
 	}
 
-	m_Consumer->HandleTopLevelDecl(metadata.GetDecls());
+	if (feedAstConsumer && m_Consumer)
+	{
+		m_Consumer->HandleTopLevelDecl(metadata.GetDecls());
+	}
 }
 
 void Sema::MarkAsImported(Declaration::DeclPtr const& decl) const

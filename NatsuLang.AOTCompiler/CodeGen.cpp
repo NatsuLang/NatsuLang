@@ -229,11 +229,6 @@ Detail::LLVMPart::LLVMPart()
 	llvm::InitializeAllTargetMCs();
 	llvm::InitializeAllAsmParsers();
 	llvm::InitializeAllAsmPrinters();
-	//LLVMInitializeX86TargetInfo();
-	//LLVMInitializeX86Target();
-	//LLVMInitializeX86TargetMC();
-	//LLVMInitializeX86AsmParser();
-	//LLVMInitializeX86AsmPrinter();
 
 	std::string error;
 	const auto target = llvm::TargetRegistry::lookupTarget(m_TargetTriple, error);
@@ -261,12 +256,10 @@ void Detail::LLVMPart::CreateDefauleModule(nStrView moduleName)
 
 void Detail::LLVMPart::DisposeModule(llvm::raw_pwrite_stream& stream, natLog& logger)
 {
-#if !defined(NDEBUG)
 	std::string buffer;
 	llvm::raw_string_ostream os{ buffer };
 	m_Module->print(os, nullptr);
 	logger.LogMsg(u8"编译成功，生成的 IR:\n{0}"_nv, buffer);
-#endif // NDEBUG
 
 	llvm::legacy::PassManager passManager;
 	m_TargetMachine->addPassesToEmitFile(passManager, stream, llvm::TargetMachine::CGFT_ObjectFile);
@@ -369,7 +362,9 @@ void AotCompiler::AotDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEngine::Lev
 
 	m_Compiler.m_Logger.Log(levelId, diag.GetDiagMessage());
 
-	const auto loc = diag.GetSourceLocation();
+	const auto range = diag.GetSourceRange();
+	// 显示 range 的以后再做。。
+	const auto loc = range.GetBegin();
 	if (loc.GetFileID())
 	{
 		const auto fileUri = m_Compiler.m_SourceManager.FindFileUri(loc.GetFileID());
@@ -2260,10 +2255,8 @@ AotCompiler::~AotCompiler()
 {
 }
 
-void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, llvm::raw_pwrite_stream& objectStream, natRefPointer<natStream> const& metadataStream)
+void AotCompiler::LoadMetadata(Linq<Valued<Uri>> const& metadatas, nBool shouldCodeGen)
 {
-	CreateDefauleModule(uri.GetPath());
-
 	auto& vfs = m_SourceManager.GetFileManager().GetVFS();
 
 	Serialization::Deserializer deserializer{ m_Parser };
@@ -2287,7 +2280,7 @@ void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, ll
 			nat_Throw(AotCompilerException, u8"无法打开元数据文件 \"{0}\" 的流", meta.GetUnderlyingString());
 		}
 
-		auto reader = make_ref<Serialization::BinarySerializationArchiveReader>(make_ref<natBinaryReader>(metaStream));
+		auto reader = make_ref<Serialization::BinarySerializationArchiveReader>(make_ref<natBinaryReader>(metaStream, Environment::Endianness::LittleEndian));
 		const auto size = deserializer.StartDeserialize(std::move(reader));
 		std::vector<ASTNodePtr> ast;
 		ast.reserve(size);
@@ -2297,8 +2290,30 @@ void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, ll
 		}
 		deserializer.EndDeserialize();
 		metadata.AddDecls(ast);
-		m_Sema.LoadMetadata(metadata);
+		m_Sema.LoadMetadata(metadata, shouldCodeGen);
 	}
+}
+
+void AotCompiler::CreateMetadata(natRefPointer<natStream> const& metadataStream, nBool includeImported)
+{
+	assert(metadataStream && metadataStream->CanWrite() && metadataStream->CanSeek());
+
+	auto writer = make_ref<Serialization::BinarySerializationArchiveWriter>(make_ref<natBinaryWriter>(metadataStream, Environment::Endianness::LittleEndian));
+	Serialization::Serializer serializer{ m_Sema };
+	serializer.StartSerialize(std::move(writer));
+	const auto metadata = m_Sema.CreateMetadata(includeImported);
+	for (const auto& decl : metadata.GetDecls())
+	{
+		serializer.Visit(decl);
+	}
+	serializer.EndSerialize();
+}
+
+void AotCompiler::Compile(Uri const& uri, NatsuLib::Linq<NatsuLib::Valued<NatsuLib::Uri>> const& metadatas, llvm::raw_pwrite_stream& objectStream)
+{
+	CreateDefauleModule(uri.GetPath());
+
+	LoadMetadata(metadatas);
 
 	const auto fileId = m_SourceManager.GetFileID(uri);
 	const auto [succeed, content] = m_SourceManager.GetFileContent(fileId);
@@ -2318,19 +2333,6 @@ void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, ll
 	}
 
 	DisposeModule(objectStream, m_Logger);
-
-	if (metadataStream)
-	{
-		auto writer = make_ref<Serialization::BinarySerializationArchiveWriter>(make_ref<natBinaryWriter>(metadataStream));
-		Serialization::Serializer serializer{ m_Sema };
-		serializer.StartSerialize(std::move(writer));
-		const auto metadata = m_Sema.CreateMetadata();
-		for (const auto& decl : metadata.GetDecls())
-		{
-			serializer.Visit(decl);
-		}
-		serializer.EndSerialize();
-	}
 }
 
 AotCompiler::AotStmtVisitor::ICleanup::~ICleanup()

@@ -115,7 +115,7 @@ namespace NatsuLang::Diag
 		DiagID m_CurrentID;
 		nuInt m_CurrentRequiredArgs;
 		nString m_CurrentDiagDesc;
-		SourceLocation m_CurrentSourceLocation;
+		SourceRange m_CurrentSourceRange;
 
 		nString convertArgumentToString(nuInt index) const;
 
@@ -180,9 +180,9 @@ namespace NatsuLang::Diag
 				return m_Diag;
 			}
 
-			SourceLocation GetSourceLocation() const noexcept
+			SourceRange GetSourceRange() const noexcept
 			{
-				return m_Diag->m_CurrentSourceLocation;
+				return m_Diag->m_CurrentSourceRange;
 			}
 
 			nString GetDiagMessage() const;
@@ -195,7 +195,7 @@ namespace NatsuLang::Diag
 	public:
 		std::size_t GetArgumentCount() const noexcept;
 		std::pair<ArgumentType, Argument> const& GetArgument(std::size_t i) const;
-		DiagnosticBuilder Report(DiagID id, SourceLocation sourceLocation = {});
+		DiagnosticBuilder Report(DiagID id, SourceRange sourcerange = {});
 	};
 
 	struct DiagnosticConsumer

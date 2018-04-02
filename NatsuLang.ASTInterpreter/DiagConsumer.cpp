@@ -38,7 +38,9 @@ void Interpreter::InterpreterDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEng
 
 	m_Interpreter.m_Logger.Log(levelId, diag.GetDiagMessage());
 
-	const auto loc = diag.GetSourceLocation();
+	const auto range = diag.GetSourceRange();
+	// 显示 range 的以后再做。。
+	const auto loc = range.GetBegin();
 	if (loc.GetFileID())
 	{
 		const auto fileUri = m_Interpreter.m_SourceManager.FindFileUri(loc.GetFileID());
