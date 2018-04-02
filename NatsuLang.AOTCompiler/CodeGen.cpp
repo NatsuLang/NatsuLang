@@ -1865,7 +1865,15 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarInit(Type::TypePtr const& varType, 
 		}
 		else if (const auto constructExpr = initializer.Cast<Expression::ConstructExpr>())
 		{
-			const auto iter = m_Compiler.m_FunctionMap.find(constructExpr->GetConstructorDecl());
+			const auto constructorDecl = constructExpr->GetConstructorDecl();
+
+			if (!constructorDecl)
+			{
+				// FIXME: 应由前端生成默认构造函数
+				return;
+			}
+
+			const auto iter = m_Compiler.m_FunctionMap.find(constructorDecl);
 			if (iter == m_Compiler.m_FunctionMap.end())
 			{
 				nat_Throw(AotCompilerException, u8"构造表达式引用了不存在的构造函数"_nv);
@@ -2309,7 +2317,7 @@ void AotCompiler::CreateMetadata(natRefPointer<natStream> const& metadataStream,
 	serializer.EndSerialize();
 }
 
-void AotCompiler::Compile(Uri const& uri, NatsuLib::Linq<NatsuLib::Valued<NatsuLib::Uri>> const& metadatas, llvm::raw_pwrite_stream& objectStream)
+void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, llvm::raw_pwrite_stream& objectStream)
 {
 	CreateDefauleModule(uri.GetPath());
 
@@ -2653,8 +2661,7 @@ llvm::Type* AotCompiler::getCorrespondingType(Declaration::DeclPtr const& decl)
 	case Declaration::Decl::Enum:
 		return getCorrespondingType(decl.UnsafeCast<Declaration::EnumDecl>()->GetTypeForDecl());
 	case Declaration::Decl::Class:
-		ret = buildClassType(decl.UnsafeCast<Declaration::ClassDecl>());
-		break;
+		return buildClassType(decl.UnsafeCast<Declaration::ClassDecl>());
 	case Declaration::Decl::Field:
 		return getCorrespondingType(decl.UnsafeCast<Declaration::FieldDecl>()->GetValueType());
 	case Declaration::Decl::Function:
@@ -2714,6 +2721,9 @@ llvm::Type* AotCompiler::buildFunctionType(natRefPointer<Declaration::MethodDecl
 llvm::Type* AotCompiler::buildClassType(natRefPointer<Declaration::ClassDecl> const& classDecl)
 {
 	const auto className = classDecl->GetName();
+	const auto structType = llvm::StructType::create(m_LLVMContext, llvm::StringRef{ className.data(), className.size() });
+	m_DeclTypeMap.emplace(classDecl, structType);
+
 	const auto& classLayout = m_AstContext.GetClassLayout(classDecl);
 	std::vector<llvm::Type*> fieldTypes(classLayout.FieldOffsets.size());
 
@@ -2733,7 +2743,7 @@ llvm::Type* AotCompiler::buildClassType(natRefPointer<Declaration::ClassDecl> co
 		}
 	}
 
-	const auto structType = llvm::StructType::create(m_LLVMContext, fieldTypes, llvm::StringRef{ className.data(), className.size() });
+	structType->setBody(fieldTypes);
 	return structType;
 }
 

@@ -422,6 +422,10 @@ ASTNodePtr Deserializer::DeserializeDecl()
 				{
 					tagDecl->SetTypeForDecl(make_ref<Type::ClassType>(tagDecl));
 				}
+				else
+				{
+					tagDecl->SetTypeForDecl(make_ref<Type::EnumType>(tagDecl));
+				}
 
 				{
 					auto flag = Semantic::ScopeFlags::DeclarableScope;
@@ -467,16 +471,17 @@ ASTNodePtr Deserializer::DeserializeDecl()
 					}
 
 					assert(type == Declaration::Decl::Enum);
+					auto enumDecl = tagDecl.UnsafeCast<Declaration::EnumDecl>();
 					if (const auto& unresolved = underlyingType.Cast<UnresolvedId>())
 					{
-						m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [tagDecl](natRefPointer<Declaration::NamedDecl> const& decl)
+						m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [enumDecl](natRefPointer<Declaration::NamedDecl> const& decl)
 						{
-							tagDecl->SetTypeForDecl(decl.Cast<Declaration::TagDecl>()->GetTypeForDecl());
+							enumDecl->SetUnderlyingType(decl.Cast<Declaration::TagDecl>()->GetTypeForDecl());
 						});
 					}
 					else
 					{
-						tagDecl->SetTypeForDecl(std::move(underlyingType));
+						enumDecl->SetUnderlyingType(std::move(underlyingType));
 					}
 				}
 

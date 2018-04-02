@@ -104,8 +104,18 @@ NextToken:
 			result.SetType(TokenType::RightBrace);
 			break;
 		case '.':
+		{
+			const auto maxLength = end - cur;
+			if (maxLength >= 3 && cur[1] == '.' && cur[2] == '.')
+			{
+				result.SetType(TokenType::Ellipsis);
+				cur += 2;
+				break;
+			}
+
 			result.SetType(TokenType::Period);
 			break;
+		}
 		case '&':
 		{
 			// TODO: 可能超过文件尾，下同
@@ -124,8 +134,8 @@ NextToken:
 				result.SetType(TokenType::Amp);
 				break;
 			}
-		}
 			break;
+		}
 		case '*':
 		{
 			const auto nextChar = *(cur + 1);
@@ -138,8 +148,8 @@ NextToken:
 			{
 				result.SetType(TokenType::Star);
 			}
-		}
 			break;
+		}
 		case '+':
 		{
 			const auto nextChar = *(cur + 1);
@@ -157,8 +167,8 @@ NextToken:
 				result.SetType(TokenType::Plus);
 				break;
 			}
-		}
 			break;
+		}
 		case '-':
 		{
 			const auto nextChar = *(cur + 1);
@@ -180,8 +190,8 @@ NextToken:
 				result.SetType(TokenType::Minus);
 				break;
 			}
-		}
 			break;
+		}
 		case '~':
 			result.SetType(TokenType::Tilde);
 			break;
@@ -197,8 +207,8 @@ NextToken:
 			{
 				result.SetType(TokenType::Exclaim);
 			}
-		}
 			break;
+		}
 		case '/':
 		{
 			const auto nextChar = *(cur + 1);
@@ -224,8 +234,8 @@ NextToken:
 				result.SetType(TokenType::Slash);
 				break;
 			}
-		}
 			break;
+		}
 		case '%':
 		{
 			const auto nextChar = *(cur + 1);
@@ -238,8 +248,8 @@ NextToken:
 			{
 				result.SetType(TokenType::Percent);
 			}
-		}
 			break;
+		}
 		case '<':
 		{
 			const auto nextChar = *(cur + 1);
@@ -265,8 +275,8 @@ NextToken:
 				result.SetType(TokenType::Less);
 				break;
 			}
-		}
 			break;
+		}
 		case '>':
 		{
 			const auto nextChar = *(cur + 1);
@@ -292,8 +302,8 @@ NextToken:
 				result.SetType(TokenType::Greater);
 				break;
 			}
-		}
 			break;
+		}
 		case '^':
 		{
 			const auto nextChar = *(cur + 1);
@@ -306,8 +316,8 @@ NextToken:
 			{
 				result.SetType(TokenType::Caret);
 			}
-		}
 			break;
+		}
 		case '|':
 		{
 			const auto nextChar = *(cur + 1);
@@ -325,8 +335,8 @@ NextToken:
 				result.SetType(TokenType::Pipe);
 				break;
 			}
-		}
 			break;
+		}
 		case ':':
 			result.SetType(TokenType::Colon);
 			break;
@@ -345,8 +355,8 @@ NextToken:
 			{
 				result.SetType(TokenType::Equal);
 			}
-		}
 			break;
+		}
 		case ',':
 			result.SetType(TokenType::Comma);
 			break;

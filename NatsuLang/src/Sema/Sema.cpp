@@ -707,6 +707,7 @@ natRefPointer<Declaration::TagDecl> Sema::ActOnTag(natRefPointer<Scope> const& s
 	{
 		auto enumDecl = make_ref<Declaration::EnumDecl>(Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get()),
 														nameLoc, name, kwLoc);
+		enumDecl->SetTypeForDecl(make_ref<Type::EnumType>(enumDecl));
 		enumDecl->SetUnderlyingType(underlyingType);
 		PushOnScopeChains(enumDecl, scope, addToContext);
 		return enumDecl;
@@ -1203,6 +1204,10 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 		}
 
 		retDecl = ActOnUnresolvedDeclarator(scope, decl, dc);
+		if (scope->HasFlags(ScopeFlags::UnsafeScope))
+		{
+			decl->SetSafety(Specifier::Safety::Unsafe);
+		}
 		decl->SetDeclarationScope(scope);
 		decl->SetDeclarationContext(m_CurrentDeclContext);
 	}
@@ -2134,6 +2139,12 @@ Expression::ExprPtr Sema::BuildConstructExpr(natRefPointer<Type::ClassType> cons
 	LookupResult r{ *this, nullptr, {}, LookupNameType::LookupMemberName };
 	if (!LookupConstructors(r, classDecl))
 	{
+		if (initExprs.empty())
+		{
+			// FIXME: 生成一个默认构造函数
+			return make_ref<Expression::ConstructExpr>(classType, leftBraceLoc, nullptr, std::move(initExprs));
+		}
+
 		// TODO: 报告错误
 		return nullptr;
 	}

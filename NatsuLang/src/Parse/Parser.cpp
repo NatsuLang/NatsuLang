@@ -1945,7 +1945,27 @@ nBool Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skip
 	{
 		if (m_CurrentToken.Is(TokenType::Identifier))
 		{
-			decl->SetIdentifier(m_CurrentToken.GetIdentifierInfo());
+			auto id = m_CurrentToken.GetIdentifierInfo();
+			if (decl->GetContext() == Declaration::Context::Prototype)
+			{
+				// 函数原型上下文中允许没有标识符只有类型的参数声明，因此先尝试匹配类型，失败则会回滚
+				const auto memento = m_Preprocessor.SaveToMemento();
+
+				const auto typeDecl = make_ref<Declaration::Declarator>(Declaration::Context::TypeName);
+				const auto scope = make_scope([this, isEnabled = m_Diag.IsDiagEnabled()]
+				{
+					m_Diag.EnableDiag(isEnabled);
+				});
+				m_Diag.EnableDiag(false);
+
+				if (ParseType(typeDecl) && typeDecl->GetType())
+				{
+					decl->SetType(typeDecl->GetType());
+					return true;
+				}
+				m_Preprocessor.RestoreFromMemento(memento);
+			}
+			decl->SetIdentifier(std::move(id));
 			ConsumeToken();
 		}
 		else if (m_CurrentToken.IsAnyOf({ TokenType::Tilde, TokenType::Kw_this }))
@@ -2188,6 +2208,10 @@ nBool Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 				// TODO: 报告错误
 				return false;
 			}
+		}
+		else
+		{
+			return false;
 		}
 
 		break;
@@ -2656,14 +2680,24 @@ Declaration::DeclPtr Parser::ResolveDeclarator(Declaration::DeclaratorPtr decl)
 		m_ResolveContext->EndResolvingDeclarator(decl);
 	});
 
+	auto declScope = decl->GetDeclarationScope();
+	const auto tempUnsafe = decl->GetSafety() == Specifier::Safety::Unsafe && !declScope->HasFlags(Semantic::ScopeFlags::UnsafeScope);
 	const auto recoveryScope = make_scope(
-		[this, curScope = m_Sema.GetCurrentScope(), curDeclContext = m_Sema.GetDeclContext()]
+		[this, curScope = m_Sema.GetCurrentScope(), curDeclContext = m_Sema.GetDeclContext(), tempUnsafe]
 		{
+			if (tempUnsafe)
+			{
+				m_Sema.GetCurrentScope()->RemoveFlags(Semantic::ScopeFlags::UnsafeScope);
+			}
 			m_Sema.SetDeclContext(curDeclContext);
 			m_Sema.SetCurrentScope(curScope);
 		});
 	m_Sema.SetCurrentScope(decl->GetDeclarationScope());
 	m_Sema.SetDeclContext(decl->GetDeclarationContext());
+	if (tempUnsafe)
+	{
+		declScope->AddFlags(Semantic::ScopeFlags::UnsafeScope);
+	}
 
 	if (decl->IsAlias())
 	{

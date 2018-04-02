@@ -87,14 +87,12 @@ int main(int argc, char* argv[])
 				if (nStrView{ *argIter } == u8"-i"_nv)
 				{
 					includeImported = true;
-					++argIter;
 					continue;
 				}
 
 				if (nStrView{ *argIter } == u8"-m"_nv)
 				{
 					isSourceFile = false;
-					++argIter;
 					continue;
 				}
 
