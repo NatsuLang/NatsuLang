@@ -459,24 +459,36 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 			const auto varName = GetQualifiedName(varDecl);
 
 			// TODO: 修改成正儿八经的初始化
-			const auto initializer = varDecl->GetInitializer();
 
 			llvm::Constant* initValue{};
 
-			Expression::Expr::EvalResult evalResult;
-			if (initializer->Evaluate(evalResult, m_Compiler.m_AstContext))
+			const auto initializer = varDecl->GetInitializer();
+			auto isConstant = true;
+
+			if (initializer)
 			{
-				if (evalResult.Result.index() == 0)
+				Expression::Expr::EvalResult evalResult;
+				if (initializer->Evaluate(evalResult, m_Compiler.m_AstContext))
 				{
-					initValue = llvm::ConstantInt::get(varType, std::get<0>(evalResult.Result));
+					if (evalResult.Result.index() == 0)
+					{
+						initValue = llvm::ConstantInt::get(varType, std::get<0>(evalResult.Result));
+					}
+					else
+					{
+						initValue = llvm::ConstantFP::get(varType, std::get<1>(evalResult.Result));
+					}
 				}
-				else
+			}
+			else
+			{
+				if (varDecl->GetStorageClass() == Specifier::StorageClass::Extern)
 				{
-					initValue = llvm::ConstantFP::get(varType, std::get<1>(evalResult.Result));
+					isConstant = false;
 				}
 			}
 
-			const auto varValue = new llvm::GlobalVariable(*m_Compiler.m_Module, varType, false, llvm::GlobalValue::ExternalLinkage, initValue, llvm::StringRef{ varName.data(), varName.size() });
+			const auto varValue = new llvm::GlobalVariable(*m_Compiler.m_Module, varType, isConstant, llvm::GlobalValue::ExternalLinkage, initValue, llvm::StringRef{ varName.data(), varName.size() });
 			m_Compiler.m_GlobalVariableMap.emplace(std::move(varDecl), varValue);
 			decl.second = varValue;
 		}
@@ -1248,7 +1260,7 @@ void AotCompiler::AotStmtVisitor::VisitReturnStmt(natRefPointer<Statement::Retur
 {
 	if (const auto retExpr = stmt->GetReturnExpr())
 	{
-		Visit(retExpr);
+		EvaluateValue(retExpr);
 		m_Compiler.m_IRBuilder.CreateStore(m_LastVisitedValue, m_ReturnValue);
 	}
 
@@ -1747,7 +1759,26 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitIncDec(llvm::Value* operand, natRe
 	}
 
 	m_Compiler.m_IRBuilder.CreateStore(value, operand);
-	return isPre ? operand : value;
+
+	if (m_RequiredModifiableValue)
+	{
+		if (isPre)
+		{
+			return operand;
+		}
+	}
+
+	if (isPre)
+	{
+		return m_RequiredModifiableValue ? operand : m_Compiler.m_IRBuilder.CreateLoad(operand);
+	}
+
+	if (m_RequiredModifiableValue)
+	{
+		nat_Throw(AotCompilerException, u8"当前表达式无法求值为可修改的值"_nv);
+	}
+
+	return value;
 }
 
 llvm::Value* AotCompiler::AotStmtVisitor::EmitFunctionAddr(natRefPointer<Declaration::FunctionDecl> const& func)

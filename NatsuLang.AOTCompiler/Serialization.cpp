@@ -551,14 +551,6 @@ ASTNodePtr Deserializer::DeserializeDecl()
 								ThrowInvalidData();
 							}
 
-							if (m_IsImporting)
-							{
-								if (storageClass != Specifier::StorageClass::Static)
-								{
-									storageClass = Specifier::StorageClass::Extern;
-								}
-							}
-
 							Expression::ExprPtr initializer;
 
 							nBool hasInitializer;
@@ -579,6 +571,16 @@ ASTNodePtr Deserializer::DeserializeDecl()
 									{
 										ThrowInvalidData();
 									}
+								}
+							}
+
+							if (m_IsImporting)
+							{
+								if (storageClass != Specifier::StorageClass::Static)
+								{
+									// 正在导入外部翻译单元的变量/函数，强制使用 extern 并清除初始化器
+									storageClass = Specifier::StorageClass::Extern;
+									initializer = nullptr;
 								}
 							}
 
