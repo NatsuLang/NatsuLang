@@ -816,10 +816,9 @@ nBool Sema::LookupName(LookupResult& result, natRefPointer<Scope> scope) const
 			break;
 		}
 
-		auto queryResult{ query.Cast<std::vector<natRefPointer<Declaration::NamedDecl>>>() };
-		if (!queryResult.empty())
+		if (!query.empty())
 		{
-			result.AddDecl(from(queryResult));
+			result.AddDecl(query);
 			found = true;
 			break;
 		}
@@ -869,10 +868,10 @@ nBool Sema::LookupQualifiedName(LookupResult& result, Declaration::DeclContext* 
 	case LookupNameType::LookupAnyName:
 		break;
 	}
-	auto queryResult{ query.Cast<std::vector<natRefPointer<Declaration::NamedDecl>>>() };
-	if (!queryResult.empty())
+
+	if (!query.empty())
 	{
-		result.AddDecl(from(queryResult));
+		result.AddDecl(from(query));
 		found = true;
 	}
 
