@@ -708,7 +708,7 @@ void AotCompiler::AotStmtVisitor::VisitConditionalOperator(natRefPointer<Express
 		phi->addIncoming(lhs, lhsBlock);
 		phi->addIncoming(rhs, rhsBlock);
 
-		m_LastVisitedValue = phi;
+		setLastVisitedResult(phi);
 	}
 	else
 	{
@@ -728,7 +728,7 @@ void AotCompiler::AotStmtVisitor::VisitArraySubscriptExpr(natRefPointer<Expressi
 
 	if (!m_RequiredModifiableValue)
 	{
-		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateLoad(m_LastVisitedValue, "arrayElem");
+		setLastVisitedResult(m_Compiler.m_IRBuilder.CreateLoad(m_LastVisitedValue, "arrayElem"));
 	}
 }
 
@@ -745,7 +745,7 @@ void AotCompiler::AotStmtVisitor::VisitBinaryOperator(natRefPointer<Expression::
 	const auto commonType = expr->GetLeftOperand()->GetExprType();
 	const auto resultType = expr->GetExprType().Cast<Type::BuiltinType>();
 
-	m_LastVisitedValue = EmitBinOp(leftOperand, rightOperand, opCode, expr->GetLeftOperand()->GetExprType(), expr->GetRightOperand()->GetExprType(), resultType);
+	setLastVisitedResult(EmitBinOp(leftOperand, rightOperand, opCode, expr->GetLeftOperand()->GetExprType(), expr->GetRightOperand()->GetExprType(), resultType));
 }
 
 void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expression::CompoundAssignOperator> const& expr)
@@ -804,12 +804,12 @@ void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expr
 
 	m_Compiler.m_IRBuilder.CreateStore(value, leftOperand);
 
-	m_LastVisitedValue = m_RequiredModifiableValue ? leftOperand : m_Compiler.m_IRBuilder.CreateLoad(leftOperand);
+	setLastVisitedResult(m_RequiredModifiableValue ? leftOperand : m_Compiler.m_IRBuilder.CreateLoad(leftOperand));
 }
 
 void AotCompiler::AotStmtVisitor::VisitBooleanLiteral(natRefPointer<Expression::BooleanLiteral> const& expr)
 {
-	m_LastVisitedValue = llvm::ConstantInt::get(llvm::Type::getInt1Ty(m_Compiler.m_LLVMContext), expr->GetValue());
+	setLastVisitedResult(llvm::ConstantInt::get(llvm::Type::getInt1Ty(m_Compiler.m_LLVMContext), expr->GetValue()));
 }
 
 void AotCompiler::AotStmtVisitor::VisitConstructExpr(natRefPointer<Expression::ConstructExpr> const& expr)
@@ -829,7 +829,7 @@ void AotCompiler::AotStmtVisitor::VisitNewExpr(natRefPointer<Expression::NewExpr
 
 void AotCompiler::AotStmtVisitor::VisitThisExpr(natRefPointer<Expression::ThisExpr> const& /*expr*/)
 {
-	m_LastVisitedValue = m_RequiredModifiableValue ? m_This : m_Compiler.m_IRBuilder.CreateLoad(m_This);
+	setLastVisitedResult(m_RequiredModifiableValue ? m_This : m_Compiler.m_IRBuilder.CreateLoad(m_This));
 }
 
 void AotCompiler::AotStmtVisitor::VisitThrowExpr(natRefPointer<Expression::ThrowExpr> const& expr)
@@ -866,18 +866,30 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 	for (auto&& arg : expr->GetArgs())
 	{
 		// TODO: 直接按位复制了，在需要的时候应由前端生成复制构造函数，但此处没有看到分配存储？
+		// TODO: 搞清楚 C/C++ 的 abi 差异了，需要添加 abi 相关选项来控制
 		EvaluateValue(arg);
 		assert(m_LastVisitedValue);
 		args.emplace_back(m_LastVisitedValue);
 	}
 
 	const auto callInst = m_Compiler.m_IRBuilder.CreateCall(callee, args);
+
+	if (m_LastVisitedDecl)
+	{
+		// TODO: 考虑在类型上加属性，这样可以把调用约定写在类型里
+		const auto query = m_LastVisitedDecl->GetAttributes<CallingConventionAttribute>();
+		if (!query.empty())
+		{
+			callInst->setCallingConv(CallingConventionAttribute::ToLLVMCallingConv(query.first()->GetCallingConvention()));
+		}
+	}
+
 	if (!calleeType->getReturnType()->isVoidTy())
 	{
 		callInst->setName("ret");
 	}
 
-	m_LastVisitedValue = callInst;
+	setLastVisitedResult(callInst);
 }
 
 void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::MemberCallExpr> const& expr)
@@ -914,38 +926,49 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 	}
 
 	const auto callInst = m_Compiler.m_IRBuilder.CreateCall(callee, args);
+
+	if (m_LastVisitedDecl)
+	{
+		// TODO: 考虑在类型上加属性，这样可以把调用约定写在类型里
+		const auto query = m_LastVisitedDecl->GetAttributes<CallingConventionAttribute>();
+		if (!query.empty())
+		{
+			callInst->setCallingConv(CallingConventionAttribute::ToLLVMCallingConv(query.first()->GetCallingConvention()));
+		}
+	}
+
 	if (!callee->getReturnType()->isVoidTy())
 	{
 		callInst->setName("ret");
 	}
 
-	m_LastVisitedValue = callInst;
+	setLastVisitedResult(callInst);
 }
 
 void AotCompiler::AotStmtVisitor::VisitCastExpr(natRefPointer<Expression::CastExpr> const& expr)
 {
 	const auto operand = expr->GetOperand();
 	EvaluateValue(operand);
-	m_LastVisitedValue = ConvertScalarTo(m_LastVisitedValue, operand->GetExprType(), expr->GetExprType());
+	setLastVisitedResult(ConvertScalarTo(m_LastVisitedValue, operand->GetExprType(), expr->GetExprType()));
 }
 
 void AotCompiler::AotStmtVisitor::VisitAsTypeExpr(natRefPointer<Expression::AsTypeExpr> const& expr)
 {
 	const auto operand = expr->GetOperand();
 	EvaluateValue(operand);
-	m_LastVisitedValue = ConvertScalarTo(m_LastVisitedValue, operand->GetExprType(), expr->GetExprType());
+	setLastVisitedResult(ConvertScalarTo(m_LastVisitedValue, operand->GetExprType(), expr->GetExprType()));
 }
 
 void AotCompiler::AotStmtVisitor::VisitImplicitCastExpr(natRefPointer<Expression::ImplicitCastExpr> const& expr)
 {
 	const auto operand = expr->GetOperand();
 	EvaluateValue(operand);
-	m_LastVisitedValue = ConvertScalarTo(m_LastVisitedValue, operand->GetExprType(), expr->GetExprType());
+	setLastVisitedResult(ConvertScalarTo(m_LastVisitedValue, operand->GetExprType(), expr->GetExprType()));
 }
 
 void AotCompiler::AotStmtVisitor::VisitCharacterLiteral(natRefPointer<Expression::CharacterLiteral> const& expr)
 {
-	m_LastVisitedValue = llvm::ConstantInt::get(m_Compiler.getCorrespondingType(expr->GetExprType()), expr->GetCodePoint());
+	setLastVisitedResult(llvm::ConstantInt::get(m_Compiler.getCorrespondingType(expr->GetExprType()), expr->GetCodePoint()));
 }
 
 void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::DeclRefExpr> const& expr)
@@ -957,13 +980,14 @@ void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::Dec
 		if (const auto funcDecl = varDecl.Cast<Declaration::FunctionDecl>())
 		{
 			EmitFunctionAddr(funcDecl);
+			setLastVisitedResult(m_LastVisitedValue, decl);
 		}
 		else
 		{
 			EmitAddressOfVar(varDecl);
 			if (!m_RequiredModifiableValue)
 			{
-				m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateLoad(m_LastVisitedValue, "var");
+				setLastVisitedResult(m_Compiler.m_IRBuilder.CreateLoad(m_LastVisitedValue, "var"), decl);
 			}
 		}
 
@@ -977,7 +1001,7 @@ void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::Dec
 			nat_Throw(AotCompilerException, u8"此定义不可变"_nv);
 		}
 
-		m_LastVisitedValue = llvm::ConstantInt::get(m_Compiler.getCorrespondingType(enumeratorDecl->GetValueType()), static_cast<std::uint64_t>(enumeratorDecl->GetValue()));
+		setLastVisitedResult(llvm::ConstantInt::get(m_Compiler.getCorrespondingType(enumeratorDecl->GetValueType()), static_cast<std::uint64_t>(enumeratorDecl->GetValue())), decl);
 		return;
 	}
 
@@ -990,11 +1014,11 @@ void AotCompiler::AotStmtVisitor::VisitFloatingLiteral(natRefPointer<Expression:
 
 	if (floatType->GetBuiltinClass() == Type::BuiltinType::Float)
 	{
-		m_LastVisitedValue = llvm::ConstantFP::get(m_Compiler.m_LLVMContext, llvm::APFloat{ static_cast<nFloat>(expr->GetValue()) });
+		setLastVisitedResult(llvm::ConstantFP::get(m_Compiler.m_LLVMContext, llvm::APFloat{ static_cast<nFloat>(expr->GetValue()) }));
 	}
 	else
 	{
-		m_LastVisitedValue = llvm::ConstantFP::get(m_Compiler.m_LLVMContext, llvm::APFloat{ expr->GetValue() });
+		setLastVisitedResult(llvm::ConstantFP::get(m_Compiler.m_LLVMContext, llvm::APFloat{ expr->GetValue() }));
 	}
 }
 
@@ -1008,7 +1032,7 @@ void AotCompiler::AotStmtVisitor::VisitIntegerLiteral(natRefPointer<Expression::
 	const auto intType = expr->GetExprType().Cast<Type::BuiltinType>();
 	const auto typeInfo = m_Compiler.m_AstContext.GetTypeInfo(intType);
 
-	m_LastVisitedValue = llvm::ConstantInt::get(m_Compiler.m_LLVMContext, llvm::APInt{ static_cast<unsigned>(typeInfo.Size * 8), expr->GetValue(), intType->IsSigned() });
+	setLastVisitedResult(llvm::ConstantInt::get(m_Compiler.m_LLVMContext, llvm::APInt{ static_cast<unsigned>(typeInfo.Size * 8), expr->GetValue(), intType->IsSigned() }));
 }
 
 void AotCompiler::AotStmtVisitor::VisitMemberExpr(natRefPointer<Expression::MemberExpr> const& expr)
@@ -1028,18 +1052,30 @@ void AotCompiler::AotStmtVisitor::VisitMemberExpr(natRefPointer<Expression::Memb
 			nat_Throw(AotCompilerException, u8"引用了不存在的成员"_nv);
 		}
 
-		m_LastVisitedValue = iter->second;
+		setLastVisitedResult(iter->second);
 	}
 	else if (const auto field = memberDecl.Cast<Declaration::FieldDecl>())
 	{
 		const auto baseExpr = expr->GetBase();
 		EvaluateAsModifiableValue(baseExpr);
-		const auto baseValue = m_LastVisitedValue;
-		const auto baseClass = baseExpr->GetExprType().Cast<Type::ClassType>();
-		assert(baseClass);
-		const auto baseClassDecl = baseClass->GetDecl();
+		auto baseValue = m_LastVisitedValue;
+		auto baseType = baseExpr->GetExprType();
 
-		const auto& classLayout = m_Compiler.m_AstContext.GetClassLayout(baseClassDecl);
+		if (const auto pointerType = baseType.Cast<Type::PointerType>())
+		{
+			baseType = pointerType->GetPointeeType();
+			baseValue = m_Compiler.m_IRBuilder.CreateLoad(baseValue);
+		}
+
+		natRefPointer<Declaration::ClassDecl> baseClass;
+		if (const auto classType = baseType.Cast<Type::ClassType>())
+		{
+			baseClass = classType->GetDecl();
+		}
+
+		assert(baseClass);
+
+		const auto& classLayout = m_Compiler.m_AstContext.GetClassLayout(baseClass);
 		const auto fieldInfo = classLayout.GetFieldInfo(field);
 		if (!fieldInfo)
 		{
@@ -1051,7 +1087,7 @@ void AotCompiler::AotStmtVisitor::VisitMemberExpr(natRefPointer<Expression::Memb
 		const auto memberPtr = m_Compiler.m_IRBuilder.CreateGEP(baseValue,
 			{ llvm::ConstantInt::getNullValue(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext)), llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Compiler.m_LLVMContext), fieldIndex) },
 			llvm::StringRef{ fieldName.data(), fieldName.size() });
-		m_LastVisitedValue = m_RequiredModifiableValue ? memberPtr : m_Compiler.m_IRBuilder.CreateLoad(memberPtr, llvm::StringRef{ fieldName.data(), fieldName.size() });
+		setLastVisitedResult(m_RequiredModifiableValue ? memberPtr : m_Compiler.m_IRBuilder.CreateLoad(memberPtr, llvm::StringRef{ fieldName.data(), fieldName.size() }));
 	}
 	else
 	{
@@ -1071,7 +1107,7 @@ void AotCompiler::AotStmtVisitor::VisitStmtExpr(natRefPointer<Expression::StmtEx
 
 void AotCompiler::AotStmtVisitor::VisitStringLiteral(natRefPointer<Expression::StringLiteral> const& expr)
 {
-	m_LastVisitedValue = m_Compiler.getStringLiteralValue(expr->GetValue());
+	setLastVisitedResult(m_Compiler.getStringLiteralValue(expr->GetValue()));
 }
 
 void AotCompiler::AotStmtVisitor::VisitUnaryExprOrTypeTraitExpr(natRefPointer<Expression::UnaryExprOrTypeTraitExpr> const& expr)
@@ -1089,19 +1125,19 @@ void AotCompiler::AotStmtVisitor::VisitUnaryOperator(natRefPointer<Expression::U
 	{
 	case Expression::UnaryOperationType::PostInc:
 		EvaluateAsModifiableValue(operand);
-		m_LastVisitedValue = EmitIncDec(m_LastVisitedValue, opType, true, false);
+		setLastVisitedResult(EmitIncDec(m_LastVisitedValue, opType, true, false));
 		break;
 	case Expression::UnaryOperationType::PreInc:
 		EvaluateAsModifiableValue(operand);
-		m_LastVisitedValue = EmitIncDec(m_LastVisitedValue, opType, true, true);
+		setLastVisitedResult(EmitIncDec(m_LastVisitedValue, opType, true, true));
 		break;
 	case Expression::UnaryOperationType::PostDec:
 		EvaluateAsModifiableValue(operand);
-		m_LastVisitedValue = EmitIncDec(m_LastVisitedValue, opType, false, false);
+		setLastVisitedResult(EmitIncDec(m_LastVisitedValue, opType, false, false));
 		break;
 	case Expression::UnaryOperationType::PreDec:
 		EvaluateAsModifiableValue(operand);
-		m_LastVisitedValue = EmitIncDec(m_LastVisitedValue, opType, false, true);
+		setLastVisitedResult(EmitIncDec(m_LastVisitedValue, opType, false, true));
 		break;
 	case Expression::UnaryOperationType::AddrOf:
 		// 返回值即为地址
@@ -1119,7 +1155,7 @@ void AotCompiler::AotStmtVisitor::VisitUnaryOperator(natRefPointer<Expression::U
 		EvaluateValue(operand);
 		if (!m_RequiredModifiableValue)
 		{
-			m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateLoad(m_LastVisitedValue, "deref");
+			setLastVisitedResult(m_Compiler.m_IRBuilder.CreateLoad(m_LastVisitedValue, "deref"));
 		}
 
 		break;
@@ -1132,12 +1168,12 @@ void AotCompiler::AotStmtVisitor::VisitUnaryOperator(natRefPointer<Expression::U
 		{
 			if (builtinType->IsIntegerType())
 			{
-				m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateNeg(m_LastVisitedValue);
+				setLastVisitedResult(m_Compiler.m_IRBuilder.CreateNeg(m_LastVisitedValue));
 			}
 			else
 			{
 				assert(builtinType->IsFloatingType());
-				m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFNeg(m_LastVisitedValue);
+				setLastVisitedResult(m_Compiler.m_IRBuilder.CreateFNeg(m_LastVisitedValue));
 			}
 		}
 		else
@@ -1148,11 +1184,11 @@ void AotCompiler::AotStmtVisitor::VisitUnaryOperator(natRefPointer<Expression::U
 		break;
 	case Expression::UnaryOperationType::Not:
 		EvaluateValue(operand);
-		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateNot(m_LastVisitedValue);
+		setLastVisitedResult(m_Compiler.m_IRBuilder.CreateNot(m_LastVisitedValue));
 		break;
 	case Expression::UnaryOperationType::LNot:
 		EvaluateAsBool(operand);
-		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateIsNull(m_LastVisitedValue);
+		setLastVisitedResult(m_Compiler.m_IRBuilder.CreateIsNull(m_LastVisitedValue));
 		break;
 	default:
 		assert(!"Invalid opCode");
@@ -1409,14 +1445,14 @@ void AotCompiler::AotStmtVisitor::EmitAddressOfVar(natRefPointer<Declaration::Va
 	const auto localDeclIter = m_DeclMap.find(varDecl);
 	if (localDeclIter != m_DeclMap.end())
 	{
-		m_LastVisitedValue = localDeclIter->second;
+		setLastVisitedResult(localDeclIter->second);
 		return;
 	}
 
 	const auto nonLocalDeclIter = m_Compiler.m_GlobalVariableMap.find(varDecl);
 	if (nonLocalDeclIter != m_Compiler.m_GlobalVariableMap.end())
 	{
-		m_LastVisitedValue = nonLocalDeclIter->second;
+		setLastVisitedResult(nonLocalDeclIter->second);
 	}
 }
 
@@ -1806,7 +1842,7 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitFunctionAddr(natRefPointer<Declara
 		const auto funcIter = m_Compiler.m_FunctionMap.find(func);
 		if (funcIter != m_Compiler.m_FunctionMap.end())
 		{
-			m_LastVisitedValue = funcIter->second;
+			setLastVisitedResult(funcIter->second);
 			return m_LastVisitedValue;
 		}
 
@@ -2045,6 +2081,7 @@ void AotCompiler::AotStmtVisitor::EvaluateValue(Expression::ExprPtr const& expr)
 		m_RequiredModifiableValue = oldValue;
 	});
 
+	m_LastVisitedDecl.Reset();
 	Visit(expr);
 }
 
@@ -2057,6 +2094,7 @@ void AotCompiler::AotStmtVisitor::EvaluateAsModifiableValue(Expression::ExprPtr 
 		m_RequiredModifiableValue = oldValue;
 	});
 
+	m_LastVisitedDecl.Reset();
 	Visit(expr);
 }
 
@@ -2066,7 +2104,7 @@ void AotCompiler::AotStmtVisitor::EvaluateAsBool(Expression::ExprPtr const& expr
 
 	EvaluateValue(expr);
 
-	m_LastVisitedValue = ConvertScalarToBool(m_LastVisitedValue, expr->GetExprType());
+	setLastVisitedResult(ConvertScalarToBool(m_LastVisitedValue, expr->GetExprType()));
 }
 
 llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarTo(llvm::Value* from, Type::TypePtr fromType, Type::TypePtr toType)
@@ -2302,6 +2340,12 @@ AotCompiler::AotStmtVisitor::LexicalScope* AotCompiler::AotStmtVisitor::LookupLe
 	}
 
 	return cur;
+}
+
+void AotCompiler::AotStmtVisitor::setLastVisitedResult(llvm::Value* lastVisitedValue, Declaration::DeclPtr lastVisitedDecl)
+{
+	m_LastVisitedValue = lastVisitedValue;
+	m_LastVisitedDecl = std::move(lastVisitedDecl);
 }
 
 AotCompiler::AotCompiler(natRefPointer<TextReader<StringType::Utf8>> const& diagIdMapFile, natLog& logger)
@@ -2700,7 +2744,7 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 	case Type::Type::Class:
 		return getCorrespondingType(underlyingType.UnsafeCast<Type::ClassType>()->GetDecl());
 	case Type::Type::Enum:
-		nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
+		return getCorrespondingType(underlyingType.UnsafeCast<Type::EnumType>()->GetDecl().UnsafeCast<Declaration::EnumDecl>()->GetUnderlyingType());
 	default:
 		assert(!"Invalid type");
 		[[fallthrough]];
@@ -2744,13 +2788,14 @@ llvm::Type* AotCompiler::getCorrespondingType(Declaration::DeclPtr const& decl)
 		return getCorrespondingType(decl.UnsafeCast<Declaration::VarDecl>()->GetValueType());
 	case Declaration::Decl::EnumConstant:
 		return getCorrespondingType(decl.UnsafeCast<Declaration::EnumConstantDecl>()->GetValueType());
+	case Declaration::Decl::ParmVar:
+		return getCorrespondingType(decl.UnsafeCast<Declaration::ParmVarDecl>()->GetValueType());
 	case Declaration::Decl::Empty:
 	case Declaration::Decl::Import:
 	case Declaration::Decl::Label:
 	case Declaration::Decl::Module:
 	case Declaration::Decl::Unresolved:
 	case Declaration::Decl::ImplicitParam:
-	case Declaration::Decl::ParmVar:
 	case Declaration::Decl::TranslationUnit:
 	default:
 		assert(!"Invalid decl.");
@@ -2763,9 +2808,19 @@ llvm::Type* AotCompiler::getCorrespondingType(Declaration::DeclPtr const& decl)
 
 llvm::Type* AotCompiler::buildFunctionType(Type::TypePtr const& resultType, Linq<Valued<Type::TypePtr>> const& params)
 {
-	const auto args{ params.select([this](Type::TypePtr const& argType)
+	const auto args{ params.select([this](Type::TypePtr const& paramType)
 	{
-		return getCorrespondingType(argType);
+		return getCorrespondingType(paramType);
+	}).Cast<std::vector<llvm::Type*>>() };
+
+	return llvm::FunctionType::get(getCorrespondingType(resultType), args, false);
+}
+
+llvm::Type* AotCompiler::buildFunctionTypeWithParamDecl(Type::TypePtr const& resultType, Linq<Valued<natRefPointer<Declaration::ParmVarDecl>>> const& params)
+{
+	const auto args{ params.select([this](natRefPointer<Declaration::ParmVarDecl> const& paramDecl)
+	{
+		return getCorrespondingType(paramDecl);
 	}).Cast<std::vector<llvm::Type*>>() };
 
 	return llvm::FunctionType::get(getCorrespondingType(resultType), args, false);

@@ -888,7 +888,7 @@ nBool Sema::LookupNestedName(LookupResult& result, natRefPointer<Scope> scope,
 		return LookupQualifiedName(result, dc);
 	}
 
-	return LookupName(result, scope);
+	return LookupName(result, std::move(scope));
 }
 
 nBool Sema::LookupConstructors(LookupResult& result, natRefPointer<Declaration::ClassDecl> const& classDecl)
@@ -1068,7 +1068,7 @@ natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
 
 	natRefPointer<Declaration::FunctionDecl> funcDecl;
 
-	if (dc->GetType() == Declaration::Decl::Class)
+	if (dc->GetType() == Declaration::Decl::Class && decl->GetStorageClass() != Specifier::StorageClass::Static)
 	{
 		auto classDecl = Declaration::Decl::CastFromDeclContext(dc)->ForkRef<Declaration::ClassDecl>();
 		if (decl->IsConstructor())

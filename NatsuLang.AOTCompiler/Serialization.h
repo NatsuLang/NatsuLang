@@ -89,6 +89,7 @@ namespace NatsuLang::Serialization
 
 		Identifier::IdPtr getId(nStrView name) const;
 		NatsuLib::natRefPointer<Declaration::NamedDecl> parseQualifiedName(nStrView name);
+		NatsuLib::natRefPointer<Type::UnresolvedType> getUnresolvedType(nStrView name);
 
 		void tryResolve(NatsuLib::natRefPointer<Declaration::NamedDecl> const& namedDecl);
 	};

@@ -358,7 +358,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 				{
 					m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [ret](natRefPointer<Declaration::NamedDecl> decl)
 					{
-						if (const auto tag = decl.Cast<Declaration::TagDecl>())
+						if (const auto tag = decl.Cast<Declaration::TypeDecl>())
 						{
 							ret->SetAliasAsAst(tag->GetTypeForDecl());
 						}
@@ -417,7 +417,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 					ThrowInvalidData();
 				}
 
-				auto tagDecl = m_Sema.ActOnTag(m_Sema.GetCurrentScope(), tagType, {}, Specifier::Access::None, std::move(id), {}, nullptr);
+				auto tagDecl = m_Sema.ActOnTag(m_Sema.GetCurrentScope(), tagType, {}, Specifier::Access::None, std::move(id), {});
 				if (type == Declaration::Decl::Class)
 				{
 					tagDecl->SetTypeForDecl(make_ref<Type::ClassType>(tagDecl));
@@ -476,7 +476,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 					{
 						m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [enumDecl](natRefPointer<Declaration::NamedDecl> const& decl)
 						{
-							enumDecl->SetUnderlyingType(decl.Cast<Declaration::TagDecl>()->GetTypeForDecl());
+							enumDecl->SetUnderlyingType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
 						});
 					}
 					else
@@ -865,18 +865,30 @@ ASTNodePtr Deserializer::DeserializeType()
 	case NatsuLang::Type::Type::Pointer:
 	{
 		m_Archive->StartReadingEntry(u8"PointeeType");
-		auto pointeeType = Deserialize().Cast<Type::Type>();
+		auto pointeeType = Deserialize();
 		if (!pointeeType)
 		{
 			ThrowInvalidData();
 		}
+
+		if (const auto unresolved = pointeeType.Cast<UnresolvedId>())
+		{
+			auto retType = m_Sema.GetASTContext().GetPointerType(getUnresolvedType(unresolved->GetName()));
+			m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
+			{
+				retType->SetPointeeType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
+				m_Sema.GetASTContext().UpdateType(retType);
+			});
+			return retType;
+		}
+
 		m_Archive->EndReadingEntry();
 		return m_Sema.GetASTContext().GetPointerType(std::move(pointeeType));
 	}
 	case NatsuLang::Type::Type::Array:
 	{
 		m_Archive->StartReadingEntry(u8"ElementType");
-		auto elementType = Deserialize().Cast<Type::Type>();
+		auto elementType = Deserialize();
 		if (!elementType)
 		{
 			ThrowInvalidData();
@@ -886,6 +898,17 @@ ASTNodePtr Deserializer::DeserializeType()
 		if (!m_Archive->ReadNumType(u8"ArraySize", arraySize))
 		{
 			ThrowInvalidData();
+		}
+
+		if (const auto unresolved = elementType.Cast<UnresolvedId>())
+		{
+			auto retType = m_Sema.GetASTContext().GetArrayType(getUnresolvedType(unresolved->GetName()), arraySize);
+			m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
+			{
+				retType->SetElementType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
+				m_Sema.GetASTContext().UpdateType(retType);
+			});
+			return retType;
 		}
 
 		return m_Sema.GetASTContext().GetArrayType(std::move(elementType), arraySize);
@@ -933,11 +956,23 @@ ASTNodePtr Deserializer::DeserializeType()
 		{
 			ThrowInvalidData();
 		}
-		auto innerType = Deserialize().Cast<Type::Type>();
+		auto innerType = Deserialize();
 		if (!innerType)
 		{
 			ThrowInvalidData();
 		}
+
+		if (const auto unresolved = innerType.Cast<UnresolvedId>())
+		{
+			auto retType = m_Sema.GetASTContext().GetParenType(getUnresolvedType(unresolved->GetName()));
+			m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
+			{
+				retType->SetInnerType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
+				m_Sema.GetASTContext().UpdateType(retType);
+			});
+			return retType;
+		}
+
 		m_Archive->EndReadingEntry();
 		return m_Sema.GetASTContext().GetParenType(std::move(innerType));
 	}
@@ -964,11 +999,23 @@ ASTNodePtr Deserializer::DeserializeType()
 		{
 			ThrowInvalidData();
 		}
-		auto deducedAsType = Deserialize().Cast<Type::Type>();
+		auto deducedAsType = Deserialize();
 		if (!deducedAsType)
 		{
 			ThrowInvalidData();
 		}
+
+		if (const auto unresolved = deducedAsType.Cast<UnresolvedId>())
+		{
+			auto retType = m_Sema.GetASTContext().GetAutoType(getUnresolvedType(unresolved->GetName()));
+			m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
+			{
+				retType->SetDeducedAsType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
+				m_Sema.GetASTContext().UpdateType(retType);
+			});
+			return retType;
+		}
+
 		m_Archive->EndReadingEntry();
 		return m_Sema.GetASTContext().GetAutoType(std::move(deducedAsType));
 	}
@@ -1007,10 +1054,14 @@ Identifier::IdPtr Deserializer::getId(nStrView name) const
 
 natRefPointer<Declaration::NamedDecl> Deserializer::parseQualifiedName(nStrView name)
 {
-	const auto scope = make_scope([this, oldLexer = m_Parser.GetPreprocessor().GetLexer()]() mutable
+	const auto scope = make_scope([this, oldLexer = m_Parser.GetPreprocessor().GetLexer(), diagEnabled = m_Sema.GetDiagnosticsEngine().IsDiagEnabled()]() mutable
 	{
 		m_Parser.GetPreprocessor().SetLexer(std::move(oldLexer));
+		m_Sema.GetDiagnosticsEngine().EnableDiag(diagEnabled);
 	});
+
+	// 阻止在查找中报错，因为将会在之后进行解析
+	m_Sema.GetDiagnosticsEngine().EnableDiag(false);
 
 	m_Parser.GetPreprocessor().SetLexer(make_ref<Lex::Lexer>(0, name, m_Parser.GetPreprocessor()));
 	m_Parser.ConsumeToken();
@@ -1044,6 +1095,13 @@ natRefPointer<Declaration::NamedDecl> Deserializer::parseQualifiedName(nStrView 
 	}
 
 	return nullptr;
+}
+
+natRefPointer<Type::UnresolvedType> Deserializer::getUnresolvedType(nStrView name)
+{
+	Lex::Token token;
+	static_cast<void>(m_Parser.GetPreprocessor().FindIdentifierInfo(name, token));
+	return m_Sema.GetASTContext().GetUnresolvedType({ token });
 }
 
 void Deserializer::tryResolve(natRefPointer<Declaration::NamedDecl> const& namedDecl)

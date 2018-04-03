@@ -205,7 +205,8 @@ namespace NatsuLang::Syntax
 		///	@param	decls	输出分析得到的顶层声明
 		///	@return	是否遇到EOF
 		nBool ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls);
-		std::vector<Declaration::DeclPtr> ParseExternalDeclaration();
+		void SkipSimpleCompilerAction(Declaration::Context context);
+		std::vector<Declaration::DeclPtr> ParseExternalDeclaration(Declaration::Context context = Declaration::Context::Global);
 		void ParseCompilerActionArguments(Declaration::Context context, NatsuLib::natRefPointer<ICompilerAction>);
 
 		void ParseCompilerAction(Declaration::Context context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output = {});
@@ -320,7 +321,17 @@ namespace NatsuLang::Syntax
 		nuInt m_ParenCount, m_BracketCount, m_BraceCount;
 
 		NatsuLib::natRefPointer<ResolveContext> m_ResolveContext;
-		std::vector<std::vector<Lex::Token>> m_SkippedExternalCompilerActions;
+
+		struct CachedCompilerAction
+		{
+			Declaration::Context Context;
+			NatsuLib::natRefPointer<Semantic::Scope> Scope;
+			Declaration::DeclPtr DeclContext;
+			nBool InUnsafeScope;
+			std::vector<Lex::Token> Tokens;
+		};
+
+		std::vector<CachedCompilerAction> m_CachedCompilerActions;
 
 		void pushCachedTokens(std::vector<Lex::Token> tokens);
 		void popCachedTokens();

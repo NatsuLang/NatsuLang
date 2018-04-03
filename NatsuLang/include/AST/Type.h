@@ -106,12 +106,18 @@ namespace NatsuLang::Type
 			return m_PointeeType;
 		}
 
+		// 设置时需要从 ASTContext 更新，下同
+		void SetPointeeType(TypePtr value) noexcept
+		{
+			m_PointeeType = std::move(value);
+		}
+
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
 		DEFAULT_ACCEPT_DECL;
 
 	private:
-		const TypePtr m_PointeeType;
+		TypePtr m_PointeeType;
 	};
 
 	class ParenType
@@ -130,12 +136,17 @@ namespace NatsuLang::Type
 			return m_InnerType;
 		}
 
+		void SetInnerType(TypePtr value) noexcept
+		{
+			m_InnerType = std::move(value);
+		}
+
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
 		DEFAULT_ACCEPT_DECL;
 
 	private:
-		const TypePtr m_InnerType;
+		TypePtr m_InnerType;
 	};
 
 	class ArrayType
@@ -152,6 +163,11 @@ namespace NatsuLang::Type
 		TypePtr GetElementType() const noexcept
 		{
 			return m_ElementType;
+		}
+
+		void SetElementType(TypePtr value) noexcept
+		{
+			m_ElementType = std::move(value);
 		}
 
 		nuLong GetSize() const noexcept
@@ -281,6 +297,11 @@ namespace NatsuLang::Type
 		TypePtr GetDeducedAsType() const noexcept
 		{
 			return m_DeducedAsType;
+		}
+
+		void SetDeducedAsType(TypePtr value) noexcept
+		{
+			m_DeducedAsType = std::move(value);
 		}
 
 		std::size_t GetHashCode() const noexcept override;

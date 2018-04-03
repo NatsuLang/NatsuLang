@@ -110,15 +110,34 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 		m_ResolveContext.Reset();
 	});
 
-	for (auto&& skippedTopLevelCompilerAction : m_SkippedExternalCompilerActions)
+	for (auto&& cachedCompilerAction : m_CachedCompilerActions)
 	{
-		pushCachedTokens(move(skippedTopLevelCompilerAction));
+		auto cachedScope = cachedCompilerAction.Scope;
+		const auto tempUnsafe = cachedCompilerAction.InUnsafeScope && !cachedScope->HasFlags(Semantic::ScopeFlags::UnsafeScope);
+		const auto recoveryScope = make_scope(
+			[this, curScope = m_Sema.GetCurrentScope(), curDeclContext = m_Sema.GetDeclContext(), tempUnsafe]
+		{
+			if (tempUnsafe)
+			{
+				m_Sema.GetCurrentScope()->RemoveFlags(Semantic::ScopeFlags::UnsafeScope);
+			}
+		m_Sema.SetDeclContext(curDeclContext);
+		m_Sema.SetCurrentScope(curScope);
+		});
+		m_Sema.SetCurrentScope(cachedScope);
+		m_Sema.SetDeclContext(cachedCompilerAction.DeclContext);
+		if (tempUnsafe)
+		{
+			cachedScope->AddFlags(Semantic::ScopeFlags::UnsafeScope);
+		}
+
+		pushCachedTokens(move(cachedCompilerAction.Tokens));
 		const auto compilerActionScope = make_scope([this]
 		{
 			popCachedTokens();
 		});
 
-		ParseCompilerAction(Declaration::Context::Global, [&decls](natRefPointer<ASTNode> const& astNode)
+		ParseCompilerAction(cachedCompilerAction.Context, [&decls](natRefPointer<ASTNode> const& astNode)
 		{
 			if (auto decl = static_cast<Declaration::DeclPtr>(astNode))
 			{
@@ -142,7 +161,7 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 		}*/
 	}
 
-	m_SkippedExternalCompilerActions.clear();
+	m_CachedCompilerActions.clear();
 
 	for (auto declPtr : m_Sema.GetCachedDeclarators())
 	{
@@ -219,19 +238,24 @@ nBool Parser::ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls)
 	return false;
 }
 
-std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration()
+void Parser::SkipSimpleCompilerAction(Declaration::Context context)
+{
+	std::vector<Token> cachedTokens;
+	SkipUntil({ TokenType::Semi }, false, &cachedTokens);
+	auto curScope = m_Sema.GetCurrentScope();
+	const auto unsafeScope = curScope->HasFlags(Semantic::ScopeFlags::UnsafeScope);
+	m_CachedCompilerActions.push_back({ context, std::move(curScope), m_Sema.GetDeclContext(), unsafeScope, move(cachedTokens) });
+}
+
+std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration(Declaration::Context context)
 {
 	switch (m_CurrentToken.GetType())
 	{
 	case TokenType::Kw_module:
 		return { ParseModuleDecl() };
 	case TokenType::Dollar:
-	{
-		std::vector<Token> cachedTokens;
-		SkipUntil({ TokenType::Semi }, false, &cachedTokens);
-		m_SkippedExternalCompilerActions.emplace_back(move(cachedTokens));
+		SkipSimpleCompilerAction(context);
 		return {};
-	}
 	case TokenType::Semi:
 		// Empty Declaration
 		ConsumeToken();
@@ -247,7 +271,7 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration()
 	case TokenType::Kw_alias:
 	{
 		SourceLocation declEnd;
-		return ParseDeclaration(Declaration::Context::Global, declEnd);
+		return ParseDeclaration(context, declEnd);
 	}
 	case TokenType::Kw_class:
 		return { ParseClassDeclaration() };
@@ -597,6 +621,10 @@ void Parser::ParseMemberSpecification(SourceLocation startLoc, Declaration::Decl
 			SourceLocation declEnd;
 			ParseDeclaration(Declaration::Context::Member, declEnd);
 		}
+		else if (m_CurrentToken.Is(TokenType::Dollar))
+		{
+			SkipSimpleCompilerAction(Declaration::Context::Member);
+		}
 		else
 		{
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
@@ -833,7 +861,7 @@ Declaration::DeclPtr Parser::ParseModuleDecl()
 
 		while (!m_CurrentToken.IsAnyOf({ TokenType::RightBrace, TokenType::Eof }))
 		{
-			ParseExternalDeclaration();
+			ParseExternalDeclaration(Declaration::Context::Member);
 		}
 
 		if (m_CurrentToken.Is(TokenType::Eof))
@@ -2692,7 +2720,7 @@ Declaration::DeclPtr Parser::ResolveDeclarator(Declaration::DeclaratorPtr decl)
 			m_Sema.SetDeclContext(curDeclContext);
 			m_Sema.SetCurrentScope(curScope);
 		});
-	m_Sema.SetCurrentScope(decl->GetDeclarationScope());
+	m_Sema.SetCurrentScope(declScope);
 	m_Sema.SetDeclContext(decl->GetDeclarationContext());
 	if (tempUnsafe)
 	{

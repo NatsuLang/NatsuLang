@@ -45,6 +45,8 @@ namespace NatsuLang
 		NatsuLib::natRefPointer<Type::AutoType> GetAutoType(Type::TypePtr deducedAsType);
 		NatsuLib::natRefPointer<Type::UnresolvedType> GetUnresolvedType(std::vector<Lex::Token>&& tokens);
 
+		void UpdateType(Type::TypePtr type);
+
 		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> GetTranslationUnit() const noexcept;
 
 		TypeInfo GetTypeInfo(Type::TypePtr const& type);

@@ -339,12 +339,15 @@ namespace NatsuLang::Compiler
 			llvm::Value* m_This;
 			std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, llvm::Value*> m_DeclMap;
 			llvm::Value* m_LastVisitedValue;
+			Declaration::DeclPtr m_LastVisitedDecl;
 			nBool m_RequiredModifiableValue;
 			std::vector<std::pair<JumpDest, JumpDest>> m_BreakContinueStack;
 			std::list<std::pair<std::size_t, NatsuLib::natRefPointer<ICleanup>>> m_CleanupStack;
 			LexicalScope* m_CurrentLexicalScope;
 			JumpDest m_ReturnBlock;
 			llvm::Value* m_ReturnValue;
+
+			void setLastVisitedResult(llvm::Value* lastVisitedValue, Declaration::DeclPtr lastVisitedDecl = nullptr);
 		};
 
 	public:
@@ -406,6 +409,7 @@ namespace NatsuLang::Compiler
 		llvm::Type* getCorrespondingType(Declaration::DeclPtr const& decl);
 
 		llvm::Type* buildFunctionType(Type::TypePtr const& resultType, NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& params);
+		llvm::Type* buildFunctionTypeWithParamDecl(Type::TypePtr const& resultType, NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<Declaration::ParmVarDecl>>> const& params);
 		llvm::Type* buildFunctionType(NatsuLib::natRefPointer<Declaration::FunctionDecl> const& funcDecl);
 		llvm::Type* buildFunctionType(NatsuLib::natRefPointer<Declaration::MethodDecl> const& methodDecl);
 
