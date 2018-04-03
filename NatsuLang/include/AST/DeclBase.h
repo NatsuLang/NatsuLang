@@ -169,7 +169,7 @@ namespace NatsuLang::Declaration
 		{
 		}
 
-		~DeclContext() = default;
+		~DeclContext();
 
 	public:
 		Decl::DeclType GetType() const noexcept

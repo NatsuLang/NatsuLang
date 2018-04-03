@@ -1941,7 +1941,7 @@ nBool Parser::ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::
 nBool Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipIdentifier)
 {
 	const auto context = decl->GetContext();
-	if (!skipIdentifier)
+	if (!skipIdentifier && context != Declaration::Context::TypeName)
 	{
 		if (m_CurrentToken.Is(TokenType::Identifier))
 		{

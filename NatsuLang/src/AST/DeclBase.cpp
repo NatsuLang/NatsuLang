@@ -164,6 +164,12 @@ void Decl::SetNextDeclInContext(natRefPointer<Decl> value) noexcept
 	m_NextDeclInContext = value;
 }
 
+DeclContext::~DeclContext()
+{
+	// 手动删除，以免爆栈
+	RemoveAllDecl();
+}
+
 const char* DeclContext::GetTypeName() const noexcept
 {
 	return getTypeName(m_Type);

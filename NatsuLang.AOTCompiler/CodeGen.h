@@ -321,7 +321,7 @@ namespace NatsuLang::Compiler
 			void EvaluateAsBool(Expression::ExprPtr const& expr);
 
 			llvm::Value* ConvertScalarTo(llvm::Value* from, Type::TypePtr fromType, Type::TypePtr toType);
-			llvm::Value* ConvertScalarToBool(llvm::Value* from, NatsuLib::natRefPointer<Type::BuiltinType> const& fromType);
+			llvm::Value* ConvertScalarToBool(llvm::Value* from, const Type::TypePtr& fromType);
 
 			CleanupIterator GetCleanupStackTop() const noexcept;
 			nBool IsCleanupStackEmpty() const noexcept;

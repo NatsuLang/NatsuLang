@@ -1128,7 +1128,23 @@ void AotCompiler::AotStmtVisitor::VisitUnaryOperator(natRefPointer<Expression::U
 		break;
 	case Expression::UnaryOperationType::Minus:
 		EvaluateValue(operand);
-		m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateNeg(m_LastVisitedValue);
+		if (const auto builtinType = Type::Type::GetUnderlyingType(operand->GetExprType()).Cast<Type::BuiltinType>())
+		{
+			if (builtinType->IsIntegerType())
+			{
+				m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateNeg(m_LastVisitedValue);
+			}
+			else
+			{
+				assert(builtinType->IsFloatingType());
+				m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateFNeg(m_LastVisitedValue);
+			}
+		}
+		else
+		{
+			nat_Throw(NotImplementedException);
+		}
+
 		break;
 	case Expression::UnaryOperationType::Not:
 		EvaluateValue(operand);
@@ -2193,23 +2209,39 @@ llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarTo(llvm::Value* from, Typ
 	nat_Throw(NotImplementedException);
 }
 
-llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarToBool(llvm::Value* from, natRefPointer<Type::BuiltinType> const& fromType)
+llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarToBool(llvm::Value* from, const Type::TypePtr& fromType)
 {
 	assert(from && fromType);
 
-	if (fromType->GetBuiltinClass() == Type::BuiltinType::Bool)
-	{
-		return from;
-	}
+	const auto type = Type::Type::GetUnderlyingType(fromType);
 
-	if (fromType->IsFloatingType())
+	switch (type->GetType())
 	{
-		const auto floatingZero = llvm::ConstantFP::getNullValue(from->getType());
-		return m_Compiler.m_IRBuilder.CreateFCmpUNE(from, floatingZero, "floatingtobool");
-	}
+	case Type::Type::Builtin:
+	{
+		const auto builtinType = type.UnsafeCast<Type::BuiltinType>();
+		if (builtinType->GetBuiltinClass() == Type::BuiltinType::Bool)
+		{
+			return from;
+		}
 
-	assert(fromType->IsIntegerType());
-	return m_Compiler.m_IRBuilder.CreateIsNotNull(from, "inttobool");
+		if (builtinType->IsFloatingType())
+		{
+			const auto floatingZero = llvm::ConstantFP::getNullValue(from->getType());
+			return m_Compiler.m_IRBuilder.CreateFCmpUNE(from, floatingZero, "floatingtobool");
+		}
+
+		assert(builtinType->IsIntegerType());
+		return m_Compiler.m_IRBuilder.CreateIsNotNull(from, "inttobool");
+	}
+	case Type::Type::Pointer:
+		return m_Compiler.m_IRBuilder.CreateIsNotNull(from, "ptrtobool");
+	case Type::Type::Enum:
+		return m_Compiler.m_IRBuilder.CreateIsNotNull(from, "inttobool");
+	default:
+		// TODO: 由前端检查
+		nat_Throw(AotCompilerException, u8"无法对这个类型执行此操作"_nv);
+	}
 }
 
 AotCompiler::AotStmtVisitor::CleanupIterator AotCompiler::AotStmtVisitor::GetCleanupStackTop() const noexcept
@@ -2524,7 +2556,7 @@ void AotCompiler::prewarm()
 	const auto compilerNamespace = topLevelNamespace->GetSubNamespace(u8"Compiler"_nv);
 	compilerNamespace->RegisterAction(make_ref<ActionCallingConvention>());
 
-	m_Sema.RegisterAttributeSerializer(u8"CallingConvention", make_ref<CallingConventionAttribute::CallingConventionAttributeSerializer>());
+	m_Sema.RegisterAttributeSerializer(u8"CallingConvention"_nv, make_ref<CallingConventionAttribute::CallingConventionAttributeSerializer>());
 
 	Lex::Token dummy;
 	const auto nativeModule = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo("Native", dummy));
@@ -2539,6 +2571,11 @@ void AotCompiler::prewarm()
 	registerNativeType<unsigned long>(u8"ULong"_nv);
 	registerNativeType<long long>(u8"LongLong"_nv);
 	registerNativeType<unsigned long long>(u8"ULongLong"_nv);
+
+	m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo(u8"SizeType"_nv, dummy),
+		m_AstContext.GetSizeType());
+	m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo(u8"PtrDiffType"_nv, dummy),
+		m_AstContext.GetPtrDiffType());
 
 #ifdef _WIN32
 	const auto win32Module = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo("Win32", dummy));
