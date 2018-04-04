@@ -43,12 +43,7 @@ namespace NatsuLang
 
 	constexpr nBool operator<(SourceLocation const& loc1, SourceLocation const& loc2) noexcept
 	{
-		if (loc1.GetFileID() != loc2.GetFileID())
-		{
-			return loc1.GetFileID() < loc2.GetFileID();
-		}
-
-		return loc1.GetPos() < loc2.GetPos();
+		return loc1.GetFileID() < loc2.GetFileID() && loc1.GetPos() < loc2.GetPos();
 	}
 
 	constexpr nBool operator==(SourceLocation const& loc1, SourceLocation const& loc2) noexcept

@@ -2651,12 +2651,11 @@ Linq<Valued<Expression::ExprPtr>> Sema::makeArgsFromDecl(
 	std::size_t paramCount)
 {
 	const auto commonCount = std::min(paramCount, argCount);
-	const auto baseQuery = makeArgsFromType(argExprs, argCount, paramDecls.select([](natRefPointer<Declaration::ParmVarDecl> const& param)
+
+	return makeArgsFromType(argExprs, argCount, paramDecls.select([](natRefPointer<Declaration::ParmVarDecl> const& param)
 	{
 		return param->GetValueType();
-	}), paramCount);
-
-	return baseQuery.concat(paramDecls.skip(commonCount).select([](natRefPointer<Declaration::ParmVarDecl> const& param)
+	}), paramCount).concat(paramDecls.skip(commonCount).select([](natRefPointer<Declaration::ParmVarDecl> const& param)
 	{
 		return param->GetInitializer();
 	}));

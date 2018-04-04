@@ -7,6 +7,11 @@ using namespace NatsuLang;
 
 nuInt SourceManager::GetFileID(nStrView uri)
 {
+	return GetFileID(Uri{ uri });
+}
+
+nuInt SourceManager::GetFileID(Uri const& uri)
+{
 	auto iter = m_FileIDMap.find(uri);
 	if (iter != m_FileIDMap.end())
 	{
@@ -14,15 +19,18 @@ nuInt SourceManager::GetFileID(nStrView uri)
 	}
 
 	const auto freeID = getFreeID();
-	const auto ret = m_FileContentMap.emplace(freeID, std::variant<nStrView, nString>{ std::in_place_index<0>, uri });
+	const auto ret = m_FileContentMap.emplace(std::piecewise_construct,
+		std::make_tuple(freeID),
+		std::make_tuple(std::in_place_index<0>, uri));
+
 	if (!ret.second)
 	{
 		return 0;
 	}
 
 	nBool succeed;
-	tie(iter, succeed) = m_FileIDMap.emplace(uri, freeID);
-	
+	std::tie(iter, succeed) = m_FileIDMap.emplace(uri, freeID);
+
 	if (succeed)
 	{
 		return freeID;
@@ -32,19 +40,14 @@ nuInt SourceManager::GetFileID(nStrView uri)
 	return 0;
 }
 
-nuInt SourceManager::GetFileID(Uri const& uri)
-{
-	return GetFileID(uri.GetUnderlyingString());
-}
-
 nStrView SourceManager::FindFileUri(nuInt fileID) const
 {
-	if (const auto iter = std::find_if(m_FileIDMap.cbegin(), m_FileIDMap.cend(), [fileID](std::pair<nStrView, nuInt> const& pair)
+	if (const auto iter = std::find_if(m_FileIDMap.cbegin(), m_FileIDMap.cend(), [fileID](std::pair<Uri, nuInt> const& pair)
 	{
 		return pair.second == fileID;
 	}); iter != m_FileIDMap.cend())
 	{
-		return iter->first;
+		return iter->first.GetUnderlyingString();
 	}
 
 	return {};
@@ -86,7 +89,7 @@ std::pair<nBool, nStrView> SourceManager::GetFileContent(nuInt fileID)
 	{
 		return { false, {} };
 	}
-	
+
 	std::vector<nByte> fileContent;
 	nByte buffer[1024];
 	while (true)
@@ -98,9 +101,8 @@ std::pair<nBool, nStrView> SourceManager::GetFileContent(nuInt fileID)
 		}
 		fileContent.insert(fileContent.end(), buffer, buffer + readBytes);
 	}
-	
-	iter->second = std::variant<nStrView, nString>{ std::in_place_index<1>,
-		RuntimeEncoding<nString::UsingStringType>::Encode(fileContent.data(), fileContent.size(), m_Encoding) };
+
+	iter->second.emplace<1>(RuntimeEncoding<nString::UsingStringType>::Encode(fileContent.data(), fileContent.size(), m_Encoding));
 
 	return { true, std::get<1>(iter->second) };
 }

@@ -2353,6 +2353,11 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 		{
 			if (m_CurrentToken.Is(TokenType::Ellipsis))
 			{
+				if (decl->GetSafety() != Specifier::Safety::Unsafe)
+				{
+					m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnsafeOperationInNotUnsafeScope, m_CurrentToken.GetLocation());
+				}
+
 				hasVarArg = true;
 				mayBeParenType = false;
 				ConsumeToken();
