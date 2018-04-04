@@ -433,6 +433,16 @@ namespace NatsuLang::Semantic
 		                                      Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType);
 		Type::TypePtr handleFloatConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType,
 		                                    Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType);
+
+		NatsuLib::Linq<NatsuLib::Valued<Expression::ExprPtr>> makeArgsFromType(NatsuLib::Linq<NatsuLib::Valued<Expression::ExprPtr>> const& argExprs,
+			std::size_t argCount,
+			NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& paramTypes,
+			std::size_t paramCount);
+
+		NatsuLib::Linq<NatsuLib::Valued<Expression::ExprPtr>> makeArgsFromDecl(NatsuLib::Linq<NatsuLib::Valued<Expression::ExprPtr>> const& argExprs,
+			std::size_t argCount,
+			NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<Declaration::ParmVarDecl>>> const& paramDecls,
+			std::size_t paramCount);
 	};
 
 	class LookupResult

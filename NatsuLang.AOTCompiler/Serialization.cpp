@@ -356,7 +356,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 
 				if (const auto& unresolved = aliasAs.Cast<UnresolvedId>())
 				{
-					m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [ret](natRefPointer<Declaration::NamedDecl> decl)
+					m_UnresolvedDeclFixers[unresolved->GetName()].emplace(ret, [ret](natRefPointer<Declaration::NamedDecl> decl)
 					{
 						if (const auto tag = decl.Cast<Declaration::TypeDecl>())
 						{
@@ -474,7 +474,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 					auto enumDecl = tagDecl.UnsafeCast<Declaration::EnumDecl>();
 					if (const auto& unresolved = underlyingType.Cast<UnresolvedId>())
 					{
-						m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [enumDecl](natRefPointer<Declaration::NamedDecl> const& decl)
+						m_UnresolvedDeclFixers[unresolved->GetName()].emplace(enumDecl, [enumDecl](natRefPointer<Declaration::NamedDecl> const& decl)
 						{
 							enumDecl->SetUnderlyingType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
 						});
@@ -874,7 +874,7 @@ ASTNodePtr Deserializer::DeserializeType()
 		if (const auto unresolved = pointeeType.Cast<UnresolvedId>())
 		{
 			auto retType = m_Sema.GetASTContext().GetPointerType(getUnresolvedType(unresolved->GetName()));
-			m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
+			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
 			{
 				retType->SetPointeeType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
 				m_Sema.GetASTContext().UpdateType(retType);
@@ -903,7 +903,7 @@ ASTNodePtr Deserializer::DeserializeType()
 		if (const auto unresolved = elementType.Cast<UnresolvedId>())
 		{
 			auto retType = m_Sema.GetASTContext().GetArrayType(getUnresolvedType(unresolved->GetName()), arraySize);
-			m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
+			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
 			{
 				retType->SetElementType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
 				m_Sema.GetASTContext().UpdateType(retType);
@@ -965,7 +965,7 @@ ASTNodePtr Deserializer::DeserializeType()
 		if (const auto unresolved = innerType.Cast<UnresolvedId>())
 		{
 			auto retType = m_Sema.GetASTContext().GetParenType(getUnresolvedType(unresolved->GetName()));
-			m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
+			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
 			{
 				retType->SetInnerType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
 				m_Sema.GetASTContext().UpdateType(retType);
@@ -1008,7 +1008,7 @@ ASTNodePtr Deserializer::DeserializeType()
 		if (const auto unresolved = deducedAsType.Cast<UnresolvedId>())
 		{
 			auto retType = m_Sema.GetASTContext().GetAutoType(getUnresolvedType(unresolved->GetName()));
-			m_UnresolvedDeclFixers.emplace(unresolved->GetName(), [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
+			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
 			{
 				retType->SetDeducedAsType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
 				m_Sema.GetASTContext().UpdateType(retType);
@@ -1108,7 +1108,11 @@ void Deserializer::tryResolve(natRefPointer<Declaration::NamedDecl> const& named
 {
 	if (const auto iter = m_UnresolvedDeclFixers.find(GetQualifiedName(namedDecl)); iter != m_UnresolvedDeclFixers.end())
 	{
-		iter->second(namedDecl);
+		for (const auto& fixer : iter->second)
+		{
+			fixer.second(namedDecl);
+		}
+
 		m_UnresolvedDeclFixers.erase(iter);
 	}
 }

@@ -10,6 +10,9 @@
 #include "AST/Expression.h"
 #include "Parse/Parser.h"
 
+#undef max
+#undef min
+
 using namespace NatsuLib;
 using namespace NatsuLang;
 using namespace Semantic;
@@ -1709,6 +1712,7 @@ Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expre
 	func = func->IgnoreParens();
 
 	const auto exprType = func->GetExprType();
+	const auto args = argExprs.Cast<std::vector<Expression::ExprPtr>>();
 
 	// 是函数指针
 	if (exprType->GetType() == Type::Type::Pointer)
@@ -1722,20 +1726,19 @@ Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expre
 		}
 		
 		const auto fnType = pointeeType.UnsafeCast<Type::FunctionType>();
+		if (!fnType->HasVarArg() && args.size() > fnType->GetParameterCount())
+		{
+			// TODO: 报告错误
+			return nullptr;
+		}
 
-		// TODO: 处理有默认参数的情况
-		return make_ref<Expression::CallExpr>(std::move(func), argExprs.zip(fnType->GetParameterTypes()).select(
-												  [this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
-												  {
-													  return ImpCastExprToType(
-														  pair.first, pair.second,
-														  getCastType(pair.first, pair.second, true));
-												  }), fnType->GetResultType(), rloc);
+		return make_ref<Expression::CallExpr>(std::move(func),
+			makeArgsFromType(from(args), args.size(), fnType->GetParameterTypes(), fnType->GetParameterCount()), fnType->GetResultType(), rloc);
 	}
 
 	if (auto nonMemberFunc = func.Cast<Expression::DeclRefExpr>())
 	{
-		const auto refFn = nonMemberFunc->GetDecl();
+		const auto refFn = nonMemberFunc->GetDecl().Cast<Declaration::FunctionDecl>();
 		if (!refFn)
 		{
 			return nullptr;
@@ -1747,14 +1750,14 @@ Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expre
 			return nullptr;
 		}
 
-		// TODO: 处理有默认参数的情况
-		return make_ref<Expression::CallExpr>(std::move(nonMemberFunc), argExprs.zip(fnType->GetParameterTypes()).select(
-												  [this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
-												  {
-													  return ImpCastExprToType(
-														  pair.first, pair.second,
-														  getCastType(pair.first, pair.second, true));
-												  }), fnType->GetResultType(), rloc);
+		if (!fnType->HasVarArg() && args.size() > refFn->GetParamCount())
+		{
+			// TODO: 报告错误
+			return nullptr;
+		}
+
+		return make_ref<Expression::CallExpr>(std::move(nonMemberFunc),
+			makeArgsFromDecl(from(args), args.size(), refFn->GetParams(), refFn->GetParamCount()), fnType->GetResultType(), rloc);
 	}
 
 	if (auto memberFunc = func.Cast<Expression::MemberExpr>())
@@ -1777,13 +1780,14 @@ Expression::ExprPtr Sema::ActOnCallExpr(natRefPointer<Scope> const& scope, Expre
 			return nullptr;
 		}
 
-		return make_ref<Expression::MemberCallExpr>(std::move(memberFunc), argExprs.zip(fnType->GetParameterTypes()).select(
-														[this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
-														{
-															return ImpCastExprToType(
-																pair.first, pair.second,
-																getCastType(pair.first, pair.second, true));
-														}), fnType->GetResultType(), rloc);
+		if (!fnType->HasVarArg() && args.size() > refFn->GetParamCount())
+		{
+			// TODO: 报告错误
+			return nullptr;
+		}
+
+		return make_ref<Expression::MemberCallExpr>(std::move(memberFunc),
+			makeArgsFromDecl(from(args), args.size(), refFn->GetParams(), refFn->GetParamCount()), fnType->GetResultType(), rloc);
 	}
 
 	// TODO: 报告错误
@@ -2625,6 +2629,37 @@ Type::TypePtr Sema::handleFloatConversion(Expression::ExprPtr& leftOperand, Type
 	assert(rhsFloat);
 	leftOperand = ImpCastExprToType(std::move(leftOperand), rightOperandType, Expression::CastType::IntegralToFloating);
 	return rightOperandType;
+}
+
+Linq<Valued<Expression::ExprPtr>> Sema::makeArgsFromType(
+	Linq<Valued<Expression::ExprPtr>> const& argExprs, std::size_t argCount,
+	Linq<Valued<Type::TypePtr>> const& paramTypes, std::size_t paramCount)
+{
+	const auto commonCount = std::min(paramCount, argCount);
+	return argExprs.take(commonCount).zip(paramTypes.take(commonCount)).select(
+		[this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
+	{
+		return ImpCastExprToType(
+			pair.first, pair.second,
+			getCastType(pair.first, pair.second, true));
+	}).concat(argExprs.skip(std::min(commonCount, argCount)));
+}
+
+Linq<Valued<Expression::ExprPtr>> Sema::makeArgsFromDecl(
+	Linq<Valued<Expression::ExprPtr>> const& argExprs, std::size_t argCount,
+	Linq<Valued<natRefPointer<Declaration::ParmVarDecl>>> const& paramDecls,
+	std::size_t paramCount)
+{
+	const auto commonCount = std::min(paramCount, argCount);
+	const auto baseQuery = makeArgsFromType(argExprs, argCount, paramDecls.select([](natRefPointer<Declaration::ParmVarDecl> const& param)
+	{
+		return param->GetValueType();
+	}), paramCount);
+
+	return baseQuery.concat(paramDecls.skip(commonCount).select([](natRefPointer<Declaration::ParmVarDecl> const& param)
+	{
+		return param->GetInitializer();
+	}));
 }
 
 LookupResult::LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType, nBool isCodeCompletion)

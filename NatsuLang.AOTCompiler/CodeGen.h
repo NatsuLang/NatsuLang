@@ -408,8 +408,8 @@ namespace NatsuLang::Compiler
 		llvm::Type* getCorrespondingType(Type::TypePtr const& type);
 		llvm::Type* getCorrespondingType(Declaration::DeclPtr const& decl);
 
-		llvm::Type* buildFunctionType(Type::TypePtr const& resultType, NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& params);
-		llvm::Type* buildFunctionTypeWithParamDecl(Type::TypePtr const& resultType, NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<Declaration::ParmVarDecl>>> const& params);
+		llvm::Type* buildFunctionType(Type::TypePtr const& resultType, NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& params, nBool hasVarArg = false);
+		llvm::Type* buildFunctionTypeWithParamDecl(Type::TypePtr const& resultType, NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<Declaration::ParmVarDecl>>> const& params, nBool hasVarArg = false);
 		llvm::Type* buildFunctionType(NatsuLib::natRefPointer<Declaration::FunctionDecl> const& funcDecl);
 		llvm::Type* buildFunctionType(NatsuLib::natRefPointer<Declaration::MethodDecl> const& methodDecl);
 

@@ -841,6 +841,11 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 {
 	EvaluateValue(expr->GetCallee());
 	const auto callee = m_LastVisitedValue;
+	natRefPointer<Declaration::FunctionDecl> funcDecl;
+	if (auto func = m_LastVisitedDecl.Cast<Declaration::FunctionDecl>())
+	{
+		funcDecl = std::move(func);
+	}
 	llvm::FunctionType* calleeType;
 	if (const auto ptrType = llvm::dyn_cast_or_null<llvm::PointerType>(m_LastVisitedValue->getType()); ptrType &&
 		llvm::isa<llvm::FunctionType>(ptrType->getElementType()))
@@ -854,10 +859,11 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 
 	assert(callee);
 
-	if (calleeType->getNumParams() != expr->GetArgCount())
-	{
-		nat_Throw(AotCompilerException, u8"参数数量不匹配，这可能是默认参数功能未实现导致的"_nv);
-	}
+	// TODO: 由前端检查
+	//if (calleeType->getNumParams() != expr->GetArgCount())
+	//{
+	//	nat_Throw(AotCompilerException, u8"参数数量不匹配，这可能是默认参数功能未实现导致的"_nv);
+	//}
 
 	std::vector<llvm::Value*> args;
 	args.reserve(expr->GetArgCount());
@@ -870,6 +876,18 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 		EvaluateValue(arg);
 		assert(m_LastVisitedValue);
 		args.emplace_back(m_LastVisitedValue);
+	}
+
+	// 函数指针不支持默认参数
+	// TODO: 禁止不在末尾的默认参数及在可变参数之前的默认参数
+	if (funcDecl && funcDecl->GetParamCount() > args.size())
+	{
+		for (auto&& param : funcDecl->GetParams().skip(args.size()))
+		{
+			EvaluateValue(param->GetInitializer());
+			assert(m_LastVisitedValue);
+			args.emplace_back(m_LastVisitedValue);
+		}
 	}
 
 	const auto callInst = m_Compiler.m_IRBuilder.CreateCall(callee, args);
@@ -895,7 +913,13 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::MemberCallExpr> const& expr)
 {
 	EvaluateValue(expr->GetCallee());
+	// 暂时不支持成员函数指针
 	const auto callee = llvm::cast<llvm::Function>(m_LastVisitedValue);
+	natRefPointer<Declaration::MethodDecl> funcDecl;
+	if (auto func = m_LastVisitedDecl.Cast<Declaration::MethodDecl>())
+	{
+		funcDecl = std::move(func);
+	}
 	assert(callee);
 
 	const auto baseObj = expr->GetImplicitObjectArgument();
@@ -923,6 +947,18 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 		EvaluateValue(arg);
 		assert(m_LastVisitedValue);
 		args.emplace_back(m_LastVisitedValue);
+	}
+
+	// 函数指针不支持默认参数
+	// TODO: 禁止不在末尾的默认参数及在可变参数之前的默认参数
+	if (funcDecl)
+	{
+		for (auto&& param : funcDecl->GetParams().skip(args.size()))
+		{
+			EvaluateValue(param->GetInitializer());
+			assert(m_LastVisitedValue);
+			args.emplace_back(m_LastVisitedValue);
+		}
 	}
 
 	const auto callInst = m_Compiler.m_IRBuilder.CreateCall(callee, args);
@@ -1052,7 +1088,7 @@ void AotCompiler::AotStmtVisitor::VisitMemberExpr(natRefPointer<Expression::Memb
 			nat_Throw(AotCompilerException, u8"引用了不存在的成员"_nv);
 		}
 
-		setLastVisitedResult(iter->second);
+		setLastVisitedResult(iter->second, memberDecl);
 	}
 	else if (const auto field = memberDecl.Cast<Declaration::FieldDecl>())
 	{
@@ -1087,7 +1123,7 @@ void AotCompiler::AotStmtVisitor::VisitMemberExpr(natRefPointer<Expression::Memb
 		const auto memberPtr = m_Compiler.m_IRBuilder.CreateGEP(baseValue,
 			{ llvm::ConstantInt::getNullValue(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext)), llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Compiler.m_LLVMContext), fieldIndex) },
 			llvm::StringRef{ fieldName.data(), fieldName.size() });
-		setLastVisitedResult(m_RequiredModifiableValue ? memberPtr : m_Compiler.m_IRBuilder.CreateLoad(memberPtr, llvm::StringRef{ fieldName.data(), fieldName.size() }));
+		setLastVisitedResult(m_RequiredModifiableValue ? memberPtr : m_Compiler.m_IRBuilder.CreateLoad(memberPtr, llvm::StringRef{ fieldName.data(), fieldName.size() }), memberDecl);
 	}
 	else
 	{
@@ -2738,7 +2774,7 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 	case Type::Type::Function:
 	{
 		const auto functionType = underlyingType.UnsafeCast<Type::FunctionType>();
-		ret = buildFunctionType(functionType->GetResultType(), functionType->GetParameterTypes());
+		ret = buildFunctionType(functionType->GetResultType(), functionType->GetParameterTypes(), functionType->HasVarArg());
 		break;
 	}
 	case Type::Type::Class:
@@ -2806,30 +2842,30 @@ llvm::Type* AotCompiler::getCorrespondingType(Declaration::DeclPtr const& decl)
 	return ret;
 }
 
-llvm::Type* AotCompiler::buildFunctionType(Type::TypePtr const& resultType, Linq<Valued<Type::TypePtr>> const& params)
+llvm::Type* AotCompiler::buildFunctionType(Type::TypePtr const& resultType, Linq<Valued<Type::TypePtr>> const& params, nBool hasVarArg)
 {
 	const auto args{ params.select([this](Type::TypePtr const& paramType)
 	{
 		return getCorrespondingType(paramType);
 	}).Cast<std::vector<llvm::Type*>>() };
 
-	return llvm::FunctionType::get(getCorrespondingType(resultType), args, false);
+	return llvm::FunctionType::get(getCorrespondingType(resultType), args, hasVarArg);
 }
 
-llvm::Type* AotCompiler::buildFunctionTypeWithParamDecl(Type::TypePtr const& resultType, Linq<Valued<natRefPointer<Declaration::ParmVarDecl>>> const& params)
+llvm::Type* AotCompiler::buildFunctionTypeWithParamDecl(Type::TypePtr const& resultType, Linq<Valued<natRefPointer<Declaration::ParmVarDecl>>> const& params, nBool hasVarArg)
 {
 	const auto args{ params.select([this](natRefPointer<Declaration::ParmVarDecl> const& paramDecl)
 	{
 		return getCorrespondingType(paramDecl);
 	}).Cast<std::vector<llvm::Type*>>() };
 
-	return llvm::FunctionType::get(getCorrespondingType(resultType), args, false);
+	return llvm::FunctionType::get(getCorrespondingType(resultType), args, hasVarArg);
 }
 
 llvm::Type* AotCompiler::buildFunctionType(natRefPointer<Declaration::FunctionDecl> const& funcDecl)
 {
 	const auto functionType = funcDecl->GetValueType().UnsafeCast<Type::FunctionType>();
-	return buildFunctionType(functionType->GetResultType(), functionType->GetParameterTypes());
+	return buildFunctionType(functionType->GetResultType(), functionType->GetParameterTypes(), functionType->HasVarArg());
 }
 
 llvm::Type* AotCompiler::buildFunctionType(natRefPointer<Declaration::MethodDecl> const& methodDecl)
@@ -2838,7 +2874,7 @@ llvm::Type* AotCompiler::buildFunctionType(natRefPointer<Declaration::MethodDecl
 	const auto classDecl = dynamic_cast<Declaration::ClassDecl*>(Declaration::Decl::CastFromDeclContext(methodDecl->GetContext()));
 	assert(classDecl);
 	return buildFunctionType(functionType->GetResultType(), from_values({ m_AstContext.GetPointerType(classDecl->GetTypeForDecl()).UnsafeCast<Type::Type>() })
-		.concat(functionType->GetParameterTypes()));
+		.concat(functionType->GetParameterTypes()), functionType->HasVarArg());
 }
 
 llvm::Type* AotCompiler::buildClassType(natRefPointer<Declaration::ClassDecl> const& classDecl)

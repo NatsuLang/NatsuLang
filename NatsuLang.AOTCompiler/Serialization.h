@@ -83,7 +83,7 @@ namespace NatsuLang::Serialization
 		std::unordered_map<nString, Declaration::Decl::DeclType> m_DeclTypeMap;
 		std::unordered_map<nString, Type::Type::TypeClass> m_TypeClassMap;
 
-		std::unordered_map<nString, std::function<void(NatsuLib::natRefPointer<Declaration::NamedDecl> const&)>> m_UnresolvedDeclFixers;
+		std::unordered_map<nString, std::unordered_map<ASTNodePtr, std::function<void(NatsuLib::natRefPointer<Declaration::NamedDecl> const&)>>> m_UnresolvedDeclFixers;
 
 		nBool m_IsImporting;
 
