@@ -951,7 +951,7 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 
 	// 函数指针不支持默认参数
 	// TODO: 禁止不在末尾的默认参数及在可变参数之前的默认参数
-	if (funcDecl)
+	if (funcDecl && funcDecl->GetParamCount() > args.size())
 	{
 		for (auto&& param : funcDecl->GetParams().skip(args.size()))
 		{

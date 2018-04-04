@@ -372,7 +372,7 @@ nBool ClassType::EqualTo(TypePtr const& other) const noexcept
 		return false;
 	}
 
-	return static_cast<TagType const&>(*this).EqualTo(other);
+	return TagType::EqualTo(other);
 }
 
 EnumType::EnumType(natRefPointer<Declaration::EnumDecl> decl)
@@ -391,7 +391,7 @@ nBool EnumType::EqualTo(TypePtr const& other) const noexcept
 		return false;
 	}
 
-	return static_cast<TagType const&>(*this).EqualTo(other);
+	return TagType::EqualTo(other);
 }
 
 DeducedType::~DeducedType()
@@ -425,7 +425,7 @@ nBool AutoType::EqualTo(TypePtr const& other) const noexcept
 		return false;
 	}
 
-	return static_cast<DeducedType const&>(*this).EqualTo(other);
+	return DeducedType::EqualTo(other);
 }
 
 UnresolvedType::~UnresolvedType()
