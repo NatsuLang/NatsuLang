@@ -340,12 +340,12 @@ void ActionSizeOf::EndAction(natRefPointer<IActionContext> const& context,
 
 	if (output)
 	{
-		output(make_ref<Expression::IntegerLiteral>(actionContext->Value.value(), actionContext->ASTContext.GetSizeType(), SourceLocation{}));
+		output(make_ref<Expression::IntegerLiteral>(actionContext->Value.value(), actionContext->Context.GetSizeType(), SourceLocation{}));
 	}
 }
 
-ActionSizeOf::ActionSizeOfContext::ActionSizeOfContext(NatsuLang::ASTContext& astContext)
-	: ASTContext{ astContext }
+ActionSizeOf::ActionSizeOfContext::ActionSizeOfContext(ASTContext& astContext)
+	: Context{ astContext }
 {
 }
 
@@ -373,7 +373,7 @@ void ActionSizeOf::ActionSizeOfContext::AddArgument(natRefPointer<ASTNode> const
 		return;
 	}
 
-	Value.emplace(ASTContext.GetTypeInfo(type).Size);
+	Value.emplace(Context.GetTypeInfo(type).Size);
 }
 
 const natRefPointer<IArgumentRequirement> ActionAlignOf::ActionAlignOfContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Type }) };
@@ -409,12 +409,12 @@ void ActionAlignOf::EndAction(natRefPointer<IActionContext> const& context,
 
 	if (output)
 	{
-		output(make_ref<Expression::IntegerLiteral>(actionContext->Value.value(), actionContext->ASTContext.GetSizeType(), SourceLocation{}));
+		output(make_ref<Expression::IntegerLiteral>(actionContext->Value.value(), actionContext->Context.GetSizeType(), SourceLocation{}));
 	}
 }
 
 ActionAlignOf::ActionAlignOfContext::ActionAlignOfContext(NatsuLang::ASTContext& astContext)
-	: ASTContext{ astContext }
+	: Context{ astContext }
 {
 }
 
@@ -442,7 +442,7 @@ void ActionAlignOf::ActionAlignOfContext::AddArgument(natRefPointer<ASTNode> con
 		return;
 	}
 
-	Value.emplace(ASTContext.GetTypeInfo(type).Align);
+	Value.emplace(Context.GetTypeInfo(type).Align);
 }
 
 ActionCreateAt::ActionCreateAtArgumentRequirement::ActionCreateAtArgumentRequirement()

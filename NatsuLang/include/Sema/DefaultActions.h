@@ -177,7 +177,7 @@ namespace NatsuLang
 			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
 
 			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
-			ASTContext& ASTContext;
+			ASTContext& Context;
 			std::optional<nuLong> Value;
 		};
 	};
@@ -205,7 +205,7 @@ namespace NatsuLang
 			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
 
 			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
-			ASTContext& ASTContext;
+			ASTContext& Context;
 			std::optional<nuLong> Value;
 		};
 	};
