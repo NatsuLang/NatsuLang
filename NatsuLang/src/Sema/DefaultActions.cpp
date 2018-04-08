@@ -317,7 +317,7 @@ ActionCreateAt::ActionCreateAtArgumentRequirement::~ActionCreateAtArgumentRequir
 
 CompilerActionArgumentType ActionCreateAt::ActionCreateAtArgumentRequirement::GetExpectedArgumentType(std::size_t i)
 {
-	return i ? CompilerActionArgumentType::Statement | CompilerActionArgumentType::Optional : CompilerActionArgumentType::Type;
+	return i ? CompilerActionArgumentType::Statement | CompilerActionArgumentType::Optional : CompilerActionArgumentType::Statement;
 }
 
 const natRefPointer<IArgumentRequirement> ActionCreateAt::ActionCreateAtContext::s_ArgumentRequirement{ make_ref<ActionCreateAtArgumentRequirement>() };

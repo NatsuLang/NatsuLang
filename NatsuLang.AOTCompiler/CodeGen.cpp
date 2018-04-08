@@ -927,7 +927,17 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 	assert(callee);
 
 	const auto baseObj = expr->GetImplicitObjectArgument();
-	EvaluateAsModifiableValue(baseObj);
+	if (Type::Type::GetUnderlyingType(baseObj->GetExprType())->GetType() == Type::Type::Pointer)
+	{
+		// 是指针，直接取值
+		EvaluateValue(baseObj);
+	}
+	else
+	{
+		// 是对象，取地址
+		EvaluateAsModifiableValue(baseObj);
+	}
+
 	const auto baseObjValue = m_LastVisitedValue;
 
 	assert(callee && baseObjValue);

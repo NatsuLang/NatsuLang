@@ -2453,6 +2453,8 @@ void Sema::prewarming()
 	compilerNamespace->RegisterAction(make_ref<ActionDumpIf>());
 	compilerNamespace->RegisterAction(make_ref<ActionIsDefined>());
 	compilerNamespace->RegisterAction(make_ref<ActionTypeOf>());
+	compilerNamespace->RegisterAction(make_ref<ActionCreateAt>());
+	compilerNamespace->RegisterAction(make_ref<ActionDestroyAt>());
 
 	m_ImportedAttribute = make_ref<ImportedAttribute>();
 	RegisterAttributeSerializer(u8"Imported"_nv, make_ref<ImportedAttributeSerializer>(*this));
