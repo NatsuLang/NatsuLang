@@ -342,7 +342,7 @@ ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 	case Type::Type::Class:
 	{
 		const auto classLayout = GetClassLayout(type.UnsafeCast<Type::ClassType>()->GetDecl());
-		return { classLayout.Size * 8, classLayout.Align * 8 };
+		return { classLayout.Size, classLayout.Align };
 	}
 	case Type::Type::Enum:
 	{

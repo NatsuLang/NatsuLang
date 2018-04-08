@@ -307,6 +307,144 @@ void ActionTypeOf::ActionTypeOfContext::AddArgument(natRefPointer<ASTNode> const
 	Type = expr->GetExprType();
 }
 
+const natRefPointer<IArgumentRequirement> ActionSizeOf::ActionSizeOfContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Type }) };
+
+ActionSizeOf::ActionSizeOf()
+{
+}
+
+ActionSizeOf::~ActionSizeOf()
+{
+}
+
+nStrView ActionSizeOf::GetName() const noexcept
+{
+	return u8"SizeOf"_nv;
+}
+
+natRefPointer<IActionContext> ActionSizeOf::StartAction(CompilerActionContext const& context)
+{
+	return make_ref<ActionSizeOfContext>(context.GetParser().GetSema().GetASTContext());
+}
+
+void ActionSizeOf::EndAction(natRefPointer<IActionContext> const& context,
+	std::function<nBool(natRefPointer<ASTNode>)> const& output)
+{
+	const auto actionContext = context.UnsafeCast<ActionSizeOfContext>();
+
+	if (!actionContext->Value.has_value())
+	{
+		// TODO: 报告错误
+		return;
+	}
+
+	if (output)
+	{
+		output(make_ref<Expression::IntegerLiteral>(actionContext->Value.value(), actionContext->ASTContext.GetSizeType(), SourceLocation{}));
+	}
+}
+
+ActionSizeOf::ActionSizeOfContext::ActionSizeOfContext(NatsuLang::ASTContext& astContext)
+	: ASTContext{ astContext }
+{
+}
+
+ActionSizeOf::ActionSizeOfContext::~ActionSizeOfContext()
+{
+}
+
+natRefPointer<IArgumentRequirement> ActionSizeOf::ActionSizeOfContext::GetArgumentRequirement()
+{
+	return s_ArgumentRequirement;
+}
+
+void ActionSizeOf::ActionSizeOfContext::AddArgument(natRefPointer<ASTNode> const& arg)
+{
+	if (Value.has_value())
+	{
+		// TODO: 报告错误
+		return;
+	}
+
+	const auto type = arg.Cast<Type::Type>();
+	if (!type)
+	{
+		// TODO: 报告错误
+		return;
+	}
+
+	Value.emplace(ASTContext.GetTypeInfo(type).Size);
+}
+
+const natRefPointer<IArgumentRequirement> ActionAlignOf::ActionAlignOfContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Type }) };
+
+ActionAlignOf::ActionAlignOf()
+{
+}
+
+ActionAlignOf::~ActionAlignOf()
+{
+}
+
+nStrView ActionAlignOf::GetName() const noexcept
+{
+	return u8"AlignOf"_nv;
+}
+
+natRefPointer<IActionContext> ActionAlignOf::StartAction(CompilerActionContext const& context)
+{
+	return make_ref<ActionAlignOfContext>(context.GetParser().GetSema().GetASTContext());
+}
+
+void ActionAlignOf::EndAction(natRefPointer<IActionContext> const& context,
+	std::function<nBool(natRefPointer<ASTNode>)> const& output)
+{
+	const auto actionContext = context.UnsafeCast<ActionAlignOfContext>();
+
+	if (!actionContext->Value.has_value())
+	{
+		// TODO: 报告错误
+		return;
+	}
+
+	if (output)
+	{
+		output(make_ref<Expression::IntegerLiteral>(actionContext->Value.value(), actionContext->ASTContext.GetSizeType(), SourceLocation{}));
+	}
+}
+
+ActionAlignOf::ActionAlignOfContext::ActionAlignOfContext(NatsuLang::ASTContext& astContext)
+	: ASTContext{ astContext }
+{
+}
+
+ActionAlignOf::ActionAlignOfContext::~ActionAlignOfContext()
+{
+}
+
+natRefPointer<IArgumentRequirement> ActionAlignOf::ActionAlignOfContext::GetArgumentRequirement()
+{
+	return s_ArgumentRequirement;
+}
+
+void ActionAlignOf::ActionAlignOfContext::AddArgument(natRefPointer<ASTNode> const& arg)
+{
+	if (Value.has_value())
+	{
+		// TODO: 报告错误
+		return;
+	}
+
+	const auto type = arg.Cast<Type::Type>();
+	if (!type)
+	{
+		// TODO: 报告错误
+		return;
+	}
+
+	Value.emplace(ASTContext.GetTypeInfo(type).Align);
+}
+
 ActionCreateAt::ActionCreateAtArgumentRequirement::ActionCreateAtArgumentRequirement()
 {
 }

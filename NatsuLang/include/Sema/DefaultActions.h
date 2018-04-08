@@ -154,6 +154,62 @@ namespace NatsuLang
 		};
 	};
 
+	class ActionSizeOf
+		: public NatsuLib::natRefObjImpl<ActionSizeOf, ICompilerAction>
+	{
+	public:
+		ActionSizeOf();
+		~ActionSizeOf();
+
+		nStrView GetName() const noexcept override;
+
+		NatsuLib::natRefPointer<IActionContext> StartAction(CompilerActionContext const& context) override;
+		void EndAction(NatsuLib::natRefPointer<IActionContext> const& context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
+
+	private:
+		struct ActionSizeOfContext
+			: natRefObjImpl<ActionSizeOfContext, IActionContext>
+		{
+			explicit ActionSizeOfContext(ASTContext& astContext);
+			~ActionSizeOfContext();
+
+			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
+			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+
+			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
+			ASTContext& ASTContext;
+			std::optional<nuLong> Value;
+		};
+	};
+
+	class ActionAlignOf
+		: public NatsuLib::natRefObjImpl<ActionAlignOf, ICompilerAction>
+	{
+	public:
+		ActionAlignOf();
+		~ActionAlignOf();
+
+		nStrView GetName() const noexcept override;
+
+		NatsuLib::natRefPointer<IActionContext> StartAction(CompilerActionContext const& context) override;
+		void EndAction(NatsuLib::natRefPointer<IActionContext> const& context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
+
+	private:
+		struct ActionAlignOfContext
+			: natRefObjImpl<ActionAlignOfContext, IActionContext>
+		{
+			explicit ActionAlignOfContext(ASTContext& astContext);
+			~ActionAlignOfContext();
+
+			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
+			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+
+			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
+			ASTContext& ASTContext;
+			std::optional<nuLong> Value;
+		};
+	};
+
 	// $Compiler.CreateAt(ptr [, initializer-list])
 	class ActionCreateAt
 		: public NatsuLib::natRefObjImpl<ActionCreateAt, ICompilerAction>
