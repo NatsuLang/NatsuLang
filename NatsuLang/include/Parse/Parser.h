@@ -4,6 +4,7 @@
 #include "Basic/Config.h"
 #include "Sema/Declarator.h"
 #include <unordered_set>
+#include "Sema/CompilerAction.h"
 
 namespace NatsuLang
 {
@@ -207,13 +208,13 @@ namespace NatsuLang::Syntax
 		nBool ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls);
 		void SkipSimpleCompilerAction(Declaration::Context context);
 		std::vector<Declaration::DeclPtr> ParseExternalDeclaration(Declaration::Context context = Declaration::Context::Global);
-		void ParseCompilerActionArguments(Declaration::Context context, NatsuLib::natRefPointer<ICompilerAction>);
+		void ParseCompilerActionArguments(Declaration::Context context, const NatsuLib::natRefPointer<IActionContext>& actionContext);
 
 		void ParseCompilerAction(Declaration::Context context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output = {});
 		NatsuLib::natRefPointer<ICompilerAction> ParseCompilerActionName();
-		nBool ParseCompilerActionArgument(NatsuLib::natRefPointer<ICompilerAction> const& action, Declaration::Context context, std::size_t startIndex = 0);
-		std::size_t ParseCompilerActionArgumentList(NatsuLib::natRefPointer<ICompilerAction> const& action, Declaration::Context context, std::size_t startIndex = 0);
-		std::size_t ParseCompilerActionArgumentSequence(NatsuLib::natRefPointer<ICompilerAction> const& action, Declaration::Context context, std::size_t startIndex = 0);
+		nBool ParseCompilerActionArgument(const NatsuLib::natRefPointer<IActionContext>& actionContext, Declaration::Context context, std::size_t startIndex = 0);
+		std::size_t ParseCompilerActionArgumentList(const NatsuLib::natRefPointer<IActionContext>& actionContext, Declaration::Context context, std::size_t startIndex = 0);
+		std::size_t ParseCompilerActionArgumentSequence(const NatsuLib::natRefPointer<IActionContext>& actionContext, Declaration::Context context, std::size_t startIndex = 0);
 
 		Declaration::DeclPtr ParseClassDeclaration();
 		void ParseMemberSpecification(SourceLocation startLoc, Declaration::DeclPtr const& tagDecl);

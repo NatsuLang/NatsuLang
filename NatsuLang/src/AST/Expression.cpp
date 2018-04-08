@@ -715,20 +715,6 @@ StmtEnumerable UnaryOperator::GetChildrenStmt()
 	return from_values({ static_cast<StmtPtr>(m_Operand) });
 }
 
-UnaryExprOrTypeTraitExpr::~UnaryExprOrTypeTraitExpr()
-{
-}
-
-StmtEnumerable UnaryExprOrTypeTraitExpr::GetChildrenStmt()
-{
-	if (m_Operand.index() == 0)
-	{
-		return Expr::GetChildrenStmt();
-	}
-
-	return from_values({ static_cast<StmtPtr>(std::get<1>(m_Operand)) });
-}
-
 ArraySubscriptExpr::~ArraySubscriptExpr()
 {
 }

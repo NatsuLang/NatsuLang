@@ -305,65 +305,6 @@ namespace NatsuLang::Expression
 		UnaryOperationType m_Opcode;
 	};
 
-	class UnaryExprOrTypeTraitExpr
-		: public Expr
-	{
-	public:
-		UnaryExprOrTypeTraitExpr(Type::TypePtr operand, Type::TypePtr resultType, SourceLocation loc)
-			: Expr{ UnaryExprOrTypeTraitExprClass, std::move(resultType), loc, loc }, m_Operand{ std::in_place_index<0>, std::move(operand) }
-		{
-		}
-
-		UnaryExprOrTypeTraitExpr(ExprPtr operand, Type::TypePtr resultType, SourceLocation loc)
-			: Expr{ UnaryExprOrTypeTraitExprClass, std::move(resultType), loc, loc }, m_Operand{ std::in_place_index<1>, std::move(operand) }
-		{
-		}
-
-		~UnaryExprOrTypeTraitExpr();
-
-		nBool IsOperandType() const noexcept
-		{
-			return m_Operand.index() == 0;
-		}
-
-		Type::TypePtr GetTypeOperand() const noexcept
-		{
-			if (m_Operand.index() == 0)
-			{
-				return std::get<0>(m_Operand);
-			}
-
-			return {};
-		}
-
-		void SetTypeOperand(Type::TypePtr value) noexcept
-		{
-			m_Operand.emplace<0>(std::move(value));
-		}
-
-		ExprPtr GetExprOperand() const noexcept
-		{
-			if (m_Operand.index() == 1)
-			{
-				return std::get<1>(m_Operand);
-			}
-
-			return {};
-		}
-
-		void SetExprOperand(ExprPtr value) noexcept
-		{
-			m_Operand.emplace<1>(std::move(value));
-		}
-
-		Statement::StmtEnumerable GetChildrenStmt() override;
-
-		DEFAULT_ACCEPT_DECL;
-
-	private:
-		std::variant<Type::TypePtr, ExprPtr> m_Operand;
-	};
-
 	class ArraySubscriptExpr
 		: public Expr
 	{

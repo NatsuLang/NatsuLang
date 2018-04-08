@@ -287,22 +287,22 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration(Declaration::
 	}
 }
 
-void Parser::ParseCompilerActionArguments(Declaration::Context context, const NatsuLib::natRefPointer<ICompilerAction> action)
+void Parser::ParseCompilerActionArguments(Declaration::Context context, const natRefPointer<IActionContext>& actionContext)
 {
 	std::size_t argCount = 0;
 	if (m_CurrentToken.Is(TokenType::LeftParen))
 	{
-		argCount = ParseCompilerActionArgumentList(action, context, argCount);
+		argCount = ParseCompilerActionArgumentList(actionContext, context, argCount);
 	}
 
 	if (!m_CurrentToken.IsAnyOf({ TokenType::Semi, TokenType::LeftBrace }))
 	{
-		argCount += ParseCompilerActionArgument(action, context, argCount);
+		argCount += ParseCompilerActionArgument(actionContext, context, argCount);
 	}
 
 	if (m_CurrentToken.Is(TokenType::LeftBrace))
 	{
-		ParseCompilerActionArgumentSequence(action, context, argCount);
+		ParseCompilerActionArgumentSequence(actionContext, context, argCount);
 	}
 }
 
@@ -325,13 +325,13 @@ void Parser::ParseCompilerAction(Declaration::Context context, std::function<nBo
 		return;
 	}
 
-	action->StartAction(CompilerActionContext{ *this });
-	const auto scope = make_scope([&action, &output]
+	const auto actionContext = action->StartAction(CompilerActionContext{ *this });
+	const auto scope = make_scope([&action, &actionContext, &output]
 	{
-		action->EndAction(output);
+		action->EndAction(actionContext, output);
 	});
 
-	ParseCompilerActionArguments(context, action);
+	ParseCompilerActionArguments(context, actionContext);
 }
 
 natRefPointer<ICompilerAction> Parser::ParseCompilerActionName()
@@ -363,9 +363,9 @@ natRefPointer<ICompilerAction> Parser::ParseCompilerActionName()
 	return nullptr;
 }
 
-nBool Parser::ParseCompilerActionArgument(natRefPointer<ICompilerAction> const& action, Declaration::Context context, std::size_t startIndex)
+nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& actionContext, Declaration::Context context, std::size_t startIndex)
 {
-	const auto requirement = action->GetArgumentRequirement();
+	const auto requirement = actionContext->GetArgumentRequirement();
 
 	const auto argType = requirement->GetExpectedArgumentType(startIndex);
 
@@ -385,7 +385,7 @@ nBool Parser::ParseCompilerActionArgument(natRefPointer<ICompilerAction> const& 
 	// 最优先尝试匹配标识符
 	if (HasFlags(argType, CompilerActionArgumentType::Identifier) && m_CurrentToken.Is(TokenType::Identifier))
 	{
-		action->AddArgument(m_Sema.ActOnCompilerActionIdentifierArgument(m_CurrentToken.GetIdentifierInfo()));
+		actionContext->AddArgument(m_Sema.ActOnCompilerActionIdentifierArgument(m_CurrentToken.GetIdentifierInfo()));
 		ConsumeToken();
 		return true;
 	}
@@ -400,7 +400,7 @@ nBool Parser::ParseCompilerActionArgument(natRefPointer<ICompilerAction> const& 
 		const auto type = typeDecl->GetType();
 		if (type)
 		{
-			action->AddArgument(type);
+			actionContext->AddArgument(type);
 			return true;
 		}
 	}
@@ -415,7 +415,7 @@ nBool Parser::ParseCompilerActionArgument(natRefPointer<ICompilerAction> const& 
 		if (!decl.empty())
 		{
 			assert(decl.size() == 1);
-			action->AddArgument(decl.front());
+			actionContext->AddArgument(decl.front());
 
 			return true;
 		}
@@ -429,7 +429,7 @@ nBool Parser::ParseCompilerActionArgument(natRefPointer<ICompilerAction> const& 
 	const auto stmt = ParseStatement(context, true);
 	if (stmt)
 	{
-		action->AddArgument(stmt);
+		actionContext->AddArgument(stmt);
 		return true;
 	}
 
@@ -441,12 +441,12 @@ nBool Parser::ParseCompilerActionArgument(natRefPointer<ICompilerAction> const& 
 	return false;
 }
 
-std::size_t Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerAction> const& action, Declaration::Context context, std::size_t startIndex)
+std::size_t Parser::ParseCompilerActionArgumentList(const natRefPointer<IActionContext>& actionContext, Declaration::Context context, std::size_t startIndex)
 {
 	assert(m_CurrentToken.Is(TokenType::LeftParen));
 	ConsumeParen();
 
-	const auto requirement = action->GetArgumentRequirement();
+	const auto requirement = actionContext->GetArgumentRequirement();
 
 	auto i = startIndex;
 	for (;; ++i)
@@ -469,7 +469,7 @@ std::size_t Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerActio
 		{
 			if ((argType & CompilerActionArgumentType::Optional) != CompilerActionArgumentType::None)
 			{
-				action->AddArgument(nullptr);
+				actionContext->AddArgument(nullptr);
 				ConsumeToken();
 				continue;
 			}
@@ -478,7 +478,7 @@ std::size_t Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerActio
 			ConsumeToken();
 		}
 
-		if (!ParseCompilerActionArgument(action, context, i))
+		if (!ParseCompilerActionArgument(actionContext, context, i))
 		{
 			// 匹配失败，报告错误
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
@@ -495,12 +495,12 @@ std::size_t Parser::ParseCompilerActionArgumentList(natRefPointer<ICompilerActio
 	return i;
 }
 
-std::size_t Parser::ParseCompilerActionArgumentSequence(natRefPointer<ICompilerAction> const& action, Declaration::Context context, std::size_t startIndex)
+std::size_t Parser::ParseCompilerActionArgumentSequence(const natRefPointer<IActionContext>& actionContext, Declaration::Context context, std::size_t startIndex)
 {
 	assert(m_CurrentToken.Is(TokenType::LeftBrace));
 	ConsumeBrace();
 
-	const auto requirement = action->GetArgumentRequirement();
+	const auto requirement = actionContext->GetArgumentRequirement();
 
 	auto i = startIndex;
 	for (;; ++i)
@@ -519,7 +519,7 @@ std::size_t Parser::ParseCompilerActionArgumentSequence(natRefPointer<ICompilerA
 			break;
 		}
 
-		if (!ParseCompilerActionArgument(action, context, i))
+		if (!ParseCompilerActionArgument(actionContext, context, i))
 		{
 			// 匹配失败，报告错误
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
@@ -991,10 +991,10 @@ Declaration::DeclPtr Parser::ParseAliasBody(Identifier::IdPtr aliasId, SourceLoc
 			return m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), aliasLoc, std::move(aliasId), std::move(compilerAction));
 		}
 
-		compilerAction->StartAction(CompilerActionContext{ *this });
-		ParseCompilerActionArguments(context, compilerAction);
+		const auto actionContext = compilerAction->StartAction(CompilerActionContext{ *this });
+		ParseCompilerActionArguments(context, actionContext);
 		ASTNodePtr astNode;
-		compilerAction->EndAction([&astNode](ASTNodePtr ast)
+		compilerAction->EndAction(actionContext, [&astNode](ASTNodePtr ast)
 		{
 			if (!astNode)
 			{
@@ -1170,9 +1170,9 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context, nBool ma
 				if (const auto compilerAction = astNode.Cast<ICompilerAction>())
 				{
 					ConsumeToken();
-					compilerAction->StartAction(CompilerActionContext{ *this });
-					ParseCompilerActionArguments(context, compilerAction);
-					compilerAction->EndAction([this, &result](natRefPointer<ASTNode> const& node)
+					const auto actionContext = compilerAction->StartAction(CompilerActionContext{ *this });
+					ParseCompilerActionArguments(context, actionContext);
+					compilerAction->EndAction(actionContext, [this, &result](natRefPointer<ASTNode> const& node)
 					{
 						if (result)
 						{
@@ -2208,9 +2208,9 @@ nBool Parser::ParseType(Declaration::DeclaratorPtr const& decl)
 			else if (const auto compilerAction = aliasAsAst.Cast<ICompilerAction>())
 			{
 				ConsumeToken();
-				compilerAction->StartAction(CompilerActionContext{ *this });
-				ParseCompilerActionArguments(context, compilerAction);
-				compilerAction->EndAction([&decl](ASTNodePtr node)
+				const auto actionContext = compilerAction->StartAction(CompilerActionContext{ *this });
+				ParseCompilerActionArguments(context, actionContext);
+				compilerAction->EndAction(actionContext, [&decl](ASTNodePtr node)
 				{
 					if (decl->GetType())
 					{

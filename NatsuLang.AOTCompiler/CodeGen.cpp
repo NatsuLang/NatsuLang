@@ -97,85 +97,89 @@ namespace
 		: public natRefObjImpl<ActionCallingConvention, ICompilerAction>
 	{
 	public:
-		ActionCallingConvention()
-			: m_Diag{}, m_AssignedCallingConvention{},
-			  m_CallingConvention{ CallingConventionAttribute::CallingConvention::Cdecl }
-		{
-		}
-
 		nStrView GetName() const noexcept override
 		{
 			return u8"CallingConvention"_nv;
 		}
 
-		natRefPointer<IArgumentRequirement> GetArgumentRequirement() override
+		natRefPointer<IActionContext> StartAction(CompilerActionContext const& context) override
 		{
-			return s_ArgumentRequirement;
+			auto actionContext = make_ref<ActionCallingConventionContext>();
+			actionContext->Diag = &context.GetParser().GetDiagnosticsEngine();
+			return actionContext;
 		}
 
-		void StartAction(CompilerActionContext const& context) override
+		void EndAction(natRefPointer<IActionContext> const& context, std::function<nBool(natRefPointer<ASTNode>)> const& output) override
 		{
-			m_Diag = &context.GetParser().GetDiagnosticsEngine();
-		}
+			const auto actionContext = context.UnsafeCast<ActionCallingConventionContext>();
 
-		void EndAction(std::function<nBool(natRefPointer<ASTNode>)> const& output) override
-		{
-			assert(m_Decl);
-			m_Decl->AttachAttribute(make_ref<CallingConventionAttribute>(m_CallingConvention));
+			assert(actionContext->Decl);
+			actionContext->Decl->AttachAttribute(make_ref<CallingConventionAttribute>(actionContext->CallingConvention));
 
 			if (output)
 			{
-				output(m_Decl);
-			}
-
-			m_Diag = nullptr;
-			m_AssignedCallingConvention = false;
-			m_CallingConvention = CallingConventionAttribute::CallingConvention::Cdecl;
-			m_Decl.Reset();
-		}
-
-		void AddArgument(natRefPointer<ASTNode> const& arg) override
-		{
-			if (!m_AssignedCallingConvention)
-			{
-				const auto idDecl = arg.Cast<Declaration::UnresolvedDecl>();
-				if (!idDecl)
-				{
-					m_Diag->Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier);
-					return;
-				}
-
-				const auto id = idDecl->GetName();
-				if (id == "Stdcall")
-				{
-					m_CallingConvention = CallingConventionAttribute::CallingConvention::Stdcall;
-				}
-				else
-				{
-					assert(id == "Cdecl");
-					m_CallingConvention = CallingConventionAttribute::CallingConvention::Cdecl;
-				}
-				m_AssignedCallingConvention = true;
-			}
-			else
-			{
-				m_Decl = arg;
-				if (!m_Decl)
-				{
-					m_Diag->Report(Diag::DiagnosticsEngine::DiagID::ErrExpected).AddArgument("Declaration");
-				}
+				output(actionContext->Decl);
 			}
 		}
 
 	private:
-		Diag::DiagnosticsEngine* m_Diag;
-		nBool m_AssignedCallingConvention;
-		CallingConventionAttribute::CallingConvention m_CallingConvention;
-		Declaration::DeclPtr m_Decl;
-		static const natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
+		struct ActionCallingConventionContext
+			: natRefObjImpl<ActionCallingConventionContext, IActionContext>
+		{
+			ActionCallingConventionContext()
+				: Diag{}, AssignedCallingConvention{},
+				  CallingConvention{ CallingConventionAttribute::CallingConvention::Cdecl }
+			{
+				
+			}
+
+			natRefPointer<IArgumentRequirement> GetArgumentRequirement() override
+			{
+				return s_ArgumentRequirement;
+			}
+
+			void AddArgument(natRefPointer<ASTNode> const& arg) override
+			{
+				if (!AssignedCallingConvention)
+				{
+					const auto idDecl = arg.Cast<Declaration::UnresolvedDecl>();
+					if (!idDecl)
+					{
+						Diag->Report(Diag::DiagnosticsEngine::DiagID::ErrExpectedIdentifier);
+						return;
+					}
+
+					const auto id = idDecl->GetName();
+					if (id == "Stdcall")
+					{
+						CallingConvention = CallingConventionAttribute::CallingConvention::Stdcall;
+					}
+					else
+					{
+						assert(id == "Cdecl");
+						CallingConvention = CallingConventionAttribute::CallingConvention::Cdecl;
+					}
+					AssignedCallingConvention = true;
+				}
+				else
+				{
+					Decl = arg;
+					if (!Decl)
+					{
+						Diag->Report(Diag::DiagnosticsEngine::DiagID::ErrExpected).AddArgument("Declaration");
+					}
+				}
+			}
+
+			Diag::DiagnosticsEngine* Diag;
+			nBool AssignedCallingConvention;
+			CallingConventionAttribute::CallingConvention CallingConvention;
+			Declaration::DeclPtr Decl;
+			static const natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
+		};
 	};
 
-	const natRefPointer<IArgumentRequirement> ActionCallingConvention::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier, CompilerActionArgumentType::Declaration }) };
+	const natRefPointer<IArgumentRequirement> ActionCallingConvention::ActionCallingConventionContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier, CompilerActionArgumentType::Declaration }) };
 
 	nString GetQualifiedName(natRefPointer<Declaration::NamedDecl> const& decl)
 	{
@@ -1144,11 +1148,6 @@ void AotCompiler::AotStmtVisitor::VisitStmtExpr(natRefPointer<Expression::StmtEx
 void AotCompiler::AotStmtVisitor::VisitStringLiteral(natRefPointer<Expression::StringLiteral> const& expr)
 {
 	setLastVisitedResult(m_Compiler.getStringLiteralValue(expr->GetValue()));
-}
-
-void AotCompiler::AotStmtVisitor::VisitUnaryExprOrTypeTraitExpr(natRefPointer<Expression::UnaryExprOrTypeTraitExpr> const& expr)
-{
-	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
 }
 
 void AotCompiler::AotStmtVisitor::VisitUnaryOperator(natRefPointer<Expression::UnaryOperator> const& expr)

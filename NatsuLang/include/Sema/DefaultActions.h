@@ -31,6 +31,23 @@ namespace NatsuLang
 		std::vector<CompilerActionArgumentType> m_Types;
 	};
 
+	class SimpleActionContext
+		: public NatsuLib::natRefObjImpl<SimpleActionContext, IActionContext>
+	{
+	public:
+		explicit SimpleActionContext(NatsuLib::natRefPointer<IArgumentRequirement> requirement);
+		~SimpleActionContext();
+
+		NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
+		void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+
+		std::vector<ASTNodePtr> const& GetArguments() const noexcept;
+
+	private:
+		NatsuLib::natRefPointer<IArgumentRequirement> m_Requirement;
+		std::vector<ASTNodePtr> m_ArgumentList;
+	};
+
 	class ActionDump
 		: public NatsuLib::natRefObjImpl<ActionDump, ICompilerAction>
 	{
@@ -40,10 +57,8 @@ namespace NatsuLang
 
 		nStrView GetName() const noexcept override;
 
-		NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
-		void StartAction(CompilerActionContext const& context) override;
-		void EndAction(std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
-		void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+		NatsuLib::natRefPointer<IActionContext> StartAction(CompilerActionContext const& context) override;
+		void EndAction(NatsuLib::natRefPointer<IActionContext> const& context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
 
 	private:
 		struct ActionDumpArgumentRequirement
@@ -55,7 +70,6 @@ namespace NatsuLang
 		};
 
 		static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
-		std::vector<NatsuLib::natRefPointer<ASTNode>> m_ResultNodes;
 	};
 
 	class ActionDumpIf
@@ -67,16 +81,24 @@ namespace NatsuLang
 
 		nStrView GetName() const noexcept override;
 
-		NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
-		void StartAction(CompilerActionContext const& context) override;
-		void EndAction(std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
-		void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+		NatsuLib::natRefPointer<IActionContext> StartAction(CompilerActionContext const& context) override;
+		void EndAction(NatsuLib::natRefPointer<IActionContext> const& context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
 
 	private:
-		NatsuLib::natRefPointer<ASTContext> m_Context;
-		std::optional<nBool> m_SkipThisNode;
-		NatsuLib::natRefPointer<ASTNode> m_ResultNode;
-		static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
+		struct ActionDumpIfContext
+			: natRefObjImpl<ActionDumpIfContext, IActionContext>
+		{
+			~ActionDumpIfContext();
+
+			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
+			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+
+			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
+
+			NatsuLib::natRefPointer<ASTContext> Context;
+			std::optional<nBool> SkipThisNode;
+			NatsuLib::natRefPointer<ASTNode> ResultNode;
+		};
 	};
 
 	class ActionIsDefined
@@ -88,15 +110,22 @@ namespace NatsuLang
 
 		nStrView GetName() const noexcept override;
 
-		NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
-		void StartAction(CompilerActionContext const& context) override;
-		void EndAction(std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
-		void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+		NatsuLib::natRefPointer<IActionContext> StartAction(CompilerActionContext const& context) override;
+		void EndAction(NatsuLib::natRefPointer<IActionContext> const& context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
 
 	private:
-		std::optional<nBool> m_Result;
-		Semantic::Sema* m_Sema;
-		static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
+		struct ActionIsDefinedContext
+			: natRefObjImpl<ActionIsDefinedContext, IActionContext>
+		{
+			~ActionIsDefinedContext();
+
+			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
+			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+
+			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
+			std::optional<nBool> Result;
+			Semantic::Sema* Sema;
+		};
 	};
 
 	class ActionTypeOf
@@ -108,108 +137,87 @@ namespace NatsuLang
 
 		nStrView GetName() const noexcept override;
 
-		NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
-		void StartAction(CompilerActionContext const& context) override;
-		void EndAction(std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
-		void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+		NatsuLib::natRefPointer<IActionContext> StartAction(CompilerActionContext const& context) override;
+		void EndAction(NatsuLib::natRefPointer<IActionContext> const& context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
 
 	private:
-		Type::TypePtr m_Type;
-		static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
-	};
-
-	// 此 Action 不允许用户自己调用，也不会进行注册，它将作为 Arg 系 Action 的返回值传递给 ActionTemplate 等，仅用于传递数据
-	class ActionArgInfo
-		: public NatsuLib::natRefObjImpl<ActionArgInfo, ICompilerAction>
-	{
-	public:
-		enum class ArgType
+		struct ActionTypeOfContext
+			: natRefObjImpl<ActionTypeOfContext, IActionContext>
 		{
-			Type,
-			Expr,
+			~ActionTypeOfContext();
+
+			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
+			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+
+			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
+			Type::TypePtr Type;
 		};
-
-		// TODO: 需要 argType 吗？
-		ActionArgInfo(ArgType argType, NatsuLib::natRefPointer<ASTNode> arg);
-		~ActionArgInfo();
-
-		nStrView GetName() const noexcept override;
-
-		NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
-		void StartAction(CompilerActionContext const& context) override;
-		void EndAction(std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
-		void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
-
-		ArgType GetArgType() const noexcept
-		{
-			return m_ArgType;
-		}
-
-		NatsuLib::natRefPointer<ASTNode> GetArg() const noexcept
-		{
-			return m_Arg;
-		}
-
-	private:
-		ArgType m_ArgType;
-		NatsuLib::natRefPointer<ASTNode> m_Arg;
 	};
 
-	class ActionTypeArg
-		: public NatsuLib::natRefObjImpl<ActionTypeArg, ICompilerAction>
+	// $Compiler.CreateAt(ptr [, initializer-list])
+	class ActionCreateAt
+		: public NatsuLib::natRefObjImpl<ActionCreateAt, ICompilerAction>
 	{
 	public:
-		ActionTypeArg();
-		~ActionTypeArg();
+		ActionCreateAt();
+		~ActionCreateAt();
 
 		nStrView GetName() const noexcept override;
 
-		NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
-		void StartAction(CompilerActionContext const& context) override;
-		void EndAction(std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
-		void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+		NatsuLib::natRefPointer<IActionContext> StartAction(CompilerActionContext const& context) override;
+		void EndAction(NatsuLib::natRefPointer<IActionContext> const& context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
 
 	private:
-		static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
-		Diag::DiagnosticsEngine* m_Diag;
-		Identifier::IdPtr m_TypeId;
-	};
-
-	class ActionTemplate
-		: public NatsuLib::natRefObjImpl<ActionTemplate, ICompilerAction>
-	{
-	public:
-		ActionTemplate();
-		~ActionTemplate();
-
-		nStrView GetName() const noexcept override;
-
-		NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
-		void StartAction(CompilerActionContext const& context) override;
-		void EndAction(std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
-		void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
-
-		void EndArgumentList() override;
-
-	private:
-		class ActionTemplateArgumentRequirement
-			: public natRefObjImpl<ActionTemplateArgumentRequirement, IArgumentRequirement>
+		class ActionCreateAtArgumentRequirement
+			: public natRefObjImpl<ActionCreateAtArgumentRequirement, IArgumentRequirement>
 		{
 		public:
-			explicit ActionTemplateArgumentRequirement(ActionTemplate& action)
-				: m_Action{ action }
-			{
-			}
-
-			~ActionTemplateArgumentRequirement();
+			ActionCreateAtArgumentRequirement();
+			~ActionCreateAtArgumentRequirement();
 
 			CompilerActionArgumentType GetExpectedArgumentType(std::size_t i) override;
-
-		private:
-			ActionTemplate& m_Action;
 		};
 
-		Semantic::Sema* m_Sema;
-		nBool m_IsTemplateArgEnded;
+		struct ActionCreateAtContext
+			: natRefObjImpl<ActionCreateAtContext, IActionContext>
+		{
+			~ActionCreateAtContext();
+
+			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
+			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+
+			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
+			Semantic::Sema* Sema;
+			Expression::ExprPtr Ptr;
+			std::vector<Expression::ExprPtr> Arguments;
+		};
+	};
+
+	// $Compiler.DestroyAt(ptr);
+	class ActionDestroyAt
+		: public NatsuLib::natRefObjImpl<ActionDestroyAt, ICompilerAction>
+	{
+	public:
+		ActionDestroyAt();
+		~ActionDestroyAt();
+
+		nStrView GetName() const noexcept override;
+
+		NatsuLib::natRefPointer<IActionContext> StartAction(CompilerActionContext const& context) override;
+		void EndAction(NatsuLib::natRefPointer<IActionContext> const& context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output) override;
+
+	private:
+		struct ActionDestroyAtContext
+			: natRefObjImpl<ActionDestroyAtContext, IActionContext>
+		{
+			~ActionDestroyAtContext();
+
+			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
+			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
+
+			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
+			Semantic::Sema* Sema;
+			Expression::ExprPtr Ptr;
+		};
 	};
 }

@@ -7,15 +7,19 @@ IArgumentRequirement::~IArgumentRequirement()
 {
 }
 
+IActionContext::~IActionContext()
+{
+}
+
+void IActionContext::EndArgumentList()
+{
+}
+
+void IActionContext::EndArgumentSequence()
+{
+}
+
 ICompilerAction::~ICompilerAction()
-{
-}
-
-void ICompilerAction::EndArgumentList()
-{
-}
-
-void ICompilerAction::EndArgumentSequence()
 {
 }
 

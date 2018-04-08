@@ -331,7 +331,7 @@ Metadata Sema::CreateMetadata(nBool includeImported) const
 	const auto decls = tu->GetDecls();
 	if (includeImported)
 	{
-		metadata.AddDecls(decls.select([this](Declaration::DeclPtr const& decl)
+		metadata.AddDecls(decls.select([](Declaration::DeclPtr const& decl)
 		{
 			decl->DetachAttributes(typeid(ImportedAttribute));
 			return decl;
@@ -1499,6 +1499,11 @@ Expression::ExprPtr Sema::ActOnConditionExpr(Expression::ExprPtr expr)
 
 	auto boolType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
 	const auto castType = getCastType(expr, boolType, true);
+	if (castType == Expression::CastType::Invalid)
+	{
+		// TODO: 报告错误：无法完成这样的转换
+		return nullptr;
+	}
 	return ImpCastExprToType(std::move(expr), std::move(boolType), castType);
 }
 
@@ -1669,7 +1674,14 @@ Expression::ExprPtr Sema::ActOnThis(SourceLocation loc)
 Expression::ExprPtr Sema::ActOnAsTypeExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr exprToCast,
 										  Type::TypePtr type, SourceLocation loc)
 {
-	return make_ref<Expression::AsTypeExpr>(std::move(type), getCastType(exprToCast, type, false), std::move(exprToCast));
+	const auto castType = getCastType(exprToCast, type, false);
+	if (castType == Expression::CastType::Invalid)
+	{
+		// TODO: 报告错误：无法完成这样的转换
+		return nullptr;
+	}
+
+	return make_ref<Expression::AsTypeExpr>(std::move(type), castType, std::move(exprToCast));
 }
 
 Expression::ExprPtr Sema::ActOnArraySubscriptExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr base,
@@ -2106,8 +2118,7 @@ Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scope> const& s
 
 		if (auto method = decl.Cast<Declaration::MethodDecl>())
 		{
-			return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(method), r.GetLookupId(),
-													method->GetValueType());
+			return BuildMethodReferenceExpr(std::move(baseExpr), opLoc, nns, std::move(method), r.GetLookupId());
 		}
 
 		return nullptr;
@@ -2131,6 +2142,15 @@ Expression::ExprPtr Sema::BuildFieldReferenceExpr(Expression::ExprPtr baseExpr, 
 	static_cast<void>(nns);
 	return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(field), std::move(id),
 											field->GetValueType());
+}
+
+Expression::ExprPtr Sema::BuildMethodReferenceExpr(Expression::ExprPtr baseExpr, SourceLocation opLoc,
+	natRefPointer<NestedNameSpecifier> const& nns, natRefPointer<Declaration::MethodDecl> method,
+	Identifier::IdPtr id)
+{
+	static_cast<void>(nns);
+	return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(method), std::move(id),
+		method->GetValueType());
 }
 
 Expression::ExprPtr Sema::BuildConstructExpr(natRefPointer<Type::ClassType> const& classType,

@@ -13,19 +13,25 @@ namespace NatsuLang
 
 	enum class CompilerActionArgumentType
 	{
-		None			= 0x0,	///< @brief	无参数
+		None			= 0x0000,	///< @brief	无参数
 
-		Optional		= 0x1,	///< @brief	可选参数，不能单独设置
+		Optional		= 0x0001,	///< @brief	可选参数，不能单独设置
 
-		Type			= 0x2,	///< @brief	类型参数
-		Declaration		= 0x4,	///< @brief	声明参数
-		Statement		= 0x8,	///< @brief	语句参数
+		Type			= 0x0100,	///< @brief	类型参数
+		Declaration		= 0x0200,	///< @brief	声明参数
+		Statement		= 0x0400,	///< @brief	语句参数
 
-		Identifier		= 0x10,	///< @brief	标识符，将作为 UnresolvedDecl 传入，不会进行名称查找，GetDeclaratorPtr 将会返回 nullptr
-		CompilerAction	= 0x20,	///< @brief	编译器动作
+		Identifier		= 0x0800,	///< @brief	标识符，将作为 UnresolvedDecl 传入，不会进行名称查找，GetDeclaratorPtr 将会返回 nullptr
+		CompilerAction	= 0x1000,	///< @brief	编译器动作
 	};
 
 	MAKE_ENUM_CLASS_BITMASK_TYPE(CompilerActionArgumentType);
+
+	constexpr CompilerActionArgumentType GetCategoryPart(CompilerActionArgumentType value) noexcept
+	{
+		using UnderlyingType = std::underlying_type_t<CompilerActionArgumentType>;
+		return static_cast<CompilerActionArgumentType>(static_cast<UnderlyingType>(value) & UnderlyingType{ 0xFF00 });
+	}
 
 	struct IArgumentRequirement
 		: NatsuLib::natRefObj
@@ -58,6 +64,26 @@ namespace NatsuLang
 
 	class CompilerActionNamespace;
 
+	struct IActionContext
+		: NatsuLib::natRefObj
+	{
+		virtual ~IActionContext();
+
+		///	@brief	获取参数要求
+		///	@return	参数要求对象，仅保证在 EndAction 之前有效
+		virtual NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() = 0;
+
+		///	@brief	添加参数
+		///	@param	arg		本次添加的参数
+		virtual void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) = 0;
+
+		///	@brief	结束参数列表
+		virtual void EndArgumentList();
+
+		///	@brief	结束参数序列
+		virtual void EndArgumentSequence();
+	};
+
 	////////////////////////////////////////////////////////////////////////////////
 	///	@brief	编译器动作接口
 	////////////////////////////////////////////////////////////////////////////////
@@ -70,28 +96,15 @@ namespace NatsuLang
 		///	@remark	必须保证返回值在整个生存期内有效且不改变
 		virtual nStrView GetName() const noexcept = 0;
 
-		///	@brief	获取参数要求
-		///	@remark	必须在 StartAction 方法执行后再执行
-		///	@return	参数要求对象，仅保证在 EndAction 之前有效
-		virtual NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() = 0;
-
 		///	@brief	以指定的上下文开始此动作的执行
 		///	@param	context	动作的上下文
-		virtual void StartAction(CompilerActionContext const& context) = 0;
+		///	@return	本次执行的上下文
+		virtual NatsuLib::natRefPointer<IActionContext> StartAction(CompilerActionContext const& context) = 0;
 
-		///	@brief	结束本次动作的执行，并清理自上次 StartAction 以来的所有状态
+		///	@brief	结束本次动作的执行，并使 context 无效，此 context 之后不能再次被使用
+		///	@param	context 本次执行的上下文
 		///	@param	output	获取输出的抽象语法树节点的回调函数，若返回 true 则立即中止获取，本函数将立刻返回
-		virtual void EndAction(std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output = {}) = 0;
-
-		///	@brief	添加参数
-		///	@param	arg		本次添加的参数
-		virtual void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) = 0;
-
-		///	@brief	结束参数列表
-		virtual void EndArgumentList();
-
-		///	@brief	结束参数序列
-		virtual void EndArgumentSequence();
+		virtual void EndAction(NatsuLib::natRefPointer<IActionContext> const& context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output = {}) = 0;
 
 		void AttachTo(NatsuLib::natWeakRefPointer<CompilerActionNamespace> parent) noexcept;
 		NatsuLib::natWeakRefPointer<CompilerActionNamespace> GetParent() const noexcept;

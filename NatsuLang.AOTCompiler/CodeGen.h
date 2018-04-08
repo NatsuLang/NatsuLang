@@ -252,7 +252,6 @@ namespace NatsuLang::Compiler
 			void VisitParenExpr(NatsuLib::natRefPointer<Expression::ParenExpr> const& expr) override;
 			void VisitStmtExpr(NatsuLib::natRefPointer<Expression::StmtExpr> const& expr) override;
 			void VisitStringLiteral(NatsuLib::natRefPointer<Expression::StringLiteral> const& expr) override;
-			void VisitUnaryExprOrTypeTraitExpr(NatsuLib::natRefPointer<Expression::UnaryExprOrTypeTraitExpr> const& expr) override;
 			void VisitUnaryOperator(NatsuLib::natRefPointer<Expression::UnaryOperator> const& expr) override;
 			void VisitForStmt(NatsuLib::natRefPointer<Statement::ForStmt> const& stmt) override;
 			void VisitGotoStmt(NatsuLib::natRefPointer<Statement::GotoStmt> const& stmt) override;

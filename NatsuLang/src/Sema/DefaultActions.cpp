@@ -26,6 +26,49 @@ CompilerActionArgumentType SimpleArgumentRequirement::GetExpectedArgumentType(st
 	return i < m_Types.size() ? m_Types[i] : CompilerActionArgumentType::None;
 }
 
+SimpleActionContext::SimpleActionContext(natRefPointer<IArgumentRequirement> requirement)
+	: m_Requirement{ std::move(requirement) }
+{
+}
+
+SimpleActionContext::~SimpleActionContext()
+{
+}
+
+NatsuLib::natRefPointer<IArgumentRequirement> SimpleActionContext::GetArgumentRequirement()
+{
+	return m_Requirement;
+}
+
+void SimpleActionContext::AddArgument(natRefPointer<ASTNode> const& arg)
+{
+	// TODO: 检测类型并报告错误
+	switch (GetCategoryPart(m_Requirement->GetExpectedArgumentType(m_ArgumentList.size())))
+	{
+	case CompilerActionArgumentType::None:
+		return;
+	case CompilerActionArgumentType::Type:
+		break;
+	case CompilerActionArgumentType::Declaration:
+		break;
+	case CompilerActionArgumentType::Statement:
+		break;
+	case CompilerActionArgumentType::Identifier:
+		break;
+	case CompilerActionArgumentType::CompilerAction:
+		break;
+	default:
+		break;
+	}
+
+	m_ArgumentList.emplace_back(arg);
+}
+
+std::vector<ASTNodePtr> const& SimpleActionContext::GetArguments() const noexcept
+{
+	return m_ArgumentList;
+}
+
 const natRefPointer<IArgumentRequirement> ActionDump::s_ArgumentRequirement{ make_ref<ActionDumpArgumentRequirement>() };
 
 ActionDump::ActionDump()
@@ -38,40 +81,26 @@ ActionDump::~ActionDump()
 
 nStrView ActionDump::GetName() const noexcept
 {
-	return "Dump";
+	return u8"Dump"_nv;
 }
 
-natRefPointer<IArgumentRequirement> ActionDump::GetArgumentRequirement()
+natRefPointer<IActionContext> ActionDump::StartAction(CompilerActionContext const& /*context*/)
 {
-	return s_ArgumentRequirement;
+	return make_ref<SimpleActionContext>(s_ArgumentRequirement);
 }
 
-void ActionDump::StartAction(CompilerActionContext const& /*context*/)
-{
-}
-
-void ActionDump::EndAction(std::function<nBool(natRefPointer<ASTNode>)> const& output)
+void ActionDump::EndAction(natRefPointer<IActionContext> const& context, std::function<nBool(natRefPointer<ASTNode>)> const& output)
 {
 	if (output)
 	{
-		const auto scope = make_scope([this]
+		for (auto&& node : context.UnsafeCast<SimpleActionContext>()->GetArguments())
 		{
-			m_ResultNodes.clear();
-		});
-
-		for (auto&& node : m_ResultNodes)
-		{
-			if (output(std::move(node)))
+			if (output(node))
 			{
 				return;
 			}
 		}
 	}
-}
-
-void ActionDump::AddArgument(natRefPointer<ASTNode> const& arg)
-{
-	m_ResultNodes.emplace_back(arg);
 }
 
 ActionDump::ActionDumpArgumentRequirement::~ActionDumpArgumentRequirement()
@@ -86,7 +115,47 @@ CompilerActionArgumentType ActionDump::ActionDumpArgumentRequirement::GetExpecte
 		CompilerActionArgumentType::Statement;
 }
 
-const natRefPointer<IArgumentRequirement> ActionDumpIf::s_ArgumentRequirement
+ActionDumpIf::ActionDumpIfContext::~ActionDumpIfContext()
+{
+}
+
+natRefPointer<IArgumentRequirement> ActionDumpIf::ActionDumpIfContext::GetArgumentRequirement()
+{
+	return s_ArgumentRequirement;
+}
+
+void ActionDumpIf::ActionDumpIfContext::AddArgument(natRefPointer<ASTNode> const& arg)
+{
+	if (!SkipThisNode)
+	{
+		const auto conditionExpr = static_cast<Expression::ExprPtr>(arg);
+		if (!conditionExpr)
+		{
+			// TODO: 报告错误
+			return;
+		}
+
+		nuLong result;
+		if (!conditionExpr->EvaluateAsInt(result, *Context))
+		{
+			// TODO: 报告错误
+			return;
+		}
+
+		SkipThisNode = !result;
+	}
+	else
+	{
+		if (!SkipThisNode.value())
+		{
+			ResultNode = arg;
+		}
+
+		SkipThisNode = !SkipThisNode.value();
+	}
+}
+
+const natRefPointer<IArgumentRequirement> ActionDumpIf::ActionDumpIfContext::s_ArgumentRequirement
 {
 	make_ref<SimpleArgumentRequirement>(
 		std::initializer_list<CompilerActionArgumentType>{
@@ -112,66 +181,28 @@ ActionDumpIf::~ActionDumpIf()
 
 nStrView ActionDumpIf::GetName() const noexcept
 {
-	return "DumpIf";
+	return u8"DumpIf"_nv;
 }
 
-natRefPointer<IArgumentRequirement> ActionDumpIf::GetArgumentRequirement()
+natRefPointer<IActionContext> ActionDumpIf::StartAction(CompilerActionContext const& context)
 {
-	return s_ArgumentRequirement;
+	auto actionContext = make_ref<ActionDumpIfContext>();
+	actionContext->Context = context.GetParser().GetSema().GetASTContext().ForkRef();
+	return actionContext;
 }
 
-void ActionDumpIf::StartAction(CompilerActionContext const& context)
+void ActionDumpIf::EndAction(natRefPointer<IActionContext> const& context, std::function<nBool(natRefPointer<ASTNode>)> const& output)
 {
-	m_Context = context.GetParser().GetSema().GetASTContext().ForkRef();
-}
-
-void ActionDumpIf::EndAction(std::function<nBool(natRefPointer<ASTNode>)> const& output)
-{
+	const auto actionContext = context.UnsafeCast<ActionDumpIfContext>();
 	if (output)
 	{
-		output(m_ResultNode);
-	}
-
-	m_Context.Reset();
-	m_SkipThisNode.reset();
-	m_ResultNode.Reset();
-}
-
-void ActionDumpIf::AddArgument(natRefPointer<ASTNode> const& arg)
-{
-	if (!m_SkipThisNode)
-	{
-		const auto conditionExpr = static_cast<Expression::ExprPtr>(arg);
-		if (!conditionExpr)
-		{
-			// TODO: 报告错误
-			return;
-		}
-
-		nuLong result;
-		if (!conditionExpr->EvaluateAsInt(result, *m_Context))
-		{
-			// TODO: 报告错误
-			return;
-		}
-
-		m_SkipThisNode = !result;
-	}
-	else
-	{
-		if (!m_SkipThisNode.value())
-		{
-			m_ResultNode = arg;
-		}
-
-		m_SkipThisNode = !m_SkipThisNode.value();
+		output(actionContext->ResultNode);
 	}
 }
 
-const natRefPointer<IArgumentRequirement> ActionIsDefined::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier }) };
+const natRefPointer<IArgumentRequirement> ActionIsDefined::ActionIsDefinedContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier }) };
 
 ActionIsDefined::ActionIsDefined()
-	: m_Sema{ nullptr }
 {
 }
 
@@ -181,32 +212,37 @@ ActionIsDefined::~ActionIsDefined()
 
 nStrView ActionIsDefined::GetName() const noexcept
 {
-	return "IsDefined";
+	return u8"IsDefined"_nv;
 }
 
-natRefPointer<IArgumentRequirement> ActionIsDefined::GetArgumentRequirement()
+natRefPointer<IActionContext> ActionIsDefined::StartAction(CompilerActionContext const& context)
+{
+	auto actionContext = make_ref<ActionIsDefinedContext>();
+	actionContext->Sema = &context.GetParser().GetSema();
+	return actionContext;
+}
+
+void ActionIsDefined::EndAction(natRefPointer<IActionContext> const& context, std::function<nBool(natRefPointer<ASTNode>)> const& output)
+{
+	const auto actionContext = context.UnsafeCast<ActionIsDefinedContext>();
+
+	if (output)
+	{
+		output(actionContext->Result ? make_ref<Expression::BooleanLiteral>(actionContext->Result.value(),
+			actionContext->Sema->GetASTContext().GetBuiltinType(Type::BuiltinType::Bool), SourceLocation{}) : nullptr);
+	}
+}
+
+ActionIsDefined::ActionIsDefinedContext::~ActionIsDefinedContext()
+{
+}
+
+natRefPointer<IArgumentRequirement> ActionIsDefined::ActionIsDefinedContext::GetArgumentRequirement()
 {
 	return s_ArgumentRequirement;
 }
 
-void ActionIsDefined::StartAction(CompilerActionContext const& context)
-{
-	m_Sema = &context.GetParser().GetSema();
-}
-
-void ActionIsDefined::EndAction(std::function<nBool(natRefPointer<ASTNode>)> const& output)
-{
-	if (output)
-	{
-		output(m_Result ? make_ref<Expression::BooleanLiteral>(m_Result.value(),
-			m_Sema->GetASTContext().GetBuiltinType(Type::BuiltinType::Bool), SourceLocation{}) : nullptr);
-	}
-
-	m_Result.reset();
-	m_Sema = nullptr;
-}
-
-void ActionIsDefined::AddArgument(natRefPointer<ASTNode> const& arg)
+void ActionIsDefined::ActionIsDefinedContext::AddArgument(natRefPointer<ASTNode> const& arg)
 {
 	const auto name = arg.Cast<Declaration::UnresolvedDecl>();
 	if (!name)
@@ -216,11 +252,11 @@ void ActionIsDefined::AddArgument(natRefPointer<ASTNode> const& arg)
 	}
 
 	Lex::Token dummyToken;
-	Semantic::LookupResult r{ *m_Sema, name->GetIdentifierInfo(), {}, Semantic::Sema::LookupNameType::LookupAnyName };
-	m_Result = m_Sema->LookupName(r, m_Sema->GetCurrentScope()) && r.GetDeclSize();
+	Semantic::LookupResult r{ *Sema, name->GetIdentifierInfo(), {}, Semantic::Sema::LookupNameType::LookupAnyName };
+	Result = Sema->LookupName(r, Sema->GetCurrentScope()) && r.GetDeclSize();
 }
 
-const natRefPointer<IArgumentRequirement> ActionTypeOf::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Statement }) };
+const natRefPointer<IArgumentRequirement> ActionTypeOf::ActionTypeOfContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Statement }) };
 
 ActionTypeOf::ActionTypeOf()
 {
@@ -232,29 +268,34 @@ ActionTypeOf::~ActionTypeOf()
 
 nStrView ActionTypeOf::GetName() const noexcept
 {
-	return "TypeOf";
+	return u8"TypeOf"_nv;
 }
 
-natRefPointer<IArgumentRequirement> ActionTypeOf::GetArgumentRequirement()
+natRefPointer<IActionContext> ActionTypeOf::StartAction(CompilerActionContext const& /*context*/)
+{
+	return make_ref<ActionTypeOfContext>();
+}
+
+void ActionTypeOf::EndAction(natRefPointer<IActionContext> const& context, std::function<nBool(natRefPointer<ASTNode>)> const& output)
+{
+	const auto actionContext = context.UnsafeCast<ActionTypeOfContext>();
+
+	if (output)
+	{
+		output(actionContext->Type);
+	}
+}
+
+ActionTypeOf::ActionTypeOfContext::~ActionTypeOfContext()
+{
+}
+
+natRefPointer<IArgumentRequirement> ActionTypeOf::ActionTypeOfContext::GetArgumentRequirement()
 {
 	return s_ArgumentRequirement;
 }
 
-void ActionTypeOf::StartAction(CompilerActionContext const& /*context*/)
-{
-}
-
-void ActionTypeOf::EndAction(std::function<nBool(natRefPointer<ASTNode>)> const& output)
-{
-	if (output)
-	{
-		output(m_Type);
-	}
-
-	m_Type.Reset();
-}
-
-void ActionTypeOf::AddArgument(natRefPointer<ASTNode> const& arg)
+void ActionTypeOf::ActionTypeOfContext::AddArgument(natRefPointer<ASTNode> const& arg)
 {
 	const auto expr = arg.Cast<Expression::Expr>();
 	if (!expr)
@@ -263,128 +304,188 @@ void ActionTypeOf::AddArgument(natRefPointer<ASTNode> const& arg)
 		return;
 	}
 
-	m_Type = expr->GetExprType();
+	Type = expr->GetExprType();
 }
 
-const natRefPointer<IArgumentRequirement> ActionTypeArg::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier }) };
-
-ActionArgInfo::ActionArgInfo(ArgType argType, natRefPointer<ASTNode> arg)
-	: m_ArgType{ argType }, m_Arg{ std::move(arg) }
+ActionCreateAt::ActionCreateAtArgumentRequirement::ActionCreateAtArgumentRequirement()
 {
 }
 
-ActionArgInfo::~ActionArgInfo()
+ActionCreateAt::ActionCreateAtArgumentRequirement::~ActionCreateAtArgumentRequirement()
 {
 }
 
-nStrView ActionArgInfo::GetName() const noexcept
+CompilerActionArgumentType ActionCreateAt::ActionCreateAtArgumentRequirement::GetExpectedArgumentType(std::size_t i)
 {
-	return {};
+	return i ? CompilerActionArgumentType::Statement | CompilerActionArgumentType::Optional : CompilerActionArgumentType::Type;
 }
 
-natRefPointer<IArgumentRequirement> ActionArgInfo::GetArgumentRequirement()
-{
-	return nullptr;
-}
+const natRefPointer<IArgumentRequirement> ActionCreateAt::ActionCreateAtContext::s_ArgumentRequirement{ make_ref<ActionCreateAtArgumentRequirement>() };
 
-void ActionArgInfo::StartAction(CompilerActionContext const& /*context*/)
+ActionCreateAt::ActionCreateAt()
 {
 }
 
-void ActionArgInfo::EndAction(std::function<nBool(natRefPointer<ASTNode>)> const& /*output*/)
+ActionCreateAt::~ActionCreateAt()
 {
 }
 
-void ActionArgInfo::AddArgument(natRefPointer<ASTNode> const& /*arg*/)
+nStrView ActionCreateAt::GetName() const noexcept
+{
+	return u8"CreateAt"_nv;
+}
+
+natRefPointer<IActionContext> ActionCreateAt::StartAction(CompilerActionContext const& context)
+{
+	auto actionContext = make_ref<ActionCreateAtContext>();
+	actionContext->Sema = &context.GetParser().GetSema();
+	return actionContext;
+}
+
+void ActionCreateAt::EndAction(natRefPointer<IActionContext> const& context, std::function<nBool(natRefPointer<ASTNode>)> const& output)
+{
+	const auto actionContext = context.UnsafeCast<ActionCreateAtContext>();
+
+	Semantic::LookupResult r{ *actionContext->Sema, nullptr,{}, Semantic::Sema::LookupNameType::LookupMemberName };
+	// 之前已经判断过了
+	const auto classType = actionContext->Ptr->GetExprType().UnsafeCast<Type::PointerType>()->GetPointeeType().Cast<Type::ClassType>();
+	if (!classType)
+	{
+		// 不需要任何操作
+		if (output)
+		{
+			output(actionContext->Sema->ActOnNullStmt());
+		}
+		return;
+	}
+
+	if (!actionContext->Sema->LookupConstructors(r, classType->GetDecl().UnsafeCast<Declaration::ClassDecl>()) || r.GetResultType() == Semantic::LookupResult::LookupResultType::NotFound)
+	{
+		if (!actionContext->Arguments.empty())
+		{
+			// TODO: 多余的参数
+		}
+
+		// TODO: 生成默认构造函数并调用
+		if (output)
+		{
+			output(actionContext->Sema->ActOnNullStmt());
+		}
+		return;
+	}
+
+	// TODO: 处理重载
+	assert(r.GetDeclSize() == 1);
+	if (output)
+	{
+		output(actionContext->Sema->ActOnCallExpr(actionContext->Sema->GetCurrentScope(),
+			actionContext->Sema->BuildMethodReferenceExpr(actionContext->Ptr, {}, nullptr, r.GetDecls().first(), nullptr), {}, from(actionContext->Arguments), {}));
+	}
+}
+
+ActionCreateAt::ActionCreateAtContext::~ActionCreateAtContext()
 {
 }
 
-ActionTypeArg::ActionTypeArg()
-	: m_Diag{}
-{
-}
-
-ActionTypeArg::~ActionTypeArg()
-{
-}
-
-nStrView ActionTypeArg::GetName() const noexcept
-{
-	return "TypeArg";
-}
-
-natRefPointer<IArgumentRequirement> ActionTypeArg::GetArgumentRequirement()
+natRefPointer<IArgumentRequirement> ActionCreateAt::ActionCreateAtContext::GetArgumentRequirement()
 {
 	return s_ArgumentRequirement;
 }
 
-void ActionTypeArg::StartAction(CompilerActionContext const& context)
+void ActionCreateAt::ActionCreateAtContext::AddArgument(natRefPointer<ASTNode> const& arg)
 {
-	m_Diag = &context.GetParser().GetDiagnosticsEngine();
-}
-
-void ActionTypeArg::EndAction(std::function<nBool(natRefPointer<ASTNode>)> const& output)
-{
-	if (output)
+	if (!Ptr)
 	{
-
-	}
-}
-
-void ActionTypeArg::AddArgument(natRefPointer<ASTNode> const& arg)
-{
-	if (const auto idDecl = arg.Cast<Declaration::UnresolvedDecl>())
-	{
-		m_TypeId = idDecl->GetIdentifierInfo();
+		Ptr = arg;
+		if (!Ptr || Type::Type::GetUnderlyingType(Ptr->GetExprType())->GetType() != Type::Type::Pointer)
+		{
+			// TODO: 报告错误：希望获得指针表达式
+		}
 	}
 	else
 	{
-		// TODO: 通过 m_Diag 报告错误
+		Arguments.emplace_back(arg);
 	}
 }
 
-ActionTemplate::ActionTemplate()
-	: m_Sema{}, m_IsTemplateArgEnded{ false }
+const natRefPointer<IArgumentRequirement> ActionDestroyAt::ActionDestroyAtContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Statement }) };
+
+ActionDestroyAt::ActionDestroyAt()
 {
 }
 
-ActionTemplate::~ActionTemplate()
+ActionDestroyAt::~ActionDestroyAt()
 {
 }
 
-nStrView ActionTemplate::GetName() const noexcept
+nStrView ActionDestroyAt::GetName() const noexcept
 {
-	return "Template";
+	return u8"DestroyAt"_nv;
 }
 
-natRefPointer<IArgumentRequirement> ActionTemplate::GetArgumentRequirement()
+natRefPointer<IActionContext> ActionDestroyAt::StartAction(CompilerActionContext const& context)
 {
-	// TODO
-	return nullptr;
+	auto actionContext = make_ref<ActionDestroyAtContext>();
+	actionContext->Sema = &context.GetParser().GetSema();
+	return actionContext;
 }
 
-void ActionTemplate::StartAction(CompilerActionContext const& context)
+void ActionDestroyAt::EndAction(natRefPointer<IActionContext> const& context, std::function<nBool(natRefPointer<ASTNode>)> const& output)
+{
+	const auto actionContext = context.UnsafeCast<ActionDestroyAtContext>();
+
+	// 之前已经判断过了
+	const auto classType = actionContext->Ptr->GetExprType().UnsafeCast<Type::PointerType>()->GetPointeeType().Cast<Type::ClassType>();
+	if (!classType)
+	{
+		// 不需要任何操作
+		if (output)
+		{
+			output(actionContext->Sema->ActOnNullStmt());
+		}
+		return;
+	}
+
+	const auto classDecl = classType->GetDecl().UnsafeCast<Declaration::ClassDecl>();
+	const auto destructor = classDecl->GetDecls().select([](natRefPointer<Declaration::NamedDecl> const& decl)
+	{
+		return decl.Cast<Declaration::DestructorDecl>();
+	}).first_or_default(nullptr, [](natRefPointer<Declaration::DestructorDecl> const& decl) -> nBool
+	{
+		return decl;
+	});
+
+	if (!destructor)
+	{
+		// TODO: 生成默认析构函数并调用
+		if (output)
+		{
+			output(actionContext->Sema->ActOnNullStmt());
+		}
+		return;
+	}
+
+	if (output)
+	{
+		output(actionContext->Sema->ActOnCallExpr(actionContext->Sema->GetCurrentScope(),
+			actionContext->Sema->BuildMethodReferenceExpr(actionContext->Ptr, {}, nullptr, destructor, nullptr), {}, from_empty<Expression::ExprPtr>(), {}));
+	}
+}
+
+ActionDestroyAt::ActionDestroyAtContext::~ActionDestroyAtContext()
 {
 }
 
-void ActionTemplate::EndAction(std::function<nBool(natRefPointer<ASTNode>)> const& output)
+natRefPointer<IArgumentRequirement> ActionDestroyAt::ActionDestroyAtContext::GetArgumentRequirement()
 {
+	return s_ArgumentRequirement;
 }
 
-void ActionTemplate::AddArgument(natRefPointer<ASTNode> const& arg)
+void ActionDestroyAt::ActionDestroyAtContext::AddArgument(natRefPointer<ASTNode> const& arg)
 {
-}
-
-void ActionTemplate::EndArgumentList()
-{
-}
-
-ActionTemplate::ActionTemplateArgumentRequirement::~ActionTemplateArgumentRequirement()
-{
-}
-
-CompilerActionArgumentType ActionTemplate::ActionTemplateArgumentRequirement::GetExpectedArgumentType(std::size_t i)
-{
-	// TODO
-	return CompilerActionArgumentType::None;
+	Ptr = arg;
+	if (!Ptr || Type::Type::GetUnderlyingType(Ptr->GetExprType())->GetType() != Type::Type::Pointer)
+	{
+		// TODO: 报告错误：希望获得指针表达式
+	}
 }

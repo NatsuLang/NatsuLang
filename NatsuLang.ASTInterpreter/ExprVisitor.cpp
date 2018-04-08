@@ -339,11 +339,6 @@ void Interpreter::InterpreterExprVisitor::VisitStmtExpr(natRefPointer<Expression
 	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 }
 
-void Interpreter::InterpreterExprVisitor::VisitUnaryExprOrTypeTraitExpr(natRefPointer<Expression::UnaryExprOrTypeTraitExpr> const& expr)
-{
-	nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
-}
-
 void Interpreter::InterpreterExprVisitor::VisitConditionalOperator(natRefPointer<Expression::ConditionalOperator> const& expr)
 {
 	Visit(expr->GetCondition());

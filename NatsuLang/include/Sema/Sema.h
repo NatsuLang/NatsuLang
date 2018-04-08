@@ -114,6 +114,9 @@ namespace NatsuLang::Semantic
 			Phase2 // 解析顶层的 CompilerAction 及对各保留的声明符进行分析，主要工作为解析类型为真实类型及解析初始化器等
 		};
 
+		static constexpr nStrView::CharType ConstructorName[] = ".Ctor";
+		static constexpr nStrView::CharType DestructorName[] = ".Dtor";
+
 		Sema(Preprocessor& preprocessor, ASTContext& astContext, NatsuLib::natRefPointer<ASTConsumer> astConsumer);
 		~Sema();
 
@@ -372,6 +375,10 @@ namespace NatsuLang::Semantic
 		                                            NatsuLib::natRefPointer<NestedNameSpecifier> const& nns,
 		                                            NatsuLib::natRefPointer<Declaration::FieldDecl> field,
 		                                            Identifier::IdPtr id);
+		Expression::ExprPtr BuildMethodReferenceExpr(Expression::ExprPtr baseExpr, SourceLocation opLoc,
+			NatsuLib::natRefPointer<NestedNameSpecifier> const& nns,
+			NatsuLib::natRefPointer<Declaration::MethodDecl> method,
+			Identifier::IdPtr id);
 
 		Expression::ExprPtr BuildConstructExpr(NatsuLib::natRefPointer<Type::ClassType> const& classType,
 		                                       SourceLocation leftBraceLoc, std::vector<Expression::ExprPtr> initExprs,
@@ -399,9 +406,6 @@ namespace NatsuLang::Semantic
 		NatsuLib::natRefPointer<Declaration::IAttribute> DeserializeAttribute(nStrView attributeName, NatsuLib::natRefPointer<ISerializationArchiveReader> const& reader);
 
 	private:
-		static constexpr nStrView::CharType ConstructorName[] = ".Ctor";
-		static constexpr nStrView::CharType DestructorName[] = ".Dtor";
-
 		Preprocessor& m_Preprocessor;
 		ASTContext& m_Context;
 		NatsuLib::natRefPointer<ASTConsumer> m_Consumer;
@@ -409,14 +413,14 @@ namespace NatsuLang::Semantic
 		Diag::DiagnosticsEngine& m_Diag;
 		SourceManager& m_SourceManager;
 
-		Phase m_CurrentPhase;
-		std::vector<Declaration::DeclaratorPtr> m_Declarators;
-
 		NatsuLib::natRefPointer<ImportedAttribute> m_ImportedAttribute;
 
 		std::unordered_map<nString, NatsuLib::natRefPointer<IAttributeSerializer>> m_AttributeSerializerMap;
 
-		// 以下4个是在并行分析过程中需要特别注意的
+		// 以下几个是在并行分析过程中需要特别注意的
+		Phase m_CurrentPhase;
+		std::vector<Declaration::DeclaratorPtr> m_Declarators;
+
 		NatsuLib::natRefPointer<Scope> m_TranslationUnitScope;
 		NatsuLib::natRefPointer<Scope> m_CurrentScope;
 

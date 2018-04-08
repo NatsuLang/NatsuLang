@@ -811,8 +811,6 @@ ASTNodePtr Deserializer::DeserializeStmt()
 		break;
 	case NatsuLang::Statement::Stmt::StringLiteralClass:
 		break;
-	case NatsuLang::Statement::Stmt::UnaryExprOrTypeTraitExprClass:
-		break;
 	case NatsuLang::Statement::Stmt::UnaryOperatorClass:
 		break;
 	case NatsuLang::Statement::Stmt::ForStmtClass:
@@ -1351,11 +1349,6 @@ void Serializer::VisitStringLiteral(natRefPointer<Expression::StringLiteral> con
 {
 	VisitExpr(expr);
 	m_Archive->WriteString(u8"Value", expr->GetValue());
-}
-
-void Serializer::VisitUnaryExprOrTypeTraitExpr(natRefPointer<Expression::UnaryExprOrTypeTraitExpr> const& expr)
-{
-	nat_Throw(NotImplementedException);
 }
 
 void Serializer::VisitUnaryOperator(natRefPointer<Expression::UnaryOperator> const& expr)
