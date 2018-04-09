@@ -2661,10 +2661,8 @@ void AotCompiler::prewarm()
 	registerNativeType<long long>(u8"LongLong"_nv);
 	registerNativeType<unsigned long long>(u8"ULongLong"_nv);
 
-	m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo(u8"SizeType"_nv, dummy),
-		m_AstContext.GetSizeType());
-	m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo(u8"PtrDiffType"_nv, dummy),
-		m_AstContext.GetPtrDiffType());
+	m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo(u8"SizeType"_nv, dummy), {}, m_AstContext.GetSizeType());
+	m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo(u8"PtrDiffType"_nv, dummy), {}, m_AstContext.GetPtrDiffType());
 
 #ifdef _WIN32
 	const auto win32Module = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo("Win32", dummy));

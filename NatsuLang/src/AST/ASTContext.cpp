@@ -315,7 +315,7 @@ ASTContext::ClassLayout const& ASTContext::GetClassLayout(natRefPointer<Declarat
 	const auto ret = m_CachedClassLayout.emplace(classDecl, info);
 	if (!ret.second)
 	{
-		// TODO: 报告错误
+		nat_Throw(natErrException, NatErr::NatErr_InternalErr, u8"Cannot insert class layout"_nv);
 	}
 
 	return ret.first->second;

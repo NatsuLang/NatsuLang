@@ -397,8 +397,7 @@ namespace NatsuLang::Compiler
 				builtinClass = Type::BuiltinType::MakeUnsignedBuiltinClass(builtinClass);
 			}
 
-			m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo(name, dummy),
-				m_AstContext.GetBuiltinType(builtinClass));
+			m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo(name, dummy), {}, m_AstContext.GetBuiltinType(builtinClass));
 		}
 		void prewarm();
 

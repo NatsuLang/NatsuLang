@@ -227,7 +227,7 @@ namespace NatsuLang::Syntax
 
 		std::vector<Declaration::DeclPtr> ParseDeclaration(Declaration::Context context, SourceLocation& declEnd);
 		Declaration::DeclPtr ParseAliasDeclaration(Declaration::Context context, SourceLocation& declEnd);
-		Declaration::DeclPtr ParseAliasBody(Identifier::IdPtr aliasId, SourceLocation aliasLoc, Declaration::Context context, SourceLocation& declEnd);
+		Declaration::DeclPtr ParseAliasBody(SourceLocation aliasLoc, Identifier::IdPtr aliasId, SourceLocation aliasIdLoc, Declaration::Context context, SourceLocation& declEnd);
 
 		Declaration::DeclPtr ParseFunctionBody(Declaration::DeclPtr decl, ParseScope& scope);
 
@@ -290,7 +290,7 @@ namespace NatsuLang::Syntax
 		Expression::ExprPtr ParseThrowExpression();
 		Expression::ExprPtr ParseParenExpression();
 
-		std::pair<NatsuLib::natRefPointer<NestedNameSpecifier>, Identifier::IdPtr> ParseMayBeQualifiedId();
+		std::pair<NatsuLib::natRefPointer<NestedNameSpecifier>, std::pair<Identifier::IdPtr, SourceLocation>> ParseMayBeQualifiedId();
 
 		// argument-expression-list:
 		//	argument-expression

@@ -735,13 +735,19 @@ void Sema::ActOnTagFinishDefinition()
 }
 
 natRefPointer<Declaration::EnumConstantDecl> Sema::ActOnEnumerator(natRefPointer<Scope> const& scope,
-	natRefPointer<Declaration::EnumDecl> const& enumDecl,
-	natRefPointer<Declaration::EnumConstantDecl> const& lastEnumerator, Identifier::IdPtr name, Expression::ExprPtr initializer)
+																   natRefPointer<Declaration::EnumDecl> const& enumDecl,
+																   natRefPointer<Declaration::EnumConstantDecl> const& lastEnumerator, Identifier::IdPtr name,
+																   SourceLocation loc, Expression::ExprPtr initializer)
 {
-	LookupResult r{ *this, name, {}, LookupNameType::LookupOrdinaryName };
+	LookupResult r{ *this, name, loc, LookupNameType::LookupOrdinaryName };
 	if (LookupName(r, scope) && (r.GetResultType() != LookupResult::LookupResultType::NotFound))
 	{
-		// TODO: 报告错误：重复定义
+		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrDuplicateDeclaration, loc)
+			.AddArgument(name);
+		for (const auto& decl : r.GetDecls())
+		{
+			m_Diag.Report(Diag::DiagnosticsEngine::DiagID::NoteSee, decl->GetLocation());
+		}
 		return nullptr;
 	}
 
@@ -750,7 +756,7 @@ natRefPointer<Declaration::EnumConstantDecl> Sema::ActOnEnumerator(natRefPointer
 	{
 		if (!initializer->EvaluateAsInt(value, m_Context))
 		{
-			// TODO: 报告错误：无法求值为常量表达式
+			m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrExpressionCannotEvaluateAsConstant, loc);
 			return nullptr;
 		}
 	}
@@ -761,7 +767,7 @@ natRefPointer<Declaration::EnumConstantDecl> Sema::ActOnEnumerator(natRefPointer
 
 	const auto dc = Declaration::Decl::CastToDeclContext(enumDecl.Get());
 
-	auto enumerator = make_ref<Declaration::EnumConstantDecl>(dc, SourceLocation{}, std::move(name), enumDecl->GetUnderlyingType(), std::move(initializer), value);
+	auto enumerator = make_ref<Declaration::EnumConstantDecl>(dc, loc, std::move(name), enumDecl->GetUnderlyingType(), std::move(initializer), value);
 	PushOnScopeChains(enumerator, scope);
 	return enumerator;
 }
@@ -949,7 +955,7 @@ Type::TypePtr Sema::ActOnPointerType(natRefPointer<Scope> const& scope, Type::Ty
 {
 	if (!scope->HasFlags(ScopeFlags::UnsafeScope))
 	{
-		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrUnsafeOperationInNotUnsafeScope);
+		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrUnsafeOperationInSafeScope);
 	}
 
 	return m_Context.GetPointerType(std::move(pointeeType));
@@ -1024,7 +1030,7 @@ natRefPointer<Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 	}
 
 	auto varDecl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, decl->GetRange().GetBegin(),
-												  SourceLocation{}, std::move(id), std::move(type),
+												  decl->GetIdentifierLocation(), std::move(id), std::move(type),
 												  decl->GetStorageClass());
 	varDecl->SetInitializer(initExpr);
 
@@ -1051,7 +1057,7 @@ natRefPointer<Declaration::FieldDecl> Sema::ActOnFieldDeclarator(natRefPointer<S
 	}
 
 	auto fieldDecl = make_ref<Declaration::FieldDecl>(Declaration::Decl::Field, dc, decl->GetRange().GetBegin(),
-													  SourceLocation{}, std::move(id), std::move(type));
+		decl->GetIdentifierLocation(), std::move(id), std::move(type));
 	return fieldDecl;
 }
 
@@ -1076,25 +1082,25 @@ natRefPointer<Declaration::FunctionDecl> Sema::ActOnFunctionDeclarator(
 		auto classDecl = Declaration::Decl::CastFromDeclContext(dc)->ForkRef<Declaration::ClassDecl>();
 		if (decl->IsConstructor())
 		{
-			funcDecl = make_ref<Declaration::ConstructorDecl>(dc, SourceLocation{},
+			funcDecl = make_ref<Declaration::ConstructorDecl>(dc, decl->GetRange().GetBegin(),
 															  std::move(asId), std::move(type), decl->GetStorageClass());
 		}
 		else if (decl->IsDestructor())
 		{
-			funcDecl = make_ref<Declaration::DestructorDecl>(dc, SourceLocation{},
+			funcDecl = make_ref<Declaration::DestructorDecl>(dc, decl->GetRange().GetBegin(),
 															 std::move(asId), std::move(type), decl->GetStorageClass());
 		}
 		else
 		{
 			funcDecl = make_ref<Declaration::MethodDecl>(Declaration::Decl::Method, dc,
-														 SourceLocation{}, SourceLocation{}, std::move(asId), std::move(type),
+				decl->GetRange().GetBegin(), decl->GetIdentifierLocation(), std::move(asId), std::move(type),
 														 decl->GetStorageClass());
 		}
 	}
 	else
 	{
 		funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
-													   SourceLocation{}, SourceLocation{}, std::move(asId), std::move(type),
+			decl->GetRange().GetBegin(), decl->GetIdentifierLocation(), std::move(asId), std::move(type),
 													   decl->GetStorageClass());
 	}
 
@@ -1115,8 +1121,8 @@ natRefPointer<Declaration::UnresolvedDecl> Sema::ActOnUnresolvedDeclarator(
 	assert(m_CurrentPhase == Phase::Phase1);
 	assert(!decl->GetType() && !decl->GetInitializer());
 
-	auto unresolvedDecl = make_ref<Declaration::UnresolvedDecl>(dc, SourceLocation{}, decl->GetIdentifier(), nullptr,
-																SourceLocation{}, decl);
+	auto unresolvedDecl = make_ref<Declaration::UnresolvedDecl>(dc, decl->GetIdentifierLocation(), decl->GetIdentifier(), nullptr,
+																decl->GetRange().GetBegin(), decl);
 	m_Declarators.emplace_back(std::move(decl));
 
 	return unresolvedDecl;
@@ -1129,7 +1135,7 @@ natRefPointer<Declaration::UnresolvedDecl> Sema::ActOnCompilerActionIdentifierAr
 												 nullptr);
 }
 
-void Sema::RemoveOldUnresolvedDecl(Declaration::DeclaratorPtr decl, Declaration::DeclPtr const& oldUnresolvedDeclPtr)
+void Sema::RemoveOldUnresolvedDecl(const Declaration::DeclaratorPtr& decl, Declaration::DeclPtr const& oldUnresolvedDeclPtr)
 {
 	const auto declScope = decl->GetDeclarationScope();
 	const auto declContext = decl->GetDeclarationContext();
@@ -1143,7 +1149,7 @@ void Sema::RemoveOldUnresolvedDecl(Declaration::DeclaratorPtr decl, Declaration:
 }
 
 natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope> scope,
-															 Declaration::DeclaratorPtr decl,
+															 const Declaration::DeclaratorPtr& decl,
 															 Declaration::DeclPtr const& oldUnresolvedDeclPtr)
 {
 	if (auto preparedDecl = decl->GetDecl(); preparedDecl && preparedDecl != oldUnresolvedDeclPtr)
@@ -1241,7 +1247,7 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 }
 
 natRefPointer<Declaration::AliasDecl> Sema::ActOnAliasDeclaration(natRefPointer<Scope> scope,
-	SourceLocation loc, Identifier::IdPtr id, ASTNodePtr aliasAsAst, nBool addToContext)
+																  SourceLocation loc, Identifier::IdPtr id, SourceLocation idLoc, ASTNodePtr aliasAsAst, nBool addToContext)
 {
 	while ((scope->GetFlags() & ScopeFlags::DeclarableScope) == ScopeFlags::None)
 	{
@@ -1254,7 +1260,7 @@ natRefPointer<Declaration::AliasDecl> Sema::ActOnAliasDeclaration(natRefPointer<
 		dc = Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get());
 	}
 
-	LookupResult previous{ *this, id, {}, LookupNameType::LookupOrdinaryName };
+	LookupResult previous{ *this, id, idLoc, LookupNameType::LookupOrdinaryName };
 	if (LookupName(previous, scope) && previous.GetDeclSize())
 	{
 		// TODO: 处理重载或覆盖的情况
@@ -1572,10 +1578,10 @@ natRefPointer<Declaration::NamedDecl> Sema::ResolveDeclarator(natRefPointer<Synt
 }
 
 Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefPointer<NestedNameSpecifier> const& nns,
-									  Identifier::IdPtr id, nBool hasTraillingLParen,
+									  Identifier::IdPtr id, SourceLocation idLoc, nBool hasTraillingLParen,
 									  natRefPointer<Syntax::ResolveContext> const& resolveContext)
 {
-	LookupResult result{ *this, id, {}, LookupNameType::LookupOrdinaryName };
+	LookupResult result{ *this, id, idLoc, LookupNameType::LookupOrdinaryName };
 	if (!LookupNestedName(result, scope, nns))
 	{
 		switch (result.GetResultType())
@@ -1854,7 +1860,7 @@ Expression::ExprPtr Sema::ActOnUnaryOp(natRefPointer<Scope> const& scope, Source
 
 	if (IsUnsafeOperation(opCode) && !scope->HasFlags(ScopeFlags::UnsafeScope))
 	{
-		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrUnsafeOperationInNotUnsafeScope);
+		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrUnsafeOperationInSafeScope);
 	}
 
 	return CreateBuiltinUnaryOp(loc, opCode, std::move(operand));

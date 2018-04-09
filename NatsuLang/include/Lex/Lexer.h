@@ -71,7 +71,7 @@ namespace NatsuLang
 				friend class Lexer;
 
 				Memento(nuInt currentLine, Iterator current, std::map<Iterator, std::pair<nuInt, Iterator>>::const_iterator lineCacheIter) noexcept
-					: m_CurrentLine{ currentLine }, m_Current{ current }, m_LineCacheIter{ lineCacheIter }
+					: m_CurrentLine{ currentLine }, m_Current{ current }, m_LineCacheIter{ std::move(lineCacheIter) }
 				{
 				}
 

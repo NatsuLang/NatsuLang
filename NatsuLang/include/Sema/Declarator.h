@@ -62,9 +62,24 @@ namespace NatsuLang::Declaration
 		{
 		}
 
+		SourceLocation GetIdentifierLocation() const noexcept
+		{
+			return m_IdLocation;
+		}
+
+		void SetIdentifierLocation(SourceLocation value) noexcept
+		{
+			m_IdLocation = value;
+		}
+
 		Identifier::IdPtr GetIdentifier() const noexcept
 		{
 			return m_Identifier.index() == 0 ? std::get<0>(m_Identifier) : nullptr;
+		}
+
+		void SetIdentifier(Identifier::IdPtr idPtr) noexcept
+		{
+			m_Identifier = std::move(idPtr);
 		}
 
 		nBool IsConstructor() const noexcept
@@ -75,11 +90,6 @@ namespace NatsuLang::Declaration
 		nBool IsDestructor() const noexcept
 		{
 			return m_Identifier.index() == 2;
-		}
-
-		void SetIdentifier(Identifier::IdPtr idPtr) noexcept
-		{
-			m_Identifier = std::move(idPtr);
 		}
 
 		void SetConstructor() noexcept
@@ -263,6 +273,7 @@ namespace NatsuLang::Declaration
 		Specifier::Access m_Accessibility;
 		Specifier::Safety m_Safety;
 		std::variant<Identifier::IdPtr, ConstructorTag, DestructorTag> m_Identifier;
+		SourceLocation m_IdLocation;
 		Type::TypePtr m_Type;
 		Statement::StmtPtr m_Initializer;
 

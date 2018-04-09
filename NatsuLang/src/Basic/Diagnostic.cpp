@@ -45,25 +45,33 @@ nBool Diag::DiagnosticsEngine::IsDiagEnabled() const noexcept
 	return m_Enabled;
 }
 
+// TODO: 由 DiagnosticConsumer 决定如何解释参数
 nString Diag::DiagnosticsEngine::convertArgumentToString(nuInt index) const
 {
 	const auto& arg = m_Arguments[index];
-	switch (arg.first)
+	switch (arg.index())
 	{
-	case ArgumentType::String:
-		return std::get<0>(arg.second);
-	case ArgumentType::Char:
-		return nString{ std::get<1>(arg.second) };
-	case ArgumentType::SInt:
-		return nStrView{ std::to_string(std::get<2>(arg.second)).data() };
-	case ArgumentType::UInt:
-		return nStrView{ std::to_string(std::get<3>(arg.second)).data() };
-	case ArgumentType::TokenType:
-		return Lex::GetTokenName(std::get<4>(arg.second));
-	case ArgumentType::IdentifierInfo:
-		return std::get<5>(arg.second)->GetName();
+	case 0:
+		return std::get<0>(arg);
+	case 1:
+		return nString{ std::get<1>(arg) };
+	case 2:
+		return nStrView{ std::to_string(std::get<2>(arg)).data() };
+	case 3:
+		return nStrView{ std::to_string(std::get<3>(arg)).data() };
+	case 4:
+		return Lex::GetTokenName(std::get<4>(arg));
+	case 5:
+		return std::get<5>(arg)->GetName();
+	case 6:
+	{
+		const auto& range = std::get<6>(arg);
+		// TODO: 完成 SourceRange 的诊断信息输出
+		return u8"(SourceRange)"_ns;
+	}
 	default:
-		return "(Broken argument)";
+		assert(!"Invalid argument");
+		return "(Invalid argument)";
 	}
 }
 
@@ -74,37 +82,43 @@ Diag::DiagnosticsEngine::DiagnosticBuilder::~DiagnosticBuilder()
 
 const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::DiagnosticBuilder::AddArgument(nString string) const
 {
-	m_Diags.m_Arguments.emplace_back(ArgumentType::String, Argument{ std::in_place_index<0>, std::move(string) });
+	m_Diags.m_Arguments.emplace_back(std::in_place_index<0>, std::move(string));
 	return *this;
 }
 
 const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::DiagnosticBuilder::AddArgument(nChar Char) const
 {
-	m_Diags.m_Arguments.emplace_back(ArgumentType::Char, Argument{ std::in_place_index<1>, Char });
+	m_Diags.m_Arguments.emplace_back(std::in_place_index<1>, Char);
 	return *this;
 }
 
 const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::DiagnosticBuilder::AddArgument(nInt sInt) const
 {
-	m_Diags.m_Arguments.emplace_back(ArgumentType::SInt, Argument{ std::in_place_index<2>, sInt });
+	m_Diags.m_Arguments.emplace_back(std::in_place_index<2>, sInt);
 	return *this;
 }
 
 const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::DiagnosticBuilder::AddArgument(nuInt uInt) const
 {
-	m_Diags.m_Arguments.emplace_back(ArgumentType::UInt, Argument{ std::in_place_index<3>, uInt });
+	m_Diags.m_Arguments.emplace_back(std::in_place_index<3>, uInt);
 	return *this;
 }
 
 const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::DiagnosticBuilder::AddArgument(Lex::TokenType tokenType) const
 {
-	m_Diags.m_Arguments.emplace_back(ArgumentType::TokenType, Argument{ std::in_place_index<4>, tokenType });
+	m_Diags.m_Arguments.emplace_back(std::in_place_index<4>, tokenType);
 	return *this;
 }
 
 const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::DiagnosticBuilder::AddArgument(natRefPointer<Identifier::IdentifierInfo> identifierInfo) const
 {
-	m_Diags.m_Arguments.emplace_back(ArgumentType::IdentifierInfo, Argument{ std::in_place_index<5>, std::move(identifierInfo) });
+	m_Diags.m_Arguments.emplace_back(std::in_place_index<5>, std::move(identifierInfo));
+	return *this;
+}
+
+const Diag::DiagnosticsEngine::DiagnosticBuilder& Diag::DiagnosticsEngine::DiagnosticBuilder::AddArgument(SourceRange const& sourceRange) const
+{
+	m_Diags.m_Arguments.emplace_back(std::in_place_index<6>, sourceRange);
 	return *this;
 }
 
@@ -160,9 +174,9 @@ std::size_t Diag::DiagnosticsEngine::GetArgumentCount() const noexcept
 	return m_Arguments.size();
 }
 
-std::pair<Diag::DiagnosticsEngine::ArgumentType, Diag::DiagnosticsEngine::Argument> const& Diag::DiagnosticsEngine::GetArgument(std::size_t i) const
+Diag::DiagnosticsEngine::Argument const& Diag::DiagnosticsEngine::GetArgument(std::size_t i) const
 {
-	return m_Arguments.at(i);
+	return m_Arguments[i];
 }
 
 Diag::DiagnosticsEngine::DiagnosticBuilder Diag::DiagnosticsEngine::Report(DiagID id, SourceRange sourcerange)

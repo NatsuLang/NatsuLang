@@ -104,9 +104,9 @@ namespace NatsuLang::Diag
 		}
 
 	private:
-		using Argument = std::variant<nString, nChar, nInt, nuInt, Lex::TokenType, NatsuLib::natRefPointer<Identifier::IdentifierInfo>>;
+		using Argument = std::variant<nString, nChar, nInt, nuInt, Lex::TokenType, NatsuLib::natRefPointer<Identifier::IdentifierInfo>, SourceRange>;
 
-		std::vector<std::pair<ArgumentType, Argument>> m_Arguments;
+		std::vector<Argument> m_Arguments;
 		NatsuLib::natRefPointer<Misc::TextProvider<DiagID>> m_IDMap;
 		NatsuLib::natRefPointer<DiagnosticConsumer> m_Consumer;
 
@@ -161,6 +161,7 @@ namespace NatsuLang::Diag
 			const DiagnosticBuilder& AddArgument(nuInt uInt) const;
 			const DiagnosticBuilder& AddArgument(Lex::TokenType tokenType) const;
 			const DiagnosticBuilder& AddArgument(NatsuLib::natRefPointer<Identifier::IdentifierInfo> identifierInfo) const;
+			const DiagnosticBuilder& AddArgument(SourceRange const& sourceRange) const;
 
 		private:
 			DiagnosticsEngine& m_Diags;
@@ -194,7 +195,7 @@ namespace NatsuLang::Diag
 
 	public:
 		std::size_t GetArgumentCount() const noexcept;
-		std::pair<ArgumentType, Argument> const& GetArgument(std::size_t i) const;
+		Argument const& GetArgument(std::size_t i) const;
 		DiagnosticBuilder Report(DiagID id, SourceRange sourcerange = {});
 	};
 

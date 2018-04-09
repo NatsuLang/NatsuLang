@@ -20,7 +20,13 @@ ErrExtraneousClosingBrace
 未匹配的关闭大括号
 ErrNotAllControlFlowReturnAValue
 并非所有的控制流都返回值
-ErrUnsafeOperationInNotUnsafeScope
+ErrUnsafeOperationInSafeScope
 在安全的范围内使用了不安全的操作
+ErrDuplicateDeclaration
+存在名称同样为 "{0}" 的声明位于同一范围
+ErrExpressionCannotEvaluateAsConstant
+表达式无法求值为常量
 WarnOverflowed
 发生溢出
+NoteSee
+于此处

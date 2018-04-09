@@ -58,8 +58,10 @@ namespace NatsuLang
 	{
 		~IAttributeSerializer();
 
-		virtual void Serialize(NatsuLib::natRefPointer<Declaration::IAttribute> const& attribute, NatsuLib::natRefPointer<ISerializationArchiveWriter> const& writer) = 0;
-		virtual NatsuLib::natRefPointer<Declaration::IAttribute> Deserialize(NatsuLib::natRefPointer<ISerializationArchiveReader> const& reader) = 0;
+		virtual void Serialize(NatsuLib::natRefPointer<Declaration::IAttribute> const& attribute,
+		                       NatsuLib::natRefPointer<ISerializationArchiveWriter> const& writer) = 0;
+		virtual NatsuLib::natRefPointer<Declaration::IAttribute> Deserialize(
+			NatsuLib::natRefPointer<ISerializationArchiveReader> const& reader) = 0;
 	};
 
 	template <typename T>
@@ -67,11 +69,13 @@ namespace NatsuLang
 		: public NatsuLib::natRefObjImpl<NoDataAttributeSerializer<T>, IAttributeSerializer>
 	{
 	public:
-		void Serialize(NatsuLib::natRefPointer<Declaration::IAttribute> const& /*attribute*/, NatsuLib::natRefPointer<ISerializationArchiveWriter> const& /*writer*/) override
+		void Serialize(NatsuLib::natRefPointer<Declaration::IAttribute> const& /*attribute*/,
+		               NatsuLib::natRefPointer<ISerializationArchiveWriter> const& /*writer*/) override
 		{
 		}
 
-		NatsuLib::natRefPointer<Declaration::IAttribute> Deserialize(NatsuLib::natRefPointer<ISerializationArchiveReader> const& /*reader*/) override
+		NatsuLib::natRefPointer<Declaration::IAttribute> Deserialize(
+			NatsuLib::natRefPointer<ISerializationArchiveReader> const& /*reader*/) override
 		{
 			return NatsuLib::make_ref<T>();
 		}
@@ -207,31 +211,38 @@ namespace NatsuLang::Semantic
 		void RemoveFromScopeChains(NatsuLib::natRefPointer<Declaration::NamedDecl> const& decl,
 		                           NatsuLib::natRefPointer<Scope> const& scope, nBool removeFromContext = true);
 
-		void ActOnCodeComplete(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc, NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr const& id, Declaration::Context context);
+		void ActOnCodeComplete(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation loc,
+		                       NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr const& id,
+		                       Declaration::Context context);
 
 		NatsuLib::natRefPointer<CompilerActionNamespace> GetTopLevelActionNamespace() noexcept;
 
 		void ActOnTranslationUnitScope(NatsuLib::natRefPointer<Scope> scope);
 
 		NatsuLib::natRefPointer<Declaration::ModuleDecl> ActOnModuleDecl(NatsuLib::natRefPointer<Scope> scope,
-		                                                                 SourceLocation startLoc, Identifier::IdPtr name, nBool addToContext = true);
+		                                                                 SourceLocation startLoc, Identifier::IdPtr name,
+		                                                                 nBool addToContext = true);
 		void ActOnStartModule(NatsuLib::natRefPointer<Scope> const& scope,
 		                      NatsuLib::natRefPointer<Declaration::ModuleDecl> const& moduleDecl);
 		void ActOnFinishModule();
 
-		NatsuLib::natRefPointer<Declaration::ImportDecl> ActOnModuleImport(NatsuLib::natRefPointer<Scope> const& scope, SourceLocation startLoc, SourceLocation importLoc,
-			NatsuLib::natRefPointer<Declaration::ModuleDecl> const& moduleDecl);
+		NatsuLib::natRefPointer<Declaration::ImportDecl> ActOnModuleImport(NatsuLib::natRefPointer<Scope> const& scope,
+		                                                                   SourceLocation startLoc, SourceLocation importLoc,
+		                                                                   NatsuLib::natRefPointer<Declaration::ModuleDecl>
+		                                                                   const& moduleDecl);
 
 		Type::TypePtr LookupTypeName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
 		                             NatsuLib::natRefPointer<Scope> scope,
 		                             NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
 
-		NatsuLib::natRefPointer<Declaration::AliasDecl> LookupAliasName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
+		NatsuLib::natRefPointer<Declaration::AliasDecl> LookupAliasName(
+			NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
 			NatsuLib::natRefPointer<Scope> scope,
 			NatsuLib::natRefPointer<NestedNameSpecifier> const& nns,
-		    NatsuLib::natRefPointer<Syntax::ResolveContext> const& resolveContext);
+			NatsuLib::natRefPointer<Syntax::ResolveContext> const& resolveContext);
 
-		NatsuLib::natRefPointer<Declaration::ModuleDecl> LookupModuleName(NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
+		NatsuLib::natRefPointer<Declaration::ModuleDecl> LookupModuleName(
+			NatsuLib::natRefPointer<Identifier::IdentifierInfo> const& id, SourceLocation nameLoc,
 			NatsuLib::natRefPointer<Scope> scope,
 			NatsuLib::natRefPointer<NestedNameSpecifier> const& nns);
 
@@ -248,16 +259,23 @@ namespace NatsuLang::Semantic
 		///	@return	若当前并未在分析函数，则返回 nullptr，否则返回最近的一个函数声明
 		NatsuLib::natRefPointer<Declaration::FunctionDecl> GetParsingFunction() const noexcept;
 
-		NatsuLib::natRefPointer<Declaration::TagDecl> ActOnTag(NatsuLib::natRefPointer<Scope> const& scope, Type::TagType::TagTypeClass tagTypeClass,
-		                              SourceLocation kwLoc, Specifier::Access accessSpecifier, Identifier::IdPtr name,
-		                              SourceLocation nameLoc, Type::TypePtr underlyingType = nullptr, nBool addToContext = true);
+		NatsuLib::natRefPointer<Declaration::TagDecl> ActOnTag(NatsuLib::natRefPointer<Scope> const& scope,
+		                                                       Type::TagType::TagTypeClass tagTypeClass,
+		                                                       SourceLocation kwLoc, Specifier::Access accessSpecifier,
+		                                                       Identifier::IdPtr name,
+		                                                       SourceLocation nameLoc, Type::TypePtr underlyingType = nullptr,
+		                                                       nBool addToContext = true);
 		void ActOnTagStartDefinition(NatsuLib::natRefPointer<Scope> const& scope,
 		                             NatsuLib::natRefPointer<Declaration::TagDecl> const& tagDecl);
 		void ActOnTagFinishDefinition();
 
 		NatsuLib::natRefPointer<Declaration::EnumConstantDecl> ActOnEnumerator(NatsuLib::natRefPointer<Scope> const& scope,
-			NatsuLib::natRefPointer<Declaration::EnumDecl> const& enumDecl,
-			NatsuLib::natRefPointer<Declaration::EnumConstantDecl> const& lastEnumerator, Identifier::IdPtr name, Expression::ExprPtr initializer);
+		                                                                       NatsuLib::natRefPointer<Declaration::EnumDecl>
+		                                                                       const& enumDecl,
+		                                                                       NatsuLib::natRefPointer<Declaration::EnumConstantDecl> const& lastEnumerator,
+		                                                                       Identifier::IdPtr name,
+		                                                                       SourceLocation loc,
+		                                                                       Expression::ExprPtr initializer);
 
 		nBool LookupName(LookupResult& result, NatsuLib::natRefPointer<Scope> scope) const;
 		nBool LookupQualifiedName(LookupResult& result, Declaration::DeclContext* context) const;
@@ -285,13 +303,17 @@ namespace NatsuLang::Semantic
 		NatsuLib::natRefPointer<Declaration::UnresolvedDecl> ActOnUnresolvedDeclarator(
 			NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclaratorPtr decl, Declaration::DeclContext* dc);
 		NatsuLib::natRefPointer<Declaration::UnresolvedDecl> ActOnCompilerActionIdentifierArgument(Identifier::IdPtr id);
-		void RemoveOldUnresolvedDecl(Declaration::DeclaratorPtr decl, Declaration::DeclPtr const& oldUnresolvedDeclPtr);
+		void RemoveOldUnresolvedDecl(const Declaration::DeclaratorPtr& decl,
+		                             Declaration::DeclPtr const& oldUnresolvedDeclPtr);
 		NatsuLib::natRefPointer<Declaration::NamedDecl> HandleDeclarator(NatsuLib::natRefPointer<Scope> scope,
-		                                                                 Declaration::DeclaratorPtr decl,
+		                                                                 const Declaration::DeclaratorPtr& decl,
 		                                                                 Declaration::DeclPtr const& oldUnresolvedDeclPtr =
 			                                                                 nullptr);
 
-		NatsuLib::natRefPointer<Declaration::AliasDecl> ActOnAliasDeclaration(NatsuLib::natRefPointer<Scope> scope, SourceLocation loc, Identifier::IdPtr id, ASTNodePtr aliasAsAst, nBool addToContext = true);
+		NatsuLib::natRefPointer<Declaration::AliasDecl> ActOnAliasDeclaration(NatsuLib::natRefPointer<Scope> scope,
+		                                                                      SourceLocation loc, Identifier::IdPtr id,
+		                                                                      SourceLocation idLoc, ASTNodePtr aliasAsAst,
+		                                                                      nBool addToContext = true);
 
 		Statement::StmtPtr ActOnNullStmt(SourceLocation loc = {});
 		Statement::StmtPtr ActOnDeclStmt(std::vector<Declaration::DeclPtr> decls, SourceLocation start, SourceLocation end);
@@ -326,12 +348,13 @@ namespace NatsuLang::Semantic
 		Expression::ExprPtr ActOnInitExpr(Type::TypePtr initType, SourceLocation leftBraceLoc,
 		                                  std::vector<Expression::ExprPtr> initExprs, SourceLocation rightBraceLoc);
 
-		NatsuLib::natRefPointer<Declaration::NamedDecl> ResolveDeclarator(NatsuLib::natRefPointer<Syntax::ResolveContext> const& resolveContext,
-		                                                                  const NatsuLib::natRefPointer<Declaration::UnresolvedDecl>& unresolvedDecl);
+		NatsuLib::natRefPointer<Declaration::NamedDecl> ResolveDeclarator(
+			NatsuLib::natRefPointer<Syntax::ResolveContext> const& resolveContext,
+			const NatsuLib::natRefPointer<Declaration::UnresolvedDecl>& unresolvedDecl);
 
 		Expression::ExprPtr ActOnIdExpr(NatsuLib::natRefPointer<Scope> const& scope,
 		                                NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id,
-		                                nBool hasTraillingLParen,
+										SourceLocation idLoc, nBool hasTraillingLParen,
 		                                NatsuLib::natRefPointer<Syntax::ResolveContext> const& resolveContext = nullptr);
 		Expression::ExprPtr ActOnThis(SourceLocation loc);
 		Expression::ExprPtr ActOnAsTypeExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr exprToCast,
@@ -376,9 +399,9 @@ namespace NatsuLang::Semantic
 		                                            NatsuLib::natRefPointer<Declaration::FieldDecl> field,
 		                                            Identifier::IdPtr id);
 		Expression::ExprPtr BuildMethodReferenceExpr(Expression::ExprPtr baseExpr, SourceLocation opLoc,
-			NatsuLib::natRefPointer<NestedNameSpecifier> const& nns,
-			NatsuLib::natRefPointer<Declaration::MethodDecl> method,
-			Identifier::IdPtr id);
+		                                             NatsuLib::natRefPointer<NestedNameSpecifier> const& nns,
+		                                             NatsuLib::natRefPointer<Declaration::MethodDecl> method,
+		                                             Identifier::IdPtr id);
 
 		Expression::ExprPtr BuildConstructExpr(NatsuLib::natRefPointer<Type::ClassType> const& classType,
 		                                       SourceLocation leftBraceLoc, std::vector<Expression::ExprPtr> initExprs,
@@ -402,8 +425,10 @@ namespace NatsuLang::Semantic
 			RegisterAttributeSerializer(std::move(attributeName), NatsuLib::make_ref<NoDataAttributeSerializer<T>>());
 		}
 
-		void SerializeAttribute(NatsuLib::natRefPointer<Declaration::IAttribute> const& attr, NatsuLib::natRefPointer<ISerializationArchiveWriter> const& writer);
-		NatsuLib::natRefPointer<Declaration::IAttribute> DeserializeAttribute(nStrView attributeName, NatsuLib::natRefPointer<ISerializationArchiveReader> const& reader);
+		void SerializeAttribute(NatsuLib::natRefPointer<Declaration::IAttribute> const& attr,
+		                        NatsuLib::natRefPointer<ISerializationArchiveWriter> const& writer);
+		NatsuLib::natRefPointer<Declaration::IAttribute> DeserializeAttribute(
+			nStrView attributeName, NatsuLib::natRefPointer<ISerializationArchiveReader> const& reader);
 
 	private:
 		Preprocessor& m_Preprocessor;
@@ -438,12 +463,14 @@ namespace NatsuLang::Semantic
 		Type::TypePtr handleFloatConversion(Expression::ExprPtr& leftOperand, Type::TypePtr leftOperandType,
 		                                    Expression::ExprPtr& rightOperand, Type::TypePtr rightOperandType);
 
-		NatsuLib::Linq<NatsuLib::Valued<Expression::ExprPtr>> makeArgsFromType(NatsuLib::Linq<NatsuLib::Valued<Expression::ExprPtr>> const& argExprs,
+		NatsuLib::Linq<NatsuLib::Valued<Expression::ExprPtr>> makeArgsFromType(
+			NatsuLib::Linq<NatsuLib::Valued<Expression::ExprPtr>> const& argExprs,
 			std::size_t argCount,
 			NatsuLib::Linq<NatsuLib::Valued<Type::TypePtr>> const& paramTypes,
 			std::size_t paramCount);
 
-		NatsuLib::Linq<NatsuLib::Valued<Expression::ExprPtr>> makeArgsFromDecl(NatsuLib::Linq<NatsuLib::Valued<Expression::ExprPtr>> const& argExprs,
+		NatsuLib::Linq<NatsuLib::Valued<Expression::ExprPtr>> makeArgsFromDecl(
+			NatsuLib::Linq<NatsuLib::Valued<Expression::ExprPtr>> const& argExprs,
 			std::size_t argCount,
 			NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<Declaration::ParmVarDecl>>> const& paramDecls,
 			std::size_t paramCount);
@@ -465,7 +492,8 @@ namespace NatsuLang::Semantic
 			// TODO
 		};
 
-		LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType, nBool isCodeCompletion = false);
+		LookupResult(Sema& sema, Identifier::IdPtr id, SourceLocation loc, Sema::LookupNameType lookupNameType,
+		             nBool isCodeCompletion = false);
 
 		nBool IsCodeCompletion() const noexcept
 		{

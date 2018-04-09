@@ -352,7 +352,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 
 				m_Archive->EndReadingEntry();
 
-				auto ret = m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, std::move(id), aliasAs);
+				auto ret = m_Sema.ActOnAliasDeclaration(m_Sema.GetCurrentScope(), {}, std::move(id), {}, aliasAs);
 
 				if (const auto& unresolved = aliasAs.Cast<UnresolvedId>())
 				{
@@ -1065,7 +1065,7 @@ natRefPointer<Declaration::NamedDecl> Deserializer::parseQualifiedName(nStrView 
 	m_Parser.ConsumeToken();
 	auto qualifiedId = m_Parser.ParseMayBeQualifiedId();
 
-	if (const auto type = m_Sema.LookupTypeName(qualifiedId.second, {},
+	if (const auto type = m_Sema.LookupTypeName(qualifiedId.second.first, {},
 		m_Sema.GetCurrentScope(), qualifiedId.first))
 	{
 		if (const auto tagType = type.Cast<Type::TagType>())
@@ -1076,8 +1076,7 @@ natRefPointer<Declaration::NamedDecl> Deserializer::parseQualifiedName(nStrView 
 		ThrowInvalidData();
 	}
 
-	if (auto mayBeIdExpr = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), qualifiedId.first, std::move(qualifiedId.second),
-		false, nullptr))
+	if (auto mayBeIdExpr = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), qualifiedId.first, std::move(qualifiedId.second.first), qualifiedId.second.second, false, nullptr))
 	{
 		if (const auto declRefExpr = mayBeIdExpr.Cast<Expression::DeclRefExpr>())
 		{
