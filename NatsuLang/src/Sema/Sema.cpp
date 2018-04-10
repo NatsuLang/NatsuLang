@@ -1559,7 +1559,7 @@ Expression::ExprPtr Sema::ActOnInitExpr(Type::TypePtr initType, SourceLocation l
 
 natRefPointer<Declaration::NamedDecl> Sema::ResolveDeclarator(natRefPointer<Syntax::ResolveContext> const& resolveContext, const natRefPointer<Declaration::UnresolvedDecl>& unresolvedDecl)
 {
-	auto declarator = unresolvedDecl->GetDeclaratorPtr().Lock();
+	const auto declarator = unresolvedDecl->GetDeclaratorPtr().Lock();
 	assert(declarator && declarator->IsUnresolved());
 	if (resolveContext)
 	{
@@ -1569,7 +1569,7 @@ natRefPointer<Declaration::NamedDecl> Sema::ResolveDeclarator(natRefPointer<Synt
 		default:
 			assert(!"Invalid resolvingState");
 		case Syntax::ResolveContext::ResolvingState::Unknown:
-			return resolveContext->GetParser().ResolveDeclarator(std::move(declarator));
+			return resolveContext->GetParser().ResolveDeclarator(declarator);
 		case Syntax::ResolveContext::ResolvingState::Resolving:
 			// TODO: 报告环形依赖
 			break;

@@ -15,6 +15,10 @@ using namespace Syntax;
 using namespace Lex;
 using namespace Diag;
 
+ResolveContext::~ResolveContext()
+{
+}
+
 void ResolveContext::StartResolvingDeclarator(Declaration::DeclaratorPtr decl)
 {
 	m_ResolvingDeclarators.emplace(std::move(decl));
@@ -22,6 +26,7 @@ void ResolveContext::StartResolvingDeclarator(Declaration::DeclaratorPtr decl)
 
 void ResolveContext::EndResolvingDeclarator(Declaration::DeclaratorPtr const& decl)
 {
+	assert(decl && decl->GetDecl() && decl->GetDecl()->GetType() != Declaration::Decl::Unresolved);
 	m_ResolvedDeclarators.emplace(decl);
 	m_ResolvingDeclarators.erase(decl);
 }
@@ -164,11 +169,11 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 
 	m_Sema.SetCurrentPhase(Semantic::Sema::Phase::Phase2);
 
-	for (auto declPtr : m_Sema.GetCachedDeclarators())
+	for (const auto& declPtr : m_Sema.GetCachedDeclarators())
 	{
 		if (m_ResolveContext->GetDeclaratorResolvingState(declPtr) == ResolveContext::ResolvingState::Unknown)
 		{
-			ResolveDeclarator(std::move(declPtr));
+			ResolveDeclarator(declPtr);
 		}
 	}
 
@@ -2493,33 +2498,62 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 // 这样的语法比较好看，列入计划
 void Parser::ParseArrayOrPointerType(Declaration::DeclaratorPtr const& decl)
 {
+	auto lastIsUnknownSizedArray = false;
+
 	while (true)
 	{
 		switch (m_CurrentToken.GetType())
 		{
 		case TokenType::LeftSquare:
 		{
+			if (lastIsUnknownSizedArray)
+			{
+				// TODO: 报告错误：未知大小数组类型仅能出现在顶层
+			}
+
 			ConsumeBracket();
+
+			if (m_CurrentToken.Is(TokenType::RightSquare))
+			{
+				ConsumeBracket();
+				lastIsUnknownSizedArray = true;
+				decl->SetType(m_Sema.ActOnArrayType(decl->GetType(), 0));
+				continue;
+			}
 
 			const auto sizeExpr = ParseConstantExpression();
 			nuLong result;
 			if (!sizeExpr->EvaluateAsInt(result, m_Sema.GetASTContext()))
 			{
-				// TODO: 报告错误
+				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpressionCannotEvaluateAsConstant, m_CurrentToken.GetLocation());
+			}
+
+			if (!result)
+			{
+				// TODO: 报告错误：禁止 0 大小数组
 			}
 
 			decl->SetType(m_Sema.ActOnArrayType(decl->GetType(), result));
 
-			if (!m_CurrentToken.Is(TokenType::RightSquare))
+			if (m_CurrentToken.Is(TokenType::RightSquare))
+			{
+				ConsumeBracket();
+			}
+			else
 			{
 				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
-					  .AddArgument(TokenType::RightSquare)
-					  .AddArgument(m_CurrentToken.GetType());
+					.AddArgument(TokenType::RightSquare)
+					.AddArgument(m_CurrentToken.GetType());
 			}
-			ConsumeAnyToken();
+
 			break;
 		}
 		case TokenType::Star:
+			if (lastIsUnknownSizedArray)
+			{
+				// TODO: 报告错误：未知大小数组类型仅能出现在顶层
+			}
+
 			ConsumeToken();
 			decl->SetType(m_Sema.ActOnPointerType(m_Sema.GetCurrentScope(), decl->GetType()));
 			break;
@@ -2556,6 +2590,12 @@ nBool Parser::ParseInitializer(Declaration::DeclaratorPtr const& decl)
 			{
 				// 应该已经报告了错误，仅返回即可
 				return false;
+			}
+
+			if (const auto arrayType = decl->GetType().Cast<Type::ArrayType>(); arrayType && !arrayType->GetSize())
+			{
+				// 不要直接 SetSize，因为每个类型都会在 ASTContext 缓存
+				decl->SetType(m_Sema.ActOnArrayType(arrayType->GetElementType(), argExprs.size()));
 			}
 
 			// 如果到达此处说明当前 Token 是右大括号
@@ -2711,7 +2751,7 @@ void Parser::skipTypeAndInitializer(Declaration::DeclaratorPtr const& decl)
 	decl->SetCachedTokens(move(cachedTokens));
 }
 
-Declaration::DeclPtr Parser::ResolveDeclarator(Declaration::DeclaratorPtr decl)
+Declaration::DeclPtr Parser::ResolveDeclarator(const Declaration::DeclaratorPtr& decl)
 {
 	assert(m_Sema.GetCurrentPhase() == Semantic::Sema::Phase::Phase2 && m_ResolveContext);
 	assert(!decl->GetType() && !decl->GetInitializer());
@@ -2760,7 +2800,7 @@ Declaration::DeclPtr Parser::ResolveDeclarator(Declaration::DeclaratorPtr decl)
 	}
 
 	ParseDeclarator(decl, true);
-	return m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), std::move(decl), oldUnresolvedDecl);
+	return m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), decl, oldUnresolvedDecl);
 }
 
 IUnknownTokenHandler::~IUnknownTokenHandler()

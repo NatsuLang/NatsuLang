@@ -78,6 +78,8 @@ namespace NatsuLang::Syntax
 		{
 		}
 
+		~ResolveContext();
+
 		Parser& GetParser() const noexcept
 		{
 			return m_Parser;
@@ -334,7 +336,7 @@ namespace NatsuLang::Syntax
 		nBool SkipUntil(std::initializer_list<Lex::TokenType> list, nBool dontConsume = false,
 		                std::vector<Lex::Token>* skippedTokens = nullptr);
 
-		Declaration::DeclPtr ResolveDeclarator(Declaration::DeclaratorPtr decl);
+		Declaration::DeclPtr ResolveDeclarator(const Declaration::DeclaratorPtr& decl);
 
 	private:
 		Preprocessor& m_Preprocessor;
