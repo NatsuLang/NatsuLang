@@ -11,16 +11,19 @@ namespace NatsuLang
 		class Parser;
 	}
 
+	////////////////////////////////////////////////////////////////////////////////
+	///	@brief	编译器动作参数类型
+	////////////////////////////////////////////////////////////////////////////////
 	enum class CompilerActionArgumentType
 	{
 		None			= 0x0000,	///< @brief	无参数
 
 		Optional		= 0x0001,	///< @brief	可选参数，不能单独设置
+		MayBeUnresolved	= 0x0002,	///< @brief	声明可为 UnresolvedDecl，仅能和 Declaration 同时设置
 
 		Type			= 0x0100,	///< @brief	类型参数
 		Declaration		= 0x0200,	///< @brief	声明参数
 		Statement		= 0x0400,	///< @brief	语句参数
-
 		Identifier		= 0x0800,	///< @brief	标识符，将作为 UnresolvedDecl 传入，不会进行名称查找，GetDeclaratorPtr 将会返回 nullptr
 		CompilerAction	= 0x1000,	///< @brief	编译器动作
 	};

@@ -316,7 +316,7 @@ namespace NatsuLang::Semantic
 		                                                                      nBool addToContext = true);
 
 		Statement::StmtPtr ActOnNullStmt(SourceLocation loc = {});
-		Statement::StmtPtr ActOnDeclStmt(std::vector<Declaration::DeclPtr> decls, SourceLocation start, SourceLocation end);
+		Statement::StmtPtr ActOnDeclStmt(Declaration::DeclPtr decl, SourceLocation start, SourceLocation end);
 		Statement::StmtPtr ActOnLabelStmt(SourceLocation labelLoc, NatsuLib::natRefPointer<Declaration::LabelDecl> labelDecl,
 		                                  SourceLocation colonLoc, Statement::StmtPtr subStmt);
 		Statement::StmtPtr ActOnCompoundStmt(std::vector<Statement::StmtPtr> stmtVec, SourceLocation begin,

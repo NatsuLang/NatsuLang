@@ -371,12 +371,14 @@ NextToken:
 			break;
 		default:
 			result.SetType(TokenType::Unknown);
+			result.SetLiteralContent({ cur, cur + 1 });
 			break;
 		}
 	}
 	else
 	{
-		// TODO: ???
+		result.SetType(TokenType::Unknown);
+		result.SetLiteralContent({ cur, cur + charCount });
 	}
 
 	cur += charCount;

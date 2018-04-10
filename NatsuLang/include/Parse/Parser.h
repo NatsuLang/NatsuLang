@@ -99,6 +99,24 @@ namespace NatsuLang::Syntax
 		std::unordered_set<Declaration::DeclaratorPtr> m_ResolvedDeclarators;
 	};
 
+	////////////////////////////////////////////////////////////////////////////////
+	///	@brief	用于处理未知 Token，未知 Token 可以通过注册来表示特殊含义
+	////////////////////////////////////////////////////////////////////////////////
+	struct IUnknownTokenHandler
+		: NatsuLib::natRefObj
+	{
+		using ResultCallback = std::function<nBool(ASTNodePtr)>;
+
+		virtual ~IUnknownTokenHandler();
+
+		///	@brief	处理未知 Token
+		///	@param	parser		Parser
+		///	@param	token		要处理的 Token
+		///	@param	callback	处理回调
+		///	@return	是否成功处理该 Token，若所有已注册的 Handler 都返回 false 则 Parser 将会报错，返回 true 将会阻止之后的 Handler 尝试处理
+		virtual nBool HandleToken(Parser& parser, Lex::Token const& token, ResultCallback const& callback) = 0;
+	};
+
 	class Parser
 	{
 	public:
@@ -125,6 +143,11 @@ namespace NatsuLang::Syntax
 		void ConsumeToken()
 		{
 			m_Preprocessor.Lex(m_CurrentToken);
+		}
+
+		Lex::Token const& GetCurrentToken() const noexcept
+		{
+			return m_CurrentToken;
 		}
 
 		void ConsumeParen()
@@ -225,7 +248,7 @@ namespace NatsuLang::Syntax
 		std::vector<Declaration::DeclPtr> ParseModuleImport();
 		Declaration::DeclPtr ParseModuleDecl();
 
-		std::vector<Declaration::DeclPtr> ParseDeclaration(Declaration::Context context, SourceLocation& declEnd);
+		Declaration::DeclPtr ParseDeclaration(Declaration::Context context, SourceLocation& declEnd);
 		Declaration::DeclPtr ParseAliasDeclaration(Declaration::Context context, SourceLocation& declEnd);
 		Declaration::DeclPtr ParseAliasBody(SourceLocation aliasLoc, Identifier::IdPtr aliasId, SourceLocation aliasIdLoc, Declaration::Context context, SourceLocation& declEnd);
 

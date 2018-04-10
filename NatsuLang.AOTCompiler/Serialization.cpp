@@ -1164,12 +1164,8 @@ void Serializer::VisitCompoundStmt(natRefPointer<Statement::CompoundStmt> const&
 void Serializer::VisitDeclStmt(natRefPointer<Statement::DeclStmt> const& stmt)
 {
 	VisitStmt(stmt);
-	m_Archive->StartWritingEntry(u8"Decl", true);
-	for (const auto& d : stmt->GetDecls())
-	{
-		DeclVisitor::Visit(d);
-		m_Archive->NextWritingElement();
-	}
+	m_Archive->StartWritingEntry(u8"Decl");
+	DeclVisitor::Visit(stmt->GetDecl());
 	m_Archive->EndWritingEntry();
 }
 

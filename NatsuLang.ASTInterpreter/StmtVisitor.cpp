@@ -80,17 +80,15 @@ void Interpreter::InterpreterStmtVisitor::VisitContinueStmt(natRefPointer<Statem
 
 void Interpreter::InterpreterStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStmt> const& stmt)
 {
-	for (auto&& decl : stmt->GetDecls())
+	const auto decl = stmt->GetDecl();
+	if (!decl)
 	{
-		if (!decl)
-		{
-			nat_Throw(InterpreterException, u8"错误的声明"_nv);
-		}
+		nat_Throw(InterpreterException, u8"错误的声明"_nv);
+	}
 
-		if (const auto varDecl = decl.Cast<Declaration::VarDecl>(); varDecl && !varDecl->IsFunction())
-		{
-			initVar(varDecl, varDecl->GetInitializer());
-		}
+	if (const auto varDecl = decl.Cast<Declaration::VarDecl>(); varDecl && !varDecl->IsFunction())
+	{
+		initVar(varDecl, varDecl->GetInitializer());
 	}
 }
 

@@ -250,6 +250,7 @@
     <ClCompile Include="src\Lex\Preprocessor.cpp" />
     <ClCompile Include="src\Parse\Parser.cpp" />
     <ClCompile Include="src\Sema\CompilerAction.cpp" />
+    <ClCompile Include="src\Sema\Declarator.cpp" />
     <ClCompile Include="src\Sema\DefaultActions.cpp" />
     <ClCompile Include="src\Sema\Scope.cpp" />
     <ClCompile Include="src\Sema\Sema.cpp" />

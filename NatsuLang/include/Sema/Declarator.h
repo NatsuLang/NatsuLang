@@ -1,8 +1,10 @@
 ﻿#pragma once
+#include <unordered_set>
 #include <natRefObj.h>
 #include <natLinq.h>
 #include "Basic/SourceLocation.h"
 #include "Basic/Specifier.h"
+#include "Basic/Token.h"
 
 namespace NatsuLang::Identifier
 {
@@ -38,6 +40,9 @@ namespace NatsuLang::Declaration
 	class Decl;
 	using DeclPtr = NatsuLib::natRefPointer<Decl>;
 
+	struct IAttribute;
+	using AttrPtr = NatsuLib::natRefPointer<IAttribute>;
+
 	class ParmVarDecl;
 
 	enum class Context
@@ -56,11 +61,9 @@ namespace NatsuLang::Declaration
 		: public NatsuLib::natRefObjImpl<Declarator>
 	{
 	public:
-		explicit Declarator(Context context)
-			: m_Context{ context }, m_StorageClass{ Specifier::StorageClass::None }, m_Accessibility{ Specifier::Access::None },
-			  m_Safety{ Specifier::Safety::None }, m_IsAlias{ false }
-		{
-		}
+		explicit Declarator(Context context);
+
+		~Declarator();
 
 		SourceLocation GetIdentifierLocation() const noexcept
 		{

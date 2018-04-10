@@ -22,35 +22,27 @@ namespace NatsuLang::Statement
 		: public Stmt
 	{
 	public:
-		using DeclPtr = NatsuLib::natRefPointer<Declaration::Decl>;
-		using DeclEnumerable = NatsuLib::Linq<NatsuLib::Valued<DeclPtr>>;
-
-		explicit DeclStmt(std::vector<DeclPtr> decls, SourceLocation start = {}, SourceLocation end = {})
-			: Stmt{ DeclStmtClass, start, end }, m_Decls{ move(decls) }
-		{
-		}
-
-		explicit DeclStmt(DeclEnumerable decls = NatsuLib::from_empty<DeclPtr>(), SourceLocation start = {}, SourceLocation end = {})
-			: Stmt{ DeclStmtClass, start, end }, m_Decls{ std::begin(decls), std::end(decls) }
+		explicit DeclStmt(Declaration::DeclPtr decl, SourceLocation start = {}, SourceLocation end = {})
+			: Stmt{ DeclStmtClass, start, end }, m_Decl{ std::move(decl) }
 		{
 		}
 
 		~DeclStmt();
 
-		DeclEnumerable GetDecls() const noexcept
+		Declaration::DeclPtr GetDecl() const noexcept
 		{
-			return from(m_Decls);
+			return m_Decl;
 		}
 
-		void SetDecls(DeclEnumerable decls) noexcept
+		void SetDecl(Declaration::DeclPtr value) noexcept
 		{
-			m_Decls.assign(std::cbegin(decls), std::cend(decls));
+			m_Decl = std::move(value);
 		}
 
 		DEFAULT_ACCEPT_DECL;
 
 	private:
-		std::vector<DeclPtr> m_Decls;
+		Declaration::DeclPtr m_Decl;
 	};
 
 	class NullStmt

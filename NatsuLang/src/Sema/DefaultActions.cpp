@@ -110,6 +110,7 @@ ActionDump::ActionDumpArgumentRequirement::~ActionDumpArgumentRequirement()
 CompilerActionArgumentType ActionDump::ActionDumpArgumentRequirement::GetExpectedArgumentType(std::size_t /*i*/)
 {
 	return CompilerActionArgumentType::Optional |
+		CompilerActionArgumentType::MayBeUnresolved |
 		CompilerActionArgumentType::Type |
 		CompilerActionArgumentType::Declaration |
 		CompilerActionArgumentType::Statement;
@@ -160,10 +161,12 @@ const natRefPointer<IArgumentRequirement> ActionDumpIf::ActionDumpIfContext::s_A
 	make_ref<SimpleArgumentRequirement>(
 		std::initializer_list<CompilerActionArgumentType>{
 			CompilerActionArgumentType::Statement,
+			CompilerActionArgumentType::MayBeUnresolved |
 			CompilerActionArgumentType::Type |
 			CompilerActionArgumentType::Declaration |
 			CompilerActionArgumentType::Statement,
 			CompilerActionArgumentType::Optional |
+			CompilerActionArgumentType::MayBeUnresolved |
 			CompilerActionArgumentType::Type |
 			CompilerActionArgumentType::Declaration |
 			CompilerActionArgumentType::Statement

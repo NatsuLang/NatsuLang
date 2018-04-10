@@ -1187,8 +1187,12 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 		scope = scope->GetParent();
 	}
 
+	std::unordered_set<Declaration::AttrPtr> attrs;
+
 	if (oldUnresolvedDeclPtr)
 	{
+		const auto attrQuery = oldUnresolvedDeclPtr->GetAllAttributes();
+		attrs.insert(attrQuery.begin(), attrQuery.end());
 		RemoveOldUnresolvedDecl(decl, oldUnresolvedDeclPtr);
 	}
 
@@ -1243,6 +1247,11 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 
 	decl->SetDecl(retDecl);
 
+	for (auto attr : attrs)
+	{
+		retDecl->AttachAttribute(std::move(attr));
+	}
+
 	return retDecl;
 }
 
@@ -1278,10 +1287,10 @@ Statement::StmtPtr Sema::ActOnNullStmt(SourceLocation loc)
 	return make_ref<Statement::NullStmt>(loc);
 }
 
-Statement::StmtPtr Sema::ActOnDeclStmt(std::vector<Declaration::DeclPtr> decls, SourceLocation start,
+Statement::StmtPtr Sema::ActOnDeclStmt(Declaration::DeclPtr decl, SourceLocation start,
 									   SourceLocation end)
 {
-	return make_ref<Statement::DeclStmt>(move(decls), start, end);
+	return make_ref<Statement::DeclStmt>(std::move(decl), start, end);
 }
 
 Statement::StmtPtr Sema::ActOnLabelStmt(SourceLocation labelLoc, natRefPointer<Declaration::LabelDecl> labelDecl,

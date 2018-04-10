@@ -179,7 +179,7 @@ namespace
 		};
 	};
 
-	const natRefPointer<IArgumentRequirement> ActionCallingConvention::ActionCallingConventionContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier, CompilerActionArgumentType::Declaration }) };
+	const natRefPointer<IArgumentRequirement> ActionCallingConvention::ActionCallingConventionContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier, CompilerActionArgumentType::MayBeUnresolved | CompilerActionArgumentType::Declaration }) };
 
 	nString GetQualifiedName(natRefPointer<Declaration::NamedDecl> const& decl)
 	{
@@ -613,23 +613,21 @@ void AotCompiler::AotStmtVisitor::VisitContinueStmt(natRefPointer<Statement::Con
 
 void AotCompiler::AotStmtVisitor::VisitDeclStmt(natRefPointer<Statement::DeclStmt> const& stmt)
 {
-	for (auto const& decl : stmt->GetDecls())
+	const auto decl = stmt->GetDecl();
+	if (!decl)
 	{
-		if (!decl)
+		nat_Throw(AotCompilerException, u8"错误的声明"_nv);
+	}
+
+	if (const auto varDecl = decl.Cast<Declaration::VarDecl>())
+	{
+		if (varDecl->IsFunction())
 		{
-			nat_Throw(AotCompilerException, u8"错误的声明"_nv);
+			// 目前只能在顶层声明函数
+			return;
 		}
 
-		if (const auto varDecl = decl.Cast<Declaration::VarDecl>())
-		{
-			if (varDecl->IsFunction())
-			{
-				// 目前只能在顶层声明函数
-				continue;
-			}
-
-			EmitVarDecl(varDecl);
-		}
+		EmitVarDecl(varDecl);
 	}
 }
 

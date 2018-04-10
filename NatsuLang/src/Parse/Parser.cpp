@@ -102,14 +102,13 @@ Declaration::DeclPtr Parser::ParseDeclError() noexcept
 
 void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 {
-	m_Sema.SetCurrentPhase(Semantic::Sema::Phase::Phase2);
-
 	m_ResolveContext = make_ref<ResolveContext>(*this);
 	const auto scope = make_scope([this]
 	{
 		m_ResolveContext.Reset();
 	});
 
+	// 假装是 1 阶段，这样可以分析到 UnresolvedDecl，并和其他 UnresolvedDecl 一起再分析，也可以坚持直接进行解析，但是这样无法访问其他同样位于 CompilerAction 参数中的声明
 	for (auto&& cachedCompilerAction : m_CachedCompilerActions)
 	{
 		auto cachedScope = cachedCompilerAction.Scope;
@@ -121,8 +120,8 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 			{
 				m_Sema.GetCurrentScope()->RemoveFlags(Semantic::ScopeFlags::UnsafeScope);
 			}
-		m_Sema.SetDeclContext(curDeclContext);
-		m_Sema.SetCurrentScope(curScope);
+			m_Sema.SetDeclContext(curDeclContext);
+			m_Sema.SetCurrentScope(curScope);
 		});
 		m_Sema.SetCurrentScope(cachedScope);
 		m_Sema.SetDeclContext(cachedCompilerAction.DeclContext);
@@ -139,7 +138,7 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 
 		ParseCompilerAction(cachedCompilerAction.Context, [&decls](natRefPointer<ASTNode> const& astNode)
 		{
-			if (auto decl = static_cast<Declaration::DeclPtr>(astNode))
+			if (auto decl = astNode.Cast<Declaration::Decl>(); decl && decl->GetType() != Declaration::Decl::Unresolved)
 			{
 				decls.emplace_back(std::move(decl));
 				return false;
@@ -162,6 +161,8 @@ void Parser::DivertPhase(std::vector<Declaration::DeclPtr>& decls)
 	}
 
 	m_CachedCompilerActions.clear();
+
+	m_Sema.SetCurrentPhase(Semantic::Sema::Phase::Phase2);
 
 	for (auto declPtr : m_Sema.GetCachedDeclarators())
 	{
@@ -257,7 +258,6 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration(Declaration::
 		SkipSimpleCompilerAction(context);
 		return {};
 	case TokenType::Semi:
-		// Empty Declaration
 		ConsumeToken();
 		return {};
 	case TokenType::RightBrace:
@@ -271,7 +271,14 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration(Declaration::
 	case TokenType::Kw_alias:
 	{
 		SourceLocation declEnd;
-		return ParseDeclaration(context, declEnd);
+
+		auto decl = ParseDeclaration(context, declEnd);
+		if (decl->GetType() == Declaration::Decl::Unresolved)
+		{
+			return {};
+		}
+
+		return { std::move(decl) };
 	}
 	case TokenType::Kw_class:
 		return { ParseClassDeclaration() };
@@ -383,7 +390,7 @@ nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& a
 	});
 
 	// 最优先尝试匹配标识符
-	if (HasFlags(argType, CompilerActionArgumentType::Identifier) && m_CurrentToken.Is(TokenType::Identifier))
+	if (HasAnyFlags(argType, CompilerActionArgumentType::Identifier) && m_CurrentToken.Is(TokenType::Identifier))
 	{
 		actionContext->AddArgument(m_Sema.ActOnCompilerActionIdentifierArgument(m_CurrentToken.GetIdentifierInfo()));
 		ConsumeToken();
@@ -393,7 +400,7 @@ nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& a
 	// 记录状态以便匹配失败时还原
 	const auto memento = m_Preprocessor.SaveToMemento();
 
-	if (HasFlags(argType, CompilerActionArgumentType::Type))
+	if (HasAnyFlags(argType, CompilerActionArgumentType::Type))
 	{
 		const auto typeDecl = make_ref<Declaration::Declarator>(Declaration::Context::TypeName);
 		ParseType(typeDecl);
@@ -408,15 +415,27 @@ nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& a
 	// 匹配类型失败了，还原 Preprocessor 状态
 	m_Preprocessor.RestoreFromMemento(memento);
 
-	if (HasFlags(argType, CompilerActionArgumentType::Declaration))
+	if (HasAnyFlags(argType, CompilerActionArgumentType::Declaration))
 	{
 		SourceLocation end;
-		const auto decl = ParseDeclaration(context, end);
-		if (!decl.empty())
-		{
-			assert(decl.size() == 1);
-			actionContext->AddArgument(decl.front());
 
+		const auto restorePhase = m_Sema.GetCurrentPhase();
+		const auto phaseScope = make_scope([this, restorePhase]
+		{
+			m_Sema.SetCurrentPhase(restorePhase);
+		});
+
+		// 真的在 1 阶段的话不会分析 CompilerAction，所以直接设为 2 阶段
+		if (!HasAnyFlags(argType, CompilerActionArgumentType::MayBeUnresolved) && restorePhase == Semantic::Sema::Phase::Phase1)
+		{
+			assert(m_ResolveContext);
+			m_Sema.SetCurrentPhase(Semantic::Sema::Phase::Phase2);
+		}
+
+		const auto decl = ParseDeclaration(context, end);
+		if (decl)
+		{
+			actionContext->AddArgument(decl);
 			return true;
 		}
 	}
@@ -424,8 +443,8 @@ nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& a
 	// 匹配声明失败了，还原 Preprocessor 状态
 	m_Preprocessor.RestoreFromMemento(memento);
 
-	assert(HasFlags(argType, CompilerActionArgumentType::Statement) &&
-		"argType has only set flag Optional");
+	assert(HasAnyFlags(argType, CompilerActionArgumentType::Statement) &&
+		"Need to set at least one category flag");
 	const auto stmt = ParseStatement(context, true);
 	if (stmt)
 	{
@@ -456,7 +475,7 @@ std::size_t Parser::ParseCompilerActionArgumentList(const natRefPointer<IActionC
 		if (m_CurrentToken.Is(TokenType::RightParen))
 		{
 			ConsumeParen();
-			if (argType == CompilerActionArgumentType::None || HasFlags(argType, CompilerActionArgumentType::Optional))
+			if (argType == CompilerActionArgumentType::None || HasAnyFlags(argType, CompilerActionArgumentType::Optional))
 			{
 				break;
 			}
@@ -509,7 +528,7 @@ std::size_t Parser::ParseCompilerActionArgumentSequence(const natRefPointer<IAct
 
 		if (m_CurrentToken.Is(TokenType::RightBrace))
 		{
-			if (argType == CompilerActionArgumentType::None || HasFlags(argType, CompilerActionArgumentType::Optional))
+			if (argType == CompilerActionArgumentType::None || HasAnyFlags(argType, CompilerActionArgumentType::Optional))
 			{
 				ConsumeBrace();
 				break;
@@ -888,7 +907,7 @@ Declaration::DeclPtr Parser::ParseModuleDecl()
 //	'def' '~' 'this' ':' '(' ')' function-body
 // function-body:
 //	compound-statement
-std::vector<Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context context, SourceLocation& declEnd)
+Declaration::DeclPtr Parser::ParseDeclaration(Declaration::Context context, SourceLocation& declEnd)
 {
 	const auto tokenType = m_CurrentToken.GetType();
 
@@ -907,16 +926,10 @@ std::vector<Declaration::DeclPtr> Parser::ParseDeclaration(Declaration::Context 
 		}
 
 		auto declaration = m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), decl);
-
-		if (decl->IsUnresolved())
-		{
-			return {};
-		}
-
-		return { std::move(declaration) };
+		return std::move(declaration);
 	}
 	case TokenType::Kw_alias:
-		return { ParseAliasDeclaration(context, declEnd) };
+		return ParseAliasDeclaration(context, declEnd);
 	default:
 		return {};
 	}
@@ -1102,8 +1115,8 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context, nBool ma
 	{
 		const auto declBegin = m_CurrentToken.GetLocation();
 		SourceLocation declEnd;
-		auto decls = ParseDeclaration(context, declEnd);
-		return m_Sema.ActOnDeclStmt(move(decls), declBegin, declEnd);
+		auto decl = ParseDeclaration(context, declEnd);
+		return m_Sema.ActOnDeclStmt(std::move(decl), declBegin, declEnd);
 	}
 	case TokenType::Kw_if:
 		return ParseIfStatement();
@@ -2670,7 +2683,8 @@ void Parser::skipTypeAndInitializer(Declaration::DeclaratorPtr const& decl)
 {
 	std::vector<Token> cachedTokens;
 
-	SkipUntil({ TokenType::Equal, TokenType::LeftBrace, TokenType::Semi }, true, &cachedTokens);
+	// 逗号和右括号是在 CompilerAction 参数中的情况
+	SkipUntil({ TokenType::Equal, TokenType::LeftBrace, TokenType::Semi, TokenType::Comma, TokenType::RightParen }, true, &cachedTokens);
 
 	switch (m_CurrentToken.GetType())
 	{
@@ -2684,6 +2698,9 @@ void Parser::skipTypeAndInitializer(Declaration::DeclaratorPtr const& decl)
 		break;
 	case TokenType::Semi:
 		skipToken(&cachedTokens);
+		[[fallthrough]];
+	case TokenType::Comma:
+	case TokenType::RightParen:
 		break;
 	default:
 		m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
@@ -2744,6 +2761,10 @@ Declaration::DeclPtr Parser::ResolveDeclarator(Declaration::DeclaratorPtr decl)
 
 	ParseDeclarator(decl, true);
 	return m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), std::move(decl), oldUnresolvedDecl);
+}
+
+IUnknownTokenHandler::~IUnknownTokenHandler()
+{
 }
 
 Parser::ParseScope::ParseScope(Parser* self, Semantic::ScopeFlags flags)
