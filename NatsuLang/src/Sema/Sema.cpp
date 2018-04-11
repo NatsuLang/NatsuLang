@@ -1505,6 +1505,11 @@ Expression::ExprPtr Sema::ActOnStringLiteral(Lex::Token const& token)
 		token.GetLocation());
 }
 
+Expression::ExprPtr Sema::ActOnNullPointerLiteral(SourceLocation loc) const
+{
+	return make_ref<Expression::NullPointerLiteral>(m_Context.GetBuiltinType(Type::BuiltinType::Null), loc);
+}
+
 Expression::ExprPtr Sema::ActOnConditionExpr(Expression::ExprPtr expr)
 {
 	if (!expr)
@@ -2515,6 +2520,11 @@ Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type:
 			// TODO: 添加用户定义转换
 			return Expression::CastType::Invalid;
 		case Type::Type::Pointer:
+			if (builtinFromType->GetBuiltinClass() == Type::BuiltinType::Null)
+			{
+				// 其实应该是 NoOp，不过后端需要 Convert
+				return Expression::CastType::BitCast;
+			}
 			return !isImplicit && builtinFromType->IsIntegerType() ? Expression::CastType::BitCast : Expression::CastType::Invalid;
 		case Type::Type::Auto:
 		case Type::Type::Array:

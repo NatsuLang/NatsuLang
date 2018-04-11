@@ -26,7 +26,7 @@ void ResolveContext::StartResolvingDeclarator(Declaration::DeclaratorPtr decl)
 
 void ResolveContext::EndResolvingDeclarator(Declaration::DeclaratorPtr const& decl)
 {
-	assert(decl && decl->GetDecl() && decl->GetDecl()->GetType() != Declaration::Decl::Unresolved);
+	assert(decl && decl->GetDecl() && (decl->IsAlias() || decl->GetDecl()->GetType() != Declaration::Decl::Unresolved));
 	m_ResolvedDeclarators.emplace(decl);
 	m_ResolvingDeclarators.erase(decl);
 }
@@ -1604,6 +1604,10 @@ Expression::ExprPtr Parser::ParseUnaryExpression()
 	case TokenType::Kw_true:
 	case TokenType::Kw_false:
 		result = m_Sema.ActOnBooleanLiteral(m_CurrentToken);
+		ConsumeToken();
+		break;
+	case TokenType::Kw_null:
+		result = m_Sema.ActOnNullPointerLiteral(m_CurrentToken.GetLocation());
 		ConsumeToken();
 		break;
 	case TokenType::Identifier:

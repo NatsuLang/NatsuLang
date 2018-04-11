@@ -246,6 +246,12 @@ STMTEXPR(StmtExpr, Expr)
 STRINGLITERAL(StringLiteral, Expr)
 #undef STRINGLITERAL
 
+#ifndef NULLPOINTERLITERAL
+#define NULLPOINTERLITERAL(Type, Base) EXPR(Type, Base)
+#endif
+NULLPOINTERLITERAL(NullPointerLiteral, Expr)
+#undef NULLPOINTERLITERAL
+
 #ifndef UNARYOPERATOR
 #define UNARYOPERATOR(Type, Base) EXPR(Type, Base)
 #endif

@@ -398,6 +398,7 @@ namespace NatsuLang
 			void VisitFloatingLiteral(NatsuLib::natRefPointer<Expression::FloatingLiteral> const& expr) override;
 			void VisitIntegerLiteral(NatsuLib::natRefPointer<Expression::IntegerLiteral> const& expr) override;
 			void VisitStringLiteral(NatsuLib::natRefPointer<Expression::StringLiteral> const& expr) override;
+			void VisitNullPointerLiteral(NatsuLib::natRefPointer<Expression::NullPointerLiteral> const& expr) override;
 
 			void VisitArraySubscriptExpr(NatsuLib::natRefPointer<Expression::ArraySubscriptExpr> const& expr) override;
 			void VisitConstructExpr(NatsuLib::natRefPointer<Expression::ConstructExpr> const& expr) override;

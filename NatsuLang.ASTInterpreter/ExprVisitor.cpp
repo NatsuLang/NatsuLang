@@ -111,6 +111,15 @@ void Interpreter::InterpreterExprVisitor::VisitStringLiteral(natRefPointer<Expre
 	}
 }
 
+void Interpreter::InterpreterExprVisitor::VisitNullPointerLiteral(natRefPointer<Expression::NullPointerLiteral> const& expr)
+{
+	VisitExpr(expr);
+	if (m_ShouldPrint)
+	{
+		m_Interpreter.m_Logger.LogMsg(u8"(表达式) null"_nv);
+	}
+}
+
 void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<Expression::ArraySubscriptExpr> const& expr)
 {
 	Visit(expr->GetLeftOperand());

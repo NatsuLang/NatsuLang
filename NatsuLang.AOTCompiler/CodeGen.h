@@ -265,6 +265,7 @@ namespace NatsuLang::Compiler
 			void VisitSwitchStmt(NatsuLib::natRefPointer<Statement::SwitchStmt> const& stmt) override;
 			void VisitWhileStmt(NatsuLib::natRefPointer<Statement::WhileStmt> const& stmt) override;
 			void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) override;
+			void VisitNullPointerLiteral(NatsuLib::natRefPointer<Expression::NullPointerLiteral> const& expr) override;
 
 			AotCompiler& GetCompiler() const noexcept
 			{

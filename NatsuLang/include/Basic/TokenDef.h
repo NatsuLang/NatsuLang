@@ -102,6 +102,7 @@ KEYWORD(true)
 KEYWORD(false)
 KEYWORD(this)
 KEYWORD(as)
+KEYWORD(null)
 
 KEYWORD(void)
 KEYWORD(bool)

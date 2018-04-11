@@ -209,6 +209,20 @@ namespace NatsuLang::Expression
 		nString m_Value;
 	};
 
+	class NullPointerLiteral
+		: public Expr
+	{
+	public:
+		NullPointerLiteral(Type::TypePtr type, SourceLocation loc)
+			: Expr{ NullPointerLiteralClass, std::move(type), loc, loc }
+		{
+		}
+
+		~NullPointerLiteral();
+
+		DEFAULT_ACCEPT_DECL;
+	};
+
 	class BooleanLiteral
 		: public Expr
 	{

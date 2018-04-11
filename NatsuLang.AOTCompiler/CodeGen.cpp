@@ -1433,6 +1433,11 @@ void AotCompiler::AotStmtVisitor::VisitStmt(natRefPointer<Statement::Stmt> const
 	nat_Throw(AotCompilerException, u8"此功能尚未实现"_nv);
 }
 
+void AotCompiler::AotStmtVisitor::VisitNullPointerLiteral(natRefPointer<Expression::NullPointerLiteral> const& expr)
+{
+	setLastVisitedResult(llvm::Constant::getNullValue(llvm::PointerType::get(llvm::IntegerType::getInt8Ty(m_Compiler.m_LLVMContext), 0)));
+}
+
 void AotCompiler::AotStmtVisitor::StartVisit()
 {
 	const auto body = m_CurrentFunction->GetBody();
@@ -1975,7 +1980,8 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarInit(Type::TypePtr const& varType, 
 				}
 				else if (initExprCount == 1)
 				{
-					EvaluateValue(initListExpr->GetInitExprs().first());
+					const auto initExpr = initListExpr->GetInitExprs().first();
+					EvaluateValue(initExpr);
 					const auto initializerValue = m_LastVisitedValue;
 					m_Compiler.m_IRBuilder.CreateStore(initializerValue, varPtr);
 				}
@@ -2226,6 +2232,10 @@ llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarTo(llvm::Value* from, Typ
 			return m_Compiler.m_IRBuilder.CreateFPExt(from, llvmToType, "scalarconv");
 		}
 		case Type::Type::Pointer:
+			if (builtinFromType->GetBuiltinClass() == Type::BuiltinType::Null)
+			{
+				return llvm::Constant::getNullValue(llvmToType);
+			}
 			if (builtinFromType->GetBuiltinClass() != Type::BuiltinType::Long)
 			{
 				// FIXME: 替换成足够长的整数类型，并定义别名
@@ -2723,6 +2733,9 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 		{
 		case Type::BuiltinType::Void:
 			ret = llvm::Type::getVoidTy(m_LLVMContext);
+			break;
+		case Type::BuiltinType::Null:
+			ret = llvm::PointerType::get(llvm::IntegerType::getInt8Ty(m_LLVMContext), 0);
 			break;
 		case Type::BuiltinType::Bool:
 			ret = llvm::Type::getInt1Ty(m_LLVMContext);

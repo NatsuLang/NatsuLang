@@ -339,6 +339,7 @@ namespace NatsuLang::Semantic
 		Expression::ExprPtr ActOnNumericLiteral(Lex::Token const& token) const;
 		Expression::ExprPtr ActOnCharLiteral(Lex::Token const& token) const;
 		Expression::ExprPtr ActOnStringLiteral(Lex::Token const& token);
+		Expression::ExprPtr ActOnNullPointerLiteral(SourceLocation loc) const;
 
 		Expression::ExprPtr ActOnConditionExpr(Expression::ExprPtr expr);
 

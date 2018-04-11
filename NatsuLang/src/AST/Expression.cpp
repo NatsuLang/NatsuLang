@@ -693,6 +693,10 @@ StringLiteral::~StringLiteral()
 {
 }
 
+NullPointerLiteral::~NullPointerLiteral()
+{
+}
+
 BooleanLiteral::~BooleanLiteral()
 {
 }
