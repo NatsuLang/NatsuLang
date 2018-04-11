@@ -26,7 +26,7 @@ void ResolveContext::StartResolvingDeclarator(Declaration::DeclaratorPtr decl)
 
 void ResolveContext::EndResolvingDeclarator(Declaration::DeclaratorPtr const& decl)
 {
-	assert(decl && decl->GetDecl() && (decl->IsAlias() || decl->GetDecl()->GetType() != Declaration::Decl::Unresolved));
+	assert(decl && (!decl->GetDecl() || (decl->IsAlias() || decl->GetDecl()->GetType() != Declaration::Decl::Unresolved)));
 	m_ResolvedDeclarators.emplace(decl);
 	m_ResolvingDeclarators.erase(decl);
 }
@@ -2047,7 +2047,9 @@ nBool Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skip
 		}
 		else if (context != Declaration::Context::Prototype && context != Declaration::Context::TypeName)
 		{
-			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedIdentifier, m_CurrentToken.GetLocation());
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+				.AddArgument(TokenType::Identifier)
+				.AddArgument(m_CurrentToken.GetType());
 			return false;
 		}
 	}

@@ -298,8 +298,10 @@ namespace NatsuLang::Compiler
 				Expression::BinaryOperationType opCode,
 				NatsuLib::natRefPointer<Type::BuiltinType> const& commonType,
 				NatsuLib::natRefPointer<Type::BuiltinType> const& resultType);
+			llvm::Value* EmitBuiltinIncDec(llvm::Value* operand, NatsuLib::natRefPointer<Type::BuiltinType> const& opType,
+			                               nBool isInc, nBool isPre);
 
-			llvm::Value* EmitIncDec(llvm::Value* operand, NatsuLib::natRefPointer<Type::BuiltinType> const& opType, nBool isInc, nBool isPre);
+			llvm::Value* EmitIncDec(llvm::Value* operand, const Type::TypePtr& opType, nBool isInc, nBool isPre);
 
 			llvm::Value* EmitFunctionAddr(NatsuLib::natRefPointer<Declaration::FunctionDecl> const& func);
 

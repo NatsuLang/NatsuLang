@@ -1637,8 +1637,32 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitBinOp(llvm::Value* leftOperand, ll
 			}
 			break;
 		case Type::Type::Pointer:
-			assert(opCode == Expression::BinaryOperationType::Sub);
-			return m_Compiler.m_IRBuilder.CreatePtrDiff(leftOperand, rightOperand, "ptrdiff");
+		{
+			const auto ptrDiff = m_Compiler.m_IRBuilder.CreatePtrDiff(leftOperand, rightOperand, "ptrdiff");
+			const auto ptrDiffType = m_Compiler.getCorrespondingType(m_Compiler.m_AstContext.GetPtrDiffType());
+
+			switch (opCode)
+			{
+			case Expression::BinaryOperationType::Sub:
+				return ptrDiff;
+			case Expression::BinaryOperationType::LT:
+				return m_Compiler.m_IRBuilder.CreateICmpSLT(ptrDiff, llvm::Constant::getNullValue(ptrDiffType), "cmp");
+			case Expression::BinaryOperationType::GT:
+				return m_Compiler.m_IRBuilder.CreateICmpSGT(ptrDiff, llvm::Constant::getNullValue(ptrDiffType), "cmp");
+			case Expression::BinaryOperationType::LE:
+				return m_Compiler.m_IRBuilder.CreateICmpSLE(ptrDiff, llvm::Constant::getNullValue(ptrDiffType), "cmp");
+			case Expression::BinaryOperationType::GE:
+				return m_Compiler.m_IRBuilder.CreateICmpSGE(ptrDiff, llvm::Constant::getNullValue(ptrDiffType), "cmp");
+			case Expression::BinaryOperationType::EQ:
+				return m_Compiler.m_IRBuilder.CreateIsNull(ptrDiff, "cmp");
+			case Expression::BinaryOperationType::NE:
+				return m_Compiler.m_IRBuilder.CreateIsNotNull(ptrDiff, "cmp");
+			default:
+				assert(!"Invalid opCode");
+				break;
+			}
+			break;
+		}
 		case Type::Type::Array:
 			break;
 		case Type::Type::Class:
@@ -1656,6 +1680,24 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitBinOp(llvm::Value* leftOperand, ll
 	case Type::Type::Class:
 		break;
 	case Type::Type::Enum:
+		switch (rightType->GetType())
+		{
+		case Type::Type::Builtin:
+			break;
+		case Type::Type::Pointer:
+			break;
+		case Type::Type::Array:
+			break;
+		case Type::Type::Function:
+			break;
+		case Type::Type::Class:
+			break;
+		case Type::Type::Enum:
+			assert(leftType == rightType);
+			return EmitBuiltinBinOp(leftOperand, rightOperand, opCode, leftType.UnsafeCast<Type::EnumType>()->GetDecl().UnsafeCast<Declaration::EnumDecl>()->GetUnderlyingType(), resultType);
+		default:
+			break;
+		}
 		break;
 	default:
 		assert(!"Invalid type");
@@ -1845,17 +1887,18 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitBuiltinBinOp(llvm::Value* leftOper
 	}
 }
 
-llvm::Value* AotCompiler::AotStmtVisitor::EmitIncDec(llvm::Value* operand, natRefPointer<Type::BuiltinType> const& opType, nBool isInc, nBool isPre)
+llvm::Value* AotCompiler::AotStmtVisitor::EmitBuiltinIncDec(llvm::Value* operand, natRefPointer<Type::BuiltinType> const& opType, nBool isInc, nBool isPre)
 {
-	llvm::Value* value = m_Compiler.m_IRBuilder.CreateLoad(operand);
+	llvm::Value* oldValue = m_Compiler.m_IRBuilder.CreateLoad(operand);
+	llvm::Value* value;
 
 	if (opType->IsFloatingType())
 	{
-		value = m_Compiler.m_IRBuilder.CreateFAdd(value, llvm::ConstantFP::get(m_Compiler.getCorrespondingType(opType), isInc ? 1.0 : -1.0));
+		value = m_Compiler.m_IRBuilder.CreateFAdd(oldValue, llvm::ConstantFP::get(m_Compiler.getCorrespondingType(opType), isInc ? 1.0 : -1.0));
 	}
 	else
 	{
-		value = m_Compiler.m_IRBuilder.CreateAdd(value, llvm::ConstantInt::get(m_Compiler.getCorrespondingType(opType), isInc ? 1 : -1, opType->IsSigned()));
+		value = m_Compiler.m_IRBuilder.CreateAdd(oldValue, llvm::ConstantInt::get(m_Compiler.getCorrespondingType(opType), isInc ? 1 : -1, opType->IsSigned()));
 	}
 
 	m_Compiler.m_IRBuilder.CreateStore(value, operand);
@@ -1866,19 +1909,63 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitIncDec(llvm::Value* operand, natRe
 		{
 			return operand;
 		}
+
+		nat_Throw(AotCompilerException, u8"当前表达式无法求值为可修改的值"_nv);
 	}
 
 	if (isPre)
 	{
-		return m_RequiredModifiableValue ? operand : m_Compiler.m_IRBuilder.CreateLoad(operand);
+		return value;
 	}
 
-	if (m_RequiredModifiableValue)
+	return oldValue;
+}
+
+llvm::Value* AotCompiler::AotStmtVisitor::EmitIncDec(llvm::Value* operand, const Type::TypePtr& opType, nBool isInc, nBool isPre)
+{
+	const auto realType = Type::Type::GetUnderlyingType(opType);
+	switch (realType->GetType())
 	{
-		nat_Throw(AotCompilerException, u8"当前表达式无法求值为可修改的值"_nv);
+	case Type::Type::Builtin:
+		return EmitBuiltinIncDec(operand, realType.UnsafeCast<Type::BuiltinType>(), isInc, isPre);
+	case Type::Type::Pointer:
+	{
+		const auto oldValue = m_Compiler.m_IRBuilder.CreateLoad(operand);
+		const auto value = m_Compiler.m_IRBuilder.CreateInBoundsGEP(oldValue,
+			{ llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(m_Compiler.m_LLVMContext), isInc ? 1 : -1, true) }, "addptr");
+
+		m_Compiler.m_IRBuilder.CreateStore(value, operand);
+
+		if (m_RequiredModifiableValue)
+		{
+			if (isPre)
+			{
+				return operand;
+			}
+
+			nat_Throw(AotCompilerException, u8"当前表达式无法求值为可修改的值"_nv);
+		}
+
+		if (isPre)
+		{
+			return value;
+		}
+
+		return oldValue;
+	}
+	case Type::Type::Array:
+		break;
+	case Type::Type::Function:
+		break;
+	case Type::Type::Class:
+		break;
+	case Type::Type::Enum:
+		break;
+	default:
+		break;
 	}
 
-	return value;
+	nat_Throw(NotImplementedException);
 }
 
 llvm::Value* AotCompiler::AotStmtVisitor::EmitFunctionAddr(natRefPointer<Declaration::FunctionDecl> const& func)
@@ -2161,6 +2248,8 @@ llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarTo(llvm::Value* from, Typ
 	fromType = Type::Type::GetUnderlyingType(fromType);
 	toType = Type::Type::GetUnderlyingType(toType);
 
+Begin:
+
 	if (fromType == toType)
 	{
 		return from;
@@ -2245,7 +2334,9 @@ llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarTo(llvm::Value* from, Typ
 		case Type::Type::Array: break;
 		case Type::Type::Function: break;
 		case Type::Type::Class: break;
-		case Type::Type::Enum: break;
+		case Type::Type::Enum:
+			toType = toType.UnsafeCast<Type::EnumType>()->GetDecl().UnsafeCast<Declaration::EnumDecl>()->GetUnderlyingType();
+			goto Begin;
 		default:
 			assert(!"Invalid type");
 			nat_Throw(Compiler::AotCompilerException, u8"错误的类型"_nv);
@@ -2290,7 +2381,9 @@ llvm::Value* AotCompiler::AotStmtVisitor::ConvertScalarTo(llvm::Value* from, Typ
 	case Type::Type::Array: break;
 	case Type::Type::Function: break;
 	case Type::Type::Class: break;
-	case Type::Type::Enum: break;
+	case Type::Type::Enum:
+		fromType = fromType.UnsafeCast<Type::EnumType>()->GetDecl().UnsafeCast<Declaration::EnumDecl>()->GetUnderlyingType();
+		goto Begin;
 	default:
 		assert(!"Invalid type");
 		nat_Throw(Compiler::AotCompilerException, u8"错误的类型"_nv);

@@ -767,7 +767,7 @@ natRefPointer<Declaration::EnumConstantDecl> Sema::ActOnEnumerator(natRefPointer
 
 	const auto dc = Declaration::Decl::CastToDeclContext(enumDecl.Get());
 
-	auto enumerator = make_ref<Declaration::EnumConstantDecl>(dc, loc, std::move(name), enumDecl->GetUnderlyingType(), std::move(initializer), value);
+	auto enumerator = make_ref<Declaration::EnumConstantDecl>(dc, loc, std::move(name), enumDecl->GetTypeForDecl(), std::move(initializer), value);
 	PushOnScopeChains(enumerator, scope);
 	return enumerator;
 }
@@ -1601,7 +1601,7 @@ Expression::ExprPtr Sema::ActOnIdExpr(natRefPointer<Scope> const& scope, natRefP
 		switch (result.GetResultType())
 		{
 		case LookupResult::LookupResultType::NotFound:
-			m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrUndefinedIdentifier).AddArgument(id);
+			m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrUndefinedIdentifier, idLoc).AddArgument(id);
 			break;
 		case LookupResult::LookupResultType::Ambiguous:
 			// TODO: 报告二义性
@@ -1964,16 +1964,33 @@ Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::B
 		return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType,
 													std::move(resultType), loc);
 	}
+	case Expression::BinaryOperationType::LAnd:
+	case Expression::BinaryOperationType::LOr:
+	{
+		auto boolType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
+		// 相当于强制的
+		const auto leftCastType = getCastType(leftOperand, boolType, false);
+		leftOperand = ImpCastExprToType(std::move(leftOperand), boolType, leftCastType);
+		const auto rightCastType = getCastType(rightOperand, boolType, false);
+		rightOperand = ImpCastExprToType(std::move(rightOperand), std::move(boolType), rightCastType);
+	}
+		[[fallthrough]];
 	case Expression::BinaryOperationType::LT:
 	case Expression::BinaryOperationType::GT:
 	case Expression::BinaryOperationType::LE:
 	case Expression::BinaryOperationType::GE:
 	case Expression::BinaryOperationType::EQ:
 	case Expression::BinaryOperationType::NE:
-	case Expression::BinaryOperationType::LAnd:
-	case Expression::BinaryOperationType::LOr:
 	{
 		auto resultType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
+		// 仅转换
+		if (Type::Type::GetUnderlyingType(leftOperand->GetExprType())->GetType() == Type::Type::Builtin &&
+			Type::Type::GetUnderlyingType(rightOperand->GetExprType())->GetType() == Type::Type::Builtin)
+		{
+			UsualArithmeticConversions(leftOperand, rightOperand);
+		}
+
+		assert(leftOperand->GetExprType() == rightOperand->GetExprType());
 		return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType,
 													std::move(resultType), loc);
 	}
@@ -2487,6 +2504,8 @@ Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type:
 	toType = Type::Type::GetUnderlyingType(toType);
 	auto fromType = Type::Type::GetUnderlyingType(operand->GetExprType());
 
+Begin:
+
 	assert(operand && toType);
 	assert(fromType);
 
@@ -2569,7 +2588,8 @@ Expression::CastType Sema::getCastType(Expression::ExprPtr const& operand, Type:
 	case Type::Type::Class:
 		break;
 	case Type::Type::Enum:
-		break;
+		fromType = fromType.UnsafeCast<Type::EnumType>()->GetDecl().UnsafeCast<Declaration::EnumDecl>()->GetUnderlyingType();
+		goto Begin;
 	case Type::Type::Paren:
 	case Type::Type::Auto:
 	case Type::Type::Unresolved:
