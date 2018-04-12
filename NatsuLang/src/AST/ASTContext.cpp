@@ -302,7 +302,7 @@ ASTContext::ClassLayout const& ASTContext::GetClassLayout(natRefPointer<Declarat
 	{
 		const auto fieldInfo = getTypeInfoImpl(field->GetValueType());
 		info.Align = std::max(fieldInfo.Align, info.Align);
-		const auto fieldOffset = AlignTo(info.Size, info.Align);
+		const auto fieldOffset = AlignTo(info.Size, fieldInfo.Align);
 		if (fieldOffset != info.Size)
 		{
 			// 插入 padding
