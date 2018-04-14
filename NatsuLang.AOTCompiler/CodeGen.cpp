@@ -534,7 +534,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer<Declaration::FunctionDecl> funcDecl, llvm::Function* funcValue)
 	: m_Compiler{ compiler }, m_CurrentFunction{ std::move(funcDecl) }, m_CurrentFunctionValue{ funcValue },
 	  m_This{}, m_LastVisitedValue{}, m_RequiredModifiableValue{}, m_CurrentLexicalScope{},
-	  m_ReturnBlock{ llvm::BasicBlock::Create(compiler.m_LLVMContext, "Return"), m_CleanupStack.begin() },
+	  m_ReturnBlock{ llvm::BasicBlock::Create(compiler.m_LLVMContext, "Return"), m_CleanupStack.begin(), true },
 	  m_ReturnValue{}
 {
 	auto argIter = m_CurrentFunctionValue->arg_begin();
@@ -636,11 +636,19 @@ void AotCompiler::AotStmtVisitor::VisitDoStmt(natRefPointer<Statement::DoStmt> c
 	const auto loopEnd = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "do.end");
 	const auto loopCond = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "do.cond");
 
-	m_BreakContinueStack.emplace_back(JumpDest{ loopEnd, GetCleanupStackTop() }, JumpDest{ loopCond, GetCleanupStackTop() });
+	m_BreakContinueStack.emplace_back(JumpDest{ loopEnd, GetCleanupStackTop(), true }, JumpDest{ loopCond, GetCleanupStackTop(), true });
 
 	const auto loopBody = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "do.body");
 	EmitBlock(loopBody);
-	Visit(stmt->GetBody());
+	{
+		const auto loopBodyStmt = stmt->GetBody();
+		LexicalScope scope{ *this, { loopBodyStmt->GetStartLoc(), loopBodyStmt->GetEndLoc() } };
+		if (loopBodyStmt->GetType() == Statement::Stmt::CompoundStmtClass)
+		{
+			scope.SetAlreadyCleaned();
+		}
+		Visit(loopBodyStmt);
+	}
 
 	m_BreakContinueStack.pop_back();
 
@@ -1263,7 +1271,7 @@ void AotCompiler::AotStmtVisitor::VisitForStmt(natRefPointer<Statement::ForStmt>
 			forInc = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.inc");
 		}
 
-		m_BreakContinueStack.emplace_back(JumpDest{ forEnd, GetCleanupStackTop() }, JumpDest{ forInc, GetCleanupStackTop() });
+		m_BreakContinueStack.emplace_back(JumpDest{ forEnd, GetCleanupStackTop(), true }, JumpDest{ forInc, GetCleanupStackTop(), inc });
 
 		if (const auto cond = stmt->GetCond())
 		{
@@ -1277,7 +1285,15 @@ void AotCompiler::AotStmtVisitor::VisitForStmt(natRefPointer<Statement::ForStmt>
 			EmitBlock(forBody);
 		}
 
-		Visit(stmt->GetBody());
+		{
+			const auto forBodyStmt = stmt->GetBody();
+			LexicalScope scope{ *this, { forBodyStmt->GetStartLoc(), forBodyStmt->GetEndLoc() } };
+			if (forBodyStmt->GetType() == Statement::Stmt::CompoundStmtClass)
+			{
+				scope.SetAlreadyCleaned();
+			}
+			Visit(forBodyStmt);
+		}
 
 		m_BreakContinueStack.pop_back();
 
@@ -1389,7 +1405,7 @@ void AotCompiler::AotStmtVisitor::VisitWhileStmt(natRefPointer<Statement::WhileS
 
 	const auto loopEnd = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "while.end");
 
-	m_BreakContinueStack.emplace_back(JumpDest{ loopEnd, GetCleanupStackTop() }, JumpDest{ loopHead, GetCleanupStackTop() });
+	m_BreakContinueStack.emplace_back(JumpDest{ loopEnd, GetCleanupStackTop(), true }, JumpDest{ loopHead, GetCleanupStackTop(), true });
 
 	EvaluateAsBool(stmt->GetCond());
 	const auto cond = m_LastVisitedValue;
@@ -1533,15 +1549,17 @@ void AotCompiler::AotStmtVisitor::EmitBranch(llvm::BasicBlock* target)
 
 void AotCompiler::AotStmtVisitor::EmitBranchWithCleanup(JumpDest const& target)
 {
-	assert(CleanupEncloses(target.GetCleanupIterator(), GetCleanupStackTop()));
+	const auto targetCleanupIterator = target.GetCleanupIterator();
+	assert(CleanupEncloses(targetCleanupIterator, GetCleanupStackTop()));
 
 	if (!m_Compiler.m_IRBuilder.GetInsertBlock())
 	{
+		m_Compiler.m_IRBuilder.ClearInsertionPoint();
 		return;
 	}
 
 	auto block = target.GetBlock();
-	const auto scope = LookupLexicalScopeAfter(target.GetCleanupIterator());
+	const auto scope = LookupLexicalScopeAfter(targetCleanupIterator);
 	if (scope)
 	{
 		const auto curScope = m_CurrentLexicalScope;
@@ -1552,14 +1570,15 @@ void AotCompiler::AotStmtVisitor::EmitBranchWithCleanup(JumpDest const& target)
 
 		PopCleanupStack(scope->GetBeginIterator(), false);
 
-		block = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "cleanup");
-		PushCleanupStack(make_ref<SpecialCleanup>([block](AotStmtVisitor& visitor)
+		if (target.IsAfterLexicalScope())
 		{
-			visitor.EmitBlock(block);
-		}));
+			block = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "cleanup");
+			curScope->EnsureEncloses(InsertCleanupStack(scope->GetBeginIterator(), make_ref<AnchorCleanup>(block)));
+		}
 	}
 
 	m_Compiler.m_IRBuilder.CreateBr(block);
+	m_Compiler.m_IRBuilder.ClearInsertionPoint();
 }
 
 void AotCompiler::AotStmtVisitor::EmitBlock(llvm::BasicBlock* block, nBool finished)
@@ -2440,13 +2459,12 @@ nBool AotCompiler::AotStmtVisitor::IsCleanupStackEmpty() const noexcept
 
 void AotCompiler::AotStmtVisitor::PushCleanupStack(natRefPointer<ICleanup> cleanup)
 {
-	m_CleanupStack.emplace_front(m_CleanupStack.empty() ? 0 : m_CleanupStack.front().first + 1, std::move(cleanup));
+	m_CleanupStack.emplace_front(std::move(cleanup));
 }
 
-void AotCompiler::AotStmtVisitor::InsertCleanupStack(CleanupIterator const& pos, natRefPointer<ICleanup> cleanup)
+AotCompiler::AotStmtVisitor::CleanupIterator AotCompiler::AotStmtVisitor::InsertCleanupStack(CleanupIterator const& pos, natRefPointer<ICleanup> cleanup)
 {
-	const auto index = pos == m_CleanupStack.cend() ? 0 : pos->first;
-	m_CleanupStack.emplace(pos, index, std::move(cleanup));
+	return m_CleanupStack.emplace(pos, std::move(cleanup));
 }
 
 void AotCompiler::AotStmtVisitor::PopCleanupStack(CleanupIterator const& iter, nBool popStack)
@@ -2454,7 +2472,7 @@ void AotCompiler::AotStmtVisitor::PopCleanupStack(CleanupIterator const& iter, n
 	for (auto i = m_CleanupStack.begin(); i != iter;)
 	{
 		assert(!m_CleanupStack.empty());
-		i->second->Emit(*this);
+		(*i)->Emit(*this);
 
 		if (popStack)
 		{
@@ -2467,14 +2485,15 @@ void AotCompiler::AotStmtVisitor::PopCleanupStack(CleanupIterator const& iter, n
 	}
 }
 
+// TODO: 想办法改一下
 bool AotCompiler::AotStmtVisitor::CleanupEncloses(CleanupIterator const& a, CleanupIterator const& b) const noexcept
 {
-	if (a == m_CleanupStack.cend())
+	if (a == b || a == m_CleanupStack.cend())
 	{
 		return true;
 	}
 
-	return b != m_CleanupStack.cend() && a->first >= b->first;
+	return b != m_CleanupStack.cend() && std::distance(m_CleanupStack.cbegin(), a) > std::distance(m_CleanupStack.cbegin(), b);
 }
 
 AotCompiler::AotStmtVisitor::LexicalScope* AotCompiler::AotStmtVisitor::LookupLexicalScopeAfter(CleanupIterator const& iter)
@@ -2656,6 +2675,25 @@ void AotCompiler::AotStmtVisitor::ArrayCleanup::Emit(AotStmtVisitor& visitor)
 	visitor.EmitBlock(endBlock);
 }
 
+AotCompiler::AotStmtVisitor::AnchorCleanup::AnchorCleanup(llvm::BasicBlock* block)
+	: m_Block{ block }
+{
+}
+
+AotCompiler::AotStmtVisitor::AnchorCleanup::~AnchorCleanup()
+{
+}
+
+void AotCompiler::AotStmtVisitor::AnchorCleanup::Emit(AotStmtVisitor& visitor)
+{
+	visitor.EmitBlock(m_Block);
+}
+
+llvm::BasicBlock* AotCompiler::AotStmtVisitor::AnchorCleanup::GetBlock() const noexcept
+{
+	return m_Block;
+}
+
 AotCompiler::AotStmtVisitor::SpecialCleanup::SpecialCleanup(SpecialCleanupFunction cleanupFunction)
 	: m_CleanupFunction{ std::move(cleanupFunction) }
 {
@@ -2713,9 +2751,9 @@ AotCompiler::AotStmtVisitor::CleanupIterator AotCompiler::AotStmtVisitor::Lexica
 void AotCompiler::AotStmtVisitor::LexicalScope::SetBeginIterator(CleanupIterator const& iter) noexcept
 {
 	m_BeginIterator = iter;
-	if (m_Parent && !m_Visitor.CleanupEncloses(m_Parent->m_BeginIterator, m_BeginIterator))
+	if (m_Parent)
 	{
-		m_Parent->SetBeginIterator(iter);
+		m_Parent->EnsureEncloses(iter);
 	}
 }
 
@@ -2738,6 +2776,20 @@ void AotCompiler::AotStmtVisitor::LexicalScope::ExplicitPop()
 void AotCompiler::AotStmtVisitor::LexicalScope::SetAlreadyCleaned() noexcept
 {
 	m_AlreadyCleaned = true;
+}
+
+void AotCompiler::AotStmtVisitor::LexicalScope::EnsureEncloses(CleanupIterator const& iter)
+{
+	if (!m_Visitor.CleanupEncloses(m_BeginIterator, iter))
+	{
+		m_BeginIterator = iter;
+
+		// 若本范围已经包含则不测试父范围
+		if (m_Parent)
+		{
+			m_Parent->EnsureEncloses(iter);
+		}
+	}
 }
 
 void AotCompiler::prewarm()

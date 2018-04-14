@@ -146,6 +146,21 @@ namespace NatsuLang::Compiler
 				CleanupFunction m_CleanupFunction;
 			};
 
+			class AnchorCleanup
+				: public NatsuLib::natRefObjImpl<AnchorCleanup, ICleanup>
+			{
+			public:
+				explicit AnchorCleanup(llvm::BasicBlock* block);
+				~AnchorCleanup();
+
+				void Emit(AotStmtVisitor& visitor) override;
+
+				llvm::BasicBlock* GetBlock() const noexcept;
+
+			private:
+				llvm::BasicBlock* m_Block;
+			};
+
 			class SpecialCleanup
 				: public NatsuLib::natRefObjImpl<SpecialCleanup, ICleanup>
 			{
@@ -161,7 +176,9 @@ namespace NatsuLang::Compiler
 				SpecialCleanupFunction m_CleanupFunction;
 			};
 
-			using CleanupIterator = std::list<std::pair<std::size_t, NatsuLib::natRefPointer<ICleanup>>>::const_iterator;
+			// TODO: 想要一个插入元素不使迭代器失效，又能快速比较迭代器的容器。。。
+			using CleanupStack = std::list<NatsuLib::natRefPointer<ICleanup>>;
+			using CleanupIterator = CleanupStack::const_iterator;
 
 			class LexicalScope
 			{
@@ -177,6 +194,8 @@ namespace NatsuLang::Compiler
 
 				CleanupIterator GetBeginIterator() const noexcept;
 				void SetBeginIterator(CleanupIterator const& iter) noexcept;
+
+				void EnsureEncloses(CleanupIterator const& iter);
 
 				void ExplicitClean();
 				void ExplicitPop();
@@ -196,8 +215,8 @@ namespace NatsuLang::Compiler
 			class JumpDest
 			{
 			public:
-				JumpDest(llvm::BasicBlock* block, CleanupIterator cleanupIterator)
-					: m_Block{ block }, m_CleanupIterator{ std::move(cleanupIterator) }
+				JumpDest(llvm::BasicBlock* block, CleanupIterator cleanupIterator, nBool afterLexicalScope = false)
+					: m_Block{ block }, m_CleanupIterator{ std::move(cleanupIterator) }, m_AfterLexicalScope{ afterLexicalScope }
 				{
 				}
 
@@ -211,9 +230,15 @@ namespace NatsuLang::Compiler
 					return m_CleanupIterator;
 				}
 
+				nBool IsAfterLexicalScope() const noexcept
+				{
+					return m_AfterLexicalScope;
+				}
+
 			private:
 				llvm::BasicBlock* m_Block;
 				CleanupIterator m_CleanupIterator;
+				nBool m_AfterLexicalScope;
 			};
 
 		public:
@@ -328,7 +353,7 @@ namespace NatsuLang::Compiler
 			CleanupIterator GetCleanupStackTop() const noexcept;
 			nBool IsCleanupStackEmpty() const noexcept;
 			void PushCleanupStack(NatsuLib::natRefPointer<ICleanup> cleanup);
-			void InsertCleanupStack(CleanupIterator const& pos, NatsuLib::natRefPointer<ICleanup> cleanup);
+			CleanupIterator InsertCleanupStack(CleanupIterator const& pos, NatsuLib::natRefPointer<ICleanup> cleanup);
 			void PopCleanupStack(CleanupIterator const& iter, nBool popStack = true);
 			bool CleanupEncloses(CleanupIterator const& a, CleanupIterator const& b) const noexcept;
 
@@ -344,7 +369,7 @@ namespace NatsuLang::Compiler
 			Declaration::DeclPtr m_LastVisitedDecl;
 			nBool m_RequiredModifiableValue;
 			std::vector<std::pair<JumpDest, JumpDest>> m_BreakContinueStack;
-			std::list<std::pair<std::size_t, NatsuLib::natRefPointer<ICleanup>>> m_CleanupStack;
+			CleanupStack m_CleanupStack;
 			LexicalScope* m_CurrentLexicalScope;
 			JumpDest m_ReturnBlock;
 			llvm::Value* m_ReturnValue;
