@@ -53,11 +53,11 @@ nStrView SourceManager::FindFileUri(nuInt fileID) const
 	return {};
 }
 
-std::pair<nBool, nStrView> SourceManager::GetFileContent(nuInt fileID)
+std::pair<nBool, nStrView> SourceManager::GetFileContent(nuInt fileID, StringType encoding)
 {
 	if (!fileID)
 	{
-		return { false,{} };
+		return { false, {} };
 	}
 
 	const auto iter = m_FileContentMap.find(fileID);
@@ -102,7 +102,7 @@ std::pair<nBool, nStrView> SourceManager::GetFileContent(nuInt fileID)
 		fileContent.insert(fileContent.end(), buffer, buffer + readBytes);
 	}
 
-	iter->second.emplace<1>(RuntimeEncoding<nString::UsingStringType>::Encode(fileContent.data(), fileContent.size(), m_Encoding));
+	iter->second.emplace<1>(RuntimeEncoding<nString::UsingStringType>::Encode(fileContent.data(), fileContent.size(), encoding));
 
 	return { true, std::get<1>(iter->second) };
 }

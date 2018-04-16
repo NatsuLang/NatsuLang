@@ -19,6 +19,7 @@ void Diag::DiagnosticsEngine::Clear() noexcept
 {
 	m_CurrentID = DiagID::Invalid;
 	m_CurrentDiagDesc.Clear();
+	m_Arguments.clear();
 	m_CurrentRequiredArgs = 0;
 	m_CurrentSourceRange = {};
 }

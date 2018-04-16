@@ -43,15 +43,18 @@ namespace NatsuLang
 		{
 			std::size_t operator()(NatsuLib::natRefPointer<NestedNameSpecifier> const& nns) const noexcept
 			{
-				return std::hash<Declaration::DeclPtr>{}(nns->m_Specifier) ^ std::hash<SpecifierType>{}(nns->m_SpecifierType);
+				return std::hash<NatsuLib::natRefPointer<NestedNameSpecifier>>{}(nns->m_Prefix) ^ std::hash<Declaration::DeclPtr>
+					{}(nns->m_Specifier) ^ std::hash<SpecifierType>{}(nns->m_SpecifierType);
 			}
 		};
 
 		struct EqualTo
 		{
-			nBool operator()(NatsuLib::natRefPointer<NestedNameSpecifier> const& left, NatsuLib::natRefPointer<NestedNameSpecifier> const& right) const noexcept
+			nBool operator()(NatsuLib::natRefPointer<NestedNameSpecifier> const& left,
+			                 NatsuLib::natRefPointer<NestedNameSpecifier> const& right) const noexcept
 			{
-				return left->m_Specifier == right->m_Specifier && left->m_SpecifierType == right->m_SpecifierType;
+				return left->m_Prefix == right->m_Prefix && left->m_Specifier == right->m_Specifier && left->m_SpecifierType ==
+					right->m_SpecifierType;
 			}
 		};
 
@@ -66,9 +69,12 @@ namespace NatsuLang
 
 		Declaration::DeclContext* GetAsDeclContext(ASTContext const& context) const noexcept;
 
-		static NatsuLib::natRefPointer<NestedNameSpecifier> Create(ASTContext const& context, NatsuLib::natRefPointer<NestedNameSpecifier> prefix, Declaration::DeclPtr decl);
+		static NatsuLib::natRefPointer<NestedNameSpecifier> Create(ASTContext const& context,
+		                                                           NatsuLib::natRefPointer<NestedNameSpecifier> prefix,
+		                                                           Declaration::DeclPtr decl);
 		static NatsuLib::natRefPointer<NestedNameSpecifier> Create(ASTContext const& context);
-		static NatsuLib::natRefPointer<NestedNameSpecifier> Create(ASTContext const& context, NatsuLib::natRefPointer<NestedNameSpecifier> prefix);
+		static NatsuLib::natRefPointer<NestedNameSpecifier> Create(ASTContext const& context,
+		                                                           NatsuLib::natRefPointer<NestedNameSpecifier> prefix);
 
 	private:
 		// 上一级嵌套名称
@@ -77,6 +83,7 @@ namespace NatsuLang
 		Declaration::DeclPtr m_Specifier;
 		SpecifierType m_SpecifierType;
 
-		static NatsuLib::natRefPointer<NestedNameSpecifier> FindOrInsert(ASTContext const& context, NatsuLib::natRefPointer<NestedNameSpecifier> nns);
+		static NatsuLib::natRefPointer<NestedNameSpecifier> FindOrInsert(ASTContext const& context,
+		                                                                 NatsuLib::natRefPointer<NestedNameSpecifier> nns);
 	};
 }

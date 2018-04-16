@@ -76,7 +76,7 @@ namespace NatsuLang
 			return m_Begin;
 		}
 
-		void SetBegin(SourceLocation loc) noexcept
+		constexpr void SetBegin(SourceLocation loc) noexcept
 		{
 			m_Begin = loc;
 		}
@@ -86,7 +86,7 @@ namespace NatsuLang
 			return m_End;
 		}
 
-		void SetEnd(SourceLocation loc) noexcept
+		constexpr void SetEnd(SourceLocation loc) noexcept
 		{
 			m_End = loc;
 		}

@@ -272,7 +272,8 @@ namespace NatsuLang::Semantic
 		NatsuLib::natRefPointer<Declaration::EnumConstantDecl> ActOnEnumerator(NatsuLib::natRefPointer<Scope> const& scope,
 		                                                                       NatsuLib::natRefPointer<Declaration::EnumDecl>
 		                                                                       const& enumDecl,
-		                                                                       NatsuLib::natRefPointer<Declaration::EnumConstantDecl> const& lastEnumerator,
+		                                                                       NatsuLib::natRefPointer<Declaration::
+			                                                                       EnumConstantDecl> const& lastEnumerator,
 		                                                                       Identifier::IdPtr name,
 		                                                                       SourceLocation loc,
 		                                                                       Expression::ExprPtr initializer);
@@ -355,7 +356,7 @@ namespace NatsuLang::Semantic
 
 		Expression::ExprPtr ActOnIdExpr(NatsuLib::natRefPointer<Scope> const& scope,
 		                                NatsuLib::natRefPointer<NestedNameSpecifier> const& nns, Identifier::IdPtr id,
-										SourceLocation idLoc, nBool hasTraillingLParen,
+		                                SourceLocation idLoc, nBool hasTraillingLParen,
 		                                NatsuLib::natRefPointer<Syntax::ResolveContext> const& resolveContext = nullptr);
 		Expression::ExprPtr ActOnThis(SourceLocation loc);
 		Expression::ExprPtr ActOnAsTypeExpr(NatsuLib::natRefPointer<Scope> const& scope, Expression::ExprPtr exprToCast,
@@ -443,6 +444,8 @@ namespace NatsuLang::Semantic
 
 		std::unordered_map<nString, NatsuLib::natRefPointer<IAttributeSerializer>> m_AttributeSerializerMap;
 
+		NatsuLib::natRefPointer<CompilerActionNamespace> m_TopLevelActionNamespace;
+
 		// 以下几个是在并行分析过程中需要特别注意的
 		Phase m_CurrentPhase;
 		std::vector<Declaration::DeclaratorPtr> m_Declarators;
@@ -452,8 +455,6 @@ namespace NatsuLang::Semantic
 
 		// m_CurrentDeclContext必须为nullptr或者可以转换到DeclContext*，不保存DeclContext*是为了保留对Decl的强引用
 		Declaration::DeclPtr m_CurrentDeclContext;
-
-		NatsuLib::natRefPointer<CompilerActionNamespace> m_TopLevelActionNamespace;
 
 		void prewarming();
 

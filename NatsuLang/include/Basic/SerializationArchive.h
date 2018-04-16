@@ -35,7 +35,7 @@ namespace NatsuLang
 			}
 		}
 
-		// 利用这对方法读取复杂属性
+		// 利用这些方法读取复杂属性
 		virtual nBool StartReadingEntry(nStrView key, nBool isArray = false) = 0;
 		virtual nBool NextReadingElement() = 0;
 		virtual std::size_t GetEntryElementCount() = 0;
@@ -66,7 +66,7 @@ namespace NatsuLang
 			}
 		}
 
-		// 利用这对方法写入复杂属性
+		// 利用这些方法写入复杂属性
 		virtual void StartWritingEntry(nStrView key, nBool isArray = false) = 0;
 		virtual void NextWritingElement() = 0;
 		virtual void EndWritingEntry() = 0;

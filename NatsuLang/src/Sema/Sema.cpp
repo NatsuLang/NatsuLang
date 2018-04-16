@@ -274,8 +274,8 @@ namespace NatsuLang
 Sema::Sema(Preprocessor& preprocessor, ASTContext& astContext, natRefPointer<ASTConsumer> astConsumer)
 	: m_Preprocessor{ preprocessor }, m_Context{ astContext }, m_Consumer{ std::move(astConsumer) },
 	  m_Diag{ preprocessor.GetDiag() },
-	  m_SourceManager{ preprocessor.GetSourceManager() }, m_CurrentPhase{ Phase::Phase1 },
-	  m_TopLevelActionNamespace{ make_ref<CompilerActionNamespace>(u8""_nv) }
+	  m_SourceManager{ preprocessor.GetSourceManager() }, m_TopLevelActionNamespace{ make_ref<CompilerActionNamespace>(u8""_nv) },
+	  m_CurrentPhase{ Phase::Phase1 }
 {
 	prewarming();
 
