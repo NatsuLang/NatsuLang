@@ -181,12 +181,15 @@ namespace
 
 	const natRefPointer<IArgumentRequirement> ActionCallingConvention::ActionCallingConventionContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier, CompilerActionArgumentType::MayBeUnresolved | CompilerActionArgumentType::Declaration }) };
 
-	nString GetQualifiedName(natRefPointer<Declaration::NamedDecl> const& decl)
+	nString GetQualifiedName(natRefPointer<Declaration::NamedDecl> const& decl, nBool isNameMangling = true)
 	{
-		if (const auto query = decl->GetAttributes<NameManglingRuleAttribute>(); !query.empty())
+		if (isNameMangling)
 		{
-			const auto attr = query.first();
-			return attr->GetMangledName(decl);
+			if (const auto query = decl->GetAttributes<NameManglingRuleAttribute>(); !query.empty())
+			{
+				const auto attr = query.first();
+				return attr->GetMangledName(decl);
+			}
 		}
 
 		nString qualifiedName = decl->GetName();
@@ -869,16 +872,9 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 
 	assert(callee);
 
-	// TODO: 由前端检查
-	//if (calleeType->getNumParams() != expr->GetArgCount())
-	//{
-	//	nat_Throw(AotCompilerException, u8"参数数量不匹配，这可能是默认参数功能未实现导致的"_nv);
-	//}
-
 	std::vector<llvm::Value*> args;
 	args.reserve(expr->GetArgCount());
 
-	// TODO: 实现默认参数
 	for (auto&& arg : expr->GetArgs())
 	{
 		// TODO: 直接按位复制了，在需要的时候应由前端生成复制构造函数，但此处没有看到分配存储？
@@ -894,7 +890,9 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 	{
 		for (auto&& param : funcDecl->GetParams().skip(args.size()))
 		{
-			EvaluateValue(param->GetInitializer());
+			const auto defaultArg = param->GetInitializer();
+			assert(defaultArg);
+			EvaluateValue(defaultArg);
 			assert(m_LastVisitedValue);
 			args.emplace_back(m_LastVisitedValue);
 		}
@@ -950,17 +948,10 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 
 	// TODO: 消除重复代码
 
-	// 除去 this
-	if (callee->arg_size() - 1 != expr->GetArgCount())
-	{
-		nat_Throw(AotCompilerException, u8"参数数量不匹配，这可能是默认参数功能未实现导致的"_nv);
-	}
-
 	// 将基础对象的引用作为第一个参数传入
 	std::vector<llvm::Value*> args{ baseObjValue };
 	args.reserve(expr->GetArgCount() + 1);
 
-	// TODO: 实现默认参数
 	for (auto&& arg : expr->GetArgs())
 	{
 		// TODO: 直接按位复制了，在需要的时候应由前端生成复制构造函数，但此处没有看到分配存储？
@@ -971,11 +962,13 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 
 	// 函数指针不支持默认参数
 	// TODO: 禁止不在末尾的默认参数及在可变参数之前的默认参数
-	if (funcDecl && funcDecl->GetParamCount() > args.size())
+	if (funcDecl && funcDecl->GetParamCount() > args.size() - 1)
 	{
-		for (auto&& param : funcDecl->GetParams().skip(args.size()))
+		for (auto&& param : funcDecl->GetParams().skip(args.size() - 1))
 		{
-			EvaluateValue(param->GetInitializer());
+			const auto defaultArg = param->GetInitializer();
+			assert(defaultArg);
+			EvaluateValue(defaultArg);
 			assert(m_LastVisitedValue);
 			args.emplace_back(m_LastVisitedValue);
 		}
@@ -2000,7 +1993,7 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitFunctionAddr(natRefPointer<Declara
 			return m_LastVisitedValue;
 		}
 
-		nat_Throw(AotCompilerException, u8"无法找到这个函数"_nv);
+		nat_Throw(AotCompilerException, u8"无法找到函数 \"{0}\""_nv, GetQualifiedName(func, false));
 	}
 
 	nat_Throw(AotCompilerException, u8"无法修改函数"_nv);
@@ -2012,6 +2005,7 @@ void AotCompiler::AotStmtVisitor::EmitVarDecl(natRefPointer<Declaration::VarDecl
 	{
 	default:
 		assert(!"Invalid storage class");
+		[[fallthrough]];
 	case Specifier::StorageClass::None:
 		return EmitAutoVarDecl(decl);
 	case Specifier::StorageClass::Extern:
@@ -2121,12 +2115,6 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarInit(Type::TypePtr const& varType, 
 
 			// TODO: 消除重复代码
 
-			// 除去 this
-			if (constructorValue->arg_size() - 1 != constructExpr->GetArgCount())
-			{
-				nat_Throw(AotCompilerException, u8"参数数量不匹配，这可能是默认参数功能未实现导致的"_nv);
-			}
-
 			// 将要初始化的对象的引用作为第一个参数传入
 			std::vector<llvm::Value*> args{ varPtr };
 			args.reserve(constructExpr->GetArgCount() + 1);
@@ -2138,6 +2126,19 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarInit(Type::TypePtr const& varType, 
 				EvaluateValue(arg);
 				assert(m_LastVisitedValue);
 				args.emplace_back(m_LastVisitedValue);
+			}
+
+			// TODO: 禁止不在末尾的默认参数及在可变参数之前的默认参数
+			if (constructorDecl->GetParamCount() > args.size() - 1)
+			{
+				for (auto&& param : constructorDecl->GetParams().skip(args.size() - 1))
+				{
+					const auto defaultArg = param->GetInitializer();
+					assert(defaultArg);
+					EvaluateValue(defaultArg);
+					assert(m_LastVisitedValue);
+					args.emplace_back(m_LastVisitedValue);
+				}
 			}
 
 			// 构造函数返回类型永远是 void

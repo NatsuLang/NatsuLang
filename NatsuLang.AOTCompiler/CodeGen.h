@@ -362,6 +362,7 @@ namespace NatsuLang::Compiler
 		private:
 			AotCompiler& m_Compiler;
 			NatsuLib::natRefPointer<Declaration::FunctionDecl> m_CurrentFunction;
+			NatsuLib::natRefPointer<Declaration::ClassDecl> m_CurrentClass;
 			llvm::Function* m_CurrentFunctionValue;
 			llvm::Value* m_This;
 			std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, llvm::Value*> m_DeclMap;

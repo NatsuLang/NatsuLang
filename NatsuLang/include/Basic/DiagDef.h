@@ -16,6 +16,8 @@ DIAG(ErrNotAllControlFlowReturnAValue, Level::Error, 0)
 DIAG(ErrUnsafeOperationInSafeScope, Level::Error, 0)
 DIAG(ErrDuplicateDeclaration, Level::Error, 1)
 DIAG(ErrExpressionCannotEvaluateAsConstant, Level::Error, 0)
+DIAG(ErrConvertFromToNeedExplicitAs, Level::Error, 2)
+DIAG(ErrInvalidConvertFromTo, Level::Error, 2)
 
 DIAG(WarnOverflowed, Level::Warning, 0)
 

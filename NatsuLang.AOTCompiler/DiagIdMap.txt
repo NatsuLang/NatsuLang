@@ -26,6 +26,10 @@ ErrDuplicateDeclaration
 存在名称同样为 "{0}" 的声明位于同一范围
 ErrExpressionCannotEvaluateAsConstant
 表达式无法求值为常量
+ErrConvertFromToNeedExplicitAs
+从类型 {0} 转换到类型 {1} 需要显式转换
+ErrInvalidConvertFromTo
+无法从类型 {0} 转换到类型 {1}
 WarnOverflowed
 发生溢出
 NoteSee

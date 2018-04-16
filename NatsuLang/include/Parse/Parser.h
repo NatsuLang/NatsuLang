@@ -292,10 +292,6 @@ namespace NatsuLang::Syntax
 		//	qualified-id
 		// unqualified-id:
 		//	identifier
-		// new-expression:
-		//	TODO
-		// delete-expression:
-		//	TODO
 		Expression::ExprPtr ParseUnaryExpression();
 
 		Expression::ExprPtr ParseRightOperandOfBinaryExpression(Expression::ExprPtr leftOperand,

@@ -2708,9 +2708,9 @@ Linq<Valued<Expression::ExprPtr>> Sema::makeArgsFromType(
 	return argExprs.take(commonCount).zip(paramTypes.take(commonCount)).select(
 		[this](std::pair<Expression::ExprPtr, Type::TypePtr> const& pair)
 	{
+		const auto castType = getCastType(pair.first, pair.second, true);
 		return ImpCastExprToType(
-			pair.first, pair.second,
-			getCastType(pair.first, pair.second, true));
+			pair.first, pair.second, castType);
 	}).concat(argExprs.skip(std::min(commonCount, argCount)));
 }
 
