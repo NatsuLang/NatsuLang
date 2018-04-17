@@ -13,9 +13,6 @@ namespace NatsuLang
 	class Metadata
 	{
 	public:
-		Metadata();
-		~Metadata();
-
 		template <typename Range>
 		void AddDecls(Range&& range)
 		{

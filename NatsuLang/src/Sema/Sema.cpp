@@ -665,7 +665,24 @@ Declaration::DeclPtr Sema::ActOnFinishFunctionBody(Declaration::DeclPtr decl, St
 	assert(funcType);
 	if (!funcType->GetResultType()->IsVoid() && !CheckFunctionReturn(body->GetChildrenStmt()))
 	{
-		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrNotAllControlFlowReturnAValue);
+		m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrNotAllControlFlowReturnAValue, fd->GetLocation());
+	}
+
+	if (const auto method = fd.Cast<Declaration::MethodDecl>())
+	{
+		const auto classDecl = dynamic_cast<Declaration::ClassDecl*>(Declaration::Decl::CastFromDeclContext(fd->GetContext()));
+		assert(classDecl);
+
+		const auto fieldQuery = classDecl->GetFields();
+
+		if (const auto constructor = fd.Cast<Declaration::ConstructorDecl>())
+		{
+			// TODO: 对未初始化的数据成员进行操作
+		}
+		else if (const auto destructor = fd.Cast<Declaration::DestructorDecl>())
+		{
+			// TODO: 析构数据成员，也可以在后端生成
+		}
 	}
 
 	fd->SetBody(std::move(body));
@@ -731,6 +748,8 @@ void Sema::ActOnTagStartDefinition(natRefPointer<Scope> const& scope,
 
 void Sema::ActOnTagFinishDefinition()
 {
+	// TODO: 对于没有用户定义构造函数的类型，生成一个默认构造函数，对于没有用户定义析构函数的类型，生成一个默认析构函数
+
 	PopDeclContext();
 }
 
@@ -2479,6 +2498,44 @@ natRefPointer<Declaration::IAttribute> Sema::DeserializeAttribute(nStrView attri
 	}
 
 	nat_Throw(natErrException, NatErr::NatErr_NotFound, u8"No serializer found for attribute \"{0}\""_nv, attributeName);
+}
+
+nBool Sema::IsTypeDefaultConstructible(Type::TypePtr const& type)
+{
+	const auto underlyingType = Type::Type::GetUnderlyingType(type);
+
+	switch (underlyingType->GetType())
+	{
+	case Type::Type::Builtin:
+	case Type::Type::Pointer:
+	case Type::Type::Enum:
+		return true;
+	case Type::Type::Array:
+		return IsTypeDefaultConstructible(underlyingType.UnsafeCast<Type::ArrayType>()->GetElementType());
+	case Type::Type::Class:
+	{
+		const auto classDecl = underlyingType.UnsafeCast<Type::ClassType>()->GetDecl().UnsafeCast<Declaration::ClassDecl>();
+		LookupResult r{ *this, nullptr, {}, LookupNameType::LookupMemberName };
+		if (!LookupConstructors(r, classDecl) || r.GetResultType() != LookupResult::LookupResultType::Found)
+		{
+			// TODO: 应该生成默认构造函数，但是没有
+			return false;
+		}
+
+		return r.GetDecls().select([](natRefPointer<Declaration::NamedDecl> const& decl)
+		{
+			return decl.UnsafeCast<Declaration::ConstructorDecl>();
+		}).first_or_default(nullptr, [](natRefPointer<Declaration::ConstructorDecl> const& constructor)
+		{
+			return constructor->GetParamCount() == 0;
+		});
+	}
+	default:
+		assert(!"Invalid type");
+		[[fallthrough]];
+	case Type::Type::Function:
+		return false;
+	}
 }
 
 void Sema::prewarming()

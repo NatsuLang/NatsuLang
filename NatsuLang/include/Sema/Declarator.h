@@ -53,7 +53,6 @@ namespace NatsuLang::Declaration
 		Member,
 		Block,
 		For,
-		New,
 		Catch,
 	};
 

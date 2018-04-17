@@ -113,8 +113,7 @@ namespace NatsuLang::Semantic
 
 		enum class Phase
 		{
-			Phase1,
-			// 分析顶层及类内的声明符，获得名称，保留声明符，在声明符中缓存记号以便延迟分析类型及初始化器等
+			Phase1, // 分析顶层及类内的声明符，获得名称，保留声明符，在声明符中缓存记号以便延迟分析类型及初始化器等
 			Phase2 // 解析顶层的 CompilerAction 及对各保留的声明符进行分析，主要工作为解析类型为真实类型及解析初始化器等
 		};
 
@@ -431,6 +430,8 @@ namespace NatsuLang::Semantic
 		                        NatsuLib::natRefPointer<ISerializationArchiveWriter> const& writer);
 		NatsuLib::natRefPointer<Declaration::IAttribute> DeserializeAttribute(
 			nStrView attributeName, NatsuLib::natRefPointer<ISerializationArchiveReader> const& reader);
+
+		nBool IsTypeDefaultConstructible(Type::TypePtr const& type);
 
 	private:
 		Preprocessor& m_Preprocessor;

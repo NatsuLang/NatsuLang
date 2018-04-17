@@ -221,7 +221,6 @@ nBool Parser::ParseTopLevelDecl(std::vector<Declaration::DeclPtr>& decls)
 		std::vector<Declaration::DeclPtr> curResult;
 		while (!m_CurrentToken.Is(TokenType::RightBrace))
 		{
-			// TODO: 允许不安全声明
 			const auto encounteredEof = ParseTopLevelDecl(curResult);
 
 			decls.insert(decls.end(), std::make_move_iterator(curResult.begin()), std::make_move_iterator(curResult.end()));
@@ -764,7 +763,9 @@ void Parser::ParseEnumeratorList(natRefPointer<Declaration::EnumDecl> const& tag
 		{
 			if (!hasNextMemeber)
 			{
-				// TODO: 报告缺失的逗号
+				m_Diag.Report(DiagnosticsEngine::DiagID::ErrExpectedGot, m_CurrentToken.GetLocation())
+					.AddArgument(TokenType::Comma)
+					.AddArgument(m_CurrentToken.GetType());
 			}
 
 			auto id = m_CurrentToken.GetIdentifierInfo();

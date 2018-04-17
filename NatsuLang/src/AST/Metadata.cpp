@@ -6,14 +6,6 @@
 using namespace NatsuLib;
 using namespace NatsuLang;
 
-Metadata::Metadata()
-{
-}
-
-Metadata::~Metadata()
-{
-}
-
 void Metadata::AddDecl(Declaration::DeclPtr decl)
 {
 	if (decl)

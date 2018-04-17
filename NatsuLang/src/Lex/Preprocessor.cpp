@@ -1,5 +1,6 @@
 ﻿#include "Lex/Preprocessor.h"
 
+using namespace NatsuLib;
 using namespace NatsuLang;
 
 Preprocessor::Preprocessor(Diag::DiagnosticsEngine& diag, SourceManager& sourceManager)
@@ -51,7 +52,7 @@ nBool Preprocessor::Lex(Lex::Token& result)
 
 void Preprocessor::init() const
 {
-#define KEYWORD(X) m_Table.GetOrAdd(#X, Lex::TokenType::Kw_ ## X);
+#define KEYWORD(X) m_Table.GetOrAdd(u8#X ## _nv, Lex::TokenType::Kw_ ## X);
 #include "Basic/TokenDef.h"
 }
 
