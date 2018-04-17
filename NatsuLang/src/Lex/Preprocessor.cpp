@@ -52,7 +52,7 @@ nBool Preprocessor::Lex(Lex::Token& result)
 
 void Preprocessor::init() const
 {
-#define KEYWORD(X) m_Table.GetOrAdd(u8#X ## _nv, Lex::TokenType::Kw_ ## X);
+#define KEYWORD(X) m_Table.GetOrAdd(#X ## _nv, Lex::TokenType::Kw_ ## X);
 #include "Basic/TokenDef.h"
 }
 
