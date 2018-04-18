@@ -219,7 +219,7 @@ namespace
 				m_Result.Result.emplace<0>(leftValue / rightValue);
 				m_LastVisitSucceed = true;
 				return;
-			case BinaryOperationType::Mod:
+			case BinaryOperationType::Rem:
 				if (rightValue == 0)
 				{
 					m_LastVisitSucceed = false;
@@ -476,7 +476,7 @@ namespace
 				m_LastVisitSucceed = true;
 				return;
 			case BinaryOperationType::Invalid:
-			case BinaryOperationType::Mod:
+			case BinaryOperationType::Rem:
 			case BinaryOperationType::Shl:
 			case BinaryOperationType::Shr:
 			case BinaryOperationType::LT:

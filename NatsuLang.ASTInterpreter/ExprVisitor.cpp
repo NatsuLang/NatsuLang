@@ -436,7 +436,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			return;
 		}
 		break;
-	case Expression::BinaryOperationType::Mod:
+	case Expression::BinaryOperationType::Rem:
 		if (Evaluate(leftOperand, [this, &evalSucceed, rightOperand = std::move(rightOperand), tempObjDecl](auto leftValue)
 		{
 			evalSucceed = Evaluate(rightOperand, [this, leftValue, tempObjDecl](auto rightValue)

@@ -24,6 +24,9 @@ namespace
 			return { 1, 1 };
 		case Type::BuiltinType::Char:
 			return { 1, 1 };
+		case Type::BuiltinType::Byte:
+		case Type::BuiltinType::SByte:
+			return { 1, 1 };
 		case Type::BuiltinType::UShort:
 		case Type::BuiltinType::Short:
 			return { 2, 2 };

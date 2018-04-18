@@ -187,7 +187,7 @@ namespace
 		case Lex::TokenType::SlashEqual:
 			return BinaryOperationType::DivAssign;
 		case Lex::TokenType::Percent:
-			return BinaryOperationType::Mod;
+			return BinaryOperationType::Rem;
 		case Lex::TokenType::PercentEqual:
 			return BinaryOperationType::RemAssign;
 		case Lex::TokenType::Less:
@@ -368,6 +368,16 @@ void Sema::LoadMetadata(Metadata const& metadata, nBool feedAstConsumer)
 void Sema::MarkAsImported(Declaration::DeclPtr const& decl) const
 {
 	decl->AttachAttribute(m_ImportedAttribute);
+}
+
+void Sema::UnmarkImported(Declaration::DeclPtr const& decl) const
+{
+	decl->DetachAttributes(typeid(ImportedAttribute));
+}
+
+nBool Sema::IsImported(Declaration::DeclPtr const& decl) const
+{
+	return decl->GetAttributeCount(typeid(ImportedAttribute));
 }
 
 natRefPointer<ImportedAttribute> Sema::GetImportedAttribute() const noexcept
@@ -1936,7 +1946,7 @@ Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::B
 		return nullptr;
 	case Expression::BinaryOperationType::Mul:
 	case Expression::BinaryOperationType::Div:
-	case Expression::BinaryOperationType::Mod:
+	case Expression::BinaryOperationType::Rem:
 	case Expression::BinaryOperationType::Add:
 	case Expression::BinaryOperationType::Sub:
 	case Expression::BinaryOperationType::Shl:

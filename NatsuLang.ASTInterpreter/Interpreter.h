@@ -87,6 +87,12 @@ namespace NatsuLang
 		};
 
 		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::Byte>
+		{
+			using type = nByte;
+		};
+
+		template <>
 		struct BuiltinTypeMap<Type::BuiltinType::UShort>
 		{
 			using type = nuShort;
@@ -114,6 +120,12 @@ namespace NatsuLang
 		struct BuiltinTypeMap<Type::BuiltinType::UInt128>
 		{
 			using type = nuLong;
+		};
+
+		template <>
+		struct BuiltinTypeMap<Type::BuiltinType::SByte>
+		{
+			using type = nSByte;
 		};
 
 		template <>

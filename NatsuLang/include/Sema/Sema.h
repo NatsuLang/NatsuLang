@@ -196,6 +196,8 @@ namespace NatsuLang::Semantic
 		Metadata CreateMetadata(nBool includeImported = false) const;
 		void LoadMetadata(Metadata const& metadata, nBool feedAstConsumer = true);
 		void MarkAsImported(Declaration::DeclPtr const& decl) const;
+		void UnmarkImported(Declaration::DeclPtr const& decl) const;
+		nBool IsImported(Declaration::DeclPtr const& decl) const;
 		NatsuLib::natRefPointer<ImportedAttribute> GetImportedAttribute() const noexcept;
 
 		// 仅在解析声明符时恢复上下文时使用，不应该在其他地方使用

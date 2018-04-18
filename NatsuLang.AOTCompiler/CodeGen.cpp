@@ -27,6 +27,16 @@ namespace
 		virtual nString GetMangledName(natRefPointer<Declaration::NamedDecl> const& decl) = 0;
 	};
 
+	class BuiltinAttribute
+		: public natRefObjImpl<BuiltinAttribute, Declaration::IAttribute>
+	{
+	public:
+		nStrView GetName() const noexcept override
+		{
+			return u8"Builtin"_nv;
+		}
+	};
+
 	class CallingConventionAttribute
 		: public natRefObjImpl<CallingConventionAttribute, Declaration::IAttribute>
 	{
@@ -67,7 +77,7 @@ namespace
 
 		nStrView GetName() const noexcept override
 		{
-			return "CallingConvention";
+			return u8"CallingConvention"_nv;
 		}
 
 		CallingConvention GetCallingConvention() const noexcept
@@ -780,36 +790,11 @@ void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expr
 	case Expression::BinaryOperationType::Assign:
 		value = rightOperand;
 		break;
-	case Expression::BinaryOperationType::MulAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Mul, resultType, rightType, resultType);
+#define COMPOUND_ASSIGN_OPERATION(Name, Spelling) \
+	case Expression::BinaryOperationType::Name##Assign:\
+		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Name, resultType, rightType, resultType);\
 		break;
-	case Expression::BinaryOperationType::DivAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Div, resultType, rightType, resultType);
-		break;
-	case Expression::BinaryOperationType::RemAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Mod, resultType, rightType, resultType);
-		break;
-	case Expression::BinaryOperationType::AddAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Add, resultType, rightType, resultType);
-		break;
-	case Expression::BinaryOperationType::SubAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Sub, resultType, rightType, resultType);
-		break;
-	case Expression::BinaryOperationType::ShlAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Shl, resultType, rightType, resultType);
-		break;
-	case Expression::BinaryOperationType::ShrAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Shr, resultType, rightType, resultType);
-		break;
-	case Expression::BinaryOperationType::AndAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::And, resultType, rightType, resultType);
-		break;
-	case Expression::BinaryOperationType::XorAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Xor, resultType, rightType, resultType);
-		break;
-	case Expression::BinaryOperationType::OrAssign:
-		value = EmitBinOp(m_Compiler.m_IRBuilder.CreateLoad(leftOperand), rightOperand, Expression::BinaryOperationType::Or, resultType, rightType, resultType);
-		break;
+#include "AST/OperationTypesDef.h"
 	default:
 		assert(!"Invalid Opcode");
 		nat_Throw(AotCompilerException, u8"无效的 Opcode"_nv);
@@ -1742,7 +1727,7 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitBuiltinBinOp(llvm::Value* leftOper
 		}
 
 		return m_Compiler.m_IRBuilder.CreateUDiv(leftOperand, rightOperand, "div");
-	case Expression::BinaryOperationType::Mod:
+	case Expression::BinaryOperationType::Rem:
 		if (commonType->IsFloatingType())
 		{
 			return m_Compiler.m_IRBuilder.CreateFRem(leftOperand, rightOperand, "fmod");
@@ -2582,8 +2567,15 @@ void AotCompiler::CreateMetadata(natRefPointer<natStream> const& metadataStream,
 	auto writer = make_ref<Serialization::BinarySerializationArchiveWriter>(make_ref<natBinaryWriter>(metadataStream, Environment::Endianness::LittleEndian));
 	Serialization::Serializer serializer{ m_Sema };
 	serializer.StartSerialize(std::move(writer));
-	const auto metadata = m_Sema.CreateMetadata(includeImported);
-	for (const auto& decl : metadata.GetDecls())
+	//const auto metadata = m_Sema.CreateMetadata(includeImported);
+	for (const auto& decl : m_AstContext.GetTranslationUnit()->GetDecls().where([includeImported, this](Declaration::DeclPtr const& declPtr)
+	{
+		return !declPtr->GetAttributeCount(typeid(BuiltinAttribute)) && (includeImported || !m_Sema.IsImported(declPtr));
+	}).select([this](Declaration::DeclPtr const& declPtr)
+	{
+		m_Sema.UnmarkImported(declPtr);
+		return declPtr;
+	}))
 	{
 		serializer.Visit(decl);
 	}
@@ -2800,10 +2792,12 @@ void AotCompiler::prewarm()
 	compilerNamespace->RegisterAction(make_ref<ActionCallingConvention>());
 
 	m_Sema.RegisterAttributeSerializer(u8"CallingConvention"_nv, make_ref<CallingConventionAttribute::CallingConventionAttributeSerializer>());
+	m_Sema.RegisterAttributeSerializer(u8"Builtin"_nv, make_ref<NoDataAttributeSerializer<BuiltinAttribute>>());
 
 	Lex::Token dummy;
 	const auto nativeModule = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo("Native", dummy));
 	m_Sema.MarkAsImported(nativeModule);
+	nativeModule->AttachAttribute(make_ref<BuiltinAttribute>());
 	m_Sema.PushScope(Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::ModuleScope);
 	m_Sema.ActOnStartModule(m_Sema.GetCurrentScope(), nativeModule);
 	registerNativeType<short>(u8"Short"_nv);
@@ -2887,11 +2881,13 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 			ret = llvm::Type::getInt1Ty(m_LLVMContext);
 			break;
 		case Type::BuiltinType::Char:
+		case Type::BuiltinType::Byte:
 		case Type::BuiltinType::UShort:
 		case Type::BuiltinType::UInt:
 		case Type::BuiltinType::ULong:
 		case Type::BuiltinType::ULongLong:
 		case Type::BuiltinType::UInt128:
+		case Type::BuiltinType::SByte:
 		case Type::BuiltinType::Short:
 		case Type::BuiltinType::Int:
 		case Type::BuiltinType::Long:

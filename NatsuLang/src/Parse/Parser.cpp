@@ -1222,9 +1222,8 @@ Statement::StmtPtr Parser::ParseStatement(Declaration::Context context, nBool ma
 		// TODO: 是否可以重用以上信息？
 		m_Preprocessor.RestoreFromMemento(memento);
 		m_CurrentToken = std::move(curToken);
-
-		[[fallthrough]];
 	}
+		[[fallthrough]];
 	default:
 		return ParseExprStatement(mayBeExpr);
 	}

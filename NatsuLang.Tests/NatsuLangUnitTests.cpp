@@ -14,7 +14,7 @@ def Increase : (arg : int = 1) -> int
 	FileManager fileManager{};
 	SourceManager sourceManager{ diag, fileManager };
 	Preprocessor pp{ diag, sourceManager };
-	pp.SetLexer(make_ref<Lex::Lexer>(testCode, pp));
+	pp.SetLexer(make_ref<Lex::Lexer>(0, testCode, pp));
 	ASTContext context{ TargetInfo{ Environment::GetEndianness(), sizeof(void*), alignof(void*) } };
 	const auto consumer = make_ref<TestAstConsumer>();
 	ParseAST(pp, context, consumer);
@@ -108,7 +108,7 @@ def Main : () -> void
 	FileManager fileManager{};
 	SourceManager sourceManager{ diag, fileManager };
 	Preprocessor pp{ diag, sourceManager };
-	pp.SetLexer(make_ref<Lex::Lexer>(testCode, pp));
+	pp.SetLexer(make_ref<Lex::Lexer>(0, testCode, pp));
 	pp.GetLexer()->EnableCodeCompletion(true);
 	ASTContext context{ TargetInfo{ Environment::GetEndianness(), sizeof(void*), alignof(void*) } };
 	const auto consumer = make_ref<TestAstConsumer>();
