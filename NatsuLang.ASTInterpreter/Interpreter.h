@@ -9,26 +9,26 @@ namespace NatsuLang
 	namespace Detail
 	{
 		template <typename... ExpectedTypes>
-		struct Expected_t
+		struct ExpectedTag
 		{
-			constexpr Expected_t() = default;
+			constexpr ExpectedTag() = default;
 		};
 
 		template <typename... ExpectedTypes>
-		constexpr Expected_t<ExpectedTypes...> Expected{};
+		constexpr ExpectedTag<ExpectedTypes...> Expected{};
 
 		template <typename... ExceptedTypes>
-		struct Excepted_t
+		struct ExceptedTag
 		{
-			constexpr Excepted_t() = default;
+			constexpr ExceptedTag() = default;
 		};
 
 		template <typename... ExceptedTypes>
-		constexpr Excepted_t<ExceptedTypes...> Excepted{};
+		constexpr ExceptedTag<ExceptedTypes...> Excepted{};
 
 		// 返回值将会被丢弃
 		template <typename Callable, typename Arg, typename... ExpectedTypes>
-		constexpr nBool InvokeIfSatisfied(Callable&& callableObj, Arg&& arg, Expected_t<ExpectedTypes...>)
+		constexpr nBool InvokeIfSatisfied(Callable&& callableObj, Arg&& arg, ExpectedTag<ExpectedTypes...>)
 		{
 			if constexpr (!sizeof...(ExpectedTypes) ||
 				std::disjunction_v<
@@ -38,7 +38,7 @@ namespace NatsuLang
 					>...
 				>)
 			{
-				if constexpr (std::is_invocable_v<decltype(callableObj), decltype(arg)>)
+				if constexpr (std::is_invocable_v<Callable&&, Arg&&>)
 				{
 					static_cast<void>(std::invoke(std::forward<Callable>(callableObj), std::forward<Arg>(arg)));
 					return true;
@@ -49,7 +49,7 @@ namespace NatsuLang
 		}
 
 		template <typename Callable, typename Arg, typename... ExceptedTypes>
-		constexpr nBool InvokeIfSatisfied(Callable&& callableObj, Arg&& arg, Excepted_t<ExceptedTypes...>)
+		constexpr nBool InvokeIfSatisfied(Callable&& callableObj, Arg&& arg, ExceptedTag<ExceptedTypes...>)
 		{
 			if constexpr (!sizeof...(ExceptedTypes) ||
 				std::conjunction_v<
@@ -61,7 +61,7 @@ namespace NatsuLang
 					>...
 				>)
 			{
-				if constexpr (std::is_invocable_v<decltype(callableObj), decltype(arg)>)
+				if constexpr (std::is_invocable_v<Callable&&, Arg&&>)
 				{
 					static_cast<void>(std::invoke(std::forward<Callable>(callableObj), std::forward<Arg>(arg)));
 					return true;
@@ -387,7 +387,7 @@ namespace NatsuLang
 			void PrintExpr(NatsuLib::natRefPointer<Expression::Expr> const& expr);
 			Expression::ExprPtr GetLastVisitedExpr() const noexcept;
 
-			template <typename ValueVisitor, typename ExpectedOrExcepted = Detail::Expected_t<>>
+			template <typename ValueVisitor, typename ExpectedOrExcepted = Detail::ExpectedTag<>>
 			[[nodiscard]] nBool Evaluate(NatsuLib::natRefPointer<Expression::Expr> const& expr, ValueVisitor&& visitor, ExpectedOrExcepted = {})
 			{
 				if (!expr)
@@ -507,7 +507,7 @@ namespace NatsuLang
 			public:
 				ArrayElementAccessor(InterpreterDeclStorage& declStorage, NatsuLib::natRefPointer<Type::ArrayType> const& arrayType, nData storage);
 
-				template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
+				template <typename Callable, typename ExpectedOrExcepted = Detail::ExpectedTag<>>
 				[[nodiscard]] nBool VisitElement(std::size_t i, Callable&& visitor, ExpectedOrExcepted condition = {}) const
 				{
 					return m_DeclStorage.visitStorage(m_ElementType, m_Storage + m_ElementSize * i, std::forward<Callable>(visitor), condition);
@@ -532,7 +532,7 @@ namespace NatsuLang
 			public:
 				MemberAccessor(InterpreterDeclStorage& declStorage, NatsuLib::natRefPointer<Declaration::ClassDecl> classDecl, nData storage);
 
-				template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
+				template <typename Callable, typename ExpectedOrExcepted = Detail::ExpectedTag<>>
 				[[nodiscard]] nBool VisitMember(NatsuLib::natRefPointer<Declaration::FieldDecl> const& fieldDecl, Callable&& visitor, ExpectedOrExcepted condition = {}) const
 				{
 					const auto iter = m_FieldOffsets.find(fieldDecl);
@@ -650,7 +650,7 @@ namespace NatsuLang
 
 			static NatsuLib::natRefPointer<Declaration::ValueDecl> CreateTemporaryObjectDecl(Type::TypePtr type, SourceLocation loc = {});
 
-			template <typename Callable, typename ExpectedOrExcepted = Detail::Expected_t<>>
+			template <typename Callable, typename ExpectedOrExcepted = Detail::ExpectedTag<>>
 			[[nodiscard]] nBool VisitDeclStorage(NatsuLib::natRefPointer<Declaration::ValueDecl> decl, Callable&& visitor, ExpectedOrExcepted condition = {})
 			{
 				if (!decl)

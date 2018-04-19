@@ -123,7 +123,7 @@ std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRef
 
 	for (auto storageIter = m_DeclStorage.rbegin(); storageIter != m_DeclStorage.rend(); ++storageIter)
 	{
-		if ((storageIter->first & DeclStorageLevelFlag::AvailableForLookup) != DeclStorageLevelFlag::None)
+		if (HasAllFlags(storageIter->first, DeclStorageLevelFlag::AvailableForLookup))
 		{
 			const auto iter = storageIter->second->find(decl);
 			if (iter != storageIter->second->cend())
@@ -133,12 +133,12 @@ std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRef
 		}
 
 		if (topestAvailableForCreateStorageIndex == std::numeric_limits<std::size_t>::max() &&
-			(storageIter->first & DeclStorageLevelFlag::AvailableForCreateStorage) != DeclStorageLevelFlag::None)
+			HasAllFlags(storageIter->first, DeclStorageLevelFlag::AvailableForCreateStorage))
 		{
 			topestAvailableForCreateStorageIndex = std::distance(m_DeclStorage.begin(), storageIter.base()) - 1;
 		}
 
-		if ((storageIter->first & DeclStorageLevelFlag::CreateStorageIfNotFound) != DeclStorageLevelFlag::None)
+		if (HasAllFlags(storageIter->first, DeclStorageLevelFlag::CreateStorageIfNotFound))
 		{
 			break;
 		}
@@ -203,8 +203,8 @@ nBool Interpreter::InterpreterDeclStorage::DoesDeclExist(natRefPointer<Declarati
 
 void Interpreter::InterpreterDeclStorage::PushStorage(DeclStorageLevelFlag flags)
 {
-	assert((flags & DeclStorageLevelFlag::AvailableForCreateStorage) != DeclStorageLevelFlag::None ||
-		(flags & DeclStorageLevelFlag::CreateStorageIfNotFound) == DeclStorageLevelFlag::None);
+	assert(HasAllFlags(flags, DeclStorageLevelFlag::AvailableForCreateStorage) ||
+		!HasAnyFlags(flags, DeclStorageLevelFlag::CreateStorageIfNotFound));
 
 	m_DeclStorage.emplace_back(flags, std::make_unique<std::unordered_map<natRefPointer<Declaration::ValueDecl>, std::unique_ptr<nByte[], StorageDeleter>>>());
 }
@@ -223,7 +223,7 @@ void Interpreter::InterpreterDeclStorage::MergeStorage()
 		++iter;
 		for (; iter != m_DeclStorage.rend(); ++iter)
 		{
-			if ((iter->first & DeclStorageLevelFlag::AvailableForCreateStorage) != DeclStorageLevelFlag::None)
+			if (HasAllFlags(iter->first, DeclStorageLevelFlag::AvailableForCreateStorage))
 			{
 				break;
 			}
@@ -247,8 +247,8 @@ DeclStorageLevelFlag Interpreter::InterpreterDeclStorage::GetTopStorageFlag() co
 
 void Interpreter::InterpreterDeclStorage::SetTopStorageFlag(DeclStorageLevelFlag flags)
 {
-	assert((flags & DeclStorageLevelFlag::AvailableForCreateStorage) != DeclStorageLevelFlag::None ||
-		(flags & DeclStorageLevelFlag::CreateStorageIfNotFound) == DeclStorageLevelFlag::None);
+	assert(HasAllFlags(flags, DeclStorageLevelFlag::AvailableForCreateStorage) ||
+		!HasAnyFlags(flags, DeclStorageLevelFlag::CreateStorageIfNotFound));
 
 	m_DeclStorage.back().first = flags;
 }

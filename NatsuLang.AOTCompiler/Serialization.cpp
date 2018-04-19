@@ -8,7 +8,7 @@
 
 using namespace NatsuLib;
 using namespace NatsuLang;
-using namespace NatsuLang::Serialization;
+using namespace Serialization;
 
 namespace
 {
@@ -199,9 +199,9 @@ void BinarySerializationArchiveWriter::EndWritingEntry()
 }
 
 Deserializer::Deserializer(Syntax::Parser& parser,
-	NatsuLib::natRefPointer<Misc::TextProvider<Statement::Stmt::StmtType>> const& stmtTypeMap,
-	NatsuLib::natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> const& declTypeMap,
-	NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> const& typeClassMap)
+                           natRefPointer<Misc::TextProvider<Statement::Stmt::StmtType>> const& stmtTypeMap,
+                           natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> const& declTypeMap,
+                           natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> const& typeClassMap)
 	: m_Parser{ parser }, m_Sema{ parser.GetSema() }, m_IsImporting{ false }
 {
 	if (stmtTypeMap)
@@ -276,13 +276,13 @@ ASTNodePtr Deserializer::Deserialize()
 
 	switch (type)
 	{
-	case NatsuLang::ASTNodeType::Declaration:
+	case ASTNodeType::Declaration:
 		return DeserializeDecl();
-	case NatsuLang::ASTNodeType::Statement:
+	case ASTNodeType::Statement:
 		return DeserializeStmt();
-	case NatsuLang::ASTNodeType::Type:
+	case ASTNodeType::Type:
 		return DeserializeType();
-	case NatsuLang::ASTNodeType::CompilerAction:
+	case ASTNodeType::CompilerAction:
 		return DeserializeCompilerAction();
 	default:
 		assert(!"Invalid type.");
@@ -324,9 +324,9 @@ ASTNodePtr Deserializer::DeserializeDecl()
 
 	switch (type)
 	{
-	case NatsuLang::Declaration::Decl::TranslationUnit:
-	case NatsuLang::Declaration::Decl::Empty:
-	case NatsuLang::Declaration::Decl::Import:
+	case Declaration::Decl::TranslationUnit:
+	case Declaration::Decl::Empty:
+	case Declaration::Decl::Import:
 		break;
 	default:
 		if (type >= Declaration::Decl::FirstNamed && type <= Declaration::Decl::LastNamed)
@@ -341,7 +341,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 
 			switch (type)
 			{
-			case NatsuLang::Declaration::Decl::Alias:
+			case Declaration::Decl::Alias:
 			{
 				if (!m_Archive->StartReadingEntry(u8"AliasAs"))
 				{
@@ -376,13 +376,15 @@ ASTNodePtr Deserializer::DeserializeDecl()
 				}
 				return ret;
 			}
-			case NatsuLang::Declaration::Decl::Label:
+			case Declaration::Decl::Label:
 				break;
-			case NatsuLang::Declaration::Decl::Module:
+			case Declaration::Decl::Module:
 			{
 				auto module = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, std::move(id));
 				{
-					Syntax::Parser::ParseScope moduleScope{ &m_Parser, Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::ModuleScope };
+					Syntax::Parser::ParseScope moduleScope{
+						&m_Parser, Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::ModuleScope
+					};
 					m_Sema.ActOnStartModule(m_Sema.GetCurrentScope(), module);
 					if (!m_Archive->StartReadingEntry(u8"Members", true))
 					{
@@ -407,8 +409,8 @@ ASTNodePtr Deserializer::DeserializeDecl()
 				}
 				return module;
 			}
-			case NatsuLang::Declaration::Decl::Enum:
-			case NatsuLang::Declaration::Decl::Class:
+			case Declaration::Decl::Enum:
+			case Declaration::Decl::Class:
 			{
 				Type::TagType::TagTypeClass tagType;
 
@@ -474,10 +476,11 @@ ASTNodePtr Deserializer::DeserializeDecl()
 					auto enumDecl = tagDecl.UnsafeCast<Declaration::EnumDecl>();
 					if (const auto& unresolved = underlyingType.Cast<UnresolvedId>())
 					{
-						m_UnresolvedDeclFixers[unresolved->GetName()].emplace(enumDecl, [enumDecl](natRefPointer<Declaration::NamedDecl> const& decl)
-						{
-							enumDecl->SetUnderlyingType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
-						});
+						m_UnresolvedDeclFixers[unresolved->GetName()].emplace(
+							enumDecl, [enumDecl](natRefPointer<Declaration::NamedDecl> const& decl)
+							{
+								enumDecl->SetUnderlyingType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
+							});
 					}
 					else
 					{
@@ -492,7 +495,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 				}
 				return tagDecl;
 			}
-			case NatsuLang::Declaration::Decl::Unresolved:
+			case Declaration::Decl::Unresolved:
 				break;
 			default:
 				if (type >= Declaration::Decl::FirstValue && type <= Declaration::Decl::LastValue)
@@ -512,10 +515,10 @@ ASTNodePtr Deserializer::DeserializeDecl()
 
 					switch (type)
 					{
-					case NatsuLang::Declaration::Decl::Field:
+					case Declaration::Decl::Field:
 					{
 						auto fieldDecl = make_ref<Declaration::FieldDecl>(Declaration::Decl::Field, dc, SourceLocation{},
-							SourceLocation{}, std::move(id), std::move(valueType));
+						                                                  SourceLocation{}, std::move(id), std::move(valueType));
 						m_Sema.PushOnScopeChains(fieldDecl, m_Sema.GetCurrentScope());
 						tryResolve(fieldDecl);
 						for (auto attr : attributes)
@@ -524,14 +527,15 @@ ASTNodePtr Deserializer::DeserializeDecl()
 						}
 						return fieldDecl;
 					}
-					case NatsuLang::Declaration::Decl::EnumConstant:
+					case Declaration::Decl::EnumConstant:
 					{
 						nuLong value;
 						if (!m_Archive->ReadNumType(u8"Value", value))
 						{
 							ThrowInvalidData();
 						}
-						const auto enumeratorDecl = make_ref<Declaration::EnumConstantDecl>(dc, SourceLocation{}, std::move(id), std::move(valueType), nullptr, value);
+						const auto enumeratorDecl = make_ref<Declaration::EnumConstantDecl>(dc, SourceLocation{}, std::move(id),
+						                                                                    std::move(valueType), nullptr, value);
 						m_Sema.PushOnScopeChains(enumeratorDecl, m_Sema.GetCurrentScope());
 						tryResolve(enumeratorDecl);
 						for (auto attr : attributes)
@@ -588,22 +592,23 @@ ASTNodePtr Deserializer::DeserializeDecl()
 
 							switch (type)
 							{
-							case NatsuLang::Declaration::Decl::Var:
+							case Declaration::Decl::Var:
 								decl = make_ref<Declaration::VarDecl>(Declaration::Decl::Var, dc, SourceLocation{},
-									SourceLocation{}, std::move(id), std::move(valueType),
-									storageClass);
+								                                      SourceLocation{}, std::move(id), std::move(valueType),
+								                                      storageClass);
 								if (initializer)
 								{
 									decl->SetInitializer(std::move(initializer));
 								}
 								break;
-							case NatsuLang::Declaration::Decl::ImplicitParam:
+							case Declaration::Decl::ImplicitParam:
 								nat_Throw(NotImplementedException);
-							case NatsuLang::Declaration::Decl::ParmVar:
+							case Declaration::Decl::ParmVar:
 								decl = make_ref<Declaration::ParmVarDecl>(Declaration::Decl::ParmVar,
-									m_Sema.GetASTContext().GetTranslationUnit().Get(), SourceLocation{}, SourceLocation{},
-									std::move(id), std::move(valueType), Specifier::StorageClass::None,
-									initializer);
+								                                          m_Sema.GetASTContext().GetTranslationUnit().Get(), SourceLocation{},
+								                                          SourceLocation{},
+								                                          std::move(id), std::move(valueType), Specifier::StorageClass::None,
+								                                          initializer);
 								addToContext = false;
 								break;
 							default:
@@ -613,23 +618,25 @@ ASTNodePtr Deserializer::DeserializeDecl()
 
 									switch (type)
 									{
-									case NatsuLang::Declaration::Decl::Function:
+									case Declaration::Decl::Function:
 										funcDecl = make_ref<Declaration::FunctionDecl>(Declaration::Decl::Function, dc,
-											SourceLocation{}, SourceLocation{}, std::move(id), std::move(valueType),
-											storageClass);
+										                                               SourceLocation{}, SourceLocation{}, std::move(id),
+										                                               std::move(valueType),
+										                                               storageClass);
 										break;
-									case NatsuLang::Declaration::Decl::Method:
+									case Declaration::Decl::Method:
 										funcDecl = make_ref<Declaration::MethodDecl>(Declaration::Decl::Method, dc,
-											SourceLocation{}, SourceLocation{}, std::move(id), std::move(valueType),
-											storageClass);
+										                                             SourceLocation{}, SourceLocation{}, std::move(id),
+										                                             std::move(valueType),
+										                                             storageClass);
 										break;
-									case NatsuLang::Declaration::Decl::Constructor:
+									case Declaration::Decl::Constructor:
 										funcDecl = make_ref<Declaration::ConstructorDecl>(dc, SourceLocation{},
-											std::move(id), std::move(valueType), storageClass);
+										                                                  std::move(id), std::move(valueType), storageClass);
 										break;
-									case NatsuLang::Declaration::Decl::Destructor:
+									case Declaration::Decl::Destructor:
 										funcDecl = make_ref<Declaration::DestructorDecl>(dc, SourceLocation{},
-											std::move(id), std::move(valueType), storageClass);
+										                                                 std::move(id), std::move(valueType), storageClass);
 										break;
 									default:
 										ThrowInvalidData();
@@ -649,7 +656,8 @@ ASTNodePtr Deserializer::DeserializeDecl()
 									{
 										Syntax::Parser::ParseScope prototypeScope{
 											&m_Parser,
-											Semantic::ScopeFlags::FunctionDeclarationScope | Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::FunctionPrototypeScope
+											Semantic::ScopeFlags::FunctionDeclarationScope | Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags
+											::FunctionPrototypeScope
 										};
 
 										for (std::size_t i = 0; i < paramCount; ++i)
@@ -681,7 +689,8 @@ ASTNodePtr Deserializer::DeserializeDecl()
 												{
 													Syntax::Parser::ParseScope bodyScope{
 														&m_Parser,
-														Semantic::ScopeFlags::FunctionScope | Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::CompoundStmtScope
+														Semantic::ScopeFlags::FunctionScope | Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::
+														CompoundStmtScope
 													};
 													m_Sema.PushDeclContext(m_Sema.GetCurrentScope(), funcDecl.Get());
 
@@ -751,87 +760,87 @@ ASTNodePtr Deserializer::DeserializeStmt()
 
 	switch (type)
 	{
-	case NatsuLang::Statement::Stmt::BreakStmtClass:
+	case Statement::Stmt::BreakStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::CatchStmtClass:
+	case Statement::Stmt::CatchStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::TryStmtClass:
+	case Statement::Stmt::TryStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::CompoundStmtClass:
+	case Statement::Stmt::CompoundStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::ContinueStmtClass:
+	case Statement::Stmt::ContinueStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::DeclStmtClass:
+	case Statement::Stmt::DeclStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::DoStmtClass:
+	case Statement::Stmt::DoStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::ConditionalOperatorClass:
+	case Statement::Stmt::ConditionalOperatorClass:
 		break;
-	case NatsuLang::Statement::Stmt::ArraySubscriptExprClass:
+	case Statement::Stmt::ArraySubscriptExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::BinaryOperatorClass:
+	case Statement::Stmt::BinaryOperatorClass:
 		break;
-	case NatsuLang::Statement::Stmt::CompoundAssignOperatorClass:
+	case Statement::Stmt::CompoundAssignOperatorClass:
 		break;
-	case NatsuLang::Statement::Stmt::BooleanLiteralClass:
+	case Statement::Stmt::BooleanLiteralClass:
 		break;
-	case NatsuLang::Statement::Stmt::ConstructExprClass:
+	case Statement::Stmt::ConstructExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::DeleteExprClass:
+	case Statement::Stmt::DeleteExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::NewExprClass:
+	case Statement::Stmt::NewExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::ThisExprClass:
+	case Statement::Stmt::ThisExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::ThrowExprClass:
+	case Statement::Stmt::ThrowExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::CallExprClass:
+	case Statement::Stmt::CallExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::MemberCallExprClass:
+	case Statement::Stmt::MemberCallExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::AsTypeExprClass:
+	case Statement::Stmt::AsTypeExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::ImplicitCastExprClass:
+	case Statement::Stmt::ImplicitCastExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::InitListExprClass:
+	case Statement::Stmt::InitListExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::CharacterLiteralClass:
+	case Statement::Stmt::CharacterLiteralClass:
 		break;
-	case NatsuLang::Statement::Stmt::DeclRefExprClass:
+	case Statement::Stmt::DeclRefExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::FloatingLiteralClass:
+	case Statement::Stmt::FloatingLiteralClass:
 		break;
-	case NatsuLang::Statement::Stmt::IntegerLiteralClass:
+	case Statement::Stmt::IntegerLiteralClass:
 		break;
-	case NatsuLang::Statement::Stmt::MemberExprClass:
+	case Statement::Stmt::MemberExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::ParenExprClass:
+	case Statement::Stmt::ParenExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::StmtExprClass:
+	case Statement::Stmt::StmtExprClass:
 		break;
-	case NatsuLang::Statement::Stmt::StringLiteralClass:
+	case Statement::Stmt::StringLiteralClass:
 		break;
-	case NatsuLang::Statement::Stmt::UnaryOperatorClass:
+	case Statement::Stmt::UnaryOperatorClass:
 		break;
-	case NatsuLang::Statement::Stmt::ForStmtClass:
+	case Statement::Stmt::ForStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::GotoStmtClass:
+	case Statement::Stmt::GotoStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::IfStmtClass:
+	case Statement::Stmt::IfStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::LabelStmtClass:
+	case Statement::Stmt::LabelStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::NullStmtClass:
+	case Statement::Stmt::NullStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::ReturnStmtClass:
+	case Statement::Stmt::ReturnStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::CaseStmtClass:
+	case Statement::Stmt::CaseStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::DefaultStmtClass:
+	case Statement::Stmt::DefaultStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::SwitchStmtClass:
+	case Statement::Stmt::SwitchStmtClass:
 		break;
-	case NatsuLang::Statement::Stmt::WhileStmtClass:
+	case Statement::Stmt::WhileStmtClass:
 		break;
 	default:
 		break;
@@ -850,7 +859,7 @@ ASTNodePtr Deserializer::DeserializeType()
 
 	switch (type)
 	{
-	case NatsuLang::Type::Type::Builtin:
+	case Type::Type::Builtin:
 	{
 		Type::BuiltinType::BuiltinClass builtinType;
 		if (!m_Archive->ReadNumType(u8"BuiltinType", builtinType))
@@ -860,7 +869,7 @@ ASTNodePtr Deserializer::DeserializeType()
 
 		return m_Sema.GetASTContext().GetBuiltinType(builtinType);
 	}
-	case NatsuLang::Type::Type::Pointer:
+	case Type::Type::Pointer:
 	{
 		m_Archive->StartReadingEntry(u8"PointeeType");
 		auto pointeeType = Deserialize();
@@ -872,18 +881,19 @@ ASTNodePtr Deserializer::DeserializeType()
 		if (const auto unresolved = pointeeType.Cast<UnresolvedId>())
 		{
 			auto retType = m_Sema.GetASTContext().GetPointerType(getUnresolvedType(unresolved->GetName()));
-			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
-			{
-				retType->SetPointeeType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
-				m_Sema.GetASTContext().UpdateType(retType);
-			});
+			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(
+				retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
+				{
+					retType->SetPointeeType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
+					m_Sema.GetASTContext().UpdateType(retType);
+				});
 			return retType;
 		}
 
 		m_Archive->EndReadingEntry();
 		return m_Sema.GetASTContext().GetPointerType(std::move(pointeeType));
 	}
-	case NatsuLang::Type::Type::Array:
+	case Type::Type::Array:
 	{
 		m_Archive->StartReadingEntry(u8"ElementType");
 		auto elementType = Deserialize();
@@ -901,17 +911,18 @@ ASTNodePtr Deserializer::DeserializeType()
 		if (const auto unresolved = elementType.Cast<UnresolvedId>())
 		{
 			auto retType = m_Sema.GetASTContext().GetArrayType(getUnresolvedType(unresolved->GetName()), arraySize);
-			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
-			{
-				retType->SetElementType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
-				m_Sema.GetASTContext().UpdateType(retType);
-			});
+			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(
+				retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
+				{
+					retType->SetElementType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
+					m_Sema.GetASTContext().UpdateType(retType);
+				});
 			return retType;
 		}
 
 		return m_Sema.GetASTContext().GetArrayType(std::move(elementType), arraySize);
 	}
-	case NatsuLang::Type::Type::Function:
+	case Type::Type::Function:
 	{
 		if (!m_Archive->StartReadingEntry(u8"ResultType"))
 		{
@@ -948,7 +959,7 @@ ASTNodePtr Deserializer::DeserializeType()
 
 		return m_Sema.GetASTContext().GetFunctionType(from(args), std::move(resultType), hasVarArg);
 	}
-	case NatsuLang::Type::Type::Paren:
+	case Type::Type::Paren:
 	{
 		if (!m_Archive->StartReadingEntry(u8"InnerType"))
 		{
@@ -963,19 +974,20 @@ ASTNodePtr Deserializer::DeserializeType()
 		if (const auto unresolved = innerType.Cast<UnresolvedId>())
 		{
 			auto retType = m_Sema.GetASTContext().GetParenType(getUnresolvedType(unresolved->GetName()));
-			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
-			{
-				retType->SetInnerType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
-				m_Sema.GetASTContext().UpdateType(retType);
-			});
+			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(
+				retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
+				{
+					retType->SetInnerType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
+					m_Sema.GetASTContext().UpdateType(retType);
+				});
 			return retType;
 		}
 
 		m_Archive->EndReadingEntry();
 		return m_Sema.GetASTContext().GetParenType(std::move(innerType));
 	}
-	case NatsuLang::Type::Type::Class:
-	case NatsuLang::Type::Type::Enum:
+	case Type::Type::Class:
+	case Type::Type::Enum:
 	{
 		nString tagDeclName;
 		if (!m_Archive->ReadString(u8"TagDecl", tagDeclName))
@@ -991,7 +1003,7 @@ ASTNodePtr Deserializer::DeserializeType()
 
 		return tagDecl->GetTypeForDecl();
 	}
-	case NatsuLang::Type::Type::Auto:
+	case Type::Type::Auto:
 	{
 		if (!m_Archive->StartReadingEntry(u8"DeducedAs"))
 		{
@@ -1006,18 +1018,19 @@ ASTNodePtr Deserializer::DeserializeType()
 		if (const auto unresolved = deducedAsType.Cast<UnresolvedId>())
 		{
 			auto retType = m_Sema.GetASTContext().GetAutoType(getUnresolvedType(unresolved->GetName()));
-			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
-			{
-				retType->SetDeducedAsType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
-				m_Sema.GetASTContext().UpdateType(retType);
-			});
+			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(
+				retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
+				{
+					retType->SetDeducedAsType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
+					m_Sema.GetASTContext().UpdateType(retType);
+				});
 			return retType;
 		}
 
 		m_Archive->EndReadingEntry();
 		return m_Sema.GetASTContext().GetAutoType(std::move(deducedAsType));
 	}
-	case NatsuLang::Type::Type::Unresolved:
+	case Type::Type::Unresolved:
 		nat_Throw(NotImplementedException);
 	default:
 		break;
@@ -1052,11 +1065,13 @@ Identifier::IdPtr Deserializer::getId(nStrView name) const
 
 natRefPointer<Declaration::NamedDecl> Deserializer::parseQualifiedName(nStrView name)
 {
-	const auto scope = make_scope([this, oldLexer = m_Parser.GetPreprocessor().GetLexer(), diagEnabled = m_Sema.GetDiagnosticsEngine().IsDiagEnabled()]() mutable
-	{
-		m_Parser.GetPreprocessor().SetLexer(std::move(oldLexer));
-		m_Sema.GetDiagnosticsEngine().EnableDiag(diagEnabled);
-	});
+	const auto scope = make_scope(
+		[this, oldLexer = m_Parser.GetPreprocessor().GetLexer(), diagEnabled = m_Sema.GetDiagnosticsEngine().IsDiagEnabled()
+		]() mutable
+		{
+			m_Parser.GetPreprocessor().SetLexer(std::move(oldLexer));
+			m_Sema.GetDiagnosticsEngine().EnableDiag(diagEnabled);
+		});
 
 	// 阻止在查找中报错，因为将会在之后进行解析
 	m_Sema.GetDiagnosticsEngine().EnableDiag(false);
@@ -1066,7 +1081,7 @@ natRefPointer<Declaration::NamedDecl> Deserializer::parseQualifiedName(nStrView 
 	auto qualifiedId = m_Parser.ParseMayBeQualifiedId();
 
 	if (const auto type = m_Sema.LookupTypeName(qualifiedId.second.first, {},
-		m_Sema.GetCurrentScope(), qualifiedId.first))
+	                                            m_Sema.GetCurrentScope(), qualifiedId.first))
 	{
 		if (const auto tagType = type.Cast<Type::TagType>())
 		{
@@ -1076,7 +1091,9 @@ natRefPointer<Declaration::NamedDecl> Deserializer::parseQualifiedName(nStrView 
 		ThrowInvalidData();
 	}
 
-	if (auto mayBeIdExpr = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), qualifiedId.first, std::move(qualifiedId.second.first), qualifiedId.second.second, false, nullptr))
+	if (auto mayBeIdExpr = m_Sema.ActOnIdExpr(m_Sema.GetCurrentScope(), qualifiedId.first,
+	                                          std::move(qualifiedId.second.first), qualifiedId.second.second, false,
+	                                          nullptr))
 	{
 		if (const auto declRefExpr = mayBeIdExpr.Cast<Expression::DeclRefExpr>())
 		{
@@ -1115,9 +1132,9 @@ void Deserializer::tryResolve(natRefPointer<Declaration::NamedDecl> const& named
 }
 
 Serializer::Serializer(Semantic::Sema& sema,
-	NatsuLib::natRefPointer<Misc::TextProvider<Statement::Stmt::StmtType>> stmtTypeMap,
-	NatsuLib::natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> declTypeMap,
-	NatsuLib::natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> typeClassMap)
+                       natRefPointer<Misc::TextProvider<Statement::Stmt::StmtType>> stmtTypeMap,
+                       natRefPointer<Misc::TextProvider<Declaration::Decl::DeclType>> declTypeMap,
+                       natRefPointer<Misc::TextProvider<Type::Type::TypeClass>> typeClassMap)
 	: m_Sema{ sema }, m_StmtTypeMap{ std::move(stmtTypeMap) }, m_DeclTypeMap{ std::move(declTypeMap) },
 	  m_TypeClassMap{ std::move(typeClassMap) }, m_IsExporting{ false }
 {
@@ -1127,7 +1144,7 @@ Serializer::~Serializer()
 {
 }
 
-void Serializer::StartSerialize(NatsuLib::natRefPointer<ISerializationArchiveWriter> archive, nBool isExporting)
+void Serializer::StartSerialize(natRefPointer<ISerializationArchiveWriter> archive, nBool isExporting)
 {
 	m_Archive = std::move(archive);
 	m_IsExporting = isExporting;
@@ -1399,12 +1416,12 @@ void Serializer::VisitIfStmt(natRefPointer<Statement::IfStmt> const& stmt)
 	}
 }
 
-void Serializer::VisitLabelStmt(NatsuLib::natRefPointer<Statement::LabelStmt> const& stmt)
+void Serializer::VisitLabelStmt(natRefPointer<Statement::LabelStmt> const& stmt)
 {
 	nat_Throw(NotImplementedException);
 }
 
-void Serializer::VisitReturnStmt(NatsuLib::natRefPointer<Statement::ReturnStmt> const& stmt)
+void Serializer::VisitReturnStmt(natRefPointer<Statement::ReturnStmt> const& stmt)
 {
 	VisitStmt(stmt);
 	m_Archive->StartWritingEntry(u8"ReturnExpr");
@@ -1412,27 +1429,27 @@ void Serializer::VisitReturnStmt(NatsuLib::natRefPointer<Statement::ReturnStmt> 
 	m_Archive->EndWritingEntry();
 }
 
-void Serializer::VisitSwitchCase(NatsuLib::natRefPointer<Statement::SwitchCase> const& stmt)
+void Serializer::VisitSwitchCase(natRefPointer<Statement::SwitchCase> const& stmt)
 {
 	nat_Throw(NotImplementedException);
 }
 
-void Serializer::VisitCaseStmt(NatsuLib::natRefPointer<Statement::CaseStmt> const& stmt)
+void Serializer::VisitCaseStmt(natRefPointer<Statement::CaseStmt> const& stmt)
 {
 	nat_Throw(NotImplementedException);
 }
 
-void Serializer::VisitDefaultStmt(NatsuLib::natRefPointer<Statement::DefaultStmt> const& stmt)
+void Serializer::VisitDefaultStmt(natRefPointer<Statement::DefaultStmt> const& stmt)
 {
 	nat_Throw(NotImplementedException);
 }
 
-void Serializer::VisitSwitchStmt(NatsuLib::natRefPointer<Statement::SwitchStmt> const& stmt)
+void Serializer::VisitSwitchStmt(natRefPointer<Statement::SwitchStmt> const& stmt)
 {
 	nat_Throw(NotImplementedException);
 }
 
-void Serializer::VisitWhileStmt(NatsuLib::natRefPointer<Statement::WhileStmt> const& stmt)
+void Serializer::VisitWhileStmt(natRefPointer<Statement::WhileStmt> const& stmt)
 {
 	VisitStmt(stmt);
 	m_Archive->StartWritingEntry(u8"Cond");
@@ -1500,12 +1517,12 @@ void Serializer::VisitAliasDecl(natRefPointer<Declaration::AliasDecl> const& dec
 	m_Archive->EndWritingEntry();
 }
 
-void Serializer::VisitLabelDecl(NatsuLib::natRefPointer<Declaration::LabelDecl> const& decl)
+void Serializer::VisitLabelDecl(natRefPointer<Declaration::LabelDecl> const& decl)
 {
 	nat_Throw(NotImplementedException);
 }
 
-void Serializer::VisitModuleDecl(NatsuLib::natRefPointer<Declaration::ModuleDecl> const& decl)
+void Serializer::VisitModuleDecl(natRefPointer<Declaration::ModuleDecl> const& decl)
 {
 	VisitNamedDecl(decl);
 	m_Archive->StartWritingEntry(u8"Members", true);
@@ -1517,12 +1534,12 @@ void Serializer::VisitModuleDecl(NatsuLib::natRefPointer<Declaration::ModuleDecl
 	m_Archive->EndWritingEntry();
 }
 
-void Serializer::VisitTypeDecl(NatsuLib::natRefPointer<Declaration::TypeDecl> const& decl)
+void Serializer::VisitTypeDecl(natRefPointer<Declaration::TypeDecl> const& decl)
 {
 	VisitNamedDecl(decl);
 }
 
-void Serializer::VisitTagDecl(NatsuLib::natRefPointer<Declaration::TagDecl> const& decl)
+void Serializer::VisitTagDecl(natRefPointer<Declaration::TagDecl> const& decl)
 {
 	VisitTypeDecl(decl);
 	m_Archive->WriteNumType(u8"TagType", decl->GetTagTypeClass());
@@ -1535,7 +1552,7 @@ void Serializer::VisitTagDecl(NatsuLib::natRefPointer<Declaration::TagDecl> cons
 	m_Archive->EndWritingEntry();
 }
 
-void Serializer::VisitEnumDecl(NatsuLib::natRefPointer<Declaration::EnumDecl> const& decl)
+void Serializer::VisitEnumDecl(natRefPointer<Declaration::EnumDecl> const& decl)
 {
 	VisitTagDecl(decl);
 	m_Archive->StartWritingEntry(u8"UnderlyingType");
@@ -1591,19 +1608,19 @@ void Serializer::VisitVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
 	}
 }
 
-void Serializer::VisitImplicitParamDecl(NatsuLib::natRefPointer<Declaration::ImplicitParamDecl> const& decl)
+void Serializer::VisitImplicitParamDecl(natRefPointer<Declaration::ImplicitParamDecl> const& decl)
 {
 	VisitVarDecl(decl);
 	m_Archive->WriteNumType(u8"ParamType", decl->GetParamType());
 }
 
-void Serializer::VisitEnumConstantDecl(NatsuLib::natRefPointer<Declaration::EnumConstantDecl> const& decl)
+void Serializer::VisitEnumConstantDecl(natRefPointer<Declaration::EnumConstantDecl> const& decl)
 {
 	VisitValueDecl(decl);
 	m_Archive->WriteNumType(u8"Value", decl->GetValue());
 }
 
-void Serializer::VisitTranslationUnitDecl(NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> const& decl)
+void Serializer::VisitTranslationUnitDecl(natRefPointer<Declaration::TranslationUnitDecl> const& decl)
 {
 	VisitDecl(decl);
 }
@@ -1636,13 +1653,13 @@ void Serializer::Visit(Declaration::DeclPtr const& decl)
 	m_Archive->NextWritingElement();
 }
 
-void Serializer::VisitBuiltinType(NatsuLib::natRefPointer<Type::BuiltinType> const& type)
+void Serializer::VisitBuiltinType(natRefPointer<Type::BuiltinType> const& type)
 {
 	VisitType(type);
 	m_Archive->WriteNumType(u8"BuiltinType", type->GetBuiltinClass());
 }
 
-void Serializer::VisitPointerType(NatsuLib::natRefPointer<Type::PointerType> const& type)
+void Serializer::VisitPointerType(natRefPointer<Type::PointerType> const& type)
 {
 	VisitType(type);
 	m_Archive->StartWritingEntry(u8"PointeeType");
@@ -1650,7 +1667,7 @@ void Serializer::VisitPointerType(NatsuLib::natRefPointer<Type::PointerType> con
 	m_Archive->EndWritingEntry();
 }
 
-void Serializer::VisitArrayType(NatsuLib::natRefPointer<Type::ArrayType> const& type)
+void Serializer::VisitArrayType(natRefPointer<Type::ArrayType> const& type)
 {
 	VisitType(type);
 	m_Archive->StartWritingEntry(u8"ElementType");
@@ -1659,7 +1676,7 @@ void Serializer::VisitArrayType(NatsuLib::natRefPointer<Type::ArrayType> const& 
 	m_Archive->WriteNumType(u8"ArraySize", type->GetSize());
 }
 
-void Serializer::VisitFunctionType(NatsuLib::natRefPointer<Type::FunctionType> const& type)
+void Serializer::VisitFunctionType(natRefPointer<Type::FunctionType> const& type)
 {
 	VisitType(type);
 	m_Archive->StartWritingEntry(u8"ResultType");
@@ -1675,7 +1692,7 @@ void Serializer::VisitFunctionType(NatsuLib::natRefPointer<Type::FunctionType> c
 	m_Archive->WriteBool(u8"HasVarArg", type->HasVarArg());
 }
 
-void Serializer::VisitParenType(NatsuLib::natRefPointer<Type::ParenType> const& type)
+void Serializer::VisitParenType(natRefPointer<Type::ParenType> const& type)
 {
 	VisitType(type);
 	m_Archive->StartWritingEntry(u8"InnerType");
@@ -1683,13 +1700,13 @@ void Serializer::VisitParenType(NatsuLib::natRefPointer<Type::ParenType> const& 
 	m_Archive->EndWritingEntry();
 }
 
-void Serializer::VisitTagType(NatsuLib::natRefPointer<Type::TagType> const& type)
+void Serializer::VisitTagType(natRefPointer<Type::TagType> const& type)
 {
 	VisitType(type);
 	m_Archive->WriteString(u8"TagDecl", GetQualifiedName(type->GetDecl()));
 }
 
-void Serializer::VisitDeducedType(NatsuLib::natRefPointer<Type::DeducedType> const& type)
+void Serializer::VisitDeducedType(natRefPointer<Type::DeducedType> const& type)
 {
 	VisitType(type);
 	m_Archive->StartWritingEntry(u8"DeducedAs");
