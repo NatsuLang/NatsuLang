@@ -10,9 +10,24 @@
 #include <Sema/Sema.h>
 #include <Sema/Scope.h>
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4141)
+#pragma warning(disable : 4146)
+#pragma warning(disable : 4244)
+#pragma warning(disable : 4267)
+#pragma warning(disable : 4291)
+#pragma warning(disable : 4624)
+#pragma warning(disable : 4996)
+#endif // _MSC_VER
+
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Target/TargetMachine.h>
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif // _MSC_VER
 
 namespace llvm
 {
@@ -409,7 +424,7 @@ namespace NatsuLang::Compiler
 		void registerNativeType(nStrView name)
 		{
 			Lex::Token dummy;
-			
+
 			auto builtinClass = m_AstContext.GetIntegerTypeAtLeast(sizeof(T), alignof(T), true);
 
 			if (builtinClass == Type::BuiltinType::Invalid)

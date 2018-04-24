@@ -231,32 +231,58 @@ natRefPointer<Type::UnresolvedType> ASTContext::GetUnresolvedType(std::vector<Le
 	return ret;
 }
 
-void ASTContext::UpdateType(Type::TypePtr type)
+void ASTContext::EraseType(const Type::TypePtr& type)
 {
 	switch (type->GetType())
 	{
 	case Type::Type::Pointer:
 		m_PointerTypes.erase(type);
-		m_PointerTypes.emplace(std::move(type));
 		break;
 	case Type::Type::Array:
 		m_ArrayTypes.erase(type);
-		m_ArrayTypes.emplace(std::move(type));
 		break;
 	case Type::Type::Function:
 		m_FunctionTypes.erase(type);
-		m_FunctionTypes.emplace(std::move(type));
 		break;
 	case Type::Type::Paren:
 		m_ParenTypes.erase(type);
-		m_ParenTypes.emplace(std::move(type));
 		break;
 	case Type::Type::Auto:
 		m_AutoTypes.erase(type);
-		m_AutoTypes.emplace(std::move(type));
 		break;
 	case Type::Type::Unresolved:
 		m_UnresolvedTypes.erase(type);
+		break;
+	case Type::Type::Builtin:
+	case Type::Type::Class:
+	case Type::Type::Enum:
+		assert(!"These types will not need update.");
+		[[fallthrough]];
+	default:
+		break;
+	}
+}
+
+void ASTContext::CacheType(Type::TypePtr type)
+{
+	switch (type->GetType())
+	{
+	case Type::Type::Pointer:
+		m_PointerTypes.emplace(std::move(type));
+		break;
+	case Type::Type::Array:
+		m_ArrayTypes.emplace(std::move(type));
+		break;
+	case Type::Type::Function:
+		m_FunctionTypes.emplace(std::move(type));
+		break;
+	case Type::Type::Paren:
+		m_ParenTypes.emplace(std::move(type));
+		break;
+	case Type::Type::Auto:
+		m_AutoTypes.emplace(std::move(type));
+		break;
+	case Type::Type::Unresolved:
 		m_UnresolvedTypes.emplace(std::move(type));
 		break;
 	case Type::Type::Builtin:

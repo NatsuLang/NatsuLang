@@ -3,6 +3,17 @@
 
 #include <natLocalFileScheme.h>
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4141)
+#pragma warning(disable : 4146)
+#pragma warning(disable : 4244)
+#pragma warning(disable : 4267)
+#pragma warning(disable : 4291)
+#pragma warning(disable : 4624)
+#pragma warning(disable : 4996)
+#endif // _MSC_VER
+
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/Support/Host.h>
@@ -11,6 +22,10 @@
 #include <llvm/IR/CFG.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/IR/LegacyPassManager.h>
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif // _MSC_VER
 
 #include <Sema/DefaultActions.h>
 
@@ -1498,7 +1513,7 @@ void AotCompiler::AotStmtVisitor::EmitAddressOfVar(natRefPointer<Declaration::Va
 	}
 }
 
-void AotCompiler::AotStmtVisitor::EmitCompoundStmt(NatsuLib::natRefPointer<Statement::CompoundStmt> const& compoundStmt)
+void AotCompiler::AotStmtVisitor::EmitCompoundStmt(natRefPointer<Statement::CompoundStmt> const& compoundStmt)
 {
 	LexicalScope scope{ *this, { compoundStmt->GetStartLoc(), compoundStmt->GetEndLoc() } };
 

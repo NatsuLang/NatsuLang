@@ -6,6 +6,11 @@
 #include "Basic/Specifier.h"
 #include "Basic/Token.h"
 
+namespace NatsuLang
+{
+	struct ICompilerAction;
+}
+
 namespace NatsuLang::Identifier
 {
 	class IdentifierInfo;
@@ -260,6 +265,10 @@ namespace NatsuLang::Declaration
 			m_IsAlias = value;
 		}
 
+		void AttachPostProcessor(NatsuLib::natRefPointer<ICompilerAction> action);
+		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ICompilerAction>>> GetPostProcessors() const noexcept;
+		void ClearPostProcessors();
+
 	private:
 		struct ConstructorTag
 		{
@@ -291,6 +300,8 @@ namespace NatsuLang::Declaration
 		DeclPtr m_DeclarationContext;
 
 		nBool m_IsAlias;
+
+		std::unordered_set<NatsuLib::natRefPointer<ICompilerAction>> m_PostProcessors;
 	};
 
 	using DeclaratorPtr = NatsuLib::natRefPointer<Declarator>;

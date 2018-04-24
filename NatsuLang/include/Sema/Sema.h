@@ -80,6 +80,15 @@ namespace NatsuLang
 			return NatsuLib::make_ref<T>();
 		}
 	};
+
+	struct INameBuilder
+		: NatsuLib::natRefObj
+	{
+		~INameBuilder();
+
+		virtual nString GetQualifiedName(NatsuLib::natRefPointer<Declaration::NamedDecl> const& namedDecl) = 0;
+		virtual nString GetTypeName(Type::TypePtr const& type) = 0;
+	};
 }
 
 namespace NatsuLang::Semantic
@@ -147,6 +156,18 @@ namespace NatsuLang::Semantic
 		{
 			m_CodeCompleter = std::move(codeCompleter);
 		}
+
+		NatsuLib::natRefPointer<INameBuilder> GetNameBuilder() const noexcept
+		{
+			return m_NameBuilder;
+		}
+
+		void SetNameBuilder(NatsuLib::natRefPointer<INameBuilder> nameBuilder) noexcept
+		{
+			m_NameBuilder = std::move(nameBuilder);
+		}
+
+		void UseDefaultNameBuilder();
 
 		Diag::DiagnosticsEngine& GetDiagnosticsEngine() const noexcept
 		{
@@ -435,13 +456,22 @@ namespace NatsuLang::Semantic
 
 		nBool IsTypeDefaultConstructible(Type::TypePtr const& type);
 
+		nString GetQualifiedName(NatsuLib::natRefPointer<Declaration::NamedDecl> const& namedDecl);
+		void ClearDeclQualifiedNameCache(NatsuLib::natRefPointer<Declaration::NamedDecl> const& namedDecl = nullptr);
+		nString GetTypeName(Type::TypePtr const& type);
+		void ClearTypeNameCache(Type::TypePtr const& type = nullptr);
+
 	private:
 		Preprocessor& m_Preprocessor;
 		ASTContext& m_Context;
 		NatsuLib::natRefPointer<ASTConsumer> m_Consumer;
 		NatsuLib::natRefPointer<ICodeCompleter> m_CodeCompleter;
+		NatsuLib::natRefPointer<INameBuilder> m_NameBuilder;
 		Diag::DiagnosticsEngine& m_Diag;
 		SourceManager& m_SourceManager;
+
+		std::unordered_map<NatsuLib::natRefPointer<Declaration::NamedDecl>, nString> m_DeclQualifiedNameCache;
+		std::unordered_map<Type::TypePtr, nString> m_TypeNameCache;
 
 		NatsuLib::natRefPointer<ImportedAttribute> m_ImportedAttribute;
 

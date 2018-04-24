@@ -79,7 +79,7 @@ namespace NatsuLang
 	private:
 		// 上一级嵌套名称
 		NatsuLib::natRefPointer<NestedNameSpecifier> m_Prefix;
-		// 可能是IdPtr、DeclPtr、TypePtr或者为空，为空时表示全局
+		// 可能是DeclPtr或者为空，为空时表示全局
 		Declaration::DeclPtr m_Specifier;
 		SpecifierType m_SpecifierType;
 

@@ -2806,7 +2806,28 @@ Declaration::DeclPtr Parser::ResolveDeclarator(const Declaration::DeclaratorPtr&
 	}
 
 	ParseDeclarator(decl, true);
-	return m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), decl, oldUnresolvedDecl);
+	auto ret = m_Sema.HandleDeclarator(m_Sema.GetCurrentScope(), decl, oldUnresolvedDecl);
+
+	for (const auto& postProcessor : decl->GetPostProcessors())
+	{
+		const auto context = postProcessor->StartAction(CompilerActionContext{ *this });
+		const auto argumentRequirement = context->GetArgumentRequirement();
+		if (!HasAnyFlags(argumentRequirement->GetExpectedArgumentType(0), CompilerActionArgumentType::Declaration))
+		{
+			// TODO: 报告错误：附加的后处理器不接受声明参数
+			postProcessor->EndAction(context);
+			continue;
+		}
+		context->AddArgument(ret);
+		const auto secondArgumentType = argumentRequirement->GetExpectedArgumentType(1);
+		if (secondArgumentType != CompilerActionArgumentType::None && !HasAllFlags(secondArgumentType, CompilerActionArgumentType::Optional))
+		{
+			// TODO: 报告错误：附加的后处理器必须能够只接受一个声明参数
+		}
+		postProcessor->EndAction(context);
+	}
+
+	return ret;
 }
 
 IUnknownTokenHandler::~IUnknownTokenHandler()

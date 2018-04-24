@@ -97,9 +97,17 @@ nBool BinarySerializationArchiveReader::ReadInteger(nStrView key, nuLong& out, s
 
 nBool BinarySerializationArchiveReader::ReadFloat(nStrView key, nDouble& out, std::size_t widthHint)
 {
-	// TODO: 注意端序
 	out = 0;
-	return m_Reader->GetUnderlyingStream()->ReadBytes(reinterpret_cast<nData>(&out), widthHint);
+	if (widthHint == sizeof(nFloat))
+	{
+		nFloat value;
+		const auto ret = m_Reader->GetUnderlyingStream()->ReadBytes(reinterpret_cast<nData>(&value), sizeof(nFloat));
+		out = static_cast<nDouble>(value);
+		return ret;
+	}
+
+	assert(widthHint == sizeof(nDouble));
+	return m_Reader->GetUnderlyingStream()->ReadBytes(reinterpret_cast<nData>(&out), sizeof(nDouble));
 }
 
 nBool BinarySerializationArchiveReader::StartReadingEntry(nStrView key, nBool isArray)
@@ -167,7 +175,16 @@ void BinarySerializationArchiveWriter::WriteInteger(nStrView key, nuLong value, 
 void BinarySerializationArchiveWriter::WriteFloat(nStrView key, nDouble value, std::size_t widthHint)
 {
 	// TODO: 注意端序
-	m_Writer->GetUnderlyingStream()->WriteBytes(reinterpret_cast<ncData>(&value), widthHint);
+	if (widthHint == sizeof(nFloat))
+	{
+		const auto realValue = static_cast<nFloat>(value);
+		m_Writer->GetUnderlyingStream()->WriteBytes(reinterpret_cast<ncData>(&realValue), sizeof(nFloat));
+	}
+	else
+	{
+		assert(widthHint == sizeof(nDouble));
+		m_Writer->GetUnderlyingStream()->WriteBytes(reinterpret_cast<ncData>(&value), sizeof(nDouble));
+	}
 }
 
 void BinarySerializationArchiveWriter::StartWritingEntry(nStrView key, nBool isArray)
@@ -884,8 +901,10 @@ ASTNodePtr Deserializer::DeserializeType()
 			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(
 				retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
 				{
+					m_Sema.GetASTContext().EraseType(retType);
+					m_Sema.ClearTypeNameCache(retType);
 					retType->SetPointeeType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
-					m_Sema.GetASTContext().UpdateType(retType);
+					m_Sema.GetASTContext().CacheType(retType);
 				});
 			return retType;
 		}
@@ -914,8 +933,10 @@ ASTNodePtr Deserializer::DeserializeType()
 			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(
 				retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
 				{
+					m_Sema.GetASTContext().EraseType(retType);
+					m_Sema.ClearTypeNameCache(retType);
 					retType->SetElementType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
-					m_Sema.GetASTContext().UpdateType(retType);
+					m_Sema.GetASTContext().CacheType(retType);
 				});
 			return retType;
 		}
@@ -977,8 +998,10 @@ ASTNodePtr Deserializer::DeserializeType()
 			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(
 				retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
 				{
+					m_Sema.GetASTContext().EraseType(retType);
+					m_Sema.ClearTypeNameCache(retType);
 					retType->SetInnerType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
-					m_Sema.GetASTContext().UpdateType(retType);
+					m_Sema.GetASTContext().CacheType(retType);
 				});
 			return retType;
 		}
@@ -1021,8 +1044,10 @@ ASTNodePtr Deserializer::DeserializeType()
 			m_UnresolvedDeclFixers[unresolved->GetName()].emplace(
 				retType, [this, retType](natRefPointer<Declaration::NamedDecl> const& decl)
 				{
+					m_Sema.GetASTContext().EraseType(retType);
+					m_Sema.ClearTypeNameCache(retType);
 					retType->SetDeducedAsType(decl.Cast<Declaration::TypeDecl>()->GetTypeForDecl());
-					m_Sema.GetASTContext().UpdateType(retType);
+					m_Sema.GetASTContext().CacheType(retType);
 				});
 			return retType;
 		}

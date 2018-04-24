@@ -1,6 +1,22 @@
 ﻿#include "CodeGen.h"
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4141)
+#pragma warning(disable : 4146)
+#pragma warning(disable : 4244)
+#pragma warning(disable : 4267)
+#pragma warning(disable : 4291)
+#pragma warning(disable : 4624)
+#pragma warning(disable : 4996)
+#endif // _MSC_VER
+
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/FileSystem.h>
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif // _MSC_VER
 
 using namespace NatsuLib;
 using namespace NatsuLang::Compiler;
