@@ -155,7 +155,7 @@ namespace
 				: Diag{}, AssignedCallingConvention{},
 				  CallingConvention{ CallingConventionAttribute::CallingConvention::Cdecl }
 			{
-				
+
 			}
 
 			natRefPointer<IArgumentRequirement> GetArgumentRequirement() override
@@ -316,7 +316,7 @@ AotCompiler::AotDiagIdMap::AotDiagIdMap(natRefPointer<TextReader<StringType::Utf
 	}
 
 	reader->SetNewLine(u8"\n"_nv);
-	
+
 	nString diagIDName;
 	while (true)
 	{
@@ -1716,7 +1716,7 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitBinOp(llvm::Value* leftOperand, ll
 		break;
 	}
 
-	nat_Throw(NotImplementedException);
+	nat_Throw(NotImplementedException, u8"对操作数 {0} 及 {1} 的 {2} 操作未实现或未定义"_nv, m_Compiler.m_Sema.GetTypeName(leftType), m_Compiler.m_Sema.GetTypeName(rightType), Expression::GetBinaryOperationTypeName(opCode));
 }
 
 llvm::Value* AotCompiler::AotStmtVisitor::EmitBuiltinBinOp(llvm::Value* leftOperand, llvm::Value* rightOperand, Expression::BinaryOperationType opCode, natRefPointer<Type::BuiltinType> const& commonType, natRefPointer<Type::BuiltinType> const& resultType)

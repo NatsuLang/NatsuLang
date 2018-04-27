@@ -61,7 +61,7 @@ void Interpreter::RegisterFunction(nStrView name, Type::TypePtr resultType, std:
 {
 	Lex::Token dummyToken;
 	const auto id = m_Parser.GetPreprocessor().FindIdentifierInfo(name, dummyToken);
-	
+
 	auto scope = m_Sema.GetCurrentScope();
 	for (; scope->GetParent(); scope = scope->GetParent()) {}
 

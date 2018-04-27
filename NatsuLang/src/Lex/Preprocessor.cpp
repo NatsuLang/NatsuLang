@@ -63,7 +63,7 @@ Preprocessor::Memento Preprocessor::SaveToMemento() noexcept
 		assert(m_Lexer);
 		return { std::in_place_index<1>, m_Lexer->SaveToMemento() };
 	}
-	
+
 	const auto curIter = std::prev(m_CachedTokensStack.end());
 	return { std::in_place_index<0>, curIter, curIter->second };
 }

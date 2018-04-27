@@ -128,13 +128,11 @@ namespace
 		case '5': case '6': case '7':
 		{
 			chr = 0;
-			nuInt charCount = 0;
-			do
+			for (; cur != end && *cur >= '0' && *cur <= '7'; ++cur)
 			{
 				chr <<= 3;
-				chr |= DigitValue(*cur++);
-				++charCount;
-			} while (cur != end && charCount < 3 && *cur >= '0' && *cur <= '7');
+				chr |= DigitValue(*cur);
+			}
 
 			// TODO: 适配具有更多宽度的字符
 			if (chr >> 8)
@@ -261,7 +259,7 @@ nBool NumericLiteralParser::GetFloatValue(nDouble& result) const noexcept
 	{
 		result += partAfterPeriod * std::pow(m_Radix, periodPos - m_SuffixBegin + 1);
 	}
-	
+
 	// TODO: 检查是否溢出
 	return false;
 }

@@ -11,7 +11,7 @@ namespace NatsuLang
 	{
 		class DiagnosticsEngine;
 	}
-	
+
 	class FileManager;
 
 	class SourceManager

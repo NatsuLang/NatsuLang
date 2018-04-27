@@ -21,7 +21,7 @@ const char* NatsuLang::Lex::GetTokenName(TokenType tokenType) noexcept
 	{
 		return g_TokenNames[index];
 	}
-	
+
 	return nullptr;
 }
 

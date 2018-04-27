@@ -198,7 +198,7 @@ nBool BuiltinType::CompareRankTo(natRefPointer<BuiltinType> const& other, nInt& 
 		result = MakeBuiltinTypeSigned(m_BuiltinClass) - MakeBuiltinTypeSigned(other->GetBuiltinClass());
 		return true;
 	}
-	
+
 	return false;
 }
 

@@ -1717,8 +1717,7 @@ Expression::ExprPtr Parser::ParseRightOperandOfBinaryExpression(Expression::Expr
 		if (prevPrec < tokenPrec || (prevPrec == tokenPrec && isRightAssoc))
 		{
 			rightOperand = ParseRightOperandOfBinaryExpression(std::move(rightOperand),
-															   static_cast<OperatorPrecedence>(static_cast<std::underlying_type_t
-																   <OperatorPrecedence>>(prevPrec) + !isRightAssoc));
+															   static_cast<OperatorPrecedence>(static_cast<std::underlying_type_t<OperatorPrecedence>>(prevPrec) + !isRightAssoc));
 			if (!rightOperand)
 			{
 				// TODO: 报告错误

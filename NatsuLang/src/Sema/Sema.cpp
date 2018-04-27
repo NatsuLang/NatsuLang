@@ -277,6 +277,7 @@ namespace
 			case Type::Type::Array:
 			{
 				const auto arrayType = type.UnsafeCast<Type::ArrayType>();
+				// 不考虑元素为函数的情况，因为不允许元素为函数
 				const auto elementType = Type::Type::GetUnderlyingType(arrayType->GetElementType());
 				return natUtil::FormatString(u8"{0}[{1}]"_nv, GetTypeName(elementType), arrayType->GetSize());
 			}

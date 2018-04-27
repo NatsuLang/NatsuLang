@@ -294,8 +294,7 @@ namespace NatsuLang::Semantic
 		NatsuLib::natRefPointer<Declaration::EnumConstantDecl> ActOnEnumerator(NatsuLib::natRefPointer<Scope> const& scope,
 		                                                                       NatsuLib::natRefPointer<Declaration::EnumDecl>
 		                                                                       const& enumDecl,
-		                                                                       NatsuLib::natRefPointer<Declaration::
-			                                                                       EnumConstantDecl> const& lastEnumerator,
+		                                                                       NatsuLib::natRefPointer<Declaration::EnumConstantDecl> const& lastEnumerator,
 		                                                                       Identifier::IdPtr name,
 		                                                                       SourceLocation loc,
 		                                                                       Expression::ExprPtr initializer);

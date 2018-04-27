@@ -620,7 +620,7 @@ namespace NatsuLang::Expression
 		}
 
 		Statement::StmtEnumerable GetChildrenStmt() override;
-		
+
 		DEFAULT_ACCEPT_DECL;
 
 	private:

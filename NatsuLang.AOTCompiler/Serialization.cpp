@@ -269,7 +269,7 @@ std::size_t Deserializer::StartDeserialize(natRefPointer<ISerializationArchiveRe
 	// 假装属于真正的翻译单元，不会真的加进去
 	m_PesudoTranslationUnit->SetContext(m_Sema.GetASTContext().GetTranslationUnit().Get());
 	m_Sema.PushDeclContext(m_Sema.GetCurrentScope(), m_PesudoTranslationUnit.Get());
-	m_Archive->StartReadingEntry(u8"Content", true);
+	m_Archive->StartReadingEntry(u8"Content"_nv, true);
 	return m_Archive->GetEntryElementCount();
 }
 
@@ -286,7 +286,7 @@ void Deserializer::EndDeserialize()
 ASTNodePtr Deserializer::Deserialize()
 {
 	ASTNodeType type;
-	if (!m_Archive->ReadNumType(u8"AstNodeType", type))
+	if (!m_Archive->ReadNumType(u8"AstNodeType"_nv, type))
 	{
 		ThrowInvalidData();
 	}
@@ -310,13 +310,13 @@ ASTNodePtr Deserializer::Deserialize()
 ASTNodePtr Deserializer::DeserializeDecl()
 {
 	Declaration::Decl::DeclType type;
-	if (!m_Archive->ReadNumType(u8"Type", type))
+	if (!m_Archive->ReadNumType(u8"Type"_nv, type))
 	{
 		ThrowInvalidData();
 	}
 
 	std::vector<Declaration::AttrPtr> attributes;
-	if (!m_Archive->StartReadingEntry(u8"Attributes", true))
+	if (!m_Archive->StartReadingEntry(u8"Attributes"_nv, true))
 	{
 		ThrowInvalidData();
 	}
@@ -327,7 +327,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 		attributes.reserve(count);
 		for (std::size_t i = 0; i < count; ++i)
 		{
-			if (!m_Archive->ReadString(u8"Name", attrName))
+			if (!m_Archive->ReadString(u8"Name"_nv, attrName))
 			{
 				ThrowInvalidData();
 			}
@@ -349,7 +349,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 		if (type >= Declaration::Decl::FirstNamed && type <= Declaration::Decl::LastNamed)
 		{
 			nString name;
-			if (!m_Archive->ReadString(u8"Name", name))
+			if (!m_Archive->ReadString(u8"Name"_nv, name))
 			{
 				ThrowInvalidData();
 			}
@@ -360,7 +360,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 			{
 			case Declaration::Decl::Alias:
 			{
-				if (!m_Archive->StartReadingEntry(u8"AliasAs"))
+				if (!m_Archive->StartReadingEntry(u8"AliasAs"_nv))
 				{
 					ThrowInvalidData();
 				}
@@ -403,7 +403,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 						&m_Parser, Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::ModuleScope
 					};
 					m_Sema.ActOnStartModule(m_Sema.GetCurrentScope(), module);
-					if (!m_Archive->StartReadingEntry(u8"Members", true))
+					if (!m_Archive->StartReadingEntry(u8"Members"_nv, true))
 					{
 						ThrowInvalidData();
 					}
@@ -431,7 +431,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 			{
 				Type::TagType::TagTypeClass tagType;
 
-				if (!m_Archive->ReadNumType(u8"TagType", tagType))
+				if (!m_Archive->ReadNumType(u8"TagType"_nv, tagType))
 				{
 					ThrowInvalidData();
 				}
@@ -461,7 +461,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 					Syntax::Parser::ParseScope tagScope{ &m_Parser, flag };
 					m_Sema.ActOnTagStartDefinition(m_Sema.GetCurrentScope(), tagDecl);
 
-					if (!m_Archive->StartReadingEntry(u8"Members", true))
+					if (!m_Archive->StartReadingEntry(u8"Members"_nv, true))
 					{
 						ThrowInvalidData();
 					}
@@ -479,7 +479,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 
 				if (tagType == Type::TagType::TagTypeClass::Enum)
 				{
-					if (!m_Archive->StartReadingEntry(u8"UnderlyingType"))
+					if (!m_Archive->StartReadingEntry(u8"UnderlyingType"_nv))
 					{
 						ThrowInvalidData();
 					}
@@ -517,7 +517,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 			default:
 				if (type >= Declaration::Decl::FirstValue && type <= Declaration::Decl::LastValue)
 				{
-					if (!m_Archive->StartReadingEntry(u8"DeclType"))
+					if (!m_Archive->StartReadingEntry(u8"DeclType"_nv))
 					{
 						ThrowInvalidData();
 					}
@@ -547,7 +547,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 					case Declaration::Decl::EnumConstant:
 					{
 						nuLong value;
-						if (!m_Archive->ReadNumType(u8"Value", value))
+						if (!m_Archive->ReadNumType(u8"Value"_nv, value))
 						{
 							ThrowInvalidData();
 						}
@@ -567,7 +567,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 							natRefPointer<Declaration::VarDecl> decl;
 
 							Specifier::StorageClass storageClass;
-							if (!m_Archive->ReadNumType(u8"StorageClass", storageClass))
+							if (!m_Archive->ReadNumType(u8"StorageClass"_nv, storageClass))
 							{
 								ThrowInvalidData();
 							}
@@ -575,11 +575,11 @@ ASTNodePtr Deserializer::DeserializeDecl()
 							Expression::ExprPtr initializer;
 
 							nBool hasInitializer;
-							if (m_Archive->ReadBool(u8"HasInitializer", hasInitializer))
+							if (m_Archive->ReadBool(u8"HasInitializer"_nv, hasInitializer))
 							{
 								if (hasInitializer)
 								{
-									if (m_Archive->StartReadingEntry(u8"Initializer"))
+									if (m_Archive->StartReadingEntry(u8"Initializer"_nv))
 									{
 										initializer = Deserialize();
 										if (!initializer)
@@ -659,7 +659,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 										ThrowInvalidData();
 									}
 
-									if (!m_Archive->StartReadingEntry(u8"Params", true))
+									if (!m_Archive->StartReadingEntry(u8"Params"_nv, true))
 									{
 										ThrowInvalidData();
 									}
@@ -697,11 +697,11 @@ ASTNodePtr Deserializer::DeserializeDecl()
 
 									Statement::StmtPtr body;
 									nBool hasBody;
-									if (m_Archive->ReadBool(u8"HasBody", hasBody))
+									if (m_Archive->ReadBool(u8"HasBody"_nv, hasBody))
 									{
 										if (hasBody)
 										{
-											if (m_Archive->StartReadingEntry(u8"Body"))
+											if (m_Archive->StartReadingEntry(u8"Body"_nv))
 											{
 												{
 													Syntax::Parser::ParseScope bodyScope{
@@ -770,7 +770,7 @@ ASTNodePtr Deserializer::DeserializeDecl()
 ASTNodePtr Deserializer::DeserializeStmt()
 {
 	Statement::Stmt::StmtType type;
-	if (!m_Archive->ReadNumType(u8"Type", type))
+	if (!m_Archive->ReadNumType(u8"Type"_nv, type))
 	{
 		ThrowInvalidData();
 	}
@@ -869,7 +869,7 @@ ASTNodePtr Deserializer::DeserializeStmt()
 ASTNodePtr Deserializer::DeserializeType()
 {
 	Type::Type::TypeClass type;
-	if (!m_Archive->ReadNumType(u8"Type", type))
+	if (!m_Archive->ReadNumType(u8"Type"_nv, type))
 	{
 		ThrowInvalidData();
 	}
@@ -879,7 +879,7 @@ ASTNodePtr Deserializer::DeserializeType()
 	case Type::Type::Builtin:
 	{
 		Type::BuiltinType::BuiltinClass builtinType;
-		if (!m_Archive->ReadNumType(u8"BuiltinType", builtinType))
+		if (!m_Archive->ReadNumType(u8"BuiltinType"_nv, builtinType))
 		{
 			ThrowInvalidData();
 		}
@@ -888,7 +888,7 @@ ASTNodePtr Deserializer::DeserializeType()
 	}
 	case Type::Type::Pointer:
 	{
-		m_Archive->StartReadingEntry(u8"PointeeType");
+		m_Archive->StartReadingEntry(u8"PointeeType"_nv);
 		auto pointeeType = Deserialize();
 		if (!pointeeType)
 		{
@@ -914,7 +914,7 @@ ASTNodePtr Deserializer::DeserializeType()
 	}
 	case Type::Type::Array:
 	{
-		m_Archive->StartReadingEntry(u8"ElementType");
+		m_Archive->StartReadingEntry(u8"ElementType"_nv);
 		auto elementType = Deserialize();
 		if (!elementType)
 		{
@@ -922,7 +922,7 @@ ASTNodePtr Deserializer::DeserializeType()
 		}
 		m_Archive->EndReadingEntry();
 		nuLong arraySize;
-		if (!m_Archive->ReadNumType(u8"ArraySize", arraySize))
+		if (!m_Archive->ReadNumType(u8"ArraySize"_nv, arraySize))
 		{
 			ThrowInvalidData();
 		}
@@ -945,7 +945,7 @@ ASTNodePtr Deserializer::DeserializeType()
 	}
 	case Type::Type::Function:
 	{
-		if (!m_Archive->StartReadingEntry(u8"ResultType"))
+		if (!m_Archive->StartReadingEntry(u8"ResultType"_nv))
 		{
 			ThrowInvalidData();
 		}
@@ -957,7 +957,7 @@ ASTNodePtr Deserializer::DeserializeType()
 		m_Archive->EndReadingEntry();
 
 		std::vector<Type::TypePtr> args;
-		m_Archive->StartReadingEntry(u8"ArgType", true);
+		m_Archive->StartReadingEntry(u8"ArgType"_nv, true);
 		if (const auto count = m_Archive->GetEntryElementCount())
 		{
 			args.reserve(count);
@@ -973,7 +973,7 @@ ASTNodePtr Deserializer::DeserializeType()
 		m_Archive->EndReadingEntry();
 
 		nBool hasVarArg;
-		if (!m_Archive->ReadBool(u8"HasVarArg", hasVarArg))
+		if (!m_Archive->ReadBool(u8"HasVarArg"_nv, hasVarArg))
 		{
 			ThrowInvalidData();
 		}
@@ -982,7 +982,7 @@ ASTNodePtr Deserializer::DeserializeType()
 	}
 	case Type::Type::Paren:
 	{
-		if (!m_Archive->StartReadingEntry(u8"InnerType"))
+		if (!m_Archive->StartReadingEntry(u8"InnerType"_nv))
 		{
 			ThrowInvalidData();
 		}
@@ -1013,7 +1013,7 @@ ASTNodePtr Deserializer::DeserializeType()
 	case Type::Type::Enum:
 	{
 		nString tagDeclName;
-		if (!m_Archive->ReadString(u8"TagDecl", tagDeclName))
+		if (!m_Archive->ReadString(u8"TagDecl"_nv, tagDeclName))
 		{
 			ThrowInvalidData();
 		}
@@ -1028,7 +1028,7 @@ ASTNodePtr Deserializer::DeserializeType()
 	}
 	case Type::Type::Auto:
 	{
-		if (!m_Archive->StartReadingEntry(u8"DeducedAs"))
+		if (!m_Archive->StartReadingEntry(u8"DeducedAs"_nv))
 		{
 			ThrowInvalidData();
 		}
@@ -1067,7 +1067,7 @@ ASTNodePtr Deserializer::DeserializeType()
 ASTNodePtr Deserializer::DeserializeCompilerAction()
 {
 	nString name;
-	if (!m_Archive->ReadString(u8"Name", name))
+	if (!m_Archive->ReadString(u8"Name"_nv, name))
 	{
 		ThrowInvalidData();
 	}
@@ -1173,7 +1173,7 @@ void Serializer::StartSerialize(natRefPointer<ISerializationArchiveWriter> archi
 {
 	m_Archive = std::move(archive);
 	m_IsExporting = isExporting;
-	m_Archive->StartWritingEntry(u8"Content", true);
+	m_Archive->StartWritingEntry(u8"Content"_nv, true);
 }
 
 void Serializer::EndSerialize()
@@ -1194,7 +1194,7 @@ void Serializer::VisitTryStmt(natRefPointer<Statement::TryStmt> const& stmt)
 void Serializer::VisitCompoundStmt(natRefPointer<Statement::CompoundStmt> const& stmt)
 {
 	VisitStmt(stmt);
-	m_Archive->StartWritingEntry(u8"Content", true);
+	m_Archive->StartWritingEntry(u8"Content"_nv, true);
 	for (const auto& s : stmt->GetChildrenStmt())
 	{
 		StmtVisitor::Visit(s);
@@ -1206,7 +1206,7 @@ void Serializer::VisitCompoundStmt(natRefPointer<Statement::CompoundStmt> const&
 void Serializer::VisitDeclStmt(natRefPointer<Statement::DeclStmt> const& stmt)
 {
 	VisitStmt(stmt);
-	m_Archive->StartWritingEntry(u8"Decl");
+	m_Archive->StartWritingEntry(u8"Decl"_nv);
 	DeclVisitor::Visit(stmt->GetDecl());
 	m_Archive->EndWritingEntry();
 }
@@ -1214,10 +1214,10 @@ void Serializer::VisitDeclStmt(natRefPointer<Statement::DeclStmt> const& stmt)
 void Serializer::VisitDoStmt(natRefPointer<Statement::DoStmt> const& stmt)
 {
 	VisitStmt(stmt);
-	m_Archive->StartWritingEntry(u8"Body");
+	m_Archive->StartWritingEntry(u8"Body"_nv);
 	StmtVisitor::Visit(stmt->GetBody());
 	m_Archive->EndWritingEntry();
-	m_Archive->StartWritingEntry(u8"Cond");
+	m_Archive->StartWritingEntry(u8"Cond"_nv);
 	StmtVisitor::Visit(stmt->GetCond());
 	m_Archive->EndWritingEntry();
 }
@@ -1225,7 +1225,7 @@ void Serializer::VisitDoStmt(natRefPointer<Statement::DoStmt> const& stmt)
 void Serializer::VisitExpr(natRefPointer<Expression::Expr> const& expr)
 {
 	VisitStmt(expr);
-	m_Archive->StartWritingEntry(u8"ExprType");
+	m_Archive->StartWritingEntry(u8"ExprType"_nv);
 	TypeVisitor::Visit(expr->GetExprType());
 	m_Archive->EndWritingEntry();
 }
@@ -1233,13 +1233,13 @@ void Serializer::VisitExpr(natRefPointer<Expression::Expr> const& expr)
 void Serializer::VisitConditionalOperator(natRefPointer<Expression::ConditionalOperator> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->StartWritingEntry(u8"Cond");
+	m_Archive->StartWritingEntry(u8"Cond"_nv);
 	StmtVisitor::Visit(expr->GetCondition());
 	m_Archive->EndWritingEntry();
-	m_Archive->StartWritingEntry(u8"LeftOperand");
+	m_Archive->StartWritingEntry(u8"LeftOperand"_nv);
 	StmtVisitor::Visit(expr->GetLeftOperand());
 	m_Archive->EndWritingEntry();
-	m_Archive->StartWritingEntry(u8"RightOperand");
+	m_Archive->StartWritingEntry(u8"RightOperand"_nv);
 	StmtVisitor::Visit(expr->GetRightOperand());
 	m_Archive->EndWritingEntry();
 }
@@ -1247,10 +1247,10 @@ void Serializer::VisitConditionalOperator(natRefPointer<Expression::ConditionalO
 void Serializer::VisitArraySubscriptExpr(natRefPointer<Expression::ArraySubscriptExpr> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->StartWritingEntry(u8"LeftOperand");
+	m_Archive->StartWritingEntry(u8"LeftOperand"_nv);
 	StmtVisitor::Visit(expr->GetLeftOperand());
 	m_Archive->EndWritingEntry();
-	m_Archive->StartWritingEntry(u8"RightOperand");
+	m_Archive->StartWritingEntry(u8"RightOperand"_nv);
 	StmtVisitor::Visit(expr->GetRightOperand());
 	m_Archive->EndWritingEntry();
 }
@@ -1258,11 +1258,11 @@ void Serializer::VisitArraySubscriptExpr(natRefPointer<Expression::ArraySubscrip
 void Serializer::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->WriteNumType(u8"OpCode", expr->GetOpcode());
-	m_Archive->StartWritingEntry(u8"LeftOperand");
+	m_Archive->WriteNumType(u8"OpCode"_nv, expr->GetOpcode());
+	m_Archive->StartWritingEntry(u8"LeftOperand"_nv);
 	StmtVisitor::Visit(expr->GetLeftOperand());
 	m_Archive->EndWritingEntry();
-	m_Archive->StartWritingEntry(u8"RightOperand");
+	m_Archive->StartWritingEntry(u8"RightOperand"_nv);
 	StmtVisitor::Visit(expr->GetRightOperand());
 	m_Archive->EndWritingEntry();
 }
@@ -1270,7 +1270,7 @@ void Serializer::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> c
 void Serializer::VisitBooleanLiteral(natRefPointer<Expression::BooleanLiteral> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->WriteBool(u8"Value", expr->GetValue());
+	m_Archive->WriteBool(u8"Value"_nv, expr->GetValue());
 }
 
 void Serializer::VisitConstructExpr(natRefPointer<Expression::ConstructExpr> const& expr)
@@ -1291,7 +1291,7 @@ void Serializer::VisitNewExpr(natRefPointer<Expression::NewExpr> const& expr)
 void Serializer::VisitThisExpr(natRefPointer<Expression::ThisExpr> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->WriteBool(u8"IsImplicit", expr->IsImplicit());
+	m_Archive->WriteBool(u8"IsImplicit"_nv, expr->IsImplicit());
 }
 
 void Serializer::VisitThrowExpr(natRefPointer<Expression::ThrowExpr> const& expr)
@@ -1302,10 +1302,10 @@ void Serializer::VisitThrowExpr(natRefPointer<Expression::ThrowExpr> const& expr
 void Serializer::VisitCallExpr(natRefPointer<Expression::CallExpr> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->StartWritingEntry(u8"Callee");
+	m_Archive->StartWritingEntry(u8"Callee"_nv);
 	StmtVisitor::Visit(expr->GetCallee());
 	m_Archive->EndWritingEntry();
-	m_Archive->StartWritingEntry(u8"Args", true);
+	m_Archive->StartWritingEntry(u8"Args"_nv, true);
 	for (const auto& arg : expr->GetArgs())
 	{
 		StmtVisitor::Visit(arg);
@@ -1317,8 +1317,8 @@ void Serializer::VisitCallExpr(natRefPointer<Expression::CallExpr> const& expr)
 void Serializer::VisitCastExpr(natRefPointer<Expression::CastExpr> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->WriteNumType(u8"CastType", expr->GetCastType());
-	m_Archive->StartWritingEntry(u8"Operand");
+	m_Archive->WriteNumType(u8"CastType"_nv, expr->GetCastType());
+	m_Archive->StartWritingEntry(u8"Operand"_nv);
 	StmtVisitor::Visit(expr->GetOperand());
 	m_Archive->EndWritingEntry();
 }
@@ -1326,7 +1326,7 @@ void Serializer::VisitCastExpr(natRefPointer<Expression::CastExpr> const& expr)
 void Serializer::VisitInitListExpr(natRefPointer<Expression::InitListExpr> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->StartWritingEntry(u8"InitExprs", true);
+	m_Archive->StartWritingEntry(u8"InitExprs"_nv, true);
 	for (const auto& e : expr->GetInitExprs())
 	{
 		StmtVisitor::Visit(e);
@@ -1338,41 +1338,41 @@ void Serializer::VisitInitListExpr(natRefPointer<Expression::InitListExpr> const
 void Serializer::VisitCharacterLiteral(natRefPointer<Expression::CharacterLiteral> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->WriteNumType(u8"Value", expr->GetCodePoint());
+	m_Archive->WriteNumType(u8"Value"_nv, expr->GetCodePoint());
 }
 
 void Serializer::VisitDeclRefExpr(natRefPointer<Expression::DeclRefExpr> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->WriteString(u8"QualifiedName", GetQualifiedName(expr->GetDecl()));
+	m_Archive->WriteString(u8"QualifiedName"_nv, GetQualifiedName(expr->GetDecl()));
 }
 
 void Serializer::VisitFloatingLiteral(natRefPointer<Expression::FloatingLiteral> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->WriteNumType(u8"Value", expr->GetValue());
+	m_Archive->WriteNumType(u8"Value"_nv, expr->GetValue());
 }
 
 void Serializer::VisitIntegerLiteral(natRefPointer<Expression::IntegerLiteral> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->WriteNumType(u8"Value", expr->GetValue());
+	m_Archive->WriteNumType(u8"Value"_nv, expr->GetValue());
 }
 
 void Serializer::VisitMemberExpr(natRefPointer<Expression::MemberExpr> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->StartWritingEntry(u8"Base");
+	m_Archive->StartWritingEntry(u8"Base"_nv);
 	StmtVisitor::Visit(expr->GetBase());
 	m_Archive->EndWritingEntry();
-	m_Archive->WriteString(u8"Name", expr->GetName()->GetName());
-	m_Archive->WriteString(u8"QualifiedName", GetQualifiedName(expr->GetMemberDecl()));
+	m_Archive->WriteString(u8"Name"_nv, expr->GetName()->GetName());
+	m_Archive->WriteString(u8"QualifiedName"_nv, GetQualifiedName(expr->GetMemberDecl()));
 }
 
 void Serializer::VisitParenExpr(natRefPointer<Expression::ParenExpr> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->StartWritingEntry(u8"InnerExpr");
+	m_Archive->StartWritingEntry(u8"InnerExpr"_nv);
 	StmtVisitor::Visit(expr->GetInnerExpr());
 	m_Archive->EndWritingEntry();
 }
@@ -1385,14 +1385,14 @@ void Serializer::VisitStmtExpr(natRefPointer<Expression::StmtExpr> const& expr)
 void Serializer::VisitStringLiteral(natRefPointer<Expression::StringLiteral> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->WriteString(u8"Value", expr->GetValue());
+	m_Archive->WriteString(u8"Value"_nv, expr->GetValue());
 }
 
 void Serializer::VisitUnaryOperator(natRefPointer<Expression::UnaryOperator> const& expr)
 {
 	VisitExpr(expr);
-	m_Archive->WriteNumType(u8"OpCode", expr->GetOpcode());
-	m_Archive->StartWritingEntry(u8"Operand");
+	m_Archive->WriteNumType(u8"OpCode"_nv, expr->GetOpcode());
+	m_Archive->StartWritingEntry(u8"Operand"_nv);
 	StmtVisitor::Visit(expr->GetOperand());
 	m_Archive->EndWritingEntry();
 }
@@ -1400,16 +1400,16 @@ void Serializer::VisitUnaryOperator(natRefPointer<Expression::UnaryOperator> con
 void Serializer::VisitForStmt(natRefPointer<Statement::ForStmt> const& stmt)
 {
 	VisitStmt(stmt);
-	m_Archive->StartWritingEntry(u8"Init");
+	m_Archive->StartWritingEntry(u8"Init"_nv);
 	StmtVisitor::Visit(stmt->GetInit());
 	m_Archive->EndWritingEntry();
-	m_Archive->StartWritingEntry(u8"Cond");
+	m_Archive->StartWritingEntry(u8"Cond"_nv);
 	StmtVisitor::Visit(stmt->GetCond());
 	m_Archive->EndWritingEntry();
-	m_Archive->StartWritingEntry(u8"Inc");
+	m_Archive->StartWritingEntry(u8"Inc"_nv);
 	StmtVisitor::Visit(stmt->GetInc());
 	m_Archive->EndWritingEntry();
-	m_Archive->StartWritingEntry(u8"Body");
+	m_Archive->StartWritingEntry(u8"Body"_nv);
 	StmtVisitor::Visit(stmt->GetBody());
 	m_Archive->EndWritingEntry();
 }
@@ -1422,22 +1422,22 @@ void Serializer::VisitGotoStmt(natRefPointer<Statement::GotoStmt> const& stmt)
 void Serializer::VisitIfStmt(natRefPointer<Statement::IfStmt> const& stmt)
 {
 	VisitStmt(stmt);
-	m_Archive->StartWritingEntry(u8"Cond");
+	m_Archive->StartWritingEntry(u8"Cond"_nv);
 	StmtVisitor::Visit(stmt->GetCond());
 	m_Archive->EndWritingEntry();
-	m_Archive->StartWritingEntry(u8"Then");
+	m_Archive->StartWritingEntry(u8"Then"_nv);
 	StmtVisitor::Visit(stmt->GetThen());
 	m_Archive->EndWritingEntry();
 	if (const auto elseStmt = stmt->GetElse())
 	{
-		m_Archive->WriteBool(u8"HasElse", true);
-		m_Archive->StartWritingEntry(u8"Else");
+		m_Archive->WriteBool(u8"HasElse"_nv, true);
+		m_Archive->StartWritingEntry(u8"Else"_nv);
 		StmtVisitor::Visit(elseStmt);
 		m_Archive->EndWritingEntry();
 	}
 	else
 	{
-		m_Archive->WriteBool(u8"HasElse", false);
+		m_Archive->WriteBool(u8"HasElse"_nv, false);
 	}
 }
 
@@ -1449,7 +1449,7 @@ void Serializer::VisitLabelStmt(natRefPointer<Statement::LabelStmt> const& stmt)
 void Serializer::VisitReturnStmt(natRefPointer<Statement::ReturnStmt> const& stmt)
 {
 	VisitStmt(stmt);
-	m_Archive->StartWritingEntry(u8"ReturnExpr");
+	m_Archive->StartWritingEntry(u8"ReturnExpr"_nv);
 	StmtVisitor::Visit(stmt->GetReturnExpr());
 	m_Archive->EndWritingEntry();
 }
@@ -1477,24 +1477,24 @@ void Serializer::VisitSwitchStmt(natRefPointer<Statement::SwitchStmt> const& stm
 void Serializer::VisitWhileStmt(natRefPointer<Statement::WhileStmt> const& stmt)
 {
 	VisitStmt(stmt);
-	m_Archive->StartWritingEntry(u8"Cond");
+	m_Archive->StartWritingEntry(u8"Cond"_nv);
 	StmtVisitor::Visit(stmt->GetCond());
 	m_Archive->EndWritingEntry();
-	m_Archive->StartWritingEntry(u8"Body");
+	m_Archive->StartWritingEntry(u8"Body"_nv);
 	StmtVisitor::Visit(stmt->GetBody());
 	m_Archive->EndWritingEntry();
 }
 
 void Serializer::VisitStmt(natRefPointer<Statement::Stmt> const& stmt)
 {
-	m_Archive->WriteNumType(u8"AstNodeType", ASTNodeType::Statement);
+	m_Archive->WriteNumType(u8"AstNodeType"_nv, ASTNodeType::Statement);
 	if (m_StmtTypeMap)
 	{
-		m_Archive->WriteString(u8"Type", m_StmtTypeMap->GetText(stmt->GetType()));
+		m_Archive->WriteString(u8"Type"_nv, m_StmtTypeMap->GetText(stmt->GetType()));
 	}
 	else
 	{
-		m_Archive->WriteNumType(u8"Type", stmt->GetType());
+		m_Archive->WriteNumType(u8"Type"_nv, stmt->GetType());
 	}
 }
 
@@ -1512,13 +1512,13 @@ void Serializer::VisitImportDecl(natRefPointer<Declaration::ImportDecl> const& d
 void Serializer::VisitNamedDecl(natRefPointer<Declaration::NamedDecl> const& decl)
 {
 	VisitDecl(decl);
-	m_Archive->WriteString(u8"Name", decl->GetName());
+	m_Archive->WriteString(u8"Name"_nv, decl->GetName());
 }
 
 void Serializer::VisitAliasDecl(natRefPointer<Declaration::AliasDecl> const& decl)
 {
 	VisitNamedDecl(decl);
-	m_Archive->StartWritingEntry(u8"AliasAs");
+	m_Archive->StartWritingEntry(u8"AliasAs"_nv);
 	const auto alias = decl->GetAliasAsAst();
 	assert(alias);
 	if (const auto d = alias.Cast<Declaration::Decl>())
@@ -1550,7 +1550,7 @@ void Serializer::VisitLabelDecl(natRefPointer<Declaration::LabelDecl> const& dec
 void Serializer::VisitModuleDecl(natRefPointer<Declaration::ModuleDecl> const& decl)
 {
 	VisitNamedDecl(decl);
-	m_Archive->StartWritingEntry(u8"Members", true);
+	m_Archive->StartWritingEntry(u8"Members"_nv, true);
 	for (const auto& d : decl->GetDecls())
 	{
 		DeclVisitor::Visit(d);
@@ -1567,8 +1567,8 @@ void Serializer::VisitTypeDecl(natRefPointer<Declaration::TypeDecl> const& decl)
 void Serializer::VisitTagDecl(natRefPointer<Declaration::TagDecl> const& decl)
 {
 	VisitTypeDecl(decl);
-	m_Archive->WriteNumType(u8"TagType", decl->GetTagTypeClass());
-	m_Archive->StartWritingEntry(u8"Members", true);
+	m_Archive->WriteNumType(u8"TagType"_nv, decl->GetTagTypeClass());
+	m_Archive->StartWritingEntry(u8"Members"_nv, true);
 	for (const auto& d : decl->GetDecls())
 	{
 		DeclVisitor::Visit(d);
@@ -1580,7 +1580,7 @@ void Serializer::VisitTagDecl(natRefPointer<Declaration::TagDecl> const& decl)
 void Serializer::VisitEnumDecl(natRefPointer<Declaration::EnumDecl> const& decl)
 {
 	VisitTagDecl(decl);
-	m_Archive->StartWritingEntry(u8"UnderlyingType");
+	m_Archive->StartWritingEntry(u8"UnderlyingType"_nv);
 	TypeVisitor::Visit(decl->GetUnderlyingType());
 	m_Archive->EndWritingEntry();
 }
@@ -1588,7 +1588,7 @@ void Serializer::VisitEnumDecl(natRefPointer<Declaration::EnumDecl> const& decl)
 void Serializer::VisitValueDecl(natRefPointer<Declaration::ValueDecl> const& decl)
 {
 	VisitNamedDecl(decl);
-	m_Archive->StartWritingEntry(u8"DeclType");
+	m_Archive->StartWritingEntry(u8"DeclType"_nv);
 	TypeVisitor::Visit(decl->GetValueType());
 	m_Archive->EndWritingEntry();
 }
@@ -1596,7 +1596,7 @@ void Serializer::VisitValueDecl(natRefPointer<Declaration::ValueDecl> const& dec
 void Serializer::VisitFunctionDecl(natRefPointer<Declaration::FunctionDecl> const& decl)
 {
 	VisitVarDecl(decl);
-	m_Archive->StartWritingEntry(u8"Params", true);
+	m_Archive->StartWritingEntry(u8"Params"_nv, true);
 	for (const auto& param : decl->GetParams())
 	{
 		DeclVisitor::Visit(param);
@@ -1605,44 +1605,44 @@ void Serializer::VisitFunctionDecl(natRefPointer<Declaration::FunctionDecl> cons
 	m_Archive->EndWritingEntry();
 	if (const auto body = decl->GetBody(); !m_IsExporting && body)
 	{
-		m_Archive->WriteBool(u8"HasBody", true);
-		m_Archive->StartWritingEntry(u8"Body");
+		m_Archive->WriteBool(u8"HasBody"_nv, true);
+		m_Archive->StartWritingEntry(u8"Body"_nv);
 		StmtVisitor::Visit(body);
 		m_Archive->EndWritingEntry();
 	}
 	else
 	{
-		m_Archive->WriteBool(u8"HasBody", false);
+		m_Archive->WriteBool(u8"HasBody"_nv, false);
 	}
 }
 
 void Serializer::VisitVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
 {
 	VisitDeclaratorDecl(decl);
-	m_Archive->WriteNumType(u8"StorageClass", decl->GetStorageClass());
+	m_Archive->WriteNumType(u8"StorageClass"_nv, decl->GetStorageClass());
 	if (const auto initializer = decl->GetInitializer(); !m_IsExporting && initializer)
 	{
-		m_Archive->WriteBool(u8"HasInitializer", true);
-		m_Archive->StartWritingEntry(u8"Initializer");
+		m_Archive->WriteBool(u8"HasInitializer"_nv, true);
+		m_Archive->StartWritingEntry(u8"Initializer"_nv);
 		StmtVisitor::Visit(initializer);
 		m_Archive->EndWritingEntry();
 	}
 	else
 	{
-		m_Archive->WriteBool(u8"HasInitializer", false);
+		m_Archive->WriteBool(u8"HasInitializer"_nv, false);
 	}
 }
 
 void Serializer::VisitImplicitParamDecl(natRefPointer<Declaration::ImplicitParamDecl> const& decl)
 {
 	VisitVarDecl(decl);
-	m_Archive->WriteNumType(u8"ParamType", decl->GetParamType());
+	m_Archive->WriteNumType(u8"ParamType"_nv, decl->GetParamType());
 }
 
 void Serializer::VisitEnumConstantDecl(natRefPointer<Declaration::EnumConstantDecl> const& decl)
 {
 	VisitValueDecl(decl);
-	m_Archive->WriteNumType(u8"Value", decl->GetValue());
+	m_Archive->WriteNumType(u8"Value"_nv, decl->GetValue());
 }
 
 void Serializer::VisitTranslationUnitDecl(natRefPointer<Declaration::TranslationUnitDecl> const& decl)
@@ -1652,20 +1652,20 @@ void Serializer::VisitTranslationUnitDecl(natRefPointer<Declaration::Translation
 
 void Serializer::VisitDecl(Declaration::DeclPtr const& decl)
 {
-	m_Archive->WriteNumType(u8"AstNodeType", ASTNodeType::Declaration);
+	m_Archive->WriteNumType(u8"AstNodeType"_nv, ASTNodeType::Declaration);
 	if (m_DeclTypeMap)
 	{
-		m_Archive->WriteString(u8"Type", m_DeclTypeMap->GetText(decl->GetType()));
+		m_Archive->WriteString(u8"Type"_nv, m_DeclTypeMap->GetText(decl->GetType()));
 	}
 	else
 	{
-		m_Archive->WriteNumType(u8"Type", decl->GetType());
+		m_Archive->WriteNumType(u8"Type"_nv, decl->GetType());
 	}
 
-	m_Archive->StartWritingEntry(u8"Attributes", true);
+	m_Archive->StartWritingEntry(u8"Attributes"_nv, true);
 	for (const auto& attr : decl->GetAllAttributes())
 	{
-		m_Archive->WriteString(u8"Name", attr->GetName());
+		m_Archive->WriteString(u8"Name"_nv, attr->GetName());
 		m_Sema.SerializeAttribute(attr, m_Archive);
 		m_Archive->NextWritingElement();
 	}
@@ -1681,13 +1681,13 @@ void Serializer::Visit(Declaration::DeclPtr const& decl)
 void Serializer::VisitBuiltinType(natRefPointer<Type::BuiltinType> const& type)
 {
 	VisitType(type);
-	m_Archive->WriteNumType(u8"BuiltinType", type->GetBuiltinClass());
+	m_Archive->WriteNumType(u8"BuiltinType"_nv, type->GetBuiltinClass());
 }
 
 void Serializer::VisitPointerType(natRefPointer<Type::PointerType> const& type)
 {
 	VisitType(type);
-	m_Archive->StartWritingEntry(u8"PointeeType");
+	m_Archive->StartWritingEntry(u8"PointeeType"_nv);
 	TypeVisitor::Visit(type->GetPointeeType());
 	m_Archive->EndWritingEntry();
 }
@@ -1695,32 +1695,32 @@ void Serializer::VisitPointerType(natRefPointer<Type::PointerType> const& type)
 void Serializer::VisitArrayType(natRefPointer<Type::ArrayType> const& type)
 {
 	VisitType(type);
-	m_Archive->StartWritingEntry(u8"ElementType");
+	m_Archive->StartWritingEntry(u8"ElementType"_nv);
 	TypeVisitor::Visit(type->GetElementType());
 	m_Archive->EndWritingEntry();
-	m_Archive->WriteNumType(u8"ArraySize", type->GetSize());
+	m_Archive->WriteNumType(u8"ArraySize"_nv, type->GetSize());
 }
 
 void Serializer::VisitFunctionType(natRefPointer<Type::FunctionType> const& type)
 {
 	VisitType(type);
-	m_Archive->StartWritingEntry(u8"ResultType");
+	m_Archive->StartWritingEntry(u8"ResultType"_nv);
 	TypeVisitor::Visit(type->GetResultType());
 	m_Archive->EndWritingEntry();
-	m_Archive->StartWritingEntry(u8"ArgType", true);
+	m_Archive->StartWritingEntry(u8"ArgType"_nv, true);
 	for (const auto& arg : type->GetParameterTypes())
 	{
 		TypeVisitor::Visit(arg);
 		m_Archive->NextWritingElement();
 	}
 	m_Archive->EndWritingEntry();
-	m_Archive->WriteBool(u8"HasVarArg", type->HasVarArg());
+	m_Archive->WriteBool(u8"HasVarArg"_nv, type->HasVarArg());
 }
 
 void Serializer::VisitParenType(natRefPointer<Type::ParenType> const& type)
 {
 	VisitType(type);
-	m_Archive->StartWritingEntry(u8"InnerType");
+	m_Archive->StartWritingEntry(u8"InnerType"_nv);
 	TypeVisitor::Visit(type->GetInnerType());
 	m_Archive->EndWritingEntry();
 }
@@ -1728,13 +1728,13 @@ void Serializer::VisitParenType(natRefPointer<Type::ParenType> const& type)
 void Serializer::VisitTagType(natRefPointer<Type::TagType> const& type)
 {
 	VisitType(type);
-	m_Archive->WriteString(u8"TagDecl", GetQualifiedName(type->GetDecl()));
+	m_Archive->WriteString(u8"TagDecl"_nv, GetQualifiedName(type->GetDecl()));
 }
 
 void Serializer::VisitDeducedType(natRefPointer<Type::DeducedType> const& type)
 {
 	VisitType(type);
-	m_Archive->StartWritingEntry(u8"DeducedAs");
+	m_Archive->StartWritingEntry(u8"DeducedAs"_nv);
 	TypeVisitor::Visit(type->GetDeducedAsType());
 	m_Archive->EndWritingEntry();
 }
@@ -1746,14 +1746,14 @@ void Serializer::VisitUnresolvedType(natRefPointer<Type::UnresolvedType> const& 
 
 void Serializer::VisitType(Type::TypePtr const& type)
 {
-	m_Archive->WriteNumType(u8"AstNodeType", ASTNodeType::Type);
+	m_Archive->WriteNumType(u8"AstNodeType"_nv, ASTNodeType::Type);
 	if (m_TypeClassMap)
 	{
-		m_Archive->WriteString(u8"Type", m_TypeClassMap->GetText(type->GetType()));
+		m_Archive->WriteString(u8"Type"_nv, m_TypeClassMap->GetText(type->GetType()));
 	}
 	else
 	{
-		m_Archive->WriteNumType(u8"Type", type->GetType());
+		m_Archive->WriteNumType(u8"Type"_nv, type->GetType());
 	}
 }
 
@@ -1765,7 +1765,7 @@ void Serializer::Visit(Type::TypePtr const& type)
 
 void Serializer::SerializeCompilerAction(natRefPointer<ICompilerAction> const& action)
 {
-	m_Archive->WriteNumType(u8"AstNodeType", ASTNodeType::CompilerAction);
+	m_Archive->WriteNumType(u8"AstNodeType"_nv, ASTNodeType::CompilerAction);
 
 	nString qualifiedName = action->GetName();
 	auto parent = action->GetParent();
@@ -1781,7 +1781,7 @@ void Serializer::SerializeCompilerAction(natRefPointer<ICompilerAction> const& a
 		parent = parentRef->GetParent();
 	}
 
-	m_Archive->WriteString(u8"Name", qualifiedName);
+	m_Archive->WriteString(u8"Name"_nv, qualifiedName);
 }
 
 std::size_t Serializer::GetRefCount() const volatile noexcept

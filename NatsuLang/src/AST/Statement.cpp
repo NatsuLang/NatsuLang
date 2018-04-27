@@ -148,7 +148,7 @@ StmtEnumerable ReturnStmt::GetChildrenStmt()
 	{
 		return from_values({ static_cast<StmtPtr>(m_RetExpr) });
 	}
-	
+
 	return Stmt::GetChildrenStmt();
 }
 
