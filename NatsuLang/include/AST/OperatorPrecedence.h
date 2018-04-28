@@ -8,11 +8,8 @@ namespace NatsuLang
 		Unknown,
 		Assignment,
 		Conditional,
-		LogicalOr,
-		LogicalAnd,
-		InclusiveOr,
-		ExclusiveOr,
-		And,
+		Logical,
+		Bitwise,
 		Equality,
 		Relational,
 		Shift,
@@ -37,9 +34,12 @@ namespace NatsuLang
 		case Lex::TokenType::Equal:
 			return OperatorPrecedence::Assignment;
 		case Lex::TokenType::Amp:
-			return OperatorPrecedence::And;
+		case Lex::TokenType::Caret:
+		case Lex::TokenType::Pipe:
+			return OperatorPrecedence::Bitwise;
 		case Lex::TokenType::AmpAmp:
-			return OperatorPrecedence::LogicalAnd;
+		case Lex::TokenType::PipePipe:
+			return OperatorPrecedence::Logical;
 		case Lex::TokenType::Star:
 		case Lex::TokenType::Slash:
 		case Lex::TokenType::Percent:
@@ -58,12 +58,6 @@ namespace NatsuLang
 		case Lex::TokenType::LessLess:
 		case Lex::TokenType::GreaterGreater:
 			return OperatorPrecedence::Shift;
-		case Lex::TokenType::Caret:
-			return OperatorPrecedence::ExclusiveOr;
-		case Lex::TokenType::Pipe:
-			return OperatorPrecedence::InclusiveOr;
-		case Lex::TokenType::PipePipe:
-			return OperatorPrecedence::LogicalOr;
 		case Lex::TokenType::Question:
 			return OperatorPrecedence::Conditional;
 		default:

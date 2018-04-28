@@ -341,6 +341,8 @@ ASTContext::ClassLayout const& ASTContext::GetClassLayout(natRefPointer<Declarat
 		info.Size = fieldOffset + fieldInfo.Size;
 	}
 
+	info.Size = AlignTo(info.Size, info.Align);
+
 	const auto ret = m_CachedClassLayout.emplace(classDecl, info);
 	if (!ret.second)
 	{
