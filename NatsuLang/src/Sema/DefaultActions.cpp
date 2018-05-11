@@ -8,12 +8,12 @@ using namespace NatsuLib;
 using namespace NatsuLang;
 
 SimpleArgumentRequirement::SimpleArgumentRequirement(std::initializer_list<CompilerActionArgumentType> const& types)
-	: m_Types(types.begin(), types.end())
+	: m_Types(types.begin(), types.end()), m_Cur{ m_Types.cbegin() }
 {
 }
 
 SimpleArgumentRequirement::SimpleArgumentRequirement(Linq<Valued<CompilerActionArgumentType>> const& types)
-	: m_Types(types.begin(), types.end())
+	: m_Types(types.begin(), types.end()), m_Cur{ m_Types.cbegin() }
 {
 }
 
@@ -21,9 +21,9 @@ SimpleArgumentRequirement::~SimpleArgumentRequirement()
 {
 }
 
-CompilerActionArgumentType SimpleArgumentRequirement::GetExpectedArgumentType(std::size_t i)
+CompilerActionArgumentType SimpleArgumentRequirement::GetNextExpectedArgumentType()
 {
-	return i < m_Types.size() ? m_Types[i] : CompilerActionArgumentType::None;
+	return m_Cur != m_Types.cend() ? *m_Cur++ : CompilerActionArgumentType::None;
 }
 
 SimpleActionContext::SimpleActionContext(natRefPointer<IArgumentRequirement> requirement)
@@ -43,7 +43,7 @@ NatsuLib::natRefPointer<IArgumentRequirement> SimpleActionContext::GetArgumentRe
 void SimpleActionContext::AddArgument(natRefPointer<ASTNode> const& arg)
 {
 	// TODO: 检测类型并报告错误
-	switch (GetCategoryPart(m_Requirement->GetExpectedArgumentType(m_ArgumentList.size())))
+	switch (GetCategoryPart(m_Requirement->GetNextExpectedArgumentType()))
 	{
 	case CompilerActionArgumentType::None:
 		return;
@@ -107,7 +107,7 @@ ActionDump::ActionDumpArgumentRequirement::~ActionDumpArgumentRequirement()
 {
 }
 
-CompilerActionArgumentType ActionDump::ActionDumpArgumentRequirement::GetExpectedArgumentType(std::size_t /*i*/)
+CompilerActionArgumentType ActionDump::ActionDumpArgumentRequirement::GetNextExpectedArgumentType()
 {
 	return CompilerActionArgumentType::Optional |
 		CompilerActionArgumentType::MayBeUnresolved |
@@ -122,7 +122,20 @@ ActionDumpIf::ActionDumpIfContext::~ActionDumpIfContext()
 
 natRefPointer<IArgumentRequirement> ActionDumpIf::ActionDumpIfContext::GetArgumentRequirement()
 {
-	return s_ArgumentRequirement;
+	return make_ref<SimpleArgumentRequirement>(
+		std::initializer_list<CompilerActionArgumentType>{
+			CompilerActionArgumentType::Statement,
+				CompilerActionArgumentType::MayBeUnresolved |
+				CompilerActionArgumentType::Type |
+				CompilerActionArgumentType::Declaration |
+				CompilerActionArgumentType::Statement,
+				CompilerActionArgumentType::Optional |
+				CompilerActionArgumentType::MayBeUnresolved |
+				CompilerActionArgumentType::Type |
+				CompilerActionArgumentType::Declaration |
+				CompilerActionArgumentType::Statement
+		}
+	);
 }
 
 void ActionDumpIf::ActionDumpIfContext::AddArgument(natRefPointer<ASTNode> const& arg)
@@ -156,24 +169,6 @@ void ActionDumpIf::ActionDumpIfContext::AddArgument(natRefPointer<ASTNode> const
 	}
 }
 
-const natRefPointer<IArgumentRequirement> ActionDumpIf::ActionDumpIfContext::s_ArgumentRequirement
-{
-	make_ref<SimpleArgumentRequirement>(
-		std::initializer_list<CompilerActionArgumentType>{
-			CompilerActionArgumentType::Statement,
-			CompilerActionArgumentType::MayBeUnresolved |
-			CompilerActionArgumentType::Type |
-			CompilerActionArgumentType::Declaration |
-			CompilerActionArgumentType::Statement,
-			CompilerActionArgumentType::Optional |
-			CompilerActionArgumentType::MayBeUnresolved |
-			CompilerActionArgumentType::Type |
-			CompilerActionArgumentType::Declaration |
-			CompilerActionArgumentType::Statement
-		}
-	)
-};
-
 ActionDumpIf::ActionDumpIf()
 {
 }
@@ -202,8 +197,6 @@ void ActionDumpIf::EndAction(natRefPointer<IActionContext> const& context, std::
 		output(actionContext->ResultNode);
 	}
 }
-
-const natRefPointer<IArgumentRequirement> ActionIsDefined::ActionIsDefinedContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier }) };
 
 ActionIsDefined::ActionIsDefined()
 {
@@ -242,7 +235,7 @@ ActionIsDefined::ActionIsDefinedContext::~ActionIsDefinedContext()
 
 natRefPointer<IArgumentRequirement> ActionIsDefined::ActionIsDefinedContext::GetArgumentRequirement()
 {
-	return s_ArgumentRequirement;
+	return make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier });
 }
 
 void ActionIsDefined::ActionIsDefinedContext::AddArgument(natRefPointer<ASTNode> const& arg)
@@ -258,8 +251,6 @@ void ActionIsDefined::ActionIsDefinedContext::AddArgument(natRefPointer<ASTNode>
 	Semantic::LookupResult r{ *Sema, name->GetIdentifierInfo(), {}, Semantic::Sema::LookupNameType::LookupAnyName };
 	Result = Sema->LookupName(r, Sema->GetCurrentScope()) && r.GetDeclSize();
 }
-
-const natRefPointer<IArgumentRequirement> ActionTypeOf::ActionTypeOfContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Statement }) };
 
 ActionTypeOf::ActionTypeOf()
 {
@@ -295,7 +286,7 @@ ActionTypeOf::ActionTypeOfContext::~ActionTypeOfContext()
 
 natRefPointer<IArgumentRequirement> ActionTypeOf::ActionTypeOfContext::GetArgumentRequirement()
 {
-	return s_ArgumentRequirement;
+	return make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Statement });
 }
 
 void ActionTypeOf::ActionTypeOfContext::AddArgument(natRefPointer<ASTNode> const& arg)
@@ -309,8 +300,6 @@ void ActionTypeOf::ActionTypeOfContext::AddArgument(natRefPointer<ASTNode> const
 
 	Type = expr->GetExprType();
 }
-
-const natRefPointer<IArgumentRequirement> ActionSizeOf::ActionSizeOfContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Type }) };
 
 ActionSizeOf::ActionSizeOf()
 {
@@ -358,7 +347,7 @@ ActionSizeOf::ActionSizeOfContext::~ActionSizeOfContext()
 
 natRefPointer<IArgumentRequirement> ActionSizeOf::ActionSizeOfContext::GetArgumentRequirement()
 {
-	return s_ArgumentRequirement;
+	return make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Type });
 }
 
 void ActionSizeOf::ActionSizeOfContext::AddArgument(natRefPointer<ASTNode> const& arg)
@@ -378,8 +367,6 @@ void ActionSizeOf::ActionSizeOfContext::AddArgument(natRefPointer<ASTNode> const
 
 	Value.emplace(Context.GetTypeInfo(type).Size);
 }
-
-const natRefPointer<IArgumentRequirement> ActionAlignOf::ActionAlignOfContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Type }) };
 
 ActionAlignOf::ActionAlignOf()
 {
@@ -427,7 +414,7 @@ ActionAlignOf::ActionAlignOfContext::~ActionAlignOfContext()
 
 natRefPointer<IArgumentRequirement> ActionAlignOf::ActionAlignOfContext::GetArgumentRequirement()
 {
-	return s_ArgumentRequirement;
+	return make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Type });
 }
 
 void ActionAlignOf::ActionAlignOfContext::AddArgument(natRefPointer<ASTNode> const& arg)
@@ -449,6 +436,7 @@ void ActionAlignOf::ActionAlignOfContext::AddArgument(natRefPointer<ASTNode> con
 }
 
 ActionCreateAt::ActionCreateAtArgumentRequirement::ActionCreateAtArgumentRequirement()
+	: m_FirstGot{ false }
 {
 }
 
@@ -456,12 +444,16 @@ ActionCreateAt::ActionCreateAtArgumentRequirement::~ActionCreateAtArgumentRequir
 {
 }
 
-CompilerActionArgumentType ActionCreateAt::ActionCreateAtArgumentRequirement::GetExpectedArgumentType(std::size_t i)
+CompilerActionArgumentType ActionCreateAt::ActionCreateAtArgumentRequirement::GetNextExpectedArgumentType()
 {
-	return i ? CompilerActionArgumentType::Statement | CompilerActionArgumentType::Optional : CompilerActionArgumentType::Statement;
-}
+	if (!m_FirstGot)
+	{
+		m_FirstGot = true;
+		return CompilerActionArgumentType::Statement;
+	}
 
-const natRefPointer<IArgumentRequirement> ActionCreateAt::ActionCreateAtContext::s_ArgumentRequirement{ make_ref<ActionCreateAtArgumentRequirement>() };
+	return CompilerActionArgumentType::Statement | CompilerActionArgumentType::Optional;
+}
 
 ActionCreateAt::ActionCreateAt()
 {
@@ -530,7 +522,7 @@ ActionCreateAt::ActionCreateAtContext::~ActionCreateAtContext()
 
 natRefPointer<IArgumentRequirement> ActionCreateAt::ActionCreateAtContext::GetArgumentRequirement()
 {
-	return s_ArgumentRequirement;
+	return make_ref<ActionCreateAtArgumentRequirement>();
 }
 
 void ActionCreateAt::ActionCreateAtContext::AddArgument(natRefPointer<ASTNode> const& arg)
@@ -548,8 +540,6 @@ void ActionCreateAt::ActionCreateAtContext::AddArgument(natRefPointer<ASTNode> c
 		Arguments.emplace_back(arg);
 	}
 }
-
-const natRefPointer<IArgumentRequirement> ActionDestroyAt::ActionDestroyAtContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Statement }) };
 
 ActionDestroyAt::ActionDestroyAt()
 {
@@ -619,7 +609,7 @@ ActionDestroyAt::ActionDestroyAtContext::~ActionDestroyAtContext()
 
 natRefPointer<IArgumentRequirement> ActionDestroyAt::ActionDestroyAtContext::GetArgumentRequirement()
 {
-	return s_ArgumentRequirement;
+	return make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Statement });
 }
 
 void ActionDestroyAt::ActionDestroyAtContext::AddArgument(natRefPointer<ASTNode> const& arg)

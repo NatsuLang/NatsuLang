@@ -300,20 +300,21 @@ std::vector<Declaration::DeclPtr> Parser::ParseExternalDeclaration(Declaration::
 
 void Parser::ParseCompilerActionArguments(Declaration::Context context, const natRefPointer<IActionContext>& actionContext)
 {
-	std::size_t argCount = 0;
+	const auto argRequirement = actionContext->GetArgumentRequirement();
+
 	if (m_CurrentToken.Is(TokenType::LeftParen))
 	{
-		argCount = ParseCompilerActionArgumentList(actionContext, context, argCount);
+		ParseCompilerActionArgumentList(actionContext, context, argRequirement);
 	}
 
 	if (!m_CurrentToken.IsAnyOf({ TokenType::Semi, TokenType::LeftBrace }))
 	{
-		argCount += ParseCompilerActionArgument(actionContext, context, argCount);
+		ParseCompilerActionArgument(actionContext, context, argRequirement);
 	}
 
 	if (m_CurrentToken.Is(TokenType::LeftBrace))
 	{
-		ParseCompilerActionArgumentSequence(actionContext, context, argCount);
+		ParseCompilerActionArgumentSequence(actionContext, context, argRequirement);
 	}
 }
 
@@ -374,16 +375,23 @@ natRefPointer<ICompilerAction> Parser::ParseCompilerActionName()
 	return nullptr;
 }
 
-nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& actionContext, Declaration::Context context, std::size_t startIndex)
+nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& actionContext, Declaration::Context context, natRefPointer<IArgumentRequirement> argRequirement, CompilerActionArgumentType argType)
 {
-	const auto requirement = actionContext->GetArgumentRequirement();
-
-	const auto argType = requirement->GetExpectedArgumentType(startIndex);
+	if (!argRequirement)
+	{
+		argRequirement = actionContext->GetArgumentRequirement();
+	}
 
 	if (argType == CompilerActionArgumentType::None)
 	{
-		return false;
+		argType = argRequirement->GetNextExpectedArgumentType();
+		if (argType == CompilerActionArgumentType::None)
+		{
+			return false;
+		}
 	}
+
+	assert(GetCategoryPart(argType) != CompilerActionArgumentType::None && "argType should have at least one category flag set");
 
 	// TODO: 替换成正儿八经的实现
 	// 禁止匹配过程中的错误报告
@@ -394,6 +402,7 @@ nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& a
 	});
 
 	// 最优先尝试匹配标识符
+	// 如果标识符后面有非分隔符或者结束符的 Token 的话，将由调用者报告错误
 	if (HasAnyFlags(argType, CompilerActionArgumentType::Identifier) && m_CurrentToken.Is(TokenType::Identifier))
 	{
 		actionContext->AddArgument(m_Sema.ActOnCompilerActionIdentifierArgument(m_CurrentToken.GetIdentifierInfo()));
@@ -403,6 +412,7 @@ nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& a
 
 	// 记录状态以便匹配失败时还原
 	const auto memento = m_Preprocessor.SaveToMemento();
+	const auto curToken = m_CurrentToken;
 
 	if (HasAnyFlags(argType, CompilerActionArgumentType::Type))
 	{
@@ -418,6 +428,7 @@ nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& a
 
 	// 匹配类型失败了，还原 Preprocessor 状态
 	m_Preprocessor.RestoreFromMemento(memento);
+	m_CurrentToken = curToken;
 
 	if (HasAnyFlags(argType, CompilerActionArgumentType::Declaration))
 	{
@@ -446,45 +457,59 @@ nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& a
 
 	// 匹配声明失败了，还原 Preprocessor 状态
 	m_Preprocessor.RestoreFromMemento(memento);
+	m_CurrentToken = curToken;
 
-	assert(HasAnyFlags(argType, CompilerActionArgumentType::Statement) &&
-		"Need to set at least one category flag");
-	const auto stmt = ParseStatement(context, true);
-	if (stmt)
+	if (HasAnyFlags(argType, CompilerActionArgumentType::Statement))
 	{
-		actionContext->AddArgument(stmt);
-		return true;
+		const auto stmt = ParseStatement(context, true);
+		if (stmt)
+		{
+			actionContext->AddArgument(stmt);
+			return true;
+		}
 	}
 
 	// 匹配全部失败，还原 Preprocessor 状态并报告错误
 	m_Preprocessor.RestoreFromMemento(memento);
+	m_CurrentToken = curToken;
 	m_Diag.EnableDiag(true);
 	m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
 		.AddArgument(m_CurrentToken.GetType());
 	return false;
 }
 
-std::size_t Parser::ParseCompilerActionArgumentList(const natRefPointer<IActionContext>& actionContext, Declaration::Context context, std::size_t startIndex)
+std::size_t Parser::ParseCompilerActionArgumentList(const natRefPointer<IActionContext>& actionContext, Declaration::Context context, natRefPointer<IArgumentRequirement> argRequirement, CompilerActionArgumentType argType)
 {
 	assert(m_CurrentToken.Is(TokenType::LeftParen));
 	ConsumeParen();
 
-	const auto requirement = actionContext->GetArgumentRequirement();
+	if (!argRequirement)
+	{
+		argRequirement = actionContext->GetArgumentRequirement();
+	}
 
-	auto i = startIndex;
+	if (argType == CompilerActionArgumentType::None)
+	{
+		argType = argRequirement->GetNextExpectedArgumentType();
+	}
+
+	if (m_CurrentToken.Is(TokenType::RightParen))
+	{
+		ConsumeParen();
+		if (argType == CompilerActionArgumentType::None || HasAnyFlags(argType, CompilerActionArgumentType::Optional))
+		{
+			return 0;
+		}
+
+		// TODO: 参数过少，或者之后的参数由其他形式补充
+		return 0;
+	}
+
+	std::size_t i = 0;
 	for (;; ++i)
 	{
-		const auto argType = requirement->GetExpectedArgumentType(i);
-
-		if (m_CurrentToken.Is(TokenType::RightParen))
+		if (argType == CompilerActionArgumentType::None)
 		{
-			ConsumeParen();
-			if (argType == CompilerActionArgumentType::None || HasAnyFlags(argType, CompilerActionArgumentType::Optional))
-			{
-				break;
-			}
-
-			// TODO: 参数过少，或者之后的参数由其他形式补充
 			break;
 		}
 
@@ -501,7 +526,7 @@ std::size_t Parser::ParseCompilerActionArgumentList(const natRefPointer<IActionC
 			ConsumeToken();
 		}
 
-		if (!ParseCompilerActionArgument(actionContext, context, i))
+		if (!ParseCompilerActionArgument(actionContext, context, argRequirement, argType))
 		{
 			// 匹配失败，报告错误
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
@@ -513,22 +538,67 @@ std::size_t Parser::ParseCompilerActionArgumentList(const natRefPointer<IActionC
 		{
 			ConsumeToken();
 		}
+
+		if (m_CurrentToken.Is(TokenType::RightParen))
+		{
+			ConsumeParen();
+			if (argType == CompilerActionArgumentType::None || HasAnyFlags(argType, CompilerActionArgumentType::Optional))
+			{
+				break;
+			}
+
+			// TODO: 参数过少，或者之后的参数由其他形式补充
+			break;
+		}
+
+		argType = argRequirement->GetNextExpectedArgumentType();
 	}
 
 	return i;
 }
 
-std::size_t Parser::ParseCompilerActionArgumentSequence(const natRefPointer<IActionContext>& actionContext, Declaration::Context context, std::size_t startIndex)
+std::size_t Parser::ParseCompilerActionArgumentSequence(const natRefPointer<IActionContext>& actionContext, Declaration::Context context, natRefPointer<IArgumentRequirement> argRequirement, CompilerActionArgumentType argType)
 {
 	assert(m_CurrentToken.Is(TokenType::LeftBrace));
 	ConsumeBrace();
 
-	const auto requirement = actionContext->GetArgumentRequirement();
+	if (!argRequirement)
+	{
+		argRequirement = actionContext->GetArgumentRequirement();
+	}
 
-	auto i = startIndex;
+	if (argType == CompilerActionArgumentType::None)
+	{
+		argType = argRequirement->GetNextExpectedArgumentType();
+	}
+
+	if (m_CurrentToken.Is(TokenType::RightBrace))
+	{
+		if (argType == CompilerActionArgumentType::None || HasAnyFlags(argType, CompilerActionArgumentType::Optional))
+		{
+			ConsumeBrace();
+			return 0;
+		}
+
+		// TODO: 参数过少，或者之后的参数由其他形式补充
+		return 0;
+	}
+
+	std::size_t i = 0;
 	for (;; ++i)
 	{
-		const auto argType = requirement->GetExpectedArgumentType(i);
+		if (argType == CompilerActionArgumentType::None)
+		{
+			break;
+		}
+
+		if (!ParseCompilerActionArgument(actionContext, context, argRequirement, argType))
+		{
+			// 匹配失败，报告错误
+			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
+				.AddArgument(m_CurrentToken.GetType());
+			break;
+		}
 
 		if (m_CurrentToken.Is(TokenType::RightBrace))
 		{
@@ -542,13 +612,7 @@ std::size_t Parser::ParseCompilerActionArgumentSequence(const natRefPointer<IAct
 			break;
 		}
 
-		if (!ParseCompilerActionArgument(actionContext, context, i))
-		{
-			// 匹配失败，报告错误
-			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
-				.AddArgument(m_CurrentToken.GetType());
-			break;
-		}
+		argType = argRequirement->GetNextExpectedArgumentType();
 	}
 
 	return i;
@@ -2811,14 +2875,14 @@ Declaration::DeclPtr Parser::ResolveDeclarator(const Declaration::DeclaratorPtr&
 	{
 		const auto context = postProcessor->StartAction(CompilerActionContext{ *this });
 		const auto argumentRequirement = context->GetArgumentRequirement();
-		if (!HasAnyFlags(argumentRequirement->GetExpectedArgumentType(0), CompilerActionArgumentType::Declaration))
+		if (!HasAnyFlags(argumentRequirement->GetNextExpectedArgumentType(), CompilerActionArgumentType::Declaration))
 		{
 			// TODO: 报告错误：附加的后处理器不接受声明参数
 			postProcessor->EndAction(context);
 			continue;
 		}
 		context->AddArgument(ret);
-		const auto secondArgumentType = argumentRequirement->GetExpectedArgumentType(1);
+		const auto secondArgumentType = argumentRequirement->GetNextExpectedArgumentType();
 		if (secondArgumentType != CompilerActionArgumentType::None && !HasAllFlags(secondArgumentType, CompilerActionArgumentType::Optional))
 		{
 			// TODO: 报告错误：附加的后处理器必须能够只接受一个声明参数

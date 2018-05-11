@@ -25,10 +25,11 @@ namespace NatsuLang
 		explicit SimpleArgumentRequirement(NatsuLib::Linq<NatsuLib::Valued<CompilerActionArgumentType>> const& types);
 		~SimpleArgumentRequirement();
 
-		CompilerActionArgumentType GetExpectedArgumentType(std::size_t i) override;
+		CompilerActionArgumentType GetNextExpectedArgumentType() override;
 
 	private:
 		std::vector<CompilerActionArgumentType> m_Types;
+		std::vector<CompilerActionArgumentType>::const_iterator m_Cur;
 	};
 
 	class SimpleActionContext
@@ -66,7 +67,7 @@ namespace NatsuLang
 		{
 			~ActionDumpArgumentRequirement();
 
-			CompilerActionArgumentType GetExpectedArgumentType(std::size_t i) override;
+			CompilerActionArgumentType GetNextExpectedArgumentType() override;
 		};
 
 		static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
@@ -92,8 +93,6 @@ namespace NatsuLang
 
 			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
 			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
-
-			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
 
 			NatsuLib::natRefPointer<ASTContext> Context;
 			std::optional<nBool> SkipThisNode;
@@ -122,7 +121,6 @@ namespace NatsuLang
 			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
 			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
 
-			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
 			std::optional<nBool> Result;
 			Semantic::Sema* Sema;
 		};
@@ -149,7 +147,6 @@ namespace NatsuLang
 			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
 			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
 
-			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
 			Type::TypePtr Type;
 		};
 	};
@@ -176,7 +173,6 @@ namespace NatsuLang
 			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
 			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
 
-			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
 			ASTContext& Context;
 			std::optional<nuLong> Value;
 		};
@@ -204,7 +200,6 @@ namespace NatsuLang
 			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
 			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
 
-			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
 			ASTContext& Context;
 			std::optional<nuLong> Value;
 		};
@@ -231,7 +226,10 @@ namespace NatsuLang
 			ActionCreateAtArgumentRequirement();
 			~ActionCreateAtArgumentRequirement();
 
-			CompilerActionArgumentType GetExpectedArgumentType(std::size_t i) override;
+			CompilerActionArgumentType GetNextExpectedArgumentType() override;
+
+		private:
+			nBool m_FirstGot;
 		};
 
 		struct ActionCreateAtContext
@@ -242,7 +240,6 @@ namespace NatsuLang
 			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
 			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
 
-			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
 			Semantic::Sema* Sema;
 			Expression::ExprPtr Ptr;
 			std::vector<Expression::ExprPtr> Arguments;
@@ -271,7 +268,6 @@ namespace NatsuLang
 			NatsuLib::natRefPointer<IArgumentRequirement> GetArgumentRequirement() override;
 			void AddArgument(NatsuLib::natRefPointer<ASTNode> const& arg) override;
 
-			static const NatsuLib::natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
 			Semantic::Sema* Sema;
 			Expression::ExprPtr Ptr;
 		};

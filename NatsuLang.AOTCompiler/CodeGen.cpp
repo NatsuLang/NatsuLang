@@ -160,7 +160,7 @@ namespace
 
 			natRefPointer<IArgumentRequirement> GetArgumentRequirement() override
 			{
-				return s_ArgumentRequirement;
+				return make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier, CompilerActionArgumentType::MayBeUnresolved | CompilerActionArgumentType::Declaration });
 			}
 
 			void AddArgument(natRefPointer<ASTNode> const& arg) override
@@ -200,11 +200,8 @@ namespace
 			nBool AssignedCallingConvention;
 			CallingConventionAttribute::CallingConvention CallingConvention;
 			Declaration::DeclPtr Decl;
-			static const natRefPointer<IArgumentRequirement> s_ArgumentRequirement;
 		};
 	};
-
-	const natRefPointer<IArgumentRequirement> ActionCallingConvention::ActionCallingConventionContext::s_ArgumentRequirement{ make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier, CompilerActionArgumentType::MayBeUnresolved | CompilerActionArgumentType::Declaration }) };
 
 	nString GetQualifiedName(natRefPointer<Declaration::NamedDecl> const& decl, nBool isNameMangling = true)
 	{
