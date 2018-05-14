@@ -155,12 +155,11 @@ namespace
 				: Diag{}, AssignedCallingConvention{},
 				  CallingConvention{ CallingConventionAttribute::CallingConvention::Cdecl }
 			{
-
 			}
 
 			natRefPointer<IArgumentRequirement> GetArgumentRequirement() override
 			{
-				return make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier, CompilerActionArgumentType::MayBeUnresolved | CompilerActionArgumentType::Declaration });
+				return make_ref<SimpleArgumentRequirement>(std::initializer_list<CompilerActionArgumentType>{ CompilerActionArgumentType::Identifier, CompilerActionArgumentType::MayBeUnresolved | CompilerActionArgumentType::Declaration | CompilerActionArgumentType::MayBeSingle });
 			}
 
 			void AddArgument(natRefPointer<ASTNode> const& arg) override
@@ -248,54 +247,6 @@ namespace
 
 		return qualifiedName;
 	}
-}
-
-Detail::LLVMPart::LLVMPart()
-	: m_TargetTriple{ llvm::sys::getDefaultTargetTriple() }, m_TargetMachine{}, m_IRBuilder{ m_LLVMContext }
-{
-	llvm::InitializeAllTargetInfos();
-	llvm::InitializeAllTargets();
-	llvm::InitializeAllTargetMCs();
-	llvm::InitializeAllAsmParsers();
-	llvm::InitializeAllAsmPrinters();
-
-	std::string error;
-	const auto target = llvm::TargetRegistry::lookupTarget(m_TargetTriple, error);
-	if (!target)
-	{
-		nat_Throw(AotCompilerException, u8"初始化错误：无法查找目标：{0}"_nv, error);
-	}
-
-	const llvm::TargetOptions opt;
-	const llvm::Optional<llvm::Reloc::Model> RM{};
-	m_TargetMachine = target->createTargetMachine(m_TargetTriple, "generic", "", opt, RM, llvm::None, llvm::CodeGenOpt::Default);
-}
-
-llvm::DataLayout Detail::LLVMPart::GetDataLayout() const noexcept
-{
-	return m_TargetMachine->createDataLayout();
-}
-
-void Detail::LLVMPart::CreateDefauleModule(nStrView moduleName)
-{
-	m_Module = std::make_unique<llvm::Module>(llvm::StringRef(moduleName.begin(), moduleName.size()), m_LLVMContext);
-	m_Module->setTargetTriple(m_TargetTriple);
-	m_Module->setDataLayout(GetDataLayout());
-}
-
-void Detail::LLVMPart::DisposeModule(llvm::raw_pwrite_stream& stream, natLog& logger)
-{
-	std::string buffer;
-	llvm::raw_string_ostream os{ buffer };
-	m_Module->print(os, nullptr);
-	logger.LogMsg(u8"编译成功，生成的 IR:\n{0}"_nv, buffer);
-
-	llvm::legacy::PassManager passManager;
-	m_TargetMachine->addPassesToEmitFile(passManager, stream, llvm::TargetMachine::CGFT_ObjectFile);
-	passManager.run(*m_Module);
-	stream.flush();
-
-	m_Module.reset();
 }
 
 AotCompiler::AotDiagIdMap::AotDiagIdMap(natRefPointer<TextReader<StringType::Utf8>> const& reader)
@@ -2512,20 +2463,41 @@ void AotCompiler::AotStmtVisitor::setLastVisitedResult(llvm::Value* lastVisitedV
 }
 
 AotCompiler::AotCompiler(natRefPointer<TextReader<StringType::Utf8>> const& diagIdMapFile, natLog& logger)
-	: m_DiagConsumer{ make_ref<AotDiagConsumer>(*this) },
+	: m_TargetTriple{ llvm::sys::getDefaultTargetTriple() }, m_TargetMachine{}, m_IRBuilder{ m_LLVMContext },
+	m_DiagConsumer{ make_ref<AotDiagConsumer>(*this) },
 	m_Diag{ make_ref<AotDiagIdMap>(diagIdMapFile), m_DiagConsumer },
 	m_Logger{ logger },
 	m_SourceManager{ m_Diag, m_FileManager },
 	m_Preprocessor{ m_Diag, m_SourceManager },
-	m_AstContext{ TargetInfo{ GetDataLayout().isBigEndian() ?
-			Environment::Endianness::BigEndian :
-			Environment::Endianness::LittleEndian,
-		GetDataLayout().getPointerSize(),
-		GetDataLayout().getPointerABIAlignment(0) } },
 	m_Consumer{ make_ref<AotAstConsumer>(*this) },
 	m_Sema{ m_Preprocessor, m_AstContext, m_Consumer },
 	m_Parser{ m_Preprocessor, m_Sema }
 {
+	llvm::InitializeAllTargetInfos();
+	llvm::InitializeAllTargets();
+	llvm::InitializeAllTargetMCs();
+	llvm::InitializeAllAsmParsers();
+	llvm::InitializeAllAsmPrinters();
+
+	std::string error;
+	const auto target = llvm::TargetRegistry::lookupTarget(m_TargetTriple, error);
+	if (!target)
+	{
+		nat_Throw(AotCompilerException, u8"初始化错误：无法查找目标：{0}"_nv, error);
+	}
+
+	const llvm::TargetOptions opt;
+	const llvm::Optional<llvm::Reloc::Model> RM{};
+
+	m_TargetMachine = target->createTargetMachine(m_TargetTriple, "generic", "", opt, RM, llvm::None, llvm::CodeGenOpt::Default);
+
+	const auto dataLayout = m_TargetMachine->createDataLayout();
+	m_AstContext.SetTargetInfo(TargetInfo{ dataLayout.isBigEndian() ?
+		Environment::Endianness::BigEndian :
+		Environment::Endianness::LittleEndian,
+		dataLayout.getPointerSize(),
+		dataLayout.getPointerABIAlignment(0) });
+
 	prewarm();
 }
 
@@ -2594,9 +2566,11 @@ void AotCompiler::CreateMetadata(natRefPointer<natStream> const& metadataStream,
 	serializer.EndSerialize();
 }
 
-void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, llvm::raw_pwrite_stream& objectStream)
+void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, llvm::raw_pwrite_stream& stream)
 {
-	CreateDefauleModule(uri.GetPath());
+	m_Module = std::make_unique<llvm::Module>(llvm::StringRef(uri.GetPath().begin(), uri.GetPath().size()), m_LLVMContext);
+	m_Module->setTargetTriple(m_TargetTriple);
+	m_Module->setDataLayout(m_TargetMachine->createDataLayout());
 
 	LoadMetadata(metadatas);
 
@@ -2617,7 +2591,17 @@ void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, ll
 		return;
 	}
 
-	DisposeModule(objectStream, m_Logger);
+	std::string buffer;
+	llvm::raw_string_ostream os{ buffer };
+	m_Module->print(os, nullptr);
+	m_Logger.LogMsg(u8"编译成功，生成的 IR:\n{0}"_nv, buffer);
+
+	llvm::legacy::PassManager passManager;
+	m_TargetMachine->addPassesToEmitFile(passManager, stream, llvm::TargetMachine::CGFT_ObjectFile);
+	passManager.run(*m_Module);
+	stream.flush();
+
+	m_Module.reset();
 }
 
 AotCompiler::AotStmtVisitor::ICleanup::~ICleanup()
@@ -2810,8 +2794,12 @@ void AotCompiler::prewarm()
 	const auto nativeModule = m_Sema.ActOnModuleDecl(m_Sema.GetCurrentScope(), {}, m_Preprocessor.FindIdentifierInfo("Native", dummy));
 	m_Sema.MarkAsImported(nativeModule);
 	nativeModule->AttachAttribute(make_ref<BuiltinAttribute>());
+
 	m_Sema.PushScope(Semantic::ScopeFlags::DeclarableScope | Semantic::ScopeFlags::ModuleScope);
 	m_Sema.ActOnStartModule(m_Sema.GetCurrentScope(), nativeModule);
+
+	registerNativeType<char>(u8"Char"_nv);
+	registerNativeType<wchar_t>(u8"WChar"_nv);
 	registerNativeType<short>(u8"Short"_nv);
 	registerNativeType<unsigned short>(u8"UShort"_nv);
 	registerNativeType<int>(u8"Int"_nv);

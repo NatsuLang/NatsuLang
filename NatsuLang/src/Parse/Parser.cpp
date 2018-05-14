@@ -309,7 +309,7 @@ void Parser::ParseCompilerActionArguments(Declaration::Context context, const na
 
 	if (!m_CurrentToken.IsAnyOf({ TokenType::Semi, TokenType::LeftBrace }))
 	{
-		ParseCompilerActionArgument(actionContext, context, argRequirement);
+		ParseCompilerActionArgument(actionContext, context, true, argRequirement);
 	}
 
 	if (m_CurrentToken.Is(TokenType::LeftBrace))
@@ -375,7 +375,7 @@ natRefPointer<ICompilerAction> Parser::ParseCompilerActionName()
 	return nullptr;
 }
 
-nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& actionContext, Declaration::Context context, natRefPointer<IArgumentRequirement> argRequirement, CompilerActionArgumentType argType)
+nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& actionContext, Declaration::Context context, nBool isSingle, natRefPointer<IArgumentRequirement> argRequirement, CompilerActionArgumentType argType)
 {
 	if (!argRequirement)
 	{
@@ -385,7 +385,7 @@ nBool Parser::ParseCompilerActionArgument(const natRefPointer<IActionContext>& a
 	if (argType == CompilerActionArgumentType::None)
 	{
 		argType = argRequirement->GetNextExpectedArgumentType();
-		if (argType == CompilerActionArgumentType::None)
+		if (argType == CompilerActionArgumentType::None || (isSingle && !HasAnyFlags(argType, CompilerActionArgumentType::MayBeSingle)))
 		{
 			return false;
 		}
@@ -491,6 +491,10 @@ std::size_t Parser::ParseCompilerActionArgumentList(const natRefPointer<IActionC
 	if (argType == CompilerActionArgumentType::None)
 	{
 		argType = argRequirement->GetNextExpectedArgumentType();
+		if (argType == CompilerActionArgumentType::None)
+		{
+			return 0;
+		}
 	}
 
 	if (m_CurrentToken.Is(TokenType::RightParen))
@@ -526,7 +530,7 @@ std::size_t Parser::ParseCompilerActionArgumentList(const natRefPointer<IActionC
 			ConsumeToken();
 		}
 
-		if (!ParseCompilerActionArgument(actionContext, context, argRequirement, argType))
+		if (!ParseCompilerActionArgument(actionContext, context, false, argRequirement, argType))
 		{
 			// 匹配失败，报告错误
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())
@@ -570,6 +574,10 @@ std::size_t Parser::ParseCompilerActionArgumentSequence(const natRefPointer<IAct
 	if (argType == CompilerActionArgumentType::None)
 	{
 		argType = argRequirement->GetNextExpectedArgumentType();
+		if (argType == CompilerActionArgumentType::None || !HasAnyFlags(argType, CompilerActionArgumentType::MayBeSeq))
+		{
+			return 0;
+		}
 	}
 
 	if (m_CurrentToken.Is(TokenType::RightBrace))
@@ -592,7 +600,7 @@ std::size_t Parser::ParseCompilerActionArgumentSequence(const natRefPointer<IAct
 			break;
 		}
 
-		if (!ParseCompilerActionArgument(actionContext, context, argRequirement, argType))
+		if (!ParseCompilerActionArgument(actionContext, context, false, argRequirement, argType))
 		{
 			// 匹配失败，报告错误
 			m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnexpect, m_CurrentToken.GetLocation())

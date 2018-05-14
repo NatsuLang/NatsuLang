@@ -31,8 +31,13 @@ namespace NatsuLang
 
 		friend class NestedNameSpecifier;
 
+		ASTContext();
 		explicit ASTContext(TargetInfo targetInfo);
 		~ASTContext();
+
+		// 禁止调用多次，用户自行检查
+		void SetTargetInfo(TargetInfo targetInfo) noexcept;
+		TargetInfo GetTargetInfo() const noexcept;
 
 		NatsuLib::natRefPointer<Type::BuiltinType> GetBuiltinType(Type::BuiltinType::BuiltinClass builtinClass);
 		NatsuLib::natRefPointer<Type::BuiltinType> GetSizeType();
@@ -55,7 +60,7 @@ namespace NatsuLang
 		ClassLayout const& GetClassLayout(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
 
 	private:
-		TargetInfo m_TargetInfo;
+		NatsuLib::UncheckedLazyInit<TargetInfo> m_TargetInfo;
 
 		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> m_TUDecl;
 

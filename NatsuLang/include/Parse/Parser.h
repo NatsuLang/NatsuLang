@@ -235,7 +235,7 @@ namespace NatsuLang::Syntax
 
 		void ParseCompilerAction(Declaration::Context context, std::function<nBool(NatsuLib::natRefPointer<ASTNode>)> const& output = {});
 		NatsuLib::natRefPointer<ICompilerAction> ParseCompilerActionName();
-		nBool ParseCompilerActionArgument(const NatsuLib::natRefPointer<IActionContext>& actionContext, Declaration::Context context, NatsuLib::natRefPointer<IArgumentRequirement> argRequirement = nullptr, CompilerActionArgumentType argType = CompilerActionArgumentType::None);
+		nBool ParseCompilerActionArgument(const NatsuLib::natRefPointer<IActionContext>& actionContext, Declaration::Context context, nBool isSingle = true, NatsuLib::natRefPointer<IArgumentRequirement> argRequirement = nullptr, CompilerActionArgumentType argType = CompilerActionArgumentType::None);
 		std::size_t ParseCompilerActionArgumentList(const NatsuLib::natRefPointer<IActionContext>& actionContext, Declaration::Context context, NatsuLib::natRefPointer<IArgumentRequirement> argRequirement = nullptr, CompilerActionArgumentType argType = CompilerActionArgumentType::None);
 		std::size_t ParseCompilerActionArgumentSequence(const NatsuLib::natRefPointer<IActionContext>& actionContext, Declaration::Context context, NatsuLib::natRefPointer<IArgumentRequirement> argRequirement = nullptr, CompilerActionArgumentType argType = CompilerActionArgumentType::None);
 

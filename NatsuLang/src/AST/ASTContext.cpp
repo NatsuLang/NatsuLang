@@ -74,13 +74,29 @@ std::optional<std::pair<std::size_t, std::size_t>> ASTContext::ClassLayout::GetF
 	return std::optional<std::pair<std::size_t, std::size_t>>{ std::in_place, std::distance(FieldOffsets.cbegin(), iter), iter->second };
 }
 
-ASTContext::ASTContext(TargetInfo targetInfo)
-	: m_TargetInfo{ targetInfo }, m_TUDecl{ make_ref<Declaration::TranslationUnitDecl>(*this) }
+ASTContext::ASTContext()
+	: m_TUDecl{ make_ref<Declaration::TranslationUnitDecl>(*this) }
 {
+}
+
+ASTContext::ASTContext(TargetInfo targetInfo)
+	: m_TUDecl{ make_ref<Declaration::TranslationUnitDecl>(*this) }
+{
+	m_TargetInfo.Init(targetInfo);
 }
 
 ASTContext::~ASTContext()
 {
+}
+
+void ASTContext::SetTargetInfo(TargetInfo targetInfo) noexcept
+{
+	m_TargetInfo.Init(targetInfo);
+}
+
+TargetInfo ASTContext::GetTargetInfo() const noexcept
+{
+	return m_TargetInfo.Get();
 }
 
 natRefPointer<Type::BuiltinType> ASTContext::GetBuiltinType(Type::BuiltinType::BuiltinClass builtinClass)
@@ -101,7 +117,7 @@ natRefPointer<Type::BuiltinType> ASTContext::GetSizeType()
 		return m_SizeType;
 	}
 
-	const auto ptrSize = m_TargetInfo.GetPointerSize(), ptrAlign = m_TargetInfo.GetPointerAlign();
+	const auto ptrSize = m_TargetInfo.Get().GetPointerSize(), ptrAlign = m_TargetInfo.Get().GetPointerAlign();
 
 	const auto builtinClass = GetIntegerTypeAtLeast(ptrSize, ptrAlign, false);
 
@@ -122,7 +138,7 @@ natRefPointer<Type::BuiltinType> ASTContext::GetPtrDiffType()
 		return m_PtrDiffType;
 	}
 
-	const auto ptrSize = m_TargetInfo.GetPointerSize(), ptrAlign = m_TargetInfo.GetPointerAlign();
+	const auto ptrSize = m_TargetInfo.Get().GetPointerSize(), ptrAlign = m_TargetInfo.Get().GetPointerAlign();
 
 	const auto builtinClass = GetIntegerTypeAtLeast(ptrSize, ptrAlign, false);
 
@@ -363,7 +379,7 @@ ASTContext::TypeInfo ASTContext::getTypeInfoImpl(Type::TypePtr const& type)
 	case Type::Type::Builtin:
 		return GetBuiltinTypeInfo(type.UnsafeCast<Type::BuiltinType>()->GetBuiltinClass());
 	case Type::Type::Pointer:
-		return { m_TargetInfo.GetPointerSize(), m_TargetInfo.GetPointerAlign() };
+		return { m_TargetInfo.Get().GetPointerSize(), m_TargetInfo.Get().GetPointerAlign() };
 	case Type::Type::Array:
 	{
 		const auto arrayType = type.UnsafeCast<Type::ArrayType>();
