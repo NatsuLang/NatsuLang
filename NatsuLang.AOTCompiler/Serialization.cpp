@@ -1789,17 +1789,17 @@ std::size_t Serializer::GetRefCount() const volatile noexcept
 	return RefObjImpl::GetRefCount();
 }
 
-nBool Serializer::TryAddRef() const volatile
+nBool Serializer::TryIncRef() const volatile
 {
-	return RefObjImpl::TryAddRef();
+	return RefObjImpl::TryIncRef();
 }
 
-void Serializer::AddRef() const volatile
+void Serializer::IncRef() const volatile
 {
-	return RefObjImpl::AddRef();
+	return RefObjImpl::IncRef();
 }
 
-nBool Serializer::Release() const volatile
+nBool Serializer::DecRef() const volatile
 {
-	return RefObjImpl::Release();
+	return RefObjImpl::DecRef();
 }

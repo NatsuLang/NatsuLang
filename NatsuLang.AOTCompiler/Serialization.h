@@ -181,9 +181,9 @@ namespace NatsuLang::Serialization
 		void SerializeCompilerAction(NatsuLib::natRefPointer<ICompilerAction> const& action);
 
 		std::size_t GetRefCount() const volatile noexcept override;
-		nBool TryAddRef() const volatile override;
-		void AddRef() const volatile override;
-		nBool Release() const volatile override;
+		nBool TryIncRef() const volatile override;
+		void IncRef() const volatile override;
+		nBool DecRef() const volatile override;
 
 	private:
 		Semantic::Sema& m_Sema;
