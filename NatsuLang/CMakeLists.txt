@@ -17,11 +17,11 @@ endif()
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 # TODO: 修改为具体文件
-file(GLOB SOURCE_FILES
-	src/*/*.cpp)
+file(GLOB_RECURSE SOURCE_FILES
+	src/*.cpp)
 
-file(GLOB HEADER_FILES
-	include/*/*.h)
+file(GLOB_RECURSE HEADER_FILES
+	include/*.h)
 
 add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
