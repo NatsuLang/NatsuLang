@@ -351,8 +351,7 @@ namespace NatsuLang
 		{
 		}
 
-		natRefPointer<Declaration::IAttribute> Deserialize(natRefPointer<ISerializationArchiveReader> const& /*reader*/)
-		override
+		natRefPointer<Declaration::IAttribute> Deserialize(natRefPointer<ISerializationArchiveReader> const& /*reader*/) override
 		{
 			return m_Sema.GetImportedAttribute();
 		}
@@ -1349,10 +1348,21 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 	}
 
 	LookupResult previous{ *this, id, {}, LookupNameType::LookupOrdinaryName };
+	auto maybeOverload = false;
 	if (LookupName(previous, scope) && previous.GetDeclSize())
 	{
-		// TODO: 处理重载或覆盖的情况
-		return nullptr;
+		// 目前只有函数可以重载，如果发现已有重名的非函数的已解析声明则报告错误
+		if (previous.GetDecls().first_or_default(nullptr, [](natRefPointer<Declaration::NamedDecl> const& namedDecl)
+		{
+			return !namedDecl.Cast<Declaration::UnresolvedDecl>() && !namedDecl.Cast<Declaration::FunctionDecl>();
+		}))
+		{
+			m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrDuplicateDeclaration, decl->GetIdentifierLocation())
+				.AddArgument(id);
+			return nullptr;
+		}
+
+		maybeOverload = true;
 	}
 
 	const auto dc = Declaration::Decl::CastToDeclContext(m_CurrentDeclContext.Get());
@@ -1361,11 +1371,8 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 
 	if (decl->IsUnresolved())
 	{
-		if (m_CurrentPhase != Phase::Phase1)
-		{
-			// TODO: 报告错误：只有第一阶段允许未解析的声明符
-			return nullptr;
-		}
+		// TODO: 报告错误：只有第一阶段允许未解析的声明符
+		assert(m_CurrentPhase == Phase::Phase1);
 
 		retDecl = ActOnUnresolvedDeclarator(scope, decl, dc);
 		if (scope->HasFlags(ScopeFlags::UnsafeScope))
@@ -1375,16 +1382,37 @@ natRefPointer<Declaration::NamedDecl> Sema::HandleDeclarator(natRefPointer<Scope
 		decl->SetDeclarationScope(scope);
 		decl->SetDeclarationContext(m_CurrentDeclContext);
 	}
-	else if (auto funcType = type.Cast<Type::FunctionType>())
+	else if (const auto funcType = type.Cast<Type::FunctionType>())
 	{
+		// 检查签名
+		if (maybeOverload && !CheckFunctionOverload(funcType, previous.GetDecls()))
+		{
+			// TODO: 报告错误：无法重载具有相同签名的函数
+			return nullptr;
+		}
+
 		retDecl = ActOnFunctionDeclarator(scope, decl, dc, id);
 	}
 	else if (dc->GetType() == Declaration::Decl::Class)
 	{
+		if (maybeOverload)
+		{
+			m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrDuplicateDeclaration, decl->GetIdentifierLocation())
+				.AddArgument(id);
+			return nullptr;
+		}
+
 		retDecl = ActOnFieldDeclarator(scope, decl, dc);
 	}
 	else
 	{
+		if (maybeOverload)
+		{
+			m_Diag.Report(Diag::DiagnosticsEngine::DiagID::ErrDuplicateDeclaration, decl->GetIdentifierLocation())
+				.AddArgument(id);
+			return nullptr;
+		}
+
 		retDecl = ActOnVariableDeclarator(scope, decl, dc);
 	}
 
@@ -2622,7 +2650,27 @@ nBool Sema::CheckFunctionReturn(Statement::StmtEnumerable const& funcBody)
 	return false;
 }
 
-void Sema::RegisterAttributeSerializer(nString attributeName, NatsuLib::natRefPointer<IAttributeSerializer> serializer)
+nBool Sema::CheckFunctionOverload(natRefPointer<Type::FunctionType> const& func, Linq<Valued<natRefPointer<Declaration::NamedDecl>>> const& overloadSet)
+{
+	for (auto const& overloadDecl : overloadSet)
+	{
+		const auto overloadFunc = overloadDecl.Cast<Declaration::FunctionDecl>();
+		assert(overloadFunc);
+		const auto overloadFuncType = overloadFunc->GetValueType().UnsafeCast<Type::FunctionType>();
+		if (overloadFuncType->HasVarArg() == func->HasVarArg() && overloadFuncType->GetParameterCount() == func->GetParameterCount())
+		{
+			const auto overloadFuncParams = overloadFuncType->GetParameterTypes();
+			if (std::equal(overloadFuncParams.begin(), overloadFuncParams.end(), func->GetParameterTypes().begin()))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void Sema::RegisterAttributeSerializer(nString attributeName, natRefPointer<IAttributeSerializer> serializer)
 {
 	m_AttributeSerializerMap.emplace(std::move(attributeName), std::move(serializer));
 }
@@ -2636,8 +2684,7 @@ void Sema::SerializeAttribute(natRefPointer<Declaration::IAttribute> const& attr
 	}
 	else
 	{
-		nat_Throw(natErrException, NatErr::NatErr_NotFound, u8"No serializer found for attribute \"{0}\""_nv, attr->GetName())
-		;
+		nat_Throw(natErrException, NatErr::NatErr_NotFound, u8"No serializer found for attribute \"{0}\""_nv, attr->GetName());
 	}
 }
 

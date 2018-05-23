@@ -27,26 +27,26 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -108,6 +108,10 @@
       <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(LLVM_ROOT)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;LLVMCore.lib;LLVMCodeGen.lib;LLVMScalarOpts.lib;LLVMProfileData.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMDemangle.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMX86Desc.lib;LLVMX86CodeGen.lib;LLVMX86Disassembler.lib;LLVMAsmParser.lib;LLVMAsmPrinter.lib;LLVMMCDisassembler.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMAnalysis.lib;LLVMDebugInfoCodeView.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Lib>
+      <AdditionalDependencies>NatsuLang.lib;LLVMCore.lib;LLVMCodeGen.lib;LLVMScalarOpts.lib;LLVMProfileData.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMDemangle.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMX86Desc.lib;LLVMX86CodeGen.lib;LLVMX86Disassembler.lib;LLVMAsmParser.lib;LLVMAsmPrinter.lib;LLVMMCDisassembler.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMAnalysis.lib;LLVMDebugInfoCodeView.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(LLVM_ROOT)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -127,6 +131,10 @@
       <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(LLVM_ROOT)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;LLVMCore.lib;LLVMCodeGen.lib;LLVMScalarOpts.lib;LLVMProfileData.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMDemangle.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMX86Desc.lib;LLVMX86CodeGen.lib;LLVMX86Disassembler.lib;LLVMAsmParser.lib;LLVMAsmPrinter.lib;LLVMMCDisassembler.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMAnalysis.lib;LLVMDebugInfoCodeView.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Lib>
+      <AdditionalDependencies>NatsuLang.lib;LLVMCore.lib;LLVMCodeGen.lib;LLVMScalarOpts.lib;LLVMProfileData.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMDemangle.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMX86Desc.lib;LLVMX86CodeGen.lib;LLVMX86Disassembler.lib;LLVMAsmParser.lib;LLVMAsmPrinter.lib;LLVMMCDisassembler.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMAnalysis.lib;LLVMDebugInfoCodeView.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(LLVM_ROOT)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -150,6 +158,10 @@
       <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(LLVM_REL_ROOT)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;LLVMCore.lib;LLVMCodeGen.lib;LLVMScalarOpts.lib;LLVMProfileData.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMDemangle.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMX86Desc.lib;LLVMX86CodeGen.lib;LLVMX86Disassembler.lib;LLVMAsmParser.lib;LLVMAsmPrinter.lib;LLVMMCDisassembler.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMAnalysis.lib;LLVMDebugInfoCodeView.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Lib>
+      <AdditionalDependencies>NatsuLang.lib;LLVMCore.lib;LLVMCodeGen.lib;LLVMScalarOpts.lib;LLVMProfileData.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMDemangle.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMX86Desc.lib;LLVMX86CodeGen.lib;LLVMX86Disassembler.lib;LLVMAsmParser.lib;LLVMAsmPrinter.lib;LLVMMCDisassembler.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMAnalysis.lib;LLVMDebugInfoCodeView.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(LLVM_REL_ROOT)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -173,10 +185,13 @@
       <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(LLVM_REL_ROOT)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>NatsuLang.lib;NatsuLib.lib;LLVMCore.lib;LLVMCodeGen.lib;LLVMScalarOpts.lib;LLVMProfileData.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMDemangle.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMX86Desc.lib;LLVMX86CodeGen.lib;LLVMX86Disassembler.lib;LLVMAsmParser.lib;LLVMAsmPrinter.lib;LLVMMCDisassembler.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMAnalysis.lib;LLVMDebugInfoCodeView.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Lib>
+      <AdditionalDependencies>NatsuLang.lib;LLVMCore.lib;LLVMCodeGen.lib;LLVMScalarOpts.lib;LLVMProfileData.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMDemangle.lib;LLVMMC.lib;LLVMMCParser.lib;LLVMTarget.lib;LLVMTransformUtils.lib;LLVMX86AsmParser.lib;LLVMX86AsmPrinter.lib;LLVMX86Info.lib;LLVMX86Utils.lib;LLVMX86Desc.lib;LLVMX86CodeGen.lib;LLVMX86Disassembler.lib;LLVMAsmParser.lib;LLVMAsmPrinter.lib;LLVMMCDisassembler.lib;LLVMGlobalISel.lib;LLVMSelectionDAG.lib;LLVMAnalysis.lib;LLVMDebugInfoCodeView.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)NatsuLang\bin\$(Platform)\$(Configuration);$(SolutionDir)Extern\NatsuLib\NatsuLib\bin\$(Platform)\$(Configuration);$(LLVM_REL_ROOT)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CodeGen.cpp" />
-    <ClCompile Include="Main.cpp" />
     <ClCompile Include="Serialization.cpp" />
   </ItemGroup>
   <ItemGroup>

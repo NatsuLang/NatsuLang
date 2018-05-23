@@ -51,8 +51,6 @@ namespace
 		case Type::BuiltinType::Float128:
 			return { 16, 16 };
 		case Type::BuiltinType::Overload:
-		case Type::BuiltinType::BoundMember:
-		case Type::BuiltinType::BuiltinFn:
 		default:
 			return { 0, 0 };
 		}

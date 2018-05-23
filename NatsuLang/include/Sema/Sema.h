@@ -439,6 +439,7 @@ namespace NatsuLang::Semantic
 		Expression::ExprPtr ImpCastExprToType(Expression::ExprPtr expr, Type::TypePtr type, Expression::CastType castType);
 
 		nBool CheckFunctionReturn(Statement::StmtEnumerable const& funcBody);
+		nBool CheckFunctionOverload(NatsuLib::natRefPointer<Type::FunctionType> const& func, NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<Declaration::NamedDecl>>> const& overloadSet);
 
 		void RegisterAttributeSerializer(nString attributeName, NatsuLib::natRefPointer<IAttributeSerializer> serializer);
 

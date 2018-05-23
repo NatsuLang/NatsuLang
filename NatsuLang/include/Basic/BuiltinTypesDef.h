@@ -40,11 +40,9 @@ FLOATING_TYPE(Float128, float128)
 
 PLACEHOLDER_TYPE(Null, null)
 PLACEHOLDER_TYPE(Overload, overload)
-PLACEHOLDER_TYPE(BoundMember, boundmember)
-PLACEHOLDER_TYPE(BuiltinFn, builtinfn)
 
 #ifdef LAST_BUILTIN_TYPE
-LAST_BUILTIN_TYPE(BuiltinFn)
+LAST_BUILTIN_TYPE(Overload)
 #undef LAST_BUILTIN_TYPE
 #endif
 

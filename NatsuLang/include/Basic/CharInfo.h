@@ -100,7 +100,7 @@ namespace NatsuLang::CharInfo
 
 	constexpr bool IsIdentifierHead(unsigned char c, unsigned char allowLeadingChar = 0) noexcept
 	{
-		if ((CharInfoTable[c] & (CharInfo::Upper | CharInfo::Lower | CharInfo::Under)) != CharInfo::None)
+		if (NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::Upper | CharInfo::Lower | CharInfo::Under))
 		{
 			return true;
 		}
@@ -110,68 +110,68 @@ namespace NatsuLang::CharInfo
 
 	constexpr bool IsIdentifierBody(unsigned char c) noexcept
 	{
-		return (CharInfoTable[c] & (CharInfo::Upper | CharInfo::Lower | CharInfo::Under | CharInfo::Digit)) != CharInfo::None;
+		return NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::Upper | CharInfo::Lower | CharInfo::Under | CharInfo::Digit);
 	}
 
 	constexpr bool IsHorizontalWhitespace(unsigned char c) noexcept
 	{
-		return (CharInfoTable[c] & (CharInfo::HorzWs | CharInfo::Space)) != CharInfo::None;
+		return NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::HorzWs | CharInfo::Space);
 	}
 
 	constexpr bool IsVerticalWhitespace(unsigned char c) noexcept
 	{
-		return (CharInfoTable[c] & CharInfo::VertWs) != CharInfo::None;
+		return NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::VertWs);
 	}
 
 	constexpr bool IsWhitespace(unsigned char c) noexcept
 	{
-		return (CharInfoTable[c] & (CharInfo::HorzWs | CharInfo::VertWs | CharInfo::Space)) != CharInfo::None;
+		return NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::HorzWs | CharInfo::VertWs | CharInfo::Space);
 	}
 
 	constexpr bool IsDigit(unsigned char c) noexcept
 	{
-		return (CharInfoTable[c] & CharInfo::Digit) != CharInfo::None;
+		return NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::Digit);
 	}
 
 	constexpr bool IsLowerCase(unsigned char c) noexcept
 	{
-		return (CharInfoTable[c] & CharInfo::Lower) != CharInfo::None;
+		return NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::Lower);
 	}
 
 	constexpr bool IsUpperCase(unsigned char c) noexcept
 	{
-		return (CharInfoTable[c] & CharInfo::Upper) != CharInfo::None;
+		return NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::Upper);
 	}
 
 	constexpr bool IsLetter(unsigned char c) noexcept
 	{
-		return (CharInfoTable[c] & (CharInfo::Upper | CharInfo::Lower)) != CharInfo::None;
+		return NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::Upper | CharInfo::Lower);
 	}
 
 	constexpr bool IsAlphanumeric(unsigned char c) noexcept
 	{
-		return (CharInfoTable[c] & (CharInfo::Upper | CharInfo::Lower | CharInfo::Digit)) != CharInfo::None;
+		return NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::Upper | CharInfo::Lower | CharInfo::Digit);
 	}
 
 	constexpr bool IsHexDigit(unsigned char c) noexcept
 	{
-		return (CharInfoTable[c] & (CharInfo::XLetter | CharInfo::Digit)) != CharInfo::None;
+		return NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::XLetter | CharInfo::Digit);
 	}
 
 	constexpr bool IsPunctuation(unsigned char c) noexcept
 	{
-		return (CharInfoTable[c] & (CharInfo::Under | CharInfo::Period | CharInfo::Punct)) != CharInfo::None;
+		return NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::Under | CharInfo::Period | CharInfo::Punct);
 	}
 
 	constexpr bool IsPrintable(unsigned char c) noexcept
 	{
-		return (CharInfoTable[c] & (CharInfo::Under | CharInfo::Lower | CharInfo::Period | CharInfo::Punct |
-			CharInfo::Digit | CharInfo::Under | CharInfo::Space)) != CharInfo::None;
+		return NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::Under | CharInfo::Lower | CharInfo::Period | CharInfo::Punct |
+		                             CharInfo::Digit | CharInfo::Under | CharInfo::Space);
 	}
 
 	constexpr bool IsNumericLiteralBody(unsigned char c) noexcept
 	{
-		return (CharInfoTable[c] & (CharInfo::Upper | CharInfo::Lower | CharInfo::Digit | CharInfo::Period)) != CharInfo::None;
+		return NatsuLib::HasAnyFlags(CharInfoTable[c], CharInfo::Upper | CharInfo::Lower | CharInfo::Digit | CharInfo::Period);
 	}
 
 	constexpr char ToLowerCase(char c) noexcept

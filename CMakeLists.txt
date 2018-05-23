@@ -13,13 +13,17 @@ set(NatsuLib_INCLUDE_DIRS ${NatsuLib_SOURCE_DIR}
 	CACHE INTERNAL "NatsuLib: Include Directories" FORCE)
 
 add_subdirectory(NatsuLang)
-set(NatsuLang_INCLUDE_DIRS "${NatsuLang_SOURCE_DIR}/${PROJECT_NAME}/include"
+set(NatsuLang_INCLUDE_DIRS "${${PROJECT_NAME}_SOURCE_DIR}/${PROJECT_NAME}/include"
 	CACHE INTERNAL "NatsuLang: Include Directories" FORCE)
 
 if(BUILD_ASTINTERPRETER)
 	add_subdirectory("NatsuLang.ASTInterpreter")
+	set(NatsuLang_ASTInterpreter_INCLUDE_DIRS "${${PROJECT_NAME}_SOURCE_DIR}/NatsuLang.ASTInterpreter")
+	add_subdirectory("NatsuLang.ASTInterpreter.Cli")
 endif()
 
 if(BUILD_AOTCOMPILER)
 	add_subdirectory("NatsuLang.AOTCompiler")
+	set(NatsuLang_AOTCompiler_INCLUDE_DIRS "${${PROJECT_NAME}_SOURCE_DIR}/NatsuLang.AOTCompiler")
+	add_subdirectory("NatsuLang.AOTCompiler.Cli")
 endif()

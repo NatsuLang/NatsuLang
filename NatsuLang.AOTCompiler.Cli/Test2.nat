@@ -1,0 +1,80 @@
+$Compiler.CallingConvention(Cdecl)
+def extern unsafe puts : (content : char*) -> Native.Int;
+
+$Compiler.CallingConvention(Stdcall)
+def extern unsafe MessageBoxA : (hWnd : void*, text : char*, caption : char*, type : Native.Win32.UINT) -> Native.Int;
+
+alias T = Test;
+
+alias C = $Compiler.CallingConvention;
+
+alias D = $Compiler.Dump(int);
+
+class Test
+{
+	def this : (arg : D)
+	{
+		Content = arg;
+	}
+
+	def unsafe ~this : ()
+	{
+		puts(&"~Test"[0]);
+	}
+
+	def GetContent : () -> int
+	{
+		return Content;
+	}
+
+	def Content : int;
+}
+
+def unsafe Func : () -> int
+{
+	def a : T = { 1 };
+	if (puts(&"Func"[0]))
+	{
+		if (puts(&"Func"[1]))
+		{
+			def b : T = { 2 };
+			return 1;
+		}
+		def c : T = { 2 };
+		return 1;
+	}
+	def d : Test = { 3 };
+	return 2;
+}
+
+def unsafe main : (argc : int, argv : char**) -> int
+{
+	def num = "1";
+	def str = "Hello world!";
+	puts(&str[0]);
+	def ptr = &str[0];
+	def ptr2 = ptr + 1;
+	def ptr3 = ptr2 - ptr;
+	def ptr4 = ptr as int*;
+	def ptr5 = 0 as int*;
+	def ptrFunc = &Func;
+	ptrFunc();
+	for (def i = 0; i < 10; ++i)
+	{
+		if (i < 2) continue;
+		if (i > 5) break;
+		puts(&num[0]);
+		++num[0];
+		++str[i];
+	}
+
+	{
+		def instance : Test = { 5 };
+		instance.GetContent();
+	}
+
+	puts(&str[0]);
+	puts(*argv);
+	MessageBoxA(null, &"Text"[0], &"Caption"[0], 0);
+	return 0;
+}

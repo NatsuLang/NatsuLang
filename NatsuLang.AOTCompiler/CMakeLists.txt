@@ -1,4 +1,3 @@
-
 set(CMAKE_CXX_STANDARD 17)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
@@ -29,7 +28,7 @@ file(GLOB SOURCE_FILES
 file(GLOB HEADER_FILES
     *.h)
 
-add_executable("NatsuLang.AOTCompiler" ${SOURCE_FILES} ${HEADER_FILES})
+add_library("NatsuLang.AOTCompiler" STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
 target_include_directories("NatsuLang.AOTCompiler" PUBLIC ${NatsuLib_INCLUDE_DIRS})
 target_include_directories("NatsuLang.AOTCompiler" PUBLIC ${NatsuLang_INCLUDE_DIRS})
@@ -39,12 +38,3 @@ target_link_libraries("NatsuLang.AOTCompiler" NatsuLang ${LLVM_LIBRARIES})
 set_property(TARGET "NatsuLang.AOTCompiler" APPEND_STRING PROPERTY LINK_FLAGS "${LLVM_LINK_FLAGS}")
 
 target_compile_definitions("NatsuLang.AOTCompiler" PUBLIC NATSULIB_UTF8_SOURCE)
-
-set(DIAGIDMAP_FILE_NAME DiagIdMap.txt)
-set(DIAGIDMAP_FILE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${DIAGIDMAP_FILE_NAME}")
-add_custom_command(
-	TARGET "NatsuLang.AOTCompiler"
-	COMMAND "${CMAKE_COMMAND}" -E copy "${DIAGIDMAP_FILE_PATH}" "${CMAKE_CURRENT_BINARY_DIR}/${DIAGIDMAP_FILE_NAME}"
-	DEPENDS "${DIAGIDMAP_FILE_PATH}"
-	COMMENT "Copying DiagIdMap"
-	)

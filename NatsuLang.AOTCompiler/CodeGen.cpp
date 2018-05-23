@@ -5,13 +5,7 @@
 
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable : 4141)
-#pragma warning(disable : 4146)
-#pragma warning(disable : 4244)
-#pragma warning(disable : 4267)
-#pragma warning(disable : 4291)
-#pragma warning(disable : 4624)
-#pragma warning(disable : 4996)
+#pragma warning(disable : 4141 4146 4244 4267 4291 4624 4996)
 #endif // _MSC_VER
 
 #include <llvm/Target/TargetMachine.h>
@@ -64,7 +58,7 @@ namespace
 			{
 				const auto callingConvention = attribute.Cast<CallingConventionAttribute>();
 				assert(callingConvention);
-				writer->WriteNumType(u8"CallingConvention", callingConvention->GetCallingConvention());
+				writer->WriteNumType(u8"CallingConvention"_nv, callingConvention->GetCallingConvention());
 			}
 
 			natRefPointer<IAttribute> Deserialize(natRefPointer<ISerializationArchiveReader> const& reader) override
@@ -2906,8 +2900,6 @@ llvm::Type* AotCompiler::getCorrespondingType(Type::TypePtr const& type)
 			ret = llvm::Type::getFP128Ty(m_LLVMContext);
 			break;
 		case Type::BuiltinType::Overload:
-		case Type::BuiltinType::BoundMember:
-		case Type::BuiltinType::BuiltinFn:
 		default:
 			assert(!"Invalid BuiltinClass");
 			[[fallthrough]];

@@ -1,5 +1,4 @@
-﻿
-set(CMAKE_CXX_STANDARD 17)
+﻿set(CMAKE_CXX_STANDARD 17)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 	if(MSVC_VERSION GREATER_EQUAL "1900")
@@ -30,7 +29,6 @@ set(SourceFiles
 	DiagIdMap.cpp
 	ExprVisitor.cpp
 	Interpreter.cpp
-	Main.cpp
 	StmtVisitor.cpp)
 
 set(SOURCE_FILES
@@ -39,7 +37,7 @@ set(SOURCE_FILES
 	${HeaderFiles}
 	${SourceFiles})
 
-add_executable("NatsuLang.ASTInterpreter" ${SOURCE_FILES})
+add_library("NatsuLang.ASTInterpreter" STATIC ${SOURCE_FILES})
 
 target_include_directories("NatsuLang.ASTInterpreter" PUBLIC ${NatsuLib_INCLUDE_DIRS})
 target_include_directories("NatsuLang.ASTInterpreter" PUBLIC ${NatsuLang_INCLUDE_DIRS})
@@ -88,12 +86,3 @@ else()
 			)
 	endforeach()
 endif()
-
-set(DIAGIDMAP_FILE_NAME DiagIdMap.txt)
-set(DIAGIDMAP_FILE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${DIAGIDMAP_FILE_NAME}")
-add_custom_command(
-	TARGET "NatsuLang.ASTInterpreter"
-	COMMAND "${CMAKE_COMMAND}" -E copy "${DIAGIDMAP_FILE_PATH}" "${CMAKE_CURRENT_BINARY_DIR}/${DIAGIDMAP_FILE_NAME}"
-	DEPENDS "${DIAGIDMAP_FILE_PATH}"
-	COMMENT "Copying DiagIdMap"
-	)
