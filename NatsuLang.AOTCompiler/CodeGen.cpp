@@ -2591,7 +2591,7 @@ void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, ll
 	m_Logger.LogMsg(u8"编译成功，生成的 IR:\n{0}"_nv, buffer);
 
 	llvm::legacy::PassManager passManager;
-	m_TargetMachine->addPassesToEmitFile(passManager, stream, llvm::TargetMachine::CGFT_ObjectFile);
+	m_TargetMachine->addPassesToEmitFile(passManager, stream, nullptr, llvm::TargetMachine::CGFT_ObjectFile);
 	passManager.run(*m_Module);
 	stream.flush();
 
