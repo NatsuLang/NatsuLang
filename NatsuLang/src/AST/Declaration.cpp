@@ -55,6 +55,10 @@ UnresolvedDecl::~UnresolvedDecl()
 {
 }
 
+TemplateDecl::~TemplateDecl()
+{
+}
+
 VarDecl::~VarDecl()
 {
 }

@@ -319,6 +319,7 @@ namespace NatsuLang::Syntax
 
 		nBool ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipIdentifier = false);
 		nBool ParseSpecifier(Declaration::DeclaratorPtr const& decl);
+		nBool ParseTemplateParameterList(Declaration::DeclaratorPtr const& decl);
 
 		nBool ParseType(Declaration::DeclaratorPtr const& decl);
 		void ParseParenType(Declaration::DeclaratorPtr const& decl);

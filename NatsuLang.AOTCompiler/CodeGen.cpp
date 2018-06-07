@@ -2560,7 +2560,7 @@ void AotCompiler::CreateMetadata(natRefPointer<natStream> const& metadataStream,
 	serializer.EndSerialize();
 }
 
-void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, llvm::raw_pwrite_stream& stream)
+void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, llvm::raw_pwrite_stream& objectStream)
 {
 	m_Module = std::make_unique<llvm::Module>(llvm::StringRef(uri.GetPath().begin(), uri.GetPath().size()), m_LLVMContext);
 	m_Module->setTargetTriple(m_TargetTriple);
@@ -2591,9 +2591,9 @@ void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, ll
 	m_Logger.LogMsg(u8"编译成功，生成的 IR:\n{0}"_nv, buffer);
 
 	llvm::legacy::PassManager passManager;
-	m_TargetMachine->addPassesToEmitFile(passManager, stream, nullptr, llvm::TargetMachine::CGFT_ObjectFile);
+	m_TargetMachine->addPassesToEmitFile(passManager, objectStream, nullptr, llvm::TargetMachine::CGFT_ObjectFile);
 	passManager.run(*m_Module);
-	stream.flush();
+	objectStream.flush();
 
 	m_Module.reset();
 }

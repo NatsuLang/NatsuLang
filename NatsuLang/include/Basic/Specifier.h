@@ -8,6 +8,7 @@ namespace NatsuLang::Specifier
 
 		Extern,
 		Static,
+		Const
 	};
 
 	enum class Access

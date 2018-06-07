@@ -2060,7 +2060,7 @@ nBool Parser::ParseExpressionList(std::vector<Expression::ExprPtr>& exprs, std::
 }
 
 // declarator:
-//	[identifier] [: type] [initializer]
+//	[identifier] [< template-parameter >] [: type] [initializer]
 nBool Parser::ParseDeclarator(Declaration::DeclaratorPtr const& decl, nBool skipIdentifier)
 {
 	const auto context = decl->GetContext();
@@ -2199,6 +2199,14 @@ nBool Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 			}
 			decl->SetStorageClass(Specifier::StorageClass::Static);
 			break;
+		case TokenType::Kw_const:
+			if (decl->GetStorageClass() != Specifier::StorageClass::None)
+			{
+				// TODO: 报告错误：多个存储类说明符
+				return false;
+			}
+			decl->SetStorageClass(Specifier::StorageClass::Const);
+			break;
 		case TokenType::Kw_public:
 			if (decl->GetAccessibility() != Specifier::Access::None)
 			{
@@ -2246,6 +2254,25 @@ nBool Parser::ParseSpecifier(Declaration::DeclaratorPtr const& decl)
 
 		ConsumeToken();
 	}
+}
+
+// template-parameter-list:
+//	template-parameter
+//	template-parameter-list , template-parameter
+// template-parameter:
+//	type-parameter
+//	non-type-parameter
+// type-parameter:
+//	identifier [type-initializer]
+// type-initializer:
+//	= type
+// non-type-parameter:
+//	identifier : type [initializer]
+nBool Parser::ParseTemplateParameterList(Declaration::DeclaratorPtr const& decl)
+{
+	assert(m_CurrentToken.Is(TokenType::Less));
+	ConsumeToken();
+	nat_Throw(NotImplementedException);
 }
 
 // type-specifier:
@@ -2452,7 +2479,7 @@ void Parser::ParseFunctionType(Declaration::DeclaratorPtr const& decl)
 		{
 			if (m_CurrentToken.Is(TokenType::Ellipsis))
 			{
-				if (decl->GetSafety() != Specifier::Safety::Unsafe)
+				if (decl->GetSafety() != Specifier::Safety::Unsafe && !m_Sema.GetCurrentScope()->HasFlags(Semantic::ScopeFlags::UnsafeScope))
 				{
 					m_Diag.Report(DiagnosticsEngine::DiagID::ErrUnsafeOperationInSafeScope, m_CurrentToken.GetLocation());
 				}

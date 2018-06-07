@@ -2689,8 +2689,7 @@ void Sema::SerializeAttribute(natRefPointer<Declaration::IAttribute> const& attr
 }
 
 natRefPointer<Declaration::IAttribute> Sema::DeserializeAttribute(nStrView attributeName,
-                                                                  natRefPointer<ISerializationArchiveReader> const&
-                                                                  reader)
+                                                                  natRefPointer<ISerializationArchiveReader> const& reader)
 {
 	if (const auto iter = m_AttributeSerializerMap.find(attributeName); iter != m_AttributeSerializerMap.cend())
 	{

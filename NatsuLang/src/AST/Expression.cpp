@@ -456,7 +456,7 @@ namespace
 				return;
 			}
 
-			auto leftValue = std::get<1>(leftResult.Result), rightValue = std::get<1>(rightResult.Result);
+			const auto leftValue = std::get<1>(leftResult.Result), rightValue = std::get<1>(rightResult.Result);
 			switch (opcode)
 			{
 			case BinaryOperationType::Mul:

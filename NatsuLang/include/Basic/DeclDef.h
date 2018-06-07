@@ -89,6 +89,15 @@ ABSTRACT_DECL(DECLARATOR(Declarator, ValueDecl))
 #define UNRESOLVED(Type, Base) DECLARATOR(Type, Base)
 #endif
 UNRESOLVED(Unresolved, DeclaratorDecl)
+
+#ifndef TEMPLATE
+#define TEMPLATE(Type, Base) UNRESOLVED(Type, Base)
+#endif
+TEMPLATE(Template, UnresolvedDecl)
+#undef TEMPLATE
+
+DECL_RANGE(Unresolved, Unresolved, Template)
+
 #undef UNRESOLVED
 
 #ifndef FIELD
@@ -103,9 +112,9 @@ FIELD(Field, DeclaratorDecl)
 VAR(Var, DeclaratorDecl)
 
 #ifndef FUNCTION
-#define FUNCTION(Type, Base) DECLARATOR(Type, Base)
+#define FUNCTION(Type, Base) VAR(Type, Base)
 #endif
-FUNCTION(Function, DeclaratorDecl)
+FUNCTION(Function, VarDecl)
 
 #ifndef METHOD
 #define METHOD(Type, Base) FUNCTION(Type, Base)

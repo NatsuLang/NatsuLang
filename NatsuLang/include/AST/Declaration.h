@@ -236,8 +236,15 @@ namespace NatsuLang::Declaration
 	{
 	public:
 		UnresolvedDecl(DeclContext* context, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType,
-		               SourceLocation startLoc, NatsuLib::natWeakRefPointer<Declarator> declaratorPtr = nullptr)
+			SourceLocation startLoc, NatsuLib::natWeakRefPointer<Declarator> declaratorPtr = nullptr)
 			: DeclaratorDecl{ Unresolved, context, startLoc, std::move(identifierInfo), std::move(valueType), idLoc },
+			m_DeclaratorPtr{ std::move(declaratorPtr) }
+		{
+		}
+
+		UnresolvedDecl(DeclType declType, DeclContext* context, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType,
+		               SourceLocation startLoc, NatsuLib::natWeakRefPointer<Declarator> declaratorPtr = nullptr)
+			: DeclaratorDecl{ declType, context, startLoc, std::move(identifierInfo), std::move(valueType), idLoc },
 			  m_DeclaratorPtr{ std::move(declaratorPtr) }
 		{
 		}
@@ -254,6 +261,21 @@ namespace NatsuLang::Declaration
 	private:
 		// 在 resolve 时使用，resolve 完成后将会过期
 		NatsuLib::natWeakRefPointer<Declarator> m_DeclaratorPtr;
+	};
+
+	class TemplateDecl
+		: public UnresolvedDecl
+	{
+	public:
+		TemplateDecl(DeclContext* context, SourceLocation idLoc, Identifier::IdPtr identifierInfo, Type::TypePtr valueType,
+			SourceLocation startLoc, NatsuLib::natWeakRefPointer<Declarator> declaratorPtr = nullptr)
+			: UnresolvedDecl{ Template, context, idLoc, std::move(identifierInfo), std::move(valueType), startLoc, std::move(declaratorPtr) }
+		{
+		}
+
+		~TemplateDecl();
+
+		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 	};
 
 	class VarDecl
