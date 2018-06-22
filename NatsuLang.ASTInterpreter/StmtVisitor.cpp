@@ -227,7 +227,7 @@ void Interpreter::InterpreterStmtVisitor::VisitReturnStmt(natRefPointer<Statemen
 			nat_Throw(InterpreterException, u8"无法对表达式求值"_nv);
 		}
 
-		m_ReturnedExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDecl, SourceLocation{}, retExpr->GetExprType());
+		m_ReturnedExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDecl, SourceLocation{}, retExpr->GetExprType(), Expression::ValueCategory::LValue);
 	}
 
 	m_Returned = true;

@@ -165,7 +165,7 @@ void Interpreter::InterpreterExprVisitor::VisitArraySubscriptExpr(natRefPointer<
 
 	if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(baseDecl, [this, indexValue, &expr](InterpreterDeclStorage::ArrayElementAccessor const& accessor)
 	{
-		m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, accessor.GetElementDecl(indexValue), SourceLocation{}, expr->GetExprType());
+		m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, accessor.GetElementDecl(indexValue), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 	}, Expected<InterpreterDeclStorage::ArrayElementAccessor>))
 	{
 		nat_Throw(InterpreterException, u8"无法访问存储"_nv);
@@ -259,7 +259,7 @@ void Interpreter::InterpreterExprVisitor::VisitCallExpr(natRefPointer<Expression
 		{
 			auto decl = iter->second({ params.begin(), params.end() });
 			auto declType = decl->GetValueType();
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(decl), SourceLocation{}, std::move(declType));
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(decl), SourceLocation{}, std::move(declType), Expression::ValueCategory::LValue);
 		}
 		else
 		{
@@ -298,7 +298,7 @@ void Interpreter::InterpreterExprVisitor::VisitAsTypeExpr(natRefPointer<Expressi
 
 	auto castToType = Type::Type::GetUnderlyingType(expr->GetExprType());
 	auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(castToType);
-	auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, std::move(castToType));
+	auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, std::move(castToType), Expression::ValueCategory::LValue);
 
 	if (Evaluate(m_LastVisitedExpr, [this, &tempObjDef](auto value)
 	{
@@ -324,7 +324,7 @@ void Interpreter::InterpreterExprVisitor::VisitImplicitCastExpr(natRefPointer<Ex
 
 	auto castToType = expr->GetExprType();
 	auto tempObjDef = InterpreterDeclStorage::CreateTemporaryObjectDecl(castToType);
-	auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, castToType);
+	auto declRefExpr = make_ref<Expression::DeclRefExpr>(nullptr, tempObjDef, SourceLocation{}, castToType, Expression::ValueCategory::LValue);
 
 	if (Evaluate(m_LastVisitedExpr, [this, &tempObjDef](auto value)
 	{
@@ -386,7 +386,7 @@ void Interpreter::InterpreterExprVisitor::VisitConditionalOperator(natRefPointer
 			nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 		}
 
-		m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(retDecl), SourceLocation{}, expr->GetExprType());
+		m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(retDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 	}
 }
 
@@ -419,7 +419,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -443,7 +443,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -467,7 +467,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -486,7 +486,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -505,7 +505,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -524,7 +524,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -543,7 +543,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -562,7 +562,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -581,7 +581,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -600,7 +600,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -619,7 +619,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -638,7 +638,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -657,7 +657,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nBool, nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -676,7 +676,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nByte, nStrView, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -695,7 +695,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nByte, nStrView, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -714,7 +714,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nByte, nStrView, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -733,7 +733,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -752,7 +752,7 @@ void Interpreter::InterpreterExprVisitor::VisitBinaryOperator(natRefPointer<Expr
 			}, Expected<decltype(leftValue)>);
 		}, Excepted<nByte, nStrView, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>) && evalSucceed)
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType());
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDecl), SourceLocation{}, expr->GetExprType(), Expression::ValueCategory::LValue);
 			return;
 		}
 		break;
@@ -926,7 +926,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 
-				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
+				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType(), Expression::ValueCategory::LValue);
 				++value;
 			}, Excepted<nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 			{
@@ -954,7 +954,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 					nat_Throw(InterpreterException, u8"无法创建临时对象的存储"_nv);
 				}
 
-				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType());
+				m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, decl->GetValueType(), Expression::ValueCategory::LValue);
 				--value;
 			}, Excepted<nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 			{
@@ -1013,7 +1013,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			}
 		}, Excepted<nStrView, nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(type));
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(type), Expression::ValueCategory::LValue);
 			return;
 		}
 
@@ -1034,7 +1034,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			}
 		}, Excepted<nStrView, nBool, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(type));
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(type), Expression::ValueCategory::LValue);
 			return;
 		}
 
@@ -1055,7 +1055,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			}
 		}, Excepted<nStrView, nBool, nFloat, nDouble, InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(type));
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(type), Expression::ValueCategory::LValue);
 			return;
 		}
 
@@ -1077,7 +1077,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			}
 		}, Expected<nBool>))
 		{
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(boolType));
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(boolType), Expression::ValueCategory::LValue);
 			return;
 		}
 
@@ -1106,7 +1106,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 			nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);
 		}
 
-		m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(pointerType));
+		m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(tempObjDef), SourceLocation{}, std::move(pointerType), Expression::ValueCategory::LValue);
 		return;
 	}
 	case Expression::UnaryOperationType::Deref:
@@ -1120,7 +1120,7 @@ void Interpreter::InterpreterExprVisitor::VisitUnaryOperator(natRefPointer<Expre
 		{
 			auto decl = accessor.GetReferencedDecl();
 			auto declType = decl->GetValueType();
-			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(decl), SourceLocation{}, std::move(declType));
+			m_LastVisitedExpr = make_ref<Expression::DeclRefExpr>(nullptr, std::move(decl), SourceLocation{}, std::move(declType), Expression::ValueCategory::LValue);
 		}, Expected<InterpreterDeclStorage::PointerAccessor>))
 		{
 			nat_Throw(InterpreterException, u8"无法对操作数求值"_nv);

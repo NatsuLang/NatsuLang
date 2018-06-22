@@ -426,7 +426,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 			m_Compiler.m_FunctionMap.emplace(std::move(funcDecl), funcValue);
 			decl.second = funcValue;
 		}
-		else if (auto varDecl = decl.first.Cast<Declaration::VarDecl>(); varDecl && varDecl->GetStorageClass() != Specifier::StorageClass::Const)
+		else if (auto varDecl = decl.first.Cast<Declaration::VarDecl>(); varDecl && !HasAnyFlags(varDecl->GetStorageClass(), Specifier::StorageClass::Const))
 		{
 			const auto varType = m_Compiler.getCorrespondingType(varDecl->GetValueType());
 
@@ -492,7 +492,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 				break;
 			}
 		}
-		else if (const auto varDecl = decl.first.Cast<Declaration::VarDecl>(); varDecl && varDecl->GetStorageClass() != Specifier::StorageClass::Const)
+		else if (const auto varDecl = decl.first.Cast<Declaration::VarDecl>(); varDecl && !HasAnyFlags(varDecl->GetStorageClass(), Specifier::StorageClass::Const))
 		{
 			// TODO: 动态初始化
 		}
@@ -975,7 +975,7 @@ void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::Dec
 		}
 		else
 		{
-			if (varDecl->GetStorageClass() == Specifier::StorageClass::Const)
+			if (HasAllFlags(varDecl->GetStorageClass(), Specifier::StorageClass::Const))
 			{
 				if (m_RequiredModifiableValue)
 				{
