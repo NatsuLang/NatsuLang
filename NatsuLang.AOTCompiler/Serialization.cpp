@@ -1228,6 +1228,7 @@ void Serializer::VisitExpr(natRefPointer<Expression::Expr> const& expr)
 	m_Archive->StartWritingEntry(u8"ExprType"_nv);
 	TypeVisitor::Visit(expr->GetExprType());
 	m_Archive->EndWritingEntry();
+	m_Archive->WriteNumType(u8"ValueCategory"_nv, expr->GetValueCategory());
 }
 
 void Serializer::VisitConditionalOperator(natRefPointer<Expression::ConditionalOperator> const& expr)

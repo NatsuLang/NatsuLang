@@ -389,7 +389,12 @@ namespace
 				m_LastVisitSucceed = true;
 			}
 
-			// TODO: 支持常量成员
+			if (const auto varDecl = decl.Cast<Declaration::VarDecl>(); varDecl && varDecl->GetStorageClass() == Specifier::StorageClass::Const)
+			{
+				Visit(varDecl->GetInitializer());
+				return;
+			}
+
 			m_LastVisitSucceed = false;
 		}
 	};
@@ -544,6 +549,25 @@ namespace
 
 			Visit(std::get<0>(m_Result.Result) ? expr->GetLeftOperand() : expr->GetRightOperand());
 		}
+
+		void VisitDeclRefExpr(natRefPointer<DeclRefExpr> const& expr) override
+		{
+			const auto decl = expr->GetDecl();
+
+			if (const auto enumeratorDecl = decl.Cast<Declaration::EnumConstantDecl>())
+			{
+				m_Result.Result.emplace<1>(static_cast<nDouble>(enumeratorDecl->GetValue()));
+				m_LastVisitSucceed = true;
+			}
+
+			if (const auto varDecl = decl.Cast<Declaration::VarDecl>(); varDecl && varDecl->GetStorageClass() == Specifier::StorageClass::Const)
+			{
+				Visit(varDecl->GetInitializer());
+				return;
+			}
+
+			m_LastVisitSucceed = false;
+		}
 	};
 
 	nBool Evaluate(natRefPointer<Expr> const& expr, ASTContext& context, Expr::EvalResult& result)
@@ -588,8 +612,8 @@ namespace
 	}
 }
 
-Expr::Expr(StmtType stmtType, Type::TypePtr exprType, SourceLocation start, SourceLocation end)
-	: Stmt{ stmtType, start, end }, m_ExprType{ std::move(exprType) }
+Expr::Expr(StmtType stmtType, Type::TypePtr exprType, ValueCategory valueCategory, SourceLocation start, SourceLocation end)
+	: Stmt{ stmtType, start, end }, m_ExprType{ std::move(exprType) }, m_ValueCategory{ valueCategory }
 {
 }
 

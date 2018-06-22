@@ -68,12 +68,23 @@ void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Express
 	if (m_ShouldPrint)
 	{
 		auto decl = expr->GetDecl();
+		const auto id = decl->GetIdentifierInfo();
+		if (const auto varDecl = decl.Cast<Declaration::VarDecl>(); varDecl && HasAllFlags(varDecl->GetStorageClass(), Specifier::StorageClass::Const))
+		{
+			if (!Evaluate(varDecl->GetInitializer(), [this, &id](auto value)
+			{
+				m_Interpreter.m_Logger.LogMsg(u8"(常量声明 : {0}) {1}"_nv, id ? id->GetName() : u8"(错误的常量名称)"_nv, value);
+			}, Excepted<InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
+			{
+				nat_Throw(InterpreterException, u8"无法对常量求值"_nv);
+			}
+		}
+
 		if (!m_Interpreter.m_DeclStorage.DoesDeclExist(decl))
 		{
 			nat_Throw(InterpreterException, u8"表达式引用了一个不存在的值定义"_nv);
 		}
 
-		const auto id = decl->GetIdentifierInfo();
 		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [this, &id](auto value)
 		{
 			m_Interpreter.m_Logger.LogMsg(u8"(声明 : {0}) {1}", id ? id->GetName() : u8"(临时对象)", value);

@@ -1157,6 +1157,13 @@ natRefPointer<Declaration::VarDecl> Sema::ActOnVariableDeclarator(
 		type = initExpr->GetExprType();
 	}
 
+	if (decl->GetStorageClass() == Specifier::StorageClass::Const && !initExpr)
+	{
+		// TODO: 报告错误：常量必须具有初始化器
+		// 考虑使用 0 作为初始化器？
+		return nullptr;
+	}
+
 	if (const auto initList = initExpr.Cast<Expression::InitListExpr>())
 	{
 		if (const auto arrayType = type.Cast<Type::ArrayType>())
@@ -2154,7 +2161,7 @@ Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::B
 			}
 		}
 		return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType,
-		                                            std::move(resultType), loc);
+		                                            std::move(resultType), loc, Expression::ValueCategory::RValue);
 	}
 	case Expression::BinaryOperationType::LAnd:
 	case Expression::BinaryOperationType::LOr:
@@ -2183,7 +2190,7 @@ Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::B
 
 		assert(leftOperand->GetExprType() == rightOperand->GetExprType());
 		return make_ref<Expression::BinaryOperator>(std::move(leftOperand), std::move(rightOperand), binOpType,
-		                                            std::move(resultType), loc);
+		                                            std::move(resultType), loc, Expression::ValueCategory::RValue);
 	}
 	case Expression::BinaryOperationType::Assign:
 	case Expression::BinaryOperationType::MulAssign:
@@ -2197,6 +2204,12 @@ Expression::ExprPtr Sema::BuildBuiltinBinaryOp(SourceLocation loc, Expression::B
 	case Expression::BinaryOperationType::XorAssign:
 	case Expression::BinaryOperationType::OrAssign:
 	{
+		if (leftOperand->GetValueCategory() != Expression::ValueCategory::LValue)
+		{
+			// TODO: 报告错误：仅能修改左值
+			return nullptr;
+		}
+
 		const auto leftType = Type::Type::GetUnderlyingType(leftOperand->GetExprType()), rightType = Type::Type::
 			           GetUnderlyingType(rightOperand->GetExprType());
 
@@ -2273,16 +2286,18 @@ Expression::ExprPtr Sema::ActOnConditionalOp(SourceLocation questionLoc, SourceL
                                              Expression::ExprPtr condExpr, Expression::ExprPtr leftExpr,
                                              Expression::ExprPtr rightExpr)
 {
-	const auto leftType = leftExpr->GetExprType(), rightType = rightExpr->GetExprType(), commonType = getCommonType(
-		           leftType, rightType);
-	const auto leftCastType = getCastType(leftExpr, commonType, true), rightCastType = getCastType(
-		           rightExpr, commonType, true);
+	const auto leftType = leftExpr->GetExprType(), rightType = rightExpr->GetExprType(), commonType = getCommonType(leftType, rightType);
+	const auto leftCastType = getCastType(leftExpr, commonType, true), rightCastType = getCastType(rightExpr, commonType, true);
+
+	const auto valueCategory = leftType == rightType &&
+		leftExpr->GetValueCategory() == Expression::ValueCategory::LValue &&
+		rightExpr->GetValueCategory() == Expression::ValueCategory::LValue ? Expression::ValueCategory::LValue : Expression::ValueCategory::RValue;
 
 	return make_ref<Expression::ConditionalOperator>(std::move(condExpr), questionLoc,
 	                                                 ImpCastExprToType(std::move(leftExpr), commonType, leftCastType),
 	                                                 colonLoc,
 	                                                 ImpCastExprToType(std::move(rightExpr), commonType, rightCastType),
-	                                                 commonType);
+	                                                 commonType, valueCategory);
 }
 
 NatsuLib::natRefPointer<Expression::DeclRefExpr> Sema::BuildDeclarationNameExpr(
@@ -2306,7 +2321,14 @@ NatsuLib::natRefPointer<Expression::DeclRefExpr> Sema::BuildDeclRefExpr(natRefPo
                                                                         natRefPointer<NestedNameSpecifier> const& nns)
 {
 	static_cast<void>(id);
-	return make_ref<Expression::DeclRefExpr>(nns, std::move(decl), SourceLocation{}, std::move(type));
+
+	auto valueCategory = Expression::ValueCategory::LValue;
+	if (const auto varDecl = decl.Cast<Declaration::VarDecl>(); varDecl && HasAllFlags(varDecl->GetStorageClass(), Specifier::StorageClass::Const))
+	{
+		valueCategory = Expression::ValueCategory::RValue;
+	}
+
+	return make_ref<Expression::DeclRefExpr>(nns, std::move(decl), SourceLocation{}, std::move(type), valueCategory);
 }
 
 Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scope> const& scope, Expression::ExprPtr baseExpr,
@@ -2344,7 +2366,8 @@ Expression::ExprPtr Sema::BuildMemberReferenceExpr(natRefPointer<Scope> const& s
 		if (auto var = decl.Cast<Declaration::VarDecl>())
 		{
 			return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(var), r.GetLookupId(),
-			                                        var->GetValueType());
+			                                        var->GetValueType(),
+													HasAllFlags(var->GetStorageClass(), Specifier::StorageClass::Const) ? Expression::ValueCategory::RValue : Expression::ValueCategory::LValue);
 		}
 
 		if (auto method = decl.Cast<Declaration::MethodDecl>())
@@ -2371,8 +2394,9 @@ Expression::ExprPtr Sema::BuildFieldReferenceExpr(Expression::ExprPtr baseExpr, 
                                                   natRefPointer<Declaration::FieldDecl> field, Identifier::IdPtr id)
 {
 	static_cast<void>(nns);
+	// 字段不能是 const 的，因此总是左值
 	return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(field), std::move(id),
-	                                        field->GetValueType());
+	                                        field->GetValueType(), Expression::ValueCategory::LValue);
 }
 
 Expression::ExprPtr Sema::BuildMethodReferenceExpr(Expression::ExprPtr baseExpr, SourceLocation opLoc,
@@ -2382,7 +2406,7 @@ Expression::ExprPtr Sema::BuildMethodReferenceExpr(Expression::ExprPtr baseExpr,
 {
 	static_cast<void>(nns);
 	return make_ref<Expression::MemberExpr>(std::move(baseExpr), opLoc, std::move(method), std::move(id),
-	                                        method->GetValueType());
+	                                        method->GetValueType(), Expression::ValueCategory::LValue);
 }
 
 Expression::ExprPtr Sema::BuildConstructExpr(natRefPointer<Type::ClassType> const& classType,
@@ -2439,6 +2463,7 @@ Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, Expression:
                                                Expression::ExprPtr operand)
 {
 	Type::TypePtr resultType;
+	auto valueCategory = Expression::ValueCategory::RValue;
 
 	switch (opCode)
 	{
@@ -2446,6 +2471,12 @@ Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, Expression:
 	case Expression::UnaryOperationType::PostDec:
 	case Expression::UnaryOperationType::PreInc:
 	case Expression::UnaryOperationType::PreDec:
+		if (operand->GetValueCategory() != Expression::ValueCategory::LValue)
+		{
+			// TODO: 报告错误：仅能修改左值
+			return nullptr;
+		}
+		[[fallthrough]];
 	case Expression::UnaryOperationType::Plus:
 	case Expression::UnaryOperationType::Minus:
 	case Expression::UnaryOperationType::Not:
@@ -2453,6 +2484,11 @@ Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, Expression:
 		resultType = operand->GetExprType();
 		break;
 	case Expression::UnaryOperationType::AddrOf:
+		if (operand->GetValueCategory() != Expression::ValueCategory::LValue)
+		{
+			// TODO: 报告错误：仅能对左值取地址
+			return nullptr;
+		}
 		resultType = m_Context.GetPointerType(operand->GetExprType());
 		break;
 	case Expression::UnaryOperationType::Deref:
@@ -2465,6 +2501,7 @@ Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, Expression:
 			// TODO: 报告错误
 			return nullptr;
 		}
+		valueCategory = Expression::ValueCategory::LValue;
 		break;
 	case Expression::UnaryOperationType::LNot:
 		resultType = m_Context.GetBuiltinType(Type::BuiltinType::Bool);
@@ -2475,7 +2512,7 @@ Expression::ExprPtr Sema::CreateBuiltinUnaryOp(SourceLocation opLoc, Expression:
 		return nullptr;
 	}
 
-	return make_ref<Expression::UnaryOperator>(std::move(operand), opCode, std::move(resultType), opLoc);
+	return make_ref<Expression::UnaryOperator>(std::move(operand), opCode, std::move(resultType), opLoc, valueCategory);
 }
 
 Type::TypePtr Sema::GetBuiltinBinaryOpType(Expression::ExprPtr& leftOperand, Expression::ExprPtr& rightOperand)
@@ -2660,7 +2697,8 @@ nBool Sema::CheckFunctionOverload(natRefPointer<Type::FunctionType> const& func,
 		if (overloadFuncType->HasVarArg() == func->HasVarArg() && overloadFuncType->GetParameterCount() == func->GetParameterCount())
 		{
 			const auto overloadFuncParams = overloadFuncType->GetParameterTypes();
-			if (std::equal(overloadFuncParams.begin(), overloadFuncParams.end(), func->GetParameterTypes().begin()))
+			const auto funcParams = func->GetParameterTypes();
+			if (std::equal(overloadFuncParams.begin(), overloadFuncParams.end(), funcParams.begin(), funcParams.end()))
 			{
 				return false;
 			}

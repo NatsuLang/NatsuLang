@@ -81,6 +81,31 @@ namespace NatsuLang
 		}
 	};
 
+	template <typename T>
+	class SingletonAttributeSerializer
+		: public NatsuLib::natRefObjImpl<SingletonAttributeSerializer<T>, IAttributeSerializer>
+	{
+	public:
+		explicit SingletonAttributeSerializer(NatsuLib::natRefPointer<T> instance = NatsuLib::make_ref<T>())
+			: m_Instance{ std::move(instance) }
+		{
+		}
+
+		void Serialize(NatsuLib::natRefPointer<Declaration::IAttribute> const& /*attribute*/,
+			NatsuLib::natRefPointer<ISerializationArchiveWriter> const& /*writer*/) override
+		{
+		}
+
+		NatsuLib::natRefPointer<Declaration::IAttribute> Deserialize(
+			NatsuLib::natRefPointer<ISerializationArchiveReader> const& /*reader*/) override
+		{
+			return m_Instance;
+		}
+
+	private:
+		NatsuLib::natRefPointer<T> m_Instance;
+	};
+
 	struct INameBuilder
 		: NatsuLib::natRefObj
 	{

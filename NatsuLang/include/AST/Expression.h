@@ -18,11 +18,17 @@ namespace NatsuLang::Expression
 
 	using ExprPtr = NatsuLib::natRefPointer<Expr>;
 
+	enum class ValueCategory : nByte
+	{
+		LValue,
+		RValue
+	};
+
 	class Expr
 		: public Statement::Stmt
 	{
 	public:
-		Expr(StmtType stmtType, Type::TypePtr exprType, SourceLocation start = {}, SourceLocation end = {});
+		Expr(StmtType stmtType, Type::TypePtr exprType, ValueCategory valueCategory, SourceLocation start = {}, SourceLocation end = {});
 		~Expr();
 
 		Type::TypePtr GetExprType() const noexcept
@@ -33,6 +39,16 @@ namespace NatsuLang::Expression
 		void SetExprType(Type::TypePtr value) noexcept
 		{
 			m_ExprType = std::move(value);
+		}
+
+		ValueCategory GetValueCategory() const noexcept
+		{
+			return m_ValueCategory;
+		}
+
+		void SetValueCategory(ValueCategory value) noexcept
+		{
+			m_ValueCategory = value;
 		}
 
 		ExprPtr IgnoreParens() noexcept;
@@ -55,14 +71,15 @@ namespace NatsuLang::Expression
 
 	private:
 		Type::TypePtr m_ExprType;
+		ValueCategory m_ValueCategory;
 	};
 
 	class DeclRefExpr
 		: public Expr
 	{
 	public:
-		DeclRefExpr(NatsuLib::natRefPointer<NestedNameSpecifier> nns, NatsuLib::natRefPointer<Declaration::ValueDecl> valueDecl, SourceLocation loc, Type::TypePtr exprType)
-			: Expr{ DeclRefExprClass, std::move(exprType), loc, loc }, m_NestedNameSpecifier{ std::move(nns) }, m_ValueDecl{ std::move(valueDecl) }
+		DeclRefExpr(NatsuLib::natRefPointer<NestedNameSpecifier> nns, NatsuLib::natRefPointer<Declaration::ValueDecl> valueDecl, SourceLocation loc, Type::TypePtr exprType, ValueCategory valueCategory)
+			: Expr{ DeclRefExprClass, std::move(exprType), valueCategory, loc, loc }, m_NestedNameSpecifier{ std::move(nns) }, m_ValueDecl{ std::move(valueDecl) }
 		{
 		}
 
@@ -95,7 +112,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		IntegerLiteral(nuLong value, Type::TypePtr type, SourceLocation loc)
-			: Expr{ IntegerLiteralClass, std::move(type), loc, loc }, m_Value{ value }
+			: Expr{ IntegerLiteralClass, std::move(type), ValueCategory::RValue, loc, loc }, m_Value{ value }
 		{
 		}
 
@@ -122,7 +139,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		CharacterLiteral(nuInt codePoint, NatsuLib::StringType charType, Type::TypePtr type, SourceLocation loc)
-			: Expr{ CharacterLiteralClass, std::move(type), loc, loc }, m_CodePoint{ codePoint }, m_CharType{ charType }
+			: Expr{ CharacterLiteralClass, std::move(type), ValueCategory::RValue, loc, loc }, m_CodePoint{ codePoint }, m_CharType{ charType }
 		{
 		}
 
@@ -160,7 +177,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		FloatingLiteral(nDouble value, Type::TypePtr type, SourceLocation loc)
-			: Expr{ FloatingLiteralClass, std::move(type), loc, loc }, m_Value{ value }
+			: Expr{ FloatingLiteralClass, std::move(type), ValueCategory::RValue, loc, loc }, m_Value{ value }
 		{
 		}
 
@@ -187,7 +204,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		StringLiteral(nString value, Type::TypePtr type, SourceLocation loc)
-			: Expr{ StringLiteralClass, std::move(type), loc, loc }, m_Value{ std::move(value) }
+			: Expr{ StringLiteralClass, std::move(type), ValueCategory::LValue, loc, loc }, m_Value{ std::move(value) }
 		{
 		}
 
@@ -214,7 +231,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		NullPointerLiteral(Type::TypePtr type, SourceLocation loc)
-			: Expr{ NullPointerLiteralClass, std::move(type), loc, loc }
+			: Expr{ NullPointerLiteralClass, std::move(type), ValueCategory::RValue, loc, loc }
 		{
 		}
 
@@ -228,7 +245,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		BooleanLiteral(nBool value, Type::TypePtr type, SourceLocation loc)
-			: Expr{ BooleanLiteralClass, std::move(type), loc, loc }, m_Value{ value }
+			: Expr{ BooleanLiteralClass, std::move(type), ValueCategory::RValue, loc, loc }, m_Value{ value }
 		{
 		}
 
@@ -255,7 +272,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		ParenExpr(ExprPtr expr, SourceLocation start, SourceLocation end)
-			: Expr{ ParenExprClass, expr->GetExprType(), start, end }, m_InnerExpr{ std::move(expr) }
+			: Expr{ ParenExprClass, expr->GetExprType(), expr->GetValueCategory(), start, end }, m_InnerExpr{ std::move(expr) }
 		{
 		}
 
@@ -283,8 +300,8 @@ namespace NatsuLang::Expression
 		: public Expr
 	{
 	public:
-		UnaryOperator(ExprPtr operand, UnaryOperationType opcode, Type::TypePtr type, SourceLocation loc)
-			: Expr{ UnaryOperatorClass, std::move(type), loc, loc }, m_Operand{ std::move(operand) }, m_Opcode{ opcode }
+		UnaryOperator(ExprPtr operand, UnaryOperationType opcode, Type::TypePtr type, SourceLocation loc, ValueCategory valueCategory)
+			: Expr{ UnaryOperatorClass, std::move(type), valueCategory, loc, loc }, m_Operand{ std::move(operand) }, m_Opcode{ opcode }
 		{
 		}
 
@@ -324,7 +341,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		ArraySubscriptExpr(ExprPtr leftOperand, ExprPtr rightOperand, Type::TypePtr type, SourceLocation loc)
-			: Expr{ ArraySubscriptExprClass, std::move(type), loc, loc }, m_LeftOperand{ std::move(leftOperand) }, m_RightOperand{ std::move(rightOperand) }
+			: Expr{ ArraySubscriptExprClass, std::move(type), ValueCategory::LValue, loc, loc }, m_LeftOperand{ std::move(leftOperand) }, m_RightOperand{ std::move(rightOperand) }
 		{
 		}
 
@@ -363,13 +380,13 @@ namespace NatsuLang::Expression
 	{
 	protected:
 		CallExpr(StmtType stmtType, ExprPtr func, NatsuLib::Linq<NatsuLib::Valued<ExprPtr>> const& args, Type::TypePtr type, SourceLocation loc)
-			: Expr{ stmtType, std::move(type), loc, loc }, m_Function{ std::move(func) }, m_Args{ args.begin(), args.end() }
+			: Expr{ stmtType, std::move(type), ValueCategory::RValue, loc, loc }, m_Function{ std::move(func) }, m_Args{ args.begin(), args.end() }
 		{
 		}
 
 	public:
 		CallExpr(ExprPtr func, NatsuLib::Linq<NatsuLib::Valued<ExprPtr>> const& args, Type::TypePtr type, SourceLocation loc)
-			: Expr{ CallExprClass, std::move(type), loc, loc }, m_Function{ std::move(func) }, m_Args{ args.begin(), args.end() }
+			: Expr{ CallExprClass, std::move(type), ValueCategory::RValue, loc, loc }, m_Function{ std::move(func) }, m_Args{ args.begin(), args.end() }
 		{
 		}
 
@@ -406,8 +423,8 @@ namespace NatsuLang::Expression
 		: public Expr
 	{
 	public:
-		MemberExpr(ExprPtr base, SourceLocation loc, NatsuLib::natRefPointer<Declaration::ValueDecl> memberDecl, Identifier::IdPtr name, Type::TypePtr type)
-			: Expr{ MemberExprClass, std::move(type), loc, loc }, m_Base{ std::move(base) }, m_MemberDecl{ std::move(memberDecl) }, m_Name{ std::move(name) }
+		MemberExpr(ExprPtr base, SourceLocation loc, NatsuLib::natRefPointer<Declaration::ValueDecl> memberDecl, Identifier::IdPtr name, Type::TypePtr type, ValueCategory valueCategory)
+			: Expr{ MemberExprClass, std::move(type), valueCategory, loc, loc }, m_Base{ std::move(base) }, m_MemberDecl{ std::move(memberDecl) }, m_Name{ std::move(name) }
 		{
 		}
 
@@ -474,7 +491,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		CastExpr(StmtType stmtType, Type::TypePtr type, CastType castType, ExprPtr operand)
-			: Expr{ stmtType, std::move(type) }, m_CastType{ castType }, m_Operand{ std::move(operand) }
+			: Expr{ stmtType, std::move(type), castType == CastType::NoOp ? operand->GetValueCategory() : ValueCategory::RValue }, m_CastType{ castType }, m_Operand{ std::move(operand) }
 		{
 		}
 
@@ -546,7 +563,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		InitListExpr(Type::TypePtr type, SourceLocation leftBraceLoc, std::vector<ExprPtr> initExprs, SourceLocation rightBraceLoc)
-			: Expr{ InitListExprClass, std::move(type) }, m_LeftBraceLoc{ leftBraceLoc }, m_RightBraceLoc{ rightBraceLoc }, m_InitExprs{ std::move(initExprs) }
+			: Expr{ InitListExprClass, std::move(type), ValueCategory::RValue }, m_LeftBraceLoc{ leftBraceLoc }, m_RightBraceLoc{ rightBraceLoc }, m_InitExprs{ std::move(initExprs) }
 		{
 			Stmt::SetStartLoc(m_LeftBraceLoc);
 			Stmt::SetEndLoc(m_RightBraceLoc);
@@ -582,8 +599,8 @@ namespace NatsuLang::Expression
 		: public Expr
 	{
 	public:
-		BinaryOperator(ExprPtr leftOperand, ExprPtr rightOperand, BinaryOperationType opcode, Type::TypePtr type, SourceLocation loc)
-			: Expr{ BinaryOperatorClass, std::move(type), loc, loc }, m_LeftOperand{ std::move(leftOperand) }, m_RightOperand{ std::move(rightOperand) }, m_Opcode{ opcode }
+		BinaryOperator(ExprPtr leftOperand, ExprPtr rightOperand, BinaryOperationType opcode, Type::TypePtr type, SourceLocation loc, ValueCategory valueCategory)
+			: Expr{ BinaryOperatorClass, std::move(type), valueCategory, loc, loc }, m_LeftOperand{ std::move(leftOperand) }, m_RightOperand{ std::move(rightOperand) }, m_Opcode{ opcode }
 		{
 		}
 
@@ -633,7 +650,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		CompoundAssignOperator(ExprPtr leftOperand, ExprPtr rightOperand, BinaryOperationType opcode, Type::TypePtr type, SourceLocation loc)
-			: BinaryOperator{ std::move(leftOperand), std::move(rightOperand), opcode, std::move(type), loc }
+			: BinaryOperator{ std::move(leftOperand), std::move(rightOperand), opcode, std::move(type), loc, ValueCategory::LValue }
 		{
 		}
 
@@ -646,8 +663,8 @@ namespace NatsuLang::Expression
 		: public Expr
 	{
 	public:
-		ConditionalOperator(ExprPtr cond, SourceLocation qLoc, ExprPtr leftOperand, SourceLocation cLoc, ExprPtr rightOperand, Type::TypePtr type)
-			: Expr{ ConditionalOperatorClass, std::move(type), cond->GetStartLoc(), rightOperand->GetEndLoc() }, m_QuesionLoc{ qLoc }, m_ColonLoc{ cLoc },
+		ConditionalOperator(ExprPtr cond, SourceLocation qLoc, ExprPtr leftOperand, SourceLocation cLoc, ExprPtr rightOperand, Type::TypePtr type, ValueCategory valueCategory)
+			: Expr{ ConditionalOperatorClass, std::move(type), valueCategory, cond->GetStartLoc(), rightOperand->GetEndLoc() }, m_QuesionLoc{ qLoc }, m_ColonLoc{ cLoc },
 			m_Condition{ std::move(cond) }, m_LeftOperand{ std::move(leftOperand) }, m_RightOperand{ std::move(rightOperand) }
 		{
 		}
@@ -720,7 +737,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		StmtExpr(NatsuLib::natRefPointer<Statement::CompoundStmt> subStmt, Type::TypePtr type, SourceLocation start, SourceLocation end)
-			: Expr{ StmtExprClass, std::move(type), start, end }, m_SubStmt{ std::move(subStmt) }
+			: Expr{ StmtExprClass, std::move(type), ValueCategory::RValue, start, end }, m_SubStmt{ std::move(subStmt) }
 		{
 		}
 
@@ -749,7 +766,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		ThisExpr(SourceLocation loc, Type::TypePtr type, nBool isImplicit)
-			: Expr{ ThisExprClass, std::move(type), loc, loc }, m_IsImplicit{ isImplicit }
+			: Expr{ ThisExprClass, std::move(type), ValueCategory::RValue, loc, loc }, m_IsImplicit{ isImplicit }
 		{
 		}
 
@@ -776,7 +793,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		ThrowExpr(ExprPtr operand, Type::TypePtr type, SourceLocation loc)
-			: Expr{ ThrowExprClass, std::move(type), loc, operand ? operand->GetEndLoc() : loc }, m_Operand{ std::move(operand) }
+			: Expr{ ThrowExprClass, std::move(type), ValueCategory::RValue, loc, operand ? operand->GetEndLoc() : loc }, m_Operand{ std::move(operand) }
 		{
 		}
 
@@ -806,7 +823,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		ConstructExpr(Type::TypePtr type, SourceLocation loc, NatsuLib::natRefPointer<Declaration::ConstructorDecl> constructorDecl, std::vector<ExprPtr> args)
-			: Expr{ ConstructExprClass, std::move(type), loc, loc }, m_ConstructorDecl{ std::move(constructorDecl) }, m_Args{ std::move(args) }
+			: Expr{ ConstructExprClass, std::move(type), ValueCategory::RValue, loc, loc }, m_ConstructorDecl{ std::move(constructorDecl) }, m_Args{ std::move(args) }
 		{
 		}
 
@@ -841,7 +858,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		NewExpr(NatsuLib::Linq<NatsuLib::Valued<ExprPtr>> const& args, Type::TypePtr type, SourceRange range)
-			: Expr{ NewExprClass, std::move(type), range.GetBegin(), range.GetEnd() }, m_Args{ args.begin(), args.end() }
+			: Expr{ NewExprClass, std::move(type), ValueCategory::RValue, range.GetBegin(), range.GetEnd() }, m_Args{ args.begin(), args.end() }
 		{
 		}
 
@@ -863,7 +880,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		DeleteExpr(Type::TypePtr type, ExprPtr operand, SourceLocation loc)
-			: Expr{ DeleteExprClass, std::move(type), loc, loc }, m_Operand{ std::move(operand) }
+			: Expr{ DeleteExprClass, std::move(type), ValueCategory::RValue, loc, loc }, m_Operand{ std::move(operand) }
 		{
 		}
 

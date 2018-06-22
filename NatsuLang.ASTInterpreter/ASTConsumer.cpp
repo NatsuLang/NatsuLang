@@ -37,6 +37,11 @@ nBool Interpreter::InterpreterASTConsumer::HandleTopLevelDecl(Linq<Valued<Declar
 {
 	for (auto&& decl : decls)
 	{
+		if (const auto varDecl = decl.Cast<Declaration::VarDecl>(); varDecl && HasAllFlags(varDecl->GetStorageClass(), Specifier::StorageClass::Const))
+		{
+			continue;
+		}
+
 		if (auto namedDecl = decl.Cast<Declaration::NamedDecl>())
 		{
 			m_NamedDecls.emplace(namedDecl->GetIdentifierInfo()->GetName(), std::move(namedDecl));

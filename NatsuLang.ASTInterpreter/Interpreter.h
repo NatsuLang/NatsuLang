@@ -302,6 +302,12 @@ namespace NatsuLang
 
 				void VisitDeclRefExpr(NatsuLib::natRefPointer<Expression::DeclRefExpr> const& expr) override
 				{
+					const auto decl = expr->GetDecl();
+					if (const auto varDecl = decl.Cast<Declaration::VarDecl>(); varDecl && NatsuLib::HasAllFlags(varDecl->GetStorageClass(), Specifier::StorageClass::Const))
+					{
+						this->Visit(varDecl->GetInitializer());
+						return;
+					}
 					m_LastEvaluationSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(expr->GetDecl(), m_Visitor, ExpectedOrExcepted{});
 				}
 
