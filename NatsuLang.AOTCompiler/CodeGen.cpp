@@ -503,7 +503,7 @@ nBool AotCompiler::AotAstConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::D
 
 AotCompiler::AotStmtVisitor::AotStmtVisitor(AotCompiler& compiler, natRefPointer<Declaration::FunctionDecl> funcDecl, llvm::Function* funcValue)
 	: m_Compiler{ compiler }, m_CurrentFunction{ std::move(funcDecl) }, m_CurrentFunctionValue{ funcValue },
-	  m_This{}, m_LastVisitedValue{}, m_RequiredModifiableValue{}, m_CurrentLexicalScope{},
+	  m_This{}, m_LastVisitedValue{}, m_RequiredLValue{}, m_CurrentLexicalScope{},
 	  m_ReturnBlock{ llvm::BasicBlock::Create(compiler.m_LLVMContext, "Return"), m_CleanupStack.begin(), true },
 	  m_ReturnValue{}
 {
@@ -624,7 +624,7 @@ void AotCompiler::AotStmtVisitor::VisitDoStmt(natRefPointer<Statement::DoStmt> c
 
 	EmitBlock(loopCond);
 
-	EvaluateAsBool(stmt->GetCond());
+	EvaluateAsBoolRValue(stmt->GetCond());
 	const auto cond = m_LastVisitedValue;
 
 	// do {} while (false) 较为常用，针对这个场景优化
@@ -656,14 +656,14 @@ void AotCompiler::AotStmtVisitor::VisitConditionalOperator(natRefPointer<Express
 	auto rhsBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "cond.false");
 	const auto endBlock = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "cond.end");
 
-	EvaluateAsBool(expr->GetCondition());
+	EvaluateAsBoolRValue(expr->GetCondition());
 	const auto cond = m_LastVisitedValue;
 
 	m_Compiler.m_IRBuilder.CreateCondBr(cond, lhsBlock, rhsBlock);
 
 	EmitBlock(lhsBlock);
 
-	EvaluateValue(expr->GetLeftOperand());
+	EvaluateRValue(expr->GetLeftOperand());
 	const auto lhs = m_LastVisitedValue;
 
 	lhsBlock = m_Compiler.m_IRBuilder.GetInsertBlock();
@@ -675,7 +675,7 @@ void AotCompiler::AotStmtVisitor::VisitConditionalOperator(natRefPointer<Express
 
 	EmitBlock(rhsBlock);
 
-	EvaluateValue(expr->GetRightOperand());
+	EvaluateRValue(expr->GetRightOperand());
 	const auto rhs = m_LastVisitedValue;
 
 	rhsBlock = m_Compiler.m_IRBuilder.GetInsertBlock();
@@ -698,15 +698,15 @@ void AotCompiler::AotStmtVisitor::VisitConditionalOperator(natRefPointer<Express
 
 void AotCompiler::AotStmtVisitor::VisitArraySubscriptExpr(natRefPointer<Expression::ArraySubscriptExpr> const& expr)
 {
-	EvaluateAsModifiableValue(expr->GetLeftOperand());
+	EvaluateLValue(expr->GetLeftOperand());
 	const auto baseExpr = m_LastVisitedValue;
-	EvaluateValue(expr->GetRightOperand());
+	EvaluateRValue(expr->GetRightOperand());
 	const auto indexExpr = m_LastVisitedValue;
 
 	m_LastVisitedValue = m_Compiler.m_IRBuilder.CreateGEP(baseExpr,
 		{ llvm::ConstantInt::getNullValue(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext)), indexExpr }, "arrayElemPtr");
 
-	if (!m_RequiredModifiableValue)
+	if (!m_RequiredLValue)
 	{
 		setLastVisitedResult(m_Compiler.m_IRBuilder.CreateLoad(m_LastVisitedValue, "arrayElem"));
 	}
@@ -714,10 +714,10 @@ void AotCompiler::AotStmtVisitor::VisitArraySubscriptExpr(natRefPointer<Expressi
 
 void AotCompiler::AotStmtVisitor::VisitBinaryOperator(natRefPointer<Expression::BinaryOperator> const& expr)
 {
-	EvaluateValue(expr->GetLeftOperand());
+	EvaluateRValue(expr->GetLeftOperand());
 	const auto leftOperand = m_LastVisitedValue;
 
-	EvaluateValue(expr->GetRightOperand());
+	EvaluateRValue(expr->GetRightOperand());
 	const auto rightOperand = m_LastVisitedValue;
 
 	const auto opCode = expr->GetOpcode();
@@ -733,10 +733,10 @@ void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expr
 	const auto resultType = expr->GetLeftOperand()->GetExprType();
 	const auto rightType = expr->GetRightOperand()->GetExprType();
 
-	EvaluateAsModifiableValue(expr->GetLeftOperand());
+	EvaluateLValue(expr->GetLeftOperand());
 	const auto leftOperand = m_LastVisitedValue;
 
-	EvaluateValue(expr->GetRightOperand());
+	EvaluateRValue(expr->GetRightOperand());
 	const auto rightOperand = m_LastVisitedValue;
 
 	const auto opCode = expr->GetOpcode();
@@ -759,7 +759,7 @@ void AotCompiler::AotStmtVisitor::VisitCompoundAssignOperator(natRefPointer<Expr
 
 	m_Compiler.m_IRBuilder.CreateStore(value, leftOperand);
 
-	setLastVisitedResult(m_RequiredModifiableValue ? leftOperand : m_Compiler.m_IRBuilder.CreateLoad(leftOperand));
+	setLastVisitedResult(m_RequiredLValue ? leftOperand : m_Compiler.m_IRBuilder.CreateLoad(leftOperand));
 }
 
 void AotCompiler::AotStmtVisitor::VisitBooleanLiteral(natRefPointer<Expression::BooleanLiteral> const& expr)
@@ -784,7 +784,7 @@ void AotCompiler::AotStmtVisitor::VisitNewExpr(natRefPointer<Expression::NewExpr
 
 void AotCompiler::AotStmtVisitor::VisitThisExpr(natRefPointer<Expression::ThisExpr> const& /*expr*/)
 {
-	setLastVisitedResult(m_RequiredModifiableValue ? m_This : m_Compiler.m_IRBuilder.CreateLoad(m_This));
+	setLastVisitedResult(m_RequiredLValue ? m_This : m_Compiler.m_IRBuilder.CreateLoad(m_This));
 }
 
 void AotCompiler::AotStmtVisitor::VisitThrowExpr(natRefPointer<Expression::ThrowExpr> const& expr)
@@ -794,7 +794,7 @@ void AotCompiler::AotStmtVisitor::VisitThrowExpr(natRefPointer<Expression::Throw
 
 void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallExpr> const& expr)
 {
-	EvaluateValue(expr->GetCallee());
+	EvaluateRValue(expr->GetCallee());
 	const auto callee = m_LastVisitedValue;
 	natRefPointer<Declaration::FunctionDecl> funcDecl;
 	if (auto func = m_LastVisitedDecl.Cast<Declaration::FunctionDecl>())
@@ -821,7 +821,7 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 	{
 		// TODO: 直接按位复制了，在需要的时候应由前端生成复制构造函数，但此处没有看到分配存储？
 		// TODO: 搞清楚 C/C++ 的 abi 差异了，需要添加 abi 相关选项来控制
-		EvaluateValue(arg);
+		EvaluateRValue(arg);
 		assert(m_LastVisitedValue);
 		args.emplace_back(m_LastVisitedValue);
 	}
@@ -834,7 +834,7 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 		{
 			const auto defaultArg = param->GetInitializer();
 			assert(defaultArg);
-			EvaluateValue(defaultArg);
+			EvaluateRValue(defaultArg);
 			assert(m_LastVisitedValue);
 			args.emplace_back(m_LastVisitedValue);
 		}
@@ -862,7 +862,7 @@ void AotCompiler::AotStmtVisitor::VisitCallExpr(natRefPointer<Expression::CallEx
 
 void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::MemberCallExpr> const& expr)
 {
-	EvaluateValue(expr->GetCallee());
+	EvaluateRValue(expr->GetCallee());
 	// 暂时不支持成员函数指针
 	const auto callee = llvm::cast<llvm::Function>(m_LastVisitedValue);
 	natRefPointer<Declaration::MethodDecl> funcDecl;
@@ -876,12 +876,12 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 	if (Type::Type::GetUnderlyingType(baseObj->GetExprType())->GetType() == Type::Type::Pointer)
 	{
 		// 是指针，直接取值
-		EvaluateValue(baseObj);
+		EvaluateRValue(baseObj);
 	}
 	else
 	{
 		// 是对象，取地址
-		EvaluateAsModifiableValue(baseObj);
+		EvaluateLValue(baseObj);
 	}
 
 	const auto baseObjValue = m_LastVisitedValue;
@@ -897,7 +897,7 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 	for (auto&& arg : expr->GetArgs())
 	{
 		// TODO: 直接按位复制了，在需要的时候应由前端生成复制构造函数，但此处没有看到分配存储？
-		EvaluateValue(arg);
+		EvaluateRValue(arg);
 		assert(m_LastVisitedValue);
 		args.emplace_back(m_LastVisitedValue);
 	}
@@ -910,7 +910,7 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 		{
 			const auto defaultArg = param->GetInitializer();
 			assert(defaultArg);
-			EvaluateValue(defaultArg);
+			EvaluateRValue(defaultArg);
 			assert(m_LastVisitedValue);
 			args.emplace_back(m_LastVisitedValue);
 		}
@@ -939,21 +939,21 @@ void AotCompiler::AotStmtVisitor::VisitMemberCallExpr(natRefPointer<Expression::
 void AotCompiler::AotStmtVisitor::VisitCastExpr(natRefPointer<Expression::CastExpr> const& expr)
 {
 	const auto operand = expr->GetOperand();
-	EvaluateValue(operand);
+	EvaluateRValue(operand);
 	setLastVisitedResult(ConvertScalarTo(m_LastVisitedValue, operand->GetExprType(), expr->GetExprType()));
 }
 
 void AotCompiler::AotStmtVisitor::VisitAsTypeExpr(natRefPointer<Expression::AsTypeExpr> const& expr)
 {
 	const auto operand = expr->GetOperand();
-	EvaluateValue(operand);
+	EvaluateRValue(operand);
 	setLastVisitedResult(ConvertScalarTo(m_LastVisitedValue, operand->GetExprType(), expr->GetExprType()));
 }
 
 void AotCompiler::AotStmtVisitor::VisitImplicitCastExpr(natRefPointer<Expression::ImplicitCastExpr> const& expr)
 {
 	const auto operand = expr->GetOperand();
-	EvaluateValue(operand);
+	EvaluateRValue(operand);
 	setLastVisitedResult(ConvertScalarTo(m_LastVisitedValue, operand->GetExprType(), expr->GetExprType()));
 }
 
@@ -977,17 +977,17 @@ void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::Dec
 		{
 			if (HasAllFlags(varDecl->GetStorageClass(), Specifier::StorageClass::Const))
 			{
-				if (m_RequiredModifiableValue)
+				if (m_RequiredLValue)
 				{
 					nat_Throw(AotCompilerException, u8"此定义不可变"_nv);
 				}
 
-				EvaluateValue(varDecl->GetInitializer());
+				EvaluateRValue(varDecl->GetInitializer());
 				return;
 			}
 
 			EmitAddressOfVar(varDecl);
-			if (!m_RequiredModifiableValue)
+			if (!m_RequiredLValue)
 			{
 				setLastVisitedResult(m_Compiler.m_IRBuilder.CreateLoad(m_LastVisitedValue, "var"), decl);
 			}
@@ -998,7 +998,7 @@ void AotCompiler::AotStmtVisitor::VisitDeclRefExpr(natRefPointer<Expression::Dec
 
 	if (const auto enumeratorDecl = decl.Cast<Declaration::EnumConstantDecl>())
 	{
-		if (m_RequiredModifiableValue)
+		if (m_RequiredLValue)
 		{
 			nat_Throw(AotCompilerException, u8"此定义不可变"_nv);
 		}
@@ -1026,7 +1026,7 @@ void AotCompiler::AotStmtVisitor::VisitFloatingLiteral(natRefPointer<Expression:
 
 void AotCompiler::AotStmtVisitor::VisitIntegerLiteral(natRefPointer<Expression::IntegerLiteral> const& expr)
 {
-	if (m_RequiredModifiableValue)
+	if (m_RequiredLValue)
 	{
 		nat_Throw(AotCompilerException, u8"当前表达式无法求值为可修改的值"_nv);
 	}
@@ -1043,7 +1043,7 @@ void AotCompiler::AotStmtVisitor::VisitMemberExpr(natRefPointer<Expression::Memb
 
 	if (const auto method = memberDecl.Cast<Declaration::MethodDecl>())
 	{
-		if (m_RequiredModifiableValue)
+		if (m_RequiredLValue)
 		{
 			nat_Throw(AotCompilerException, u8"当前表达式无法求值为可修改的值"_nv);
 		}
@@ -1059,7 +1059,7 @@ void AotCompiler::AotStmtVisitor::VisitMemberExpr(natRefPointer<Expression::Memb
 	else if (const auto field = memberDecl.Cast<Declaration::FieldDecl>())
 	{
 		const auto baseExpr = expr->GetBase();
-		EvaluateAsModifiableValue(baseExpr);
+		EvaluateLValue(baseExpr);
 		auto baseValue = m_LastVisitedValue;
 		auto baseType = baseExpr->GetExprType();
 
@@ -1089,7 +1089,7 @@ void AotCompiler::AotStmtVisitor::VisitMemberExpr(natRefPointer<Expression::Memb
 		const auto memberPtr = m_Compiler.m_IRBuilder.CreateGEP(baseValue,
 			{ llvm::ConstantInt::getNullValue(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext)), llvm::ConstantInt::get(llvm::Type::getInt32Ty(m_Compiler.m_LLVMContext), fieldIndex) },
 			llvm::StringRef{ fieldName.data(), fieldName.size() });
-		setLastVisitedResult(m_RequiredModifiableValue ? memberPtr : m_Compiler.m_IRBuilder.CreateLoad(memberPtr, llvm::StringRef{ fieldName.data(), fieldName.size() }), memberDecl);
+		setLastVisitedResult(m_RequiredLValue ? memberPtr : m_Compiler.m_IRBuilder.CreateLoad(memberPtr, llvm::StringRef{ fieldName.data(), fieldName.size() }), memberDecl);
 	}
 	else
 	{
@@ -1099,7 +1099,7 @@ void AotCompiler::AotStmtVisitor::VisitMemberExpr(natRefPointer<Expression::Memb
 
 void AotCompiler::AotStmtVisitor::VisitParenExpr(natRefPointer<Expression::ParenExpr> const& expr)
 {
-	EvaluateValue(expr->GetInnerExpr());
+	EvaluateRValue(expr->GetInnerExpr());
 }
 
 void AotCompiler::AotStmtVisitor::VisitStmtExpr(natRefPointer<Expression::StmtExpr> const& expr)
@@ -1121,46 +1121,46 @@ void AotCompiler::AotStmtVisitor::VisitUnaryOperator(natRefPointer<Expression::U
 	switch (opCode)
 	{
 	case Expression::UnaryOperationType::PostInc:
-		EvaluateAsModifiableValue(operand);
+		EvaluateLValue(operand);
 		setLastVisitedResult(EmitIncDec(m_LastVisitedValue, opType, true, false));
 		break;
 	case Expression::UnaryOperationType::PreInc:
-		EvaluateAsModifiableValue(operand);
+		EvaluateLValue(operand);
 		setLastVisitedResult(EmitIncDec(m_LastVisitedValue, opType, true, true));
 		break;
 	case Expression::UnaryOperationType::PostDec:
-		EvaluateAsModifiableValue(operand);
+		EvaluateLValue(operand);
 		setLastVisitedResult(EmitIncDec(m_LastVisitedValue, opType, false, false));
 		break;
 	case Expression::UnaryOperationType::PreDec:
-		EvaluateAsModifiableValue(operand);
+		EvaluateLValue(operand);
 		setLastVisitedResult(EmitIncDec(m_LastVisitedValue, opType, false, true));
 		break;
 	case Expression::UnaryOperationType::AddrOf:
 		// 返回值即为地址
 		if (operand->GetExprType().Cast<Type::FunctionType>())
 		{
-			EvaluateValue(operand);
+			EvaluateRValue(operand);
 		}
 		else
 		{
-			EvaluateAsModifiableValue(operand);
+			EvaluateLValue(operand);
 		}
 
 		break;
 	case Expression::UnaryOperationType::Deref:
-		EvaluateValue(operand);
-		if (!m_RequiredModifiableValue)
+		EvaluateRValue(operand);
+		if (!m_RequiredLValue)
 		{
 			setLastVisitedResult(m_Compiler.m_IRBuilder.CreateLoad(m_LastVisitedValue, "deref"));
 		}
 
 		break;
 	case Expression::UnaryOperationType::Plus:
-		EvaluateValue(operand);
+		EvaluateRValue(operand);
 		break;
 	case Expression::UnaryOperationType::Minus:
-		EvaluateValue(operand);
+		EvaluateRValue(operand);
 		if (const auto builtinType = Type::Type::GetUnderlyingType(operand->GetExprType()).Cast<Type::BuiltinType>())
 		{
 			if (builtinType->IsIntegerType())
@@ -1180,11 +1180,11 @@ void AotCompiler::AotStmtVisitor::VisitUnaryOperator(natRefPointer<Expression::U
 
 		break;
 	case Expression::UnaryOperationType::Not:
-		EvaluateValue(operand);
+		EvaluateRValue(operand);
 		setLastVisitedResult(m_Compiler.m_IRBuilder.CreateNot(m_LastVisitedValue));
 		break;
 	case Expression::UnaryOperationType::LNot:
-		EvaluateAsBool(operand);
+		EvaluateAsBoolRValue(operand);
 		setLastVisitedResult(m_Compiler.m_IRBuilder.CreateIsNull(m_LastVisitedValue));
 		break;
 	default:
@@ -1223,7 +1223,7 @@ void AotCompiler::AotStmtVisitor::VisitForStmt(natRefPointer<Statement::ForStmt>
 		{
 			const auto forBody = llvm::BasicBlock::Create(m_Compiler.m_LLVMContext, "for.body");
 
-			EvaluateAsBool(cond);
+			EvaluateAsBoolRValue(cond);
 			const auto condValue = m_LastVisitedValue;
 
 			m_Compiler.m_IRBuilder.CreateCondBr(condValue, forBody, forEnd);
@@ -1262,7 +1262,7 @@ void AotCompiler::AotStmtVisitor::VisitGotoStmt(natRefPointer<Statement::GotoStm
 
 void AotCompiler::AotStmtVisitor::VisitIfStmt(natRefPointer<Statement::IfStmt> const& stmt)
 {
-	EvaluateAsBool(stmt->GetCond());
+	EvaluateAsBoolRValue(stmt->GetCond());
 	const auto condExpr = m_LastVisitedValue;
 
 	const auto thenStmt = stmt->GetThen();
@@ -1317,7 +1317,7 @@ void AotCompiler::AotStmtVisitor::VisitReturnStmt(natRefPointer<Statement::Retur
 {
 	if (const auto retExpr = stmt->GetReturnExpr())
 	{
-		EvaluateValue(retExpr);
+		EvaluateRValue(retExpr);
 		m_Compiler.m_IRBuilder.CreateStore(m_LastVisitedValue, m_ReturnValue);
 	}
 
@@ -1353,7 +1353,7 @@ void AotCompiler::AotStmtVisitor::VisitWhileStmt(natRefPointer<Statement::WhileS
 
 	m_BreakContinueStack.emplace_back(JumpDest{ loopEnd, GetCleanupStackTop(), true }, JumpDest{ loopHead, GetCleanupStackTop(), true });
 
-	EvaluateAsBool(stmt->GetCond());
+	EvaluateAsBoolRValue(stmt->GetCond());
 	const auto cond = m_LastVisitedValue;
 
 	// while (true) {} 较为常用，针对这个场景优化
@@ -1868,7 +1868,7 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitBuiltinIncDec(llvm::Value* operand
 
 	m_Compiler.m_IRBuilder.CreateStore(value, operand);
 
-	if (m_RequiredModifiableValue)
+	if (m_RequiredLValue)
 	{
 		if (isPre)
 		{
@@ -1901,7 +1901,7 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitIncDec(llvm::Value* operand, const
 
 		m_Compiler.m_IRBuilder.CreateStore(value, operand);
 
-		if (m_RequiredModifiableValue)
+		if (m_RequiredLValue)
 		{
 			if (isPre)
 			{
@@ -1937,7 +1937,7 @@ llvm::Value* AotCompiler::AotStmtVisitor::EmitFunctionAddr(natRefPointer<Declara
 {
 	assert(func);
 
-	if (!m_RequiredModifiableValue)
+	if (!m_RequiredLValue)
 	{
 		const auto funcIter = m_Compiler.m_FunctionMap.find(func);
 		if (funcIter != m_Compiler.m_FunctionMap.end())
@@ -2034,7 +2034,7 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarInit(Type::TypePtr const& varType, 
 				else if (initExprCount == 1)
 				{
 					const auto initExpr = initListExpr->GetInitExprs().first();
-					EvaluateValue(initExpr);
+					EvaluateRValue(initExpr);
 					const auto initializerValue = m_LastVisitedValue;
 					m_Compiler.m_IRBuilder.CreateStore(initializerValue, varPtr);
 				}
@@ -2076,7 +2076,7 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarInit(Type::TypePtr const& varType, 
 			for (auto&& arg : constructExpr->GetArgs())
 			{
 				// TODO: 直接按位复制了，在需要的时候应由前端生成复制构造函数，但此处没有看到分配存储？
-				EvaluateValue(arg);
+				EvaluateRValue(arg);
 				assert(m_LastVisitedValue);
 				args.emplace_back(m_LastVisitedValue);
 			}
@@ -2088,7 +2088,7 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarInit(Type::TypePtr const& varType, 
 				{
 					const auto defaultArg = param->GetInitializer();
 					assert(defaultArg);
-					EvaluateValue(defaultArg);
+					EvaluateRValue(defaultArg);
 					assert(m_LastVisitedValue);
 					args.emplace_back(m_LastVisitedValue);
 				}
@@ -2116,7 +2116,7 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarInit(Type::TypePtr const& varType, 
 		}
 		else
 		{
-			EvaluateValue(initializer);
+			EvaluateRValue(initializer);
 			const auto initializerValue = m_LastVisitedValue;
 			m_Compiler.m_IRBuilder.CreateStore(initializerValue, varPtr);
 		}
@@ -2181,37 +2181,37 @@ void AotCompiler::AotStmtVisitor::EmitDestructorCall(natRefPointer<Declaration::
 	m_Compiler.m_IRBuilder.CreateCall(func, addr);
 }
 
-void AotCompiler::AotStmtVisitor::EvaluateValue(Expression::ExprPtr const& expr)
+void AotCompiler::AotStmtVisitor::EvaluateRValue(Expression::ExprPtr const& expr)
 {
 	assert(expr);
 
-	const auto scope = make_scope([this, oldValue = std::exchange(m_RequiredModifiableValue, false)]
+	const auto scope = make_scope([this, oldValue = std::exchange(m_RequiredLValue, false)]
 	{
-		m_RequiredModifiableValue = oldValue;
+		m_RequiredLValue = oldValue;
 	});
 
 	m_LastVisitedDecl.Reset();
 	Visit(expr);
 }
 
-void AotCompiler::AotStmtVisitor::EvaluateAsModifiableValue(Expression::ExprPtr const& expr)
+void AotCompiler::AotStmtVisitor::EvaluateLValue(Expression::ExprPtr const& expr)
 {
 	assert(expr);
 
-	const auto scope = make_scope([this, oldValue = std::exchange(m_RequiredModifiableValue, true)]
+	const auto scope = make_scope([this, oldValue = std::exchange(m_RequiredLValue, true)]
 	{
-		m_RequiredModifiableValue = oldValue;
+		m_RequiredLValue = oldValue;
 	});
 
 	m_LastVisitedDecl.Reset();
 	Visit(expr);
 }
 
-void AotCompiler::AotStmtVisitor::EvaluateAsBool(Expression::ExprPtr const& expr)
+void AotCompiler::AotStmtVisitor::EvaluateAsBoolRValue(Expression::ExprPtr const& expr)
 {
 	assert(expr);
 
-	EvaluateValue(expr);
+	EvaluateRValue(expr);
 
 	setLastVisitedResult(ConvertScalarToBool(m_LastVisitedValue, expr->GetExprType()));
 }
@@ -2298,10 +2298,9 @@ Begin:
 			{
 				return llvm::Constant::getNullValue(llvmToType);
 			}
-			if (builtinFromType->GetBuiltinClass() != Type::BuiltinType::Long)
+			if (builtinFromType != m_Compiler.m_AstContext.GetSizeType())
 			{
-				// FIXME: 替换成足够长的整数类型，并定义别名
-				from = ConvertScalarTo(from, fromType, m_Compiler.m_AstContext.GetBuiltinType(Type::BuiltinType::Long));
+				from = ConvertScalarTo(from, fromType, m_Compiler.m_AstContext.GetSizeType());
 			}
 			return m_Compiler.m_IRBuilder.CreateIntToPtr(from, llvmToType, "inttoptr");
 		case Type::Type::Array: break;
@@ -2323,13 +2322,13 @@ Begin:
 		{
 			const auto builtinToType = toType.UnsafeCast<Type::BuiltinType>();
 			assert(builtinToType->IsIntegerType());
-			auto result = m_Compiler.m_IRBuilder.CreatePtrToInt(from, llvm::IntegerType::get(m_Compiler.m_LLVMContext, llvmFromType->getIntegerBitWidth()), "ptrtoint");
+			auto result = m_Compiler.m_IRBuilder.CreatePtrToInt(from, m_Compiler.getCorrespondingType(m_Compiler.m_AstContext.GetSizeType()), "ptrtoint");
 			nInt compareResult;
-			if (builtinToType->CompareRankTo(Type::BuiltinType::Long, compareResult) && compareResult <= 0)
+			if (builtinToType->CompareRankTo(m_Compiler.m_AstContext.GetSizeType(), compareResult) && compareResult <= 0)
 			{
 				if (compareResult < 0)
 				{
-					result = ConvertScalarTo(result, m_Compiler.m_AstContext.GetBuiltinType(Type::BuiltinType::Long), toType);
+					result = ConvertScalarTo(result, m_Compiler.m_AstContext.GetSizeType(), toType);
 				}
 
 				return result;

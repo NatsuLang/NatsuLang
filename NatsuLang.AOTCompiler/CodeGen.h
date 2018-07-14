@@ -328,9 +328,9 @@ namespace NatsuLang::Compiler
 
 			void EmitDestructorCall(NatsuLib::natRefPointer<Declaration::DestructorDecl> const& destructor, llvm::Value* addr);
 
-			void EvaluateValue(Expression::ExprPtr const& expr);
-			void EvaluateAsModifiableValue(Expression::ExprPtr const& expr);
-			void EvaluateAsBool(Expression::ExprPtr const& expr);
+			void EvaluateRValue(Expression::ExprPtr const& expr);
+			void EvaluateLValue(Expression::ExprPtr const& expr);
+			void EvaluateAsBoolRValue(Expression::ExprPtr const& expr);
 
 			llvm::Value* ConvertScalarTo(llvm::Value* from, Type::TypePtr fromType, Type::TypePtr toType);
 			llvm::Value* ConvertScalarToBool(llvm::Value* from, const Type::TypePtr& fromType);
@@ -353,7 +353,7 @@ namespace NatsuLang::Compiler
 			std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, llvm::Value*> m_DeclMap;
 			llvm::Value* m_LastVisitedValue;
 			Declaration::DeclPtr m_LastVisitedDecl;
-			nBool m_RequiredModifiableValue;
+			nBool m_RequiredLValue;
 			std::vector<std::pair<JumpDest, JumpDest>> m_BreakContinueStack;
 			CleanupStack m_CleanupStack;
 			LexicalScope* m_CurrentLexicalScope;
