@@ -29,6 +29,14 @@ namespace NatsuLang
 			std::optional<std::pair<std::size_t, std::size_t>> GetFieldInfo(NatsuLib::natRefPointer<Declaration::FieldDecl> const& field) const noexcept;
 		};
 
+		struct IClassLayoutBuilder
+			: NatsuLib::natRefObj
+		{
+			virtual ~IClassLayoutBuilder();
+
+			virtual ClassLayout BuildLayout(ASTContext& context, NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl) = 0;
+		};
+
 		friend class NestedNameSpecifier;
 
 		ASTContext();
@@ -57,6 +65,9 @@ namespace NatsuLang
 		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> GetTranslationUnit() const noexcept;
 
 		TypeInfo GetTypeInfo(Type::TypePtr const& type);
+
+		void UseDefaultClassLayoutBuilder();
+		void UseCustomClassLayoutBuilder(NatsuLib::natRefPointer<IClassLayoutBuilder> classLayoutBuilder);
 		ClassLayout const& GetClassLayout(NatsuLib::natRefPointer<Declaration::ClassDecl> const& classDecl);
 
 	private:
@@ -77,6 +88,7 @@ namespace NatsuLang
 		mutable std::unordered_set<NatsuLib::natRefPointer<NestedNameSpecifier>, NestedNameSpecifier::Hash, NestedNameSpecifier::EqualTo> m_NestedNameSpecifiers;
 
 		std::unordered_map<Type::TypePtr, TypeInfo> m_CachedTypeInfo;
+		NatsuLib::natRefPointer<IClassLayoutBuilder> m_ClassLayoutBuilder;
 		std::unordered_map<NatsuLib::natRefPointer<Declaration::ClassDecl>, ClassLayout> m_CachedClassLayout;
 		std::unordered_map<Type::BuiltinType::BuiltinClass, NatsuLib::natRefPointer<Type::BuiltinType>> m_BuiltinTypeMap;
 		NatsuLib::natRefPointer<Type::BuiltinType> m_SizeType, m_PtrDiffType;

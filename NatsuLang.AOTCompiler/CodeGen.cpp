@@ -2501,6 +2501,7 @@ AotCompiler::AotCompiler(natRefPointer<TextReader<StringType::Utf8>> const& diag
 		Environment::Endianness::LittleEndian,
 		dataLayout.getPointerSize(),
 		dataLayout.getPointerABIAlignment(0) });
+	m_AstContext.UseDefaultClassLayoutBuilder();
 
 	prewarm();
 }

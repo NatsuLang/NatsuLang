@@ -55,6 +55,37 @@ namespace
 			return { 0, 0 };
 		}
 	}
+
+	class DefaultClassLayoutBuilder
+		: public natRefObjImpl<DefaultClassLayoutBuilder, ASTContext::IClassLayoutBuilder>
+	{
+	public:
+		ASTContext::ClassLayout BuildLayout(ASTContext& context, natRefPointer<Declaration::ClassDecl> const& classDecl) override
+		{
+			// 允许 0 大小对象将会允许对象具有相同的地址
+			ASTContext::ClassLayout info{};
+			for (auto const& field : classDecl->GetFields())
+			{
+				const auto fieldInfo = context.GetTypeInfo(field->GetValueType());
+				info.Align = std::max(fieldInfo.Align, info.Align);
+				const auto fieldOffset = AlignTo(info.Size, fieldInfo.Align);
+				if (fieldOffset != info.Size)
+				{
+					// 插入 padding
+					info.FieldOffsets.emplace_back(nullptr, info.Size);
+				}
+				info.FieldOffsets.emplace_back(field, fieldOffset);
+				info.Size = fieldOffset + fieldInfo.Size;
+			}
+
+			if (info.Align)
+			{
+				info.Size = AlignTo(info.Size, info.Align);
+			}
+
+			return info;
+		}
+	};
 }
 
 std::optional<std::pair<std::size_t, std::size_t>> ASTContext::ClassLayout::GetFieldInfo(natRefPointer<Declaration::FieldDecl> const& field) const noexcept
@@ -70,6 +101,10 @@ std::optional<std::pair<std::size_t, std::size_t>> ASTContext::ClassLayout::GetF
 	}
 
 	return std::optional<std::pair<std::size_t, std::size_t>>{ std::in_place, std::distance(FieldOffsets.cbegin(), iter), iter->second };
+}
+
+ASTContext::IClassLayoutBuilder::~IClassLayoutBuilder()
+{
 }
 
 ASTContext::ASTContext()
@@ -169,80 +204,39 @@ Type::BuiltinType::BuiltinClass ASTContext::GetIntegerTypeAtLeast(std::size_t si
 natRefPointer<Type::ArrayType> ASTContext::GetArrayType(Type::TypePtr elementType, nuLong arraySize)
 {
 	// 能否省去此次构造？
-	auto ret = make_ref<Type::ArrayType>(std::move(elementType), arraySize);
-	const auto iter = m_ArrayTypes.find(ret);
-	if (iter != m_ArrayTypes.end())
-	{
-		return *iter;
-	}
-
-	m_ArrayTypes.emplace(ret);
-	return ret;
+	// 对于 set 直接 emplace 即可，若换成 map 则恢复之前的写法
+	const auto ret = m_ArrayTypes.emplace(make_ref<Type::ArrayType>(std::move(elementType), arraySize));
+	return *ret.first;
 }
 
 natRefPointer<Type::PointerType> ASTContext::GetPointerType(Type::TypePtr pointeeType)
 {
-	auto ret = make_ref<Type::PointerType>(std::move(pointeeType));
-	const auto iter = m_PointerTypes.find(ret);
-	if (iter != m_PointerTypes.end())
-	{
-		return *iter;
-	}
-
-	m_PointerTypes.emplace(ret);
-	return ret;
+	const auto ret = m_PointerTypes.emplace(make_ref<Type::PointerType>(std::move(pointeeType)));
+	return *ret.first;
 }
 
 natRefPointer<Type::FunctionType> ASTContext::GetFunctionType(Linq<Valued<Type::TypePtr>> const& params, Type::TypePtr retType, nBool hasVarArg)
 {
-	auto ret = make_ref<Type::FunctionType>(params, std::move(retType), hasVarArg);
-	const auto iter = m_FunctionTypes.find(ret);
-	if (iter != m_FunctionTypes.end())
-	{
-		return *iter;
-	}
-
-	m_FunctionTypes.emplace(ret);
-	return ret;
+	const auto ret = m_FunctionTypes.emplace(make_ref<Type::FunctionType>(params, std::move(retType), hasVarArg));
+	return *ret.first;
 }
 
 natRefPointer<Type::ParenType> ASTContext::GetParenType(Type::TypePtr innerType)
 {
-	auto ret = make_ref<Type::ParenType>(std::move(innerType));
-	const auto iter = m_ParenTypes.find(ret);
-	if (iter != m_ParenTypes.end())
-	{
-		return *iter;
-	}
-
-	m_ParenTypes.emplace(ret);
-	return ret;
+	const auto ret = m_ParenTypes.emplace(make_ref<Type::ParenType>(std::move(innerType)));
+	return *ret.first;
 }
 
 natRefPointer<Type::AutoType> ASTContext::GetAutoType(Type::TypePtr deducedAsType)
 {
-	auto ret = make_ref<Type::AutoType>(std::move(deducedAsType));
-	const auto iter = m_AutoTypes.find(ret);
-	if (iter != m_AutoTypes.end())
-	{
-		return *iter;
-	}
-
-	m_AutoTypes.emplace(ret);
-	return ret;
+	const auto ret = m_AutoTypes.emplace(make_ref<Type::AutoType>(std::move(deducedAsType)));
+	return *ret.first;
 }
 
 natRefPointer<Type::UnresolvedType> ASTContext::GetUnresolvedType(std::vector<Lex::Token>&& tokens)
 {
-	auto ret = make_ref<Type::UnresolvedType>(std::move(tokens));
-	const auto iter = m_UnresolvedTypes.find(ret);
-	if (iter != m_UnresolvedTypes.end())
-	{
-		return *iter;
-	}
-
-	m_UnresolvedTypes.emplace(ret);
-	return ret;
+	const auto ret = m_UnresolvedTypes.emplace(make_ref<Type::UnresolvedType>(std::move(tokens)));
+	return *ret.first;
 }
 
 void ASTContext::EraseType(const Type::TypePtr& type)
@@ -328,7 +322,16 @@ ASTContext::TypeInfo ASTContext::GetTypeInfo(Type::TypePtr const& type)
 	return info;
 }
 
-// TODO: 根据编译目标的方案进行计算
+void ASTContext::UseDefaultClassLayoutBuilder()
+{
+	m_ClassLayoutBuilder = make_ref<DefaultClassLayoutBuilder>();
+}
+
+void ASTContext::UseCustomClassLayoutBuilder(natRefPointer<IClassLayoutBuilder> classLayoutBuilder)
+{
+	m_ClassLayoutBuilder = std::move(classLayoutBuilder);
+}
+
 ASTContext::ClassLayout const& ASTContext::GetClassLayout(natRefPointer<Declaration::ClassDecl> const& classDecl)
 {
 	assert(classDecl);
@@ -339,28 +342,12 @@ ASTContext::ClassLayout const& ASTContext::GetClassLayout(natRefPointer<Declarat
 		return layoutIter->second;
 	}
 
-	// 允许 0 大小对象将会允许对象具有相同的地址
-	ClassLayout info{};
-	for (auto const& field : classDecl->GetFields())
+	if (!m_ClassLayoutBuilder)
 	{
-		const auto fieldInfo = getTypeInfoImpl(field->GetValueType());
-		info.Align = std::max(fieldInfo.Align, info.Align);
-		const auto fieldOffset = AlignTo(info.Size, fieldInfo.Align);
-		if (fieldOffset != info.Size)
-		{
-			// 插入 padding
-			info.FieldOffsets.emplace_back(nullptr, info.Size);
-		}
-		info.FieldOffsets.emplace_back(field, fieldOffset);
-		info.Size = fieldOffset + fieldInfo.Size;
+		nat_Throw(natErrException, NatErr::NatErr_IllegalState, u8"ClassLayoutBuilder is null."_nv);
 	}
 
-	if (info.Align)
-	{
-		info.Size = AlignTo(info.Size, info.Align);
-	}
-
-	const auto ret = m_CachedClassLayout.emplace(classDecl, info);
+	const auto ret = m_CachedClassLayout.emplace(classDecl, m_ClassLayoutBuilder->BuildLayout(*this, classDecl));
 	if (!ret.second)
 	{
 		nat_Throw(natErrException, NatErr::NatErr_InternalErr, u8"Cannot insert class layout"_nv);
