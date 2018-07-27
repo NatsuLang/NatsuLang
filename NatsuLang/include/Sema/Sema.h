@@ -298,7 +298,7 @@ namespace NatsuLang::Semantic
 		Type::TypePtr CreateUnresolvedType(std::vector<Lex::Token> tokens);
 
 		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope,
-		                                             Declaration::DeclaratorPtr declarator);
+		                                             const Declaration::DeclaratorPtr& declarator);
 		Declaration::DeclPtr ActOnStartOfFunctionDef(NatsuLib::natRefPointer<Scope> const& scope, Declaration::DeclPtr decl);
 		Declaration::DeclPtr ActOnFinishFunctionBody(Declaration::DeclPtr decl, Statement::StmtPtr body);
 

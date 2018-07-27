@@ -48,7 +48,8 @@ namespace
 		using Type::BuiltinType;
 
 		if (!fromType || (!fromType->IsIntegerType() && !fromType->IsFloatingType()) ||
-			!toType || (!toType->IsIntegerType() && !toType->IsFloatingType() && toType->GetBuiltinClass() != BuiltinType::Void))
+			!toType || (!toType->IsIntegerType() && !toType->IsFloatingType() && toType->GetBuiltinClass() != BuiltinType::Void) ||
+			fromType->GetBuiltinClass() == BuiltinType::Null || toType->GetBuiltinClass() == BuiltinType::Null)
 		{
 			return CastType::Invalid;
 		}
@@ -103,23 +104,41 @@ namespace
 						return result > 0 ? builtinType1 : builtinType2;
 					}
 				}
-				else
+				else if (builtinType2->IsIntegerType())
 				{
 					return builtinType1;
 				}
+				else
+				{
+					// TODO: 报告错误：无法取得公共类型
+					return nullptr;
+				}
 			}
-			else
+			else if (builtinType1->IsIntegerType())
 			{
 				if (builtinType2->IsFloatingType())
 				{
 					return builtinType2;
 				}
 
-				nInt result;
-				if (builtinType1->CompareRankTo(builtinType2, result))
+				if (builtinType2->IsIntegerType())
 				{
-					return result > 0 ? builtinType1 : builtinType2;
+					nInt result;
+					if (builtinType1->CompareRankTo(builtinType2, result))
+					{
+						return result > 0 ? builtinType1 : builtinType2;
+					}
 				}
+				else
+				{
+					// TODO: 报告错误：无法取得公共类型
+					return nullptr;
+				}
+			}
+			else
+			{
+				// TODO: 报告错误：无法取得公共类型
+				return nullptr;
 			}
 		}
 
@@ -718,7 +737,7 @@ Type::TypePtr Sema::CreateUnresolvedType(std::vector<Lex::Token> tokens)
 }
 
 Declaration::DeclPtr Sema::ActOnStartOfFunctionDef(natRefPointer<Scope> const& scope,
-                                                   Declaration::DeclaratorPtr declarator)
+                                                   const Declaration::DeclaratorPtr& declarator)
 {
 	const auto parentScope = scope->GetParent();
 	auto decl = static_cast<Declaration::DeclPtr>(HandleDeclarator(parentScope, declarator, declarator->GetDecl()));
@@ -2620,7 +2639,13 @@ Type::TypePtr Sema::UsualArithmeticConversions(Expression::ExprPtr& leftOperand,
 		return handleFloatConversion(leftOperand, std::move(leftType), rightOperand, std::move(rightType));
 	}
 
-	return handleIntegerConversion(leftOperand, std::move(leftType), rightOperand, std::move(rightType));
+	if (leftType->IsIntegerType() && rightType->IsIntegerType())
+	{
+		return handleIntegerConversion(leftOperand, std::move(leftType), rightOperand, std::move(rightType));
+	}
+
+	// TODO: 报告错误：无法对操作数进行常用算术转换
+	return nullptr;
 }
 
 Expression::ExprPtr Sema::ImpCastExprToType(Expression::ExprPtr expr, Type::TypePtr type, Expression::CastType castType)
