@@ -484,6 +484,7 @@ namespace NatsuLang
 			void initVar(NatsuLib::natRefPointer<Declaration::VarDecl> const& var, Expression::ExprPtr const& initializer);
 		};
 
+	public:
 		class InterpreterDeclStorage
 		{
 		public:
@@ -519,6 +520,11 @@ namespace NatsuLang
 					return m_DeclStorage.visitStorage(m_ElementType, m_Storage + m_ElementSize * i, std::forward<Callable>(visitor), condition);
 				}
 
+				std::size_t GetSize() const noexcept
+				{
+					return m_ArrayElementCount;
+				}
+
 				Type::TypePtr GetElementType() const noexcept;
 				NatsuLib::natRefPointer<MemoryLocationDecl> GetElementDecl(std::size_t i) const;
 
@@ -550,6 +556,9 @@ namespace NatsuLang
 					const auto offset = iter->second;
 					return m_DeclStorage.visitStorage(fieldDecl->GetValueType(), m_Storage + offset, std::forward<Callable>(visitor), condition);
 				}
+
+				std::size_t GetFieldCount() const noexcept;
+				NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<Declaration::FieldDecl>>> GetFields() const noexcept;
 
 				NatsuLib::natRefPointer<MemoryLocationDecl> GetMemberDecl(NatsuLib::natRefPointer<Declaration::FieldDecl> const& fieldDecl) const;
 
@@ -685,7 +694,6 @@ namespace NatsuLang
 			std::vector<std::pair<DeclStorageLevelFlag, std::unique_ptr<std::unordered_map<NatsuLib::natRefPointer<Declaration::ValueDecl>, std::unique_ptr<nByte[], StorageDeleter>>>>> m_DeclStorage;
 		};
 
-	public:
 		Interpreter(NatsuLib::natRefPointer<NatsuLib::TextReader<NatsuLib::StringType::Utf8>> const& diagIdMapFile, NatsuLib::natLog& logger);
 		~Interpreter();
 

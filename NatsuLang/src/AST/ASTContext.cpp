@@ -344,7 +344,7 @@ ASTContext::ClassLayout const& ASTContext::GetClassLayout(natRefPointer<Declarat
 
 	if (!m_ClassLayoutBuilder)
 	{
-		nat_Throw(natErrException, NatErr::NatErr_IllegalState, u8"ClassLayoutBuilder is null."_nv);
+		UseDefaultClassLayoutBuilder();
 	}
 
 	const auto ret = m_CachedClassLayout.emplace(classDecl, m_ClassLayoutBuilder->BuildLayout(*this, classDecl));

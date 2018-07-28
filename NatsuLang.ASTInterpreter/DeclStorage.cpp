@@ -56,6 +56,19 @@ Interpreter::InterpreterDeclStorage::MemberAccessor::MemberAccessor(InterpreterD
 	}
 }
 
+std::size_t Interpreter::InterpreterDeclStorage::MemberAccessor::GetFieldCount() const noexcept
+{
+	return m_FieldOffsets.size();
+}
+
+Linq<Valued<natRefPointer<Declaration::FieldDecl>>> Interpreter::InterpreterDeclStorage::MemberAccessor::GetFields() const noexcept
+{
+	return from(m_FieldOffsets).select([](std::pair<natRefPointer<Declaration::FieldDecl>, std::size_t> const& pair)
+	{
+		return pair.first;
+	});
+}
+
 natRefPointer<Interpreter::InterpreterDeclStorage::MemoryLocationDecl> Interpreter::InterpreterDeclStorage::MemberAccessor::GetMemberDecl
 	(natRefPointer<Declaration::FieldDecl> const& fieldDecl) const
 {

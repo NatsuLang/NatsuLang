@@ -4,6 +4,78 @@ using namespace NatsuLib;
 using namespace NatsuLang;
 using namespace NatsuLang::Detail;
 
+namespace
+{
+	template <typename T>
+	nString ToString(T const& value)
+	{
+		if constexpr (std::is_same_v<T, Interpreter::InterpreterDeclStorage::ArrayElementAccessor>)
+		{
+			auto ret{ "[ "_ns };
+			for (std::size_t i = 0; i < value.GetSize(); ++i)
+			{
+				if (!value.VisitElement(i, [&ret](auto const& elem)
+				{
+					ret.Append(ToString(elem));
+					ret.Append(", "_nv);
+				}))
+				{
+					nat_Throw(InterpreterException, u8"无法访问数组元素 {0}"_nv, i);
+				}
+			}
+
+			if (value.GetSize())
+			{
+				ret.pop_back(2);
+			}
+
+			ret.Append(" ]"_nv);
+			return ret;
+		}
+		else if constexpr (std::is_same_v<T, Interpreter::InterpreterDeclStorage::MemberAccessor>)
+		{
+			auto ret{ "{ "_ns };
+			for (const auto& field : value.GetFields())
+			{
+				ret.Append(field->GetName());
+				ret.Append(" = "_nv);
+				if (!value.VisitMember(field, [&ret](auto const& elem)
+				{
+					ret.Append(ToString(elem));
+					ret.Append(", "_nv);
+				}))
+				{
+					nat_Throw(InterpreterException, u8"无法访问成员 {0}"_nv, field->GetName());
+				}
+			}
+
+			if (value.GetFieldCount())
+			{
+				ret.pop_back(2);
+			}
+
+			ret.Append(" }"_nv);
+			return ret;
+		}
+		else if constexpr (std::is_same_v<T, Interpreter::InterpreterDeclStorage::PointerAccessor>)
+		{
+			return natUtil::FormatString("Referenced decl : ({0})", value.GetReferencedDecl().Get());
+		}
+		else if constexpr (std::is_same_v<T, nChar>)
+		{
+			return natUtil::FormatString("'{0}'", value);
+		}
+		else if constexpr (std::is_same_v<T, nBool>)
+		{
+			return value ? u8"true"_nv : u8"false"_nv;
+		}
+		else
+		{
+			return natUtil::FormatString("{0}", value);
+		}
+	}
+}
+
 Interpreter::InterpreterExprVisitor::InterpreterExprVisitor(Interpreter& interpreter)
 	: m_Interpreter{ interpreter }, m_ShouldPrint{ false }
 {
@@ -71,10 +143,10 @@ void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Express
 		const auto id = decl->GetIdentifierInfo();
 		if (const auto varDecl = decl.Cast<Declaration::VarDecl>(); varDecl && HasAllFlags(varDecl->GetStorageClass(), Specifier::StorageClass::Const))
 		{
-			if (!Evaluate(varDecl->GetInitializer(), [this, &id](auto value)
+			if (!Evaluate(varDecl->GetInitializer(), [this, &id](auto const& value)
 			{
-				m_Interpreter.m_Logger.LogMsg(u8"(常量声明 : {0}) {1}"_nv, id ? id->GetName() : u8"(错误的常量名称)"_nv, value);
-			}, Excepted<InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))
+				m_Interpreter.m_Logger.LogMsg(u8"(常量声明 : {0}) {1}"_nv, id ? id->GetName() : u8"(错误的常量名称)"_nv, ToString(value));
+			}))
 			{
 				nat_Throw(InterpreterException, u8"无法对常量求值"_nv);
 			}
@@ -85,10 +157,10 @@ void Interpreter::InterpreterExprVisitor::VisitDeclRefExpr(natRefPointer<Express
 			nat_Throw(InterpreterException, u8"表达式引用了一个不存在的值定义"_nv);
 		}
 
-		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [this, &id](auto value)
+		if (!m_Interpreter.m_DeclStorage.VisitDeclStorage(std::move(decl), [this, &id](auto const& value)
 		{
-			m_Interpreter.m_Logger.LogMsg(u8"(声明 : {0}) {1}", id ? id->GetName() : u8"(临时对象)", value);
-		}, Excepted<InterpreterDeclStorage::ArrayElementAccessor, InterpreterDeclStorage::MemberAccessor, InterpreterDeclStorage::PointerAccessor>))	// TODO: 应当允许这些访问器
+			m_Interpreter.m_Logger.LogMsg(u8"(声明 : {0}) {1}", id ? id->GetName() : u8"(临时对象)", ToString(value));
+		}))
 		{
 			nat_Throw(InterpreterException, u8"无法访问存储"_nv);
 		}

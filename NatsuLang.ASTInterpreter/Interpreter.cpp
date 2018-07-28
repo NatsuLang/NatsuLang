@@ -45,7 +45,8 @@ void Interpreter::Run(nStrView content)
 	if (!stmt || m_DiagConsumer->IsErrored())
 	{
 		m_DiagConsumer->Reset();
-		nat_Throw(InterpreterException, u8"编译语句 \"{0}\" 失败"_nv, content);
+		// 玄学问题，加上 u8 前缀会乱码
+		nat_Throw(InterpreterException, "编译语句 \"{0}\" 失败"_nv, content);
 	}
 
 	m_Visitor->Visit(stmt);
