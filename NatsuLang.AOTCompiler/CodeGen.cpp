@@ -2112,7 +2112,13 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarInit(Type::TypePtr const& varType, 
 			}
 
 			const auto stringLiteralPtr = m_Compiler.getStringLiteralValue(literalValue);
+#if LLVM_VERSION_MAJOR == 6
+			m_Compiler.m_IRBuilder.CreateMemCpy(varPtr, stringLiteralPtr, static_cast<unsigned>(typeInfo.Align), literalValue.GetSize() + 1);
+#elif LLVM_VERSION_MAJOR == 7
 			m_Compiler.m_IRBuilder.CreateMemCpy(varPtr, static_cast<unsigned>(typeInfo.Align), stringLiteralPtr, static_cast<unsigned>(typeInfo.Align), literalValue.GetSize() + 1);
+#else
+#error TODO
+#endif
 		}
 		else
 		{
@@ -2602,7 +2608,13 @@ void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, ll
 	m_Logger.LogMsg(u8"编译成功，生成的 IR:\n{0}"_nv, buffer);
 
 	llvm::legacy::PassManager passManager;
+#if LLVM_VERSION_MAJOR == 6
+	m_TargetMachine->addPassesToEmitFile(passManager, objectStream, llvm::TargetMachine::CGFT_ObjectFile);
+#elif LLVM_VERSION_MAJOR == 7
 	m_TargetMachine->addPassesToEmitFile(passManager, objectStream, nullptr, llvm::TargetMachine::CGFT_ObjectFile);
+#else
+#error TODO
+#endif
 	passManager.run(*m_Module);
 	objectStream.flush();
 

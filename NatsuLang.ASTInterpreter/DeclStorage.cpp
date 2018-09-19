@@ -15,7 +15,7 @@ Interpreter::InterpreterDeclStorage::ArrayElementAccessor::ArrayElementAccessor(
 																				natRefPointer<Type::ArrayType> const& arrayType, nData storage)
 	: m_DeclStorage{ declStorage }, m_ElementType{ arrayType->GetElementType() },
 	m_ElementSize{ declStorage.m_Interpreter.m_AstContext.GetTypeInfo(m_ElementType).Size },
-	m_ArrayElementCount{ arrayType->GetSize() }, m_Storage{ storage }
+	m_ArrayElementCount{ static_cast<std::size_t>(arrayType->GetSize()) }, m_Storage{ storage }
 {
 }
 
