@@ -265,10 +265,10 @@ std::size_t Deserializer::StartDeserialize(natRefPointer<ISerializationArchiveRe
 	m_Archive = std::move(archive);
 	m_IsImporting = isImporting;
 	m_Sema.PushScope(Semantic::ScopeFlags::DeclarableScope);
-	m_PesudoTranslationUnit = make_ref<Declaration::TranslationUnitDecl>(m_Sema.GetASTContext());
+	m_PseudoTranslationUnit = make_ref<Declaration::TranslationUnitDecl>(m_Sema.GetASTContext());
 	// 假装属于真正的翻译单元，不会真的加进去
-	m_PesudoTranslationUnit->SetContext(m_Sema.GetASTContext().GetTranslationUnit().Get());
-	m_Sema.PushDeclContext(m_Sema.GetCurrentScope(), m_PesudoTranslationUnit.Get());
+	m_PseudoTranslationUnit->SetContext(m_Sema.GetASTContext().GetTranslationUnit().Get());
+	m_Sema.PushDeclContext(m_Sema.GetCurrentScope(), m_PseudoTranslationUnit.Get());
 	m_Archive->StartReadingEntry(u8"Content"_nv, true);
 	return m_Archive->GetEntryElementCount();
 }
@@ -279,8 +279,8 @@ void Deserializer::EndDeserialize()
 
 	m_Sema.PopDeclContext();
 	m_Sema.PopScope();
-	m_PesudoTranslationUnit->RemoveAllDecl();
-	m_PesudoTranslationUnit.Reset();
+	m_PseudoTranslationUnit->RemoveAllDecl();
+	m_PseudoTranslationUnit.Reset();
 }
 
 ASTNodePtr Deserializer::Deserialize()

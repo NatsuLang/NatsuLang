@@ -2516,13 +2516,13 @@ AotCompiler::~AotCompiler()
 {
 }
 
-void AotCompiler::LoadMetadata(Linq<Valued<Uri>> const& metadatas, nBool shouldCodeGen)
+void AotCompiler::LoadMetadata(Linq<Valued<Uri>> const& metadata, nBool shouldCodeGen)
 {
 	auto& vfs = m_SourceManager.GetFileManager().GetVFS();
 
 	Serialization::Deserializer deserializer{ m_Parser };
 
-	for (const auto& meta : metadatas)
+	for (const auto& meta : metadata)
 	{
 		Metadata metadata;
 		const auto request = vfs.CreateRequest(meta);
@@ -2577,13 +2577,13 @@ void AotCompiler::CreateMetadata(natRefPointer<natStream> const& metadataStream,
 	serializer.EndSerialize();
 }
 
-void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadatas, llvm::raw_pwrite_stream& objectStream)
+void AotCompiler::Compile(Uri const& uri, Linq<Valued<Uri>> const& metadata, llvm::raw_pwrite_stream& objectStream)
 {
 	m_Module = std::make_unique<llvm::Module>(llvm::StringRef(uri.GetPath().begin(), uri.GetPath().size()), m_LLVMContext);
 	m_Module->setTargetTriple(m_TargetTriple);
 	m_Module->setDataLayout(m_TargetMachine->createDataLayout());
 
-	LoadMetadata(metadatas);
+	LoadMetadata(metadata);
 
 	const auto fileId = m_SourceManager.GetFileID(uri);
 	const auto [succeed, content] = m_SourceManager.GetFileContent(fileId);

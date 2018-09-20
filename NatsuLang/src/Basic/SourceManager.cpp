@@ -79,12 +79,12 @@ std::pair<nBool, nStrView> SourceManager::GetFileContent(nuInt fileID, StringTyp
 	{
 		return { false, {} };
 	}
-	const auto responce = request->GetResponse();
-	if (!responce)
+	const auto response = request->GetResponse();
+	if (!response)
 	{
 		return { false, {} };
 	}
-	const auto stream = responce->GetResponseStream();
+	const auto stream = response->GetResponseStream();
 	if (!stream)
 	{
 		return { false, {} };

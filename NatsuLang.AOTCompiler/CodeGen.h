@@ -367,9 +367,9 @@ namespace NatsuLang::Compiler
 		AotCompiler(NatsuLib::natRefPointer<NatsuLib::TextReader<NatsuLib::StringType::Utf8>> const& diagIdMapFile, NatsuLib::natLog& logger);
 		~AotCompiler();
 
-		void LoadMetadata(NatsuLib::Linq<NatsuLib::Valued<NatsuLib::Uri>> const& metadatas, nBool shouldCodeGen = true);
+		void LoadMetadata(NatsuLib::Linq<NatsuLib::Valued<NatsuLib::Uri>> const& metadata, nBool shouldCodeGen = true);
 		void CreateMetadata(NatsuLib::natRefPointer<NatsuLib::natStream> const& metadataStream, nBool includeImported = false);
-		void Compile(NatsuLib::Uri const& uri, NatsuLib::Linq<NatsuLib::Valued<NatsuLib::Uri>> const& metadatas, llvm::raw_pwrite_stream& objectStream);
+		void Compile(NatsuLib::Uri const& uri, NatsuLib::Linq<NatsuLib::Valued<NatsuLib::Uri>> const& metadata, llvm::raw_pwrite_stream& objectStream);
 
 	private:
 		llvm::llvm_shutdown_obj m_LLVMShutdown;

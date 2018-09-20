@@ -83,7 +83,7 @@ namespace NatsuLang
 		Declaration::DeclPtr m_Specifier;
 		SpecifierType m_SpecifierType;
 
-		static NatsuLib::natRefPointer<NestedNameSpecifier> FindOrInsert(ASTContext const& context,
+		static NatsuLib::natRefPointer<NestedNameSpecifier> findOrInsert(ASTContext const& context,
 		                                                                 NatsuLib::natRefPointer<NestedNameSpecifier> nns);
 	};
 }

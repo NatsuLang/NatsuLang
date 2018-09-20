@@ -77,7 +77,7 @@ namespace NatsuLang::Serialization
 	private:
 		Syntax::Parser& m_Parser;
 		Semantic::Sema& m_Sema;
-		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> m_PesudoTranslationUnit;
+		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> m_PseudoTranslationUnit;
 		NatsuLib::natRefPointer<ISerializationArchiveReader> m_Archive;
 		std::unordered_map<nString, Statement::Stmt::StmtType> m_StmtTypeMap;
 		std::unordered_map<nString, Declaration::Decl::DeclType> m_DeclTypeMap;

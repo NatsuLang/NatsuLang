@@ -72,13 +72,13 @@ natRefPointer<NestedNameSpecifier> NestedNameSpecifier::Create(ASTContext const&
 
 	ret->m_Specifier = std::move(decl);
 
-	return FindOrInsert(context, std::move(ret));
+	return findOrInsert(context, std::move(ret));
 }
 
 natRefPointer<NestedNameSpecifier> NestedNameSpecifier::Create(ASTContext const& context)
 {
 	auto ret = make_ref<NestedNameSpecifier>();
-	return FindOrInsert(context, std::move(ret));
+	return findOrInsert(context, std::move(ret));
 }
 
 natRefPointer<NestedNameSpecifier> NestedNameSpecifier::Create(ASTContext const& context, natRefPointer<NestedNameSpecifier> prefix)
@@ -87,10 +87,10 @@ natRefPointer<NestedNameSpecifier> NestedNameSpecifier::Create(ASTContext const&
 	ret->m_Prefix = std::move(prefix);
 	ret->m_SpecifierType = SpecifierType::Outer;
 
-	return FindOrInsert(context, std::move(ret));
+	return findOrInsert(context, std::move(ret));
 }
 
-natRefPointer<NestedNameSpecifier> NestedNameSpecifier::FindOrInsert(ASTContext const& context, natRefPointer<NestedNameSpecifier> nns)
+natRefPointer<NestedNameSpecifier> NestedNameSpecifier::findOrInsert(ASTContext const& context, natRefPointer<NestedNameSpecifier> nns)
 {
 	const auto iter = context.m_NestedNameSpecifiers.find(nns);
 	if (iter != context.m_NestedNameSpecifiers.end())
