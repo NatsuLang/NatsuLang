@@ -1784,23 +1784,3 @@ void Serializer::SerializeCompilerAction(natRefPointer<ICompilerAction> const& a
 
 	m_Archive->WriteString(u8"Name"_nv, qualifiedName);
 }
-
-std::size_t Serializer::GetRefCount() const volatile noexcept
-{
-	return RefObjImpl::GetRefCount();
-}
-
-nBool Serializer::TryIncRef() const volatile
-{
-	return RefObjImpl::TryIncRef();
-}
-
-void Serializer::IncRef() const volatile
-{
-	return RefObjImpl::IncRef();
-}
-
-nBool Serializer::DecRef() const volatile
-{
-	return RefObjImpl::DecRef();
-}

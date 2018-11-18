@@ -1,27 +1,47 @@
-#pragma once
-#include <natRefObj.h>
+﻿#pragma once
+#include "Type.h"
 
 namespace NatsuLang
 {
-	namespace Type
-	{
-		class Type;
-		using TypePtr = NatsuLib::natRefPointer<Type>;
-
-#define TYPE(Class, Base) class Class##Type;
-#include "Basic/TypeDef.h"
-	}
-
+	template <typename T, typename ReturnType = void>
 	struct TypeVisitor
-		: NatsuLib::natRefObj
 	{
-		virtual ~TypeVisitor() = 0;
+		ReturnType Visit(Type::TypePtr const& type)
+		{
+			switch (type->GetType())
+			{
+#define TYPE(Class, Base) case Type::Type::Class: return static_cast<T*>(this)->Visit##Class##Type(type.UnsafeCast<Type::Class##Type>());
+#define ABSTRACT_TYPE(Class, Base)
+#include "Basic/TypeDef.h"
+			default:
+				assert(!"Invalid StmtType.");
+				if constexpr (std::is_void_v<ReturnType>)
+				{
+					return;
+				}
+				else
+				{
+					return ReturnType{};
+				}
+			}
+		}
 
-		virtual void Visit(Type::TypePtr const& type);
-
-#define TYPE(Class, Base) virtual void Visit##Class##Type(NatsuLib::natRefPointer<Type::Class##Type> const& type);
+#define TYPE(Class, Base) ReturnType Visit##Class##Type(NatsuLib::natRefPointer<Type::Class##Type> const& type) { return static_cast<T*>(this)->Visit##Base(type); }
 #include "Basic/TypeDef.h"
 
-		virtual void VisitType(Type::TypePtr const& type);
+		ReturnType VisitType(Type::TypePtr const& type)
+		{
+			if constexpr (std::is_void_v<ReturnType>)
+			{
+				return;
+			}
+			else
+			{
+				return ReturnType{};
+			}
+		}
+
+	protected:
+		~TypeVisitor() = default;
 	};
 }

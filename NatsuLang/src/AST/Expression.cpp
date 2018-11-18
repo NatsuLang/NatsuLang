@@ -18,39 +18,34 @@ namespace
 	nBool EvaluateInteger(natRefPointer<Expr> const& expr, ASTContext& context, Expr::EvalResult& result);
 	nBool EvaluateFloat(natRefPointer<Expr> const& expr, ASTContext& context, Expr::EvalResult& result);
 
+	template <typename T>
 	class ExprEvaluatorBase
-		: public natRefObjImpl<ExprEvaluatorBase, StmtVisitor>
+		: public StmtVisitor<T, nBool>
 	{
 	public:
 		ExprEvaluatorBase(ASTContext& context, Expr::EvalResult& result)
-			: m_Context{ context }, m_Result{ result }, m_LastVisitSucceed{ false }
+			: m_Context{ context }, m_Result{ result }
 		{
 		}
 
-		void VisitStmt(natRefPointer<Stmt> const&) override
+		nBool VisitStmt(natRefPointer<Stmt> const&)
 		{
-			m_LastVisitSucceed = false;
+			return false;
 		}
 
-		void VisitParenExpr(natRefPointer<ParenExpr> const& expr) override
+		nBool VisitParenExpr(natRefPointer<ParenExpr> const& expr)
 		{
-			Visit(expr->GetInnerExpr());
-		}
-
-		nBool IsLastVisitSucceed() const noexcept
-		{
-			return m_LastVisitSucceed;
+			return this->Visit(expr->GetInnerExpr());
 		}
 
 	protected:
 		ASTContext& m_Context;
 		Expr::EvalResult& m_Result;
-		nBool m_LastVisitSucceed;
 	};
 
 	// TODO: 未对不同位数的整数类型进行特别处理，可能在溢出后会得到意料不到的值
 	class IntExprEvaluator
-		: public ExprEvaluatorBase
+		: public ExprEvaluatorBase<IntExprEvaluator>
 	{
 	public:
 		IntExprEvaluator(ASTContext& context, Expr::EvalResult& result)
@@ -58,25 +53,25 @@ namespace
 		{
 		}
 
-		void VisitCharacterLiteral(natRefPointer<CharacterLiteral> const& expr) override
+		nBool VisitCharacterLiteral(natRefPointer<CharacterLiteral> const& expr)
 		{
 			m_Result.Result.emplace<0>(expr->GetCodePoint());
-			m_LastVisitSucceed = true;
+			return true;
 		}
 
-		void VisitIntegerLiteral(natRefPointer<IntegerLiteral> const& expr) override
+		nBool VisitIntegerLiteral(natRefPointer<IntegerLiteral> const& expr)
 		{
 			m_Result.Result.emplace<0>(expr->GetValue());
-			m_LastVisitSucceed = true;
+			return true;
 		}
 
-		void VisitBooleanLiteral(natRefPointer<BooleanLiteral> const& expr) override
+		nBool VisitBooleanLiteral(natRefPointer<BooleanLiteral> const& expr)
 		{
 			m_Result.Result.emplace<0>(static_cast<nuLong>(expr->GetValue()));
-			m_LastVisitSucceed = true;
+			return true;
 		}
 
-		void VisitCastExpr(natRefPointer<CastExpr> const& expr) override
+		nBool VisitCastExpr(natRefPointer<CastExpr> const& expr)
 		{
 			const auto operand = expr->GetOperand();
 			/*auto destType = expr->GetType();
@@ -92,13 +87,11 @@ namespace
 				Expr::EvalResult result;
 				if (!EvaluateFloat(expr, m_Context, result) || result.Result.index() != 1)
 				{
-					m_LastVisitSucceed = false;
-					return;
+					return false;
 				}
 
 				m_Result.Result.emplace<0>(static_cast<nuLong>(std::get<1>(result.Result)));
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			}
 			case CastType::IntegralToBoolean:
 			case CastType::FloatingToBoolean:
@@ -106,8 +99,7 @@ namespace
 				Expr::EvalResult result;
 				if (!Evaluate(expr, m_Context, result))
 				{
-					m_LastVisitSucceed = false;
-					return;
+					return false;
 				}
 
 				if (result.Result.index() == 0)
@@ -119,14 +111,13 @@ namespace
 					m_Result.Result.emplace<0>(static_cast<nBool>(std::get<1>(result.Result)));
 				}
 
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			}
 			case CastType::IntegralToFloating:
 			case CastType::FloatingCast:
 			case CastType::Invalid:
 			default:
-				m_LastVisitSucceed = false;
+				return false;
 			}
 		}
 
@@ -151,7 +142,7 @@ namespace
 		}
 
 		// TODO: 处理浮点类型的比较操作
-		void VisitBinaryOperator(natRefPointer<BinaryOperator> const& expr) override
+		nBool VisitBinaryOperator(natRefPointer<BinaryOperator> const& expr)
 		{
 			const auto opcode = expr->GetOpcode();
 			const auto leftOperand = expr->GetLeftOperand();
@@ -161,8 +152,7 @@ namespace
 
 			if (!Evaluate(leftOperand, m_Context, leftResult))
 			{
-				m_LastVisitSucceed = false;
-				return;
+				return false;
 			}
 
 			// 如果是逻辑操作符，判断是否可以短路求值
@@ -172,25 +162,21 @@ namespace
 				if (VisitLogicalBinaryOperatorOperand(leftResult, expr) && Evaluate(rightOperand, m_Context, rightResult) && rightResult.GetResultAsBoolean(value))
 				{
 					m_Result.Result.emplace<0>(value);
-					m_LastVisitSucceed = true;
-					return;
+					return true;
 				}
 
-				m_LastVisitSucceed = false;
-				return;
+				return false;
 			}
 
 			// 右操作数需要求值，因为如果已经进行了求值操作则不会到达此处
 			if (!Evaluate(rightOperand, m_Context, rightResult))
 			{
-				m_LastVisitSucceed = false;
-				return;
+				return false;
 			}
 
 			if (leftResult.Result.index() != 0 || rightResult.Result.index() != 0)
 			{
-				m_LastVisitSucceed = false;
-				return;
+				return false;
 			}
 
 			auto leftValue = std::get<0>(leftResult.Result), rightValue = std::get<0>(rightResult.Result);
@@ -200,85 +186,66 @@ namespace
 			{
 			case BinaryOperationType::Mul:
 				m_Result.Result.emplace<0>(leftValue * rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::Add:
 				m_Result.Result.emplace<0>(leftValue + rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::Sub:
 				m_Result.Result.emplace<0>(leftValue - rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::Div:
 				if (rightValue == 0)
 				{
-					m_LastVisitSucceed = false;
-					return;
+					return false;
 				}
 				m_Result.Result.emplace<0>(leftValue / rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::Rem:
 				if (rightValue == 0)
 				{
-					m_LastVisitSucceed = false;
-					return;
+					return false;
 				}
 				m_Result.Result.emplace<0>(leftValue % rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::Shl:
 				// 溢出
 				if (rightValue >= sizeof(nuLong) * 8)
 				{
-					m_LastVisitSucceed = false;
-					return;
+					return false;
 				}
 				m_Result.Result.emplace<0>(leftValue << rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::Shr:
 				m_Result.Result.emplace<0>(leftValue >> rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			// TODO: 对于比较操作符，若其一操作数曾经溢出，则结果可能出现异常
 			case BinaryOperationType::LT:
 				m_Result.Result.emplace<0>(leftValue < rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::GT:
 				m_Result.Result.emplace<0>(leftValue > rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::LE:
 				m_Result.Result.emplace<0>(leftValue <= rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::GE:
 				m_Result.Result.emplace<0>(leftValue >= rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::EQ:
 				m_Result.Result.emplace<0>(leftValue == rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::NE:
 				m_Result.Result.emplace<0>(leftValue != rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::And:
 				m_Result.Result.emplace<0>(leftValue & rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::Xor:
 				m_Result.Result.emplace<0>(leftValue ^ rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::Or:
 				m_Result.Result.emplace<0>(leftValue | rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::Assign:
 			case BinaryOperationType::MulAssign:
 			case BinaryOperationType::DivAssign:
@@ -293,114 +260,101 @@ namespace
 				// 不能常量折叠
 			case BinaryOperationType::Invalid:
 			default:
-				m_LastVisitSucceed = false;
+				return false;
 			}
 		}
 
-		void VisitUnaryOperator(natRefPointer<UnaryOperator> const& expr) override
+		nBool VisitUnaryOperator(natRefPointer<UnaryOperator> const& expr)
 		{
 			switch (expr->GetOpcode())
 			{
 			case UnaryOperationType::Plus:
-				Visit(expr->GetOperand());
-				return;
+				return Visit(expr->GetOperand());
 			case UnaryOperationType::Minus:
-				Visit(expr->GetOperand());
-				if (!m_LastVisitSucceed)
+				if (!Visit(expr->GetOperand()))
 				{
-					return;
+					return false;
 				}
 
 				if (m_Result.Result.index() != 0)
 				{
-					m_LastVisitSucceed = false;
-					return;
+					return false;
 				}
 
 				m_Result.Result.emplace<0>(std::numeric_limits<nuLong>::max() - std::get<0>(m_Result.Result));
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case UnaryOperationType::Not:
-				Visit(expr->GetOperand());
-				if (!m_LastVisitSucceed)
+				if (!Visit(expr->GetOperand()))
 				{
-					return;
+					return false;
 				}
 
 				if (m_Result.Result.index() != 0)
 				{
-					m_LastVisitSucceed = false;
-					return;
+					return false;
 				}
 
 				m_Result.Result.emplace<0>(~std::get<0>(m_Result.Result));
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case UnaryOperationType::LNot:
-				Visit(expr->GetOperand());
-				if (!m_LastVisitSucceed)
+				if (!Visit(expr->GetOperand()))
 				{
-					return;
+					return false;
 				}
 
 				if (m_Result.Result.index() != 0)
 				{
-					m_LastVisitSucceed = false;
-					return;
+					return false;
 				}
 
 				m_Result.Result.emplace<0>(!std::get<0>(m_Result.Result));
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case UnaryOperationType::Invalid:
 			case UnaryOperationType::PostInc:
 			case UnaryOperationType::PostDec:
 			case UnaryOperationType::PreInc:
 			case UnaryOperationType::PreDec:
 			default:
-				m_LastVisitSucceed = false;
+				return false;
 			}
 		}
 
-		void VisitConditionalOperator(natRefPointer<ConditionalOperator> const& expr) override
+		nBool VisitConditionalOperator(natRefPointer<ConditionalOperator> const& expr)
 		{
-			Visit(expr->GetCondition());
-			if (!m_LastVisitSucceed)
+			if (!Visit(expr->GetCondition()))
 			{
-				return;
+				return false;
 			}
 
 			if (m_Result.Result.index() != 0)
 			{
-				m_LastVisitSucceed = false;
-				return;
+				return false;
 			}
 
-			Visit(std::get<0>(m_Result.Result) ? expr->GetLeftOperand() : expr->GetRightOperand());
+			return Visit(std::get<0>(m_Result.Result) ? expr->GetLeftOperand() : expr->GetRightOperand());
 		}
 
-		void VisitDeclRefExpr(natRefPointer<DeclRefExpr> const& expr) override
+		nBool VisitDeclRefExpr(natRefPointer<DeclRefExpr> const& expr)
 		{
 			const auto decl = expr->GetDecl();
 
 			if (const auto enumeratorDecl = decl.Cast<Declaration::EnumConstantDecl>())
 			{
 				m_Result.Result.emplace<0>(enumeratorDecl->GetValue());
-				m_LastVisitSucceed = true;
+				return true;
 			}
 
 			if (const auto varDecl = decl.Cast<Declaration::VarDecl>(); varDecl && varDecl->GetStorageClass() == Specifier::StorageClass::Const)
 			{
-				Visit(varDecl->GetInitializer());
-				return;
+				return Visit(varDecl->GetInitializer());
 			}
 
-			m_LastVisitSucceed = false;
+			return false;
 		}
 	};
 
 	class FloatExprEvaluator
-		: public ExprEvaluatorBase
+		: public ExprEvaluatorBase<FloatExprEvaluator>
 	{
 	public:
 		FloatExprEvaluator(ASTContext& context, Expr::EvalResult& result)
@@ -408,13 +362,13 @@ namespace
 		{
 		}
 
-		void VisitFloatingLiteral(natRefPointer<FloatingLiteral> const& expr) override
+		nBool VisitFloatingLiteral(natRefPointer<FloatingLiteral> const& expr)
 		{
 			m_Result.Result.emplace<1>(expr->GetValue());
-			m_LastVisitSucceed = true;
+			return true;
 		}
 
-		void VisitCastExpr(natRefPointer<CastExpr> const& expr) override
+		nBool VisitCastExpr(natRefPointer<CastExpr> const& expr)
 		{
 			const auto operand = expr->GetOperand();
 
@@ -428,13 +382,11 @@ namespace
 				Expr::EvalResult result;
 				if (!EvaluateInteger(operand, m_Context, result) || result.Result.index() != 0)
 				{
-					m_LastVisitSucceed = false;
-					return;
+					return false;
 				}
 
 				m_Result.Result.emplace<1>(static_cast<nDouble>(std::get<0>(result.Result)));
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			}
 			case CastType::Invalid:
 			case CastType::IntegralCast:
@@ -442,11 +394,11 @@ namespace
 			case CastType::FloatingToIntegral:
 			case CastType::FloatingToBoolean:
 			default:
-				m_LastVisitSucceed = false;
+				return false;
 			}
 		}
 
-		void VisitBinaryOperator(natRefPointer<BinaryOperator> const& expr) override
+		nBool VisitBinaryOperator(natRefPointer<BinaryOperator> const& expr)
 		{
 			const auto opcode = expr->GetOpcode();
 			const auto leftOperand = expr->GetLeftOperand();
@@ -457,8 +409,7 @@ namespace
 			if (!Evaluate(leftOperand, m_Context, leftResult) || leftResult.Result.index() != 1 ||
 				!Evaluate(rightOperand, m_Context, rightResult) || rightResult.Result.index() != 1)
 			{
-				m_LastVisitSucceed = false;
-				return;
+				return false;
 			}
 
 			const auto leftValue = std::get<1>(leftResult.Result), rightValue = std::get<1>(rightResult.Result);
@@ -466,20 +417,16 @@ namespace
 			{
 			case BinaryOperationType::Mul:
 				m_Result.Result.emplace<1>(leftValue * rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::Div:
 				m_Result.Result.emplace<1>(leftValue / rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::Add:
 				m_Result.Result.emplace<1>(leftValue + rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::Sub:
 				m_Result.Result.emplace<1>(leftValue - rightValue);
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			case BinaryOperationType::Invalid:
 			case BinaryOperationType::Rem:
 			case BinaryOperationType::Shl:
@@ -507,66 +454,60 @@ namespace
 			case BinaryOperationType::XorAssign:
 			case BinaryOperationType::OrAssign:
 			default:
-				m_LastVisitSucceed = false;
+				return false;
 			}
 		}
 
-		void VisitUnaryOperator(natRefPointer<UnaryOperator> const& expr) override
+		nBool VisitUnaryOperator(natRefPointer<UnaryOperator> const& expr)
 		{
 			switch (expr->GetOpcode())
 			{
 			case UnaryOperationType::Plus:
-				m_LastVisitSucceed = EvaluateFloat(expr->GetOperand(), m_Context, m_Result);
-				return;
+				return EvaluateFloat(expr->GetOperand(), m_Context, m_Result);
 			case UnaryOperationType::Minus:
 				if (!EvaluateFloat(expr->GetOperand(), m_Context, m_Result) || m_Result.Result.index() != 1)
 				{
-					m_LastVisitSucceed = false;
-					return;
+					return false;
 				}
 
 				m_Result.Result.emplace<1>(-std::get<1>(m_Result.Result));
-				m_LastVisitSucceed = true;
-				return;
+				return true;
 			default:
-				m_LastVisitSucceed = false;
+				return false;
 			}
 		}
 
-		void VisitConditionalOperator(natRefPointer<ConditionalOperator> const& expr) override
+		nBool VisitConditionalOperator(natRefPointer<ConditionalOperator> const& expr)
 		{
-			Visit(expr->GetCondition());
-			if (!m_LastVisitSucceed)
+			if (!Visit(expr->GetCondition()))
 			{
-				return;
+				return false;
 			}
 
 			if (m_Result.Result.index() != 0)
 			{
-				m_LastVisitSucceed = false;
-				return;
+				return false;
 			}
 
-			Visit(std::get<0>(m_Result.Result) ? expr->GetLeftOperand() : expr->GetRightOperand());
+			return Visit(std::get<0>(m_Result.Result) ? expr->GetLeftOperand() : expr->GetRightOperand());
 		}
 
-		void VisitDeclRefExpr(natRefPointer<DeclRefExpr> const& expr) override
+		nBool VisitDeclRefExpr(natRefPointer<DeclRefExpr> const& expr)
 		{
 			const auto decl = expr->GetDecl();
 
 			if (const auto enumeratorDecl = decl.Cast<Declaration::EnumConstantDecl>())
 			{
 				m_Result.Result.emplace<1>(static_cast<nDouble>(enumeratorDecl->GetValue()));
-				m_LastVisitSucceed = true;
+				return true;
 			}
 
 			if (const auto varDecl = decl.Cast<Declaration::VarDecl>(); varDecl && varDecl->GetStorageClass() == Specifier::StorageClass::Const)
 			{
-				Visit(varDecl->GetInitializer());
-				return;
+				return Visit(varDecl->GetInitializer());
 			}
 
-			m_LastVisitSucceed = false;
+			return false;
 		}
 	};
 
@@ -600,15 +541,13 @@ namespace
 	nBool EvaluateInteger(natRefPointer<Expr> const& expr, ASTContext& context, Expr::EvalResult& result)
 	{
 		IntExprEvaluator evaluator{ context, result };
-		evaluator.Visit(expr);
-		return evaluator.IsLastVisitSucceed();
+		return evaluator.Visit(expr);
 	}
 
 	nBool EvaluateFloat(natRefPointer<Expr> const& expr, ASTContext& context, Expr::EvalResult& result)
 	{
 		FloatExprEvaluator evaluator{ context, result };
-		evaluator.Visit(expr);
-		return evaluator.IsLastVisitSucceed();
+		return evaluator.Visit(expr);
 	}
 }
 
@@ -921,8 +860,3 @@ StmtEnumerable DeleteExpr::GetChildrenStmt()
 {
 	return from_values({ static_cast<StmtPtr>(m_Operand) });
 }
-
-#define DEFAULT_ACCEPT_DEF(Type) void Type::Accept(NatsuLib::natRefPointer<StmtVisitor> const& visitor) { visitor->Visit##Type(ForkRef<Type>()); }
-#define STMT(StmtType, Base)
-#define EXPR(ExprType, Base) DEFAULT_ACCEPT_DEF(ExprType)
-#include "Basic/StmtDef.h"

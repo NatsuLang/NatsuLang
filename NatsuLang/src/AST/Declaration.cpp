@@ -173,6 +173,3 @@ ConstructorDecl::~ConstructorDecl()
 DestructorDecl::~DestructorDecl()
 {
 }
-
-#define DECL(Type, Base) void Type##Decl::Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) { visitor->Visit##Type##Decl(ForkRef<Type##Decl>()); }
-#include "Basic/DeclDef.h"

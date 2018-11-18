@@ -132,7 +132,7 @@ std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRef
 	assert(type);
 	const auto typeInfo = m_Interpreter.m_AstContext.GetTypeInfo(type);
 
-	auto topestAvailableForCreateStorageIndex = std::numeric_limits<std::size_t>::max();
+	auto topAvailableForCreateStorageIndex = std::numeric_limits<std::size_t>::max();
 
 	for (auto storageIter = m_DeclStorage.rbegin(); storageIter != m_DeclStorage.rend(); ++storageIter)
 	{
@@ -145,10 +145,10 @@ std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRef
 			}
 		}
 
-		if (topestAvailableForCreateStorageIndex == std::numeric_limits<std::size_t>::max() &&
+		if (topAvailableForCreateStorageIndex == std::numeric_limits<std::size_t>::max() &&
 			HasAllFlags(storageIter->first, DeclStorageLevelFlag::AvailableForCreateStorage))
 		{
-			topestAvailableForCreateStorageIndex = std::distance(m_DeclStorage.begin(), storageIter.base()) - 1;
+			topAvailableForCreateStorageIndex = std::distance(m_DeclStorage.begin(), storageIter.base()) - 1;
 		}
 
 		if (HasAllFlags(storageIter->first, DeclStorageLevelFlag::CreateStorageIfNotFound))
@@ -170,8 +170,8 @@ std::pair<nBool, nData> Interpreter::InterpreterDeclStorage::GetOrAddDecl(natRef
 
 	if (storagePointer)
 	{
-		assert(topestAvailableForCreateStorageIndex != std::numeric_limits<std::size_t>::max());
-		const auto storageIter = std::next(m_DeclStorage.begin(), topestAvailableForCreateStorageIndex);
+		assert(topAvailableForCreateStorageIndex != std::numeric_limits<std::size_t>::max());
+		const auto storageIter = std::next(m_DeclStorage.begin(), topAvailableForCreateStorageIndex);
 
 		const auto[iter, succeed] = storageIter->second->try_emplace(std::move(decl), std::unique_ptr<nByte[], StorageDeleter>{ storagePointer });
 

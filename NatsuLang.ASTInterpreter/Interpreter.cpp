@@ -14,7 +14,7 @@ Interpreter::Interpreter(natRefPointer<TextReader<StringType::Utf8>> const& diag
 	  m_Consumer{ make_ref<InterpreterASTConsumer>(*this) },
 	  m_Sema{ m_Preprocessor, m_AstContext, m_Consumer },
 	  m_Parser{ m_Preprocessor, m_Sema },
-	  m_Visitor{ make_ref<InterpreterStmtVisitor>(*this) }, m_DeclStorage{ *this }
+	  m_Visitor{ *this }, m_DeclStorage{ *this }
 {
 	m_AstContext.UseDefaultClassLayoutBuilder();
 }
@@ -49,8 +49,8 @@ void Interpreter::Run(nStrView content)
 		nat_Throw(InterpreterException, "编译语句 \"{0}\" 失败"_nv, content);
 	}
 
-	m_Visitor->Visit(stmt);
-	m_Visitor->ResetReturnedExpr();
+	m_Visitor.Visit(stmt);
+	m_Visitor.ResetReturnedExpr();
 	m_DeclStorage.GarbageCollect();
 }
 

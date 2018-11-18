@@ -1970,7 +1970,7 @@ void AotCompiler::AotStmtVisitor::EmitVarDecl(natRefPointer<Declaration::VarDecl
 
 void AotCompiler::AotStmtVisitor::EmitAutoVarDecl(natRefPointer<Declaration::VarDecl> const& decl)
 {
-	const auto type = decl->GetValueType();
+	const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
 	const auto storage = EmitAutoVarAlloc(decl);
 	EmitAutoVarInit(type, storage, decl->GetInitializer());
 	EmitAutoVarCleanup(type, storage);
@@ -1978,7 +1978,7 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarDecl(natRefPointer<Declaration::Var
 
 llvm::Value* AotCompiler::AotStmtVisitor::EmitAutoVarAlloc(natRefPointer<Declaration::VarDecl> const& decl)
 {
-	const auto type = decl->GetValueType();
+	const auto type = Type::Type::GetUnderlyingType(decl->GetValueType());
 
 	// 可能用于动态大小的类型
 	llvm::Value* arraySize = nullptr;
@@ -2014,13 +2014,15 @@ void AotCompiler::AotStmtVisitor::EmitAutoVarInit(Type::TypePtr const& varType, 
 					m_Compiler.m_IRBuilder.CreateMemSet(varPtr, llvm::ConstantInt::get(llvm::IntegerType::getInt8Ty(m_Compiler.m_LLVMContext), 0), typeInfo.Size, static_cast<unsigned>(typeInfo.Align));
 				}
 
+				const auto elemType = Type::Type::GetUnderlyingType(arrayType->GetElementType());
+
 				for (std::size_t i = 0; i < initExprs.size(); ++i)
 				{
 					const auto initExpr = initExprs[i];
 					const auto elemPtr = m_Compiler.m_IRBuilder.CreateGEP(valueType, varPtr,
 						{ llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext), 0), llvm::ConstantInt::get(llvm::Type::getInt64Ty(m_Compiler.m_LLVMContext), i) });
 
-					EmitAutoVarInit(arrayType->GetElementType(), elemPtr, initExpr);
+					EmitAutoVarInit(elemType, elemPtr, initExpr);
 				}
 			}
 			else if (varType->GetType() == Type::Type::Builtin || varType->GetType() == Type::Type::Pointer)

@@ -3,8 +3,6 @@
 #include <natLinq.h>
 #include "Basic/Token.h"
 
-#define DEFAULT_ACCEPT_DECL void Accept(NatsuLib::natRefPointer<TypeVisitor> const& visitor) override
-
 namespace NatsuLang::Identifier
 {
 	class IdentifierInfo;
@@ -54,7 +52,6 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
-		DEFAULT_ACCEPT_DECL;
 
 		static BuiltinClass GetBuiltinClassFromTokenType(Lex::TokenType type) noexcept;
 		static nBool IsIntegerBuiltinClass(BuiltinClass builtinClass) noexcept;
@@ -114,7 +111,6 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
-		DEFAULT_ACCEPT_DECL;
 
 	private:
 		TypePtr m_PointeeType;
@@ -143,7 +139,6 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
-		DEFAULT_ACCEPT_DECL;
 
 	private:
 		TypePtr m_InnerType;
@@ -177,7 +172,6 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
-		DEFAULT_ACCEPT_DECL;
 
 	private:
 		TypePtr m_ElementType;
@@ -220,7 +214,6 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
-		DEFAULT_ACCEPT_DECL;
 
 	private:
 		std::vector<TypePtr> m_ParameterTypes;
@@ -253,7 +246,6 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
-		DEFAULT_ACCEPT_DECL;
 
 	private:
 		NatsuLib::natWeakRefPointer<Declaration::TagDecl> m_Decl;
@@ -268,7 +260,6 @@ namespace NatsuLang::Type
 		~ClassType();
 
 		nBool EqualTo(TypePtr const& other) const noexcept override;
-		DEFAULT_ACCEPT_DECL;
 	};
 
 	class EnumType
@@ -280,7 +271,6 @@ namespace NatsuLang::Type
 		~EnumType();
 
 		nBool EqualTo(TypePtr const& other) const noexcept override;
-		DEFAULT_ACCEPT_DECL;
 	};
 
 	class DeducedType
@@ -306,7 +296,6 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
-		DEFAULT_ACCEPT_DECL;
 
 	private:
 		TypePtr m_DeducedAsType;
@@ -324,7 +313,6 @@ namespace NatsuLang::Type
 		~AutoType();
 
 		nBool EqualTo(TypePtr const& other) const noexcept override;
-		DEFAULT_ACCEPT_DECL;
 	};
 
 	class UnresolvedType
@@ -340,7 +328,6 @@ namespace NatsuLang::Type
 
 		std::size_t GetHashCode() const noexcept override;
 		nBool EqualTo(TypePtr const& other) const noexcept override;
-		DEFAULT_ACCEPT_DECL;
 
 		std::vector<Lex::Token> const& GetTokens() const noexcept
 		{
@@ -361,5 +348,3 @@ namespace NatsuLang::Type
 		std::vector<Lex::Token> m_Tokens;
 	};
 }
-
-#undef DEFAULT_ACCEPT_DECL

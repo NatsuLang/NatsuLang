@@ -30,7 +30,7 @@ void Interpreter::InterpreterASTConsumer::HandleTranslationUnit(ASTContext& cont
 		nat_Throw(InterpreterException, u8"找到了名为 Main 的方法，但需要一个函数"_nv);
 	}
 
-	m_Interpreter.m_Visitor->Visit(mainDecl->GetBody());
+	m_Interpreter.m_Visitor.Visit(mainDecl->GetBody());
 }
 
 nBool Interpreter::InterpreterASTConsumer::HandleTopLevelDecl(Linq<Valued<Declaration::DeclPtr>> const& decls)

@@ -229,16 +229,13 @@
     <ClCompile Include="src\AST\CodeCompletion.cpp" />
     <ClCompile Include="src\AST\Declaration.cpp" />
     <ClCompile Include="src\AST\DeclBase.cpp" />
-    <ClCompile Include="src\AST\DeclVisitor.cpp" />
     <ClCompile Include="src\AST\Expression.cpp" />
     <ClCompile Include="src\AST\Metadata.cpp" />
     <ClCompile Include="src\AST\NestedNameSpecifier.cpp" />
     <ClCompile Include="src\AST\Statement.cpp" />
     <ClCompile Include="src\AST\StmtBase.cpp" />
-    <ClCompile Include="src\AST\StmtVisitor.cpp" />
     <ClCompile Include="src\AST\Type.cpp" />
     <ClCompile Include="src\AST\TypeBase.cpp" />
-    <ClCompile Include="src\AST\TypeVisitor.cpp" />
     <ClCompile Include="src\Basic\Diagnostic.cpp" />
     <ClCompile Include="src\Basic\FileManager.cpp" />
     <ClCompile Include="src\Basic\Identifier.cpp" />

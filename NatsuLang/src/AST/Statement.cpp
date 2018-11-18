@@ -2,7 +2,6 @@
 #include "AST/Declaration.h"
 #include "AST/Expression.h"
 #include "AST/NestedNameSpecifier.h"
-#include "AST/StmtVisitor.h"
 #include "Basic/Identifier.h"
 
 using namespace NatsuLib;
@@ -159,8 +158,3 @@ TryStmt::~TryStmt()
 CatchStmt::~CatchStmt()
 {
 }
-
-#define DEFAULT_ACCEPT_DEF(Type) void Type::Accept(NatsuLib::natRefPointer<StmtVisitor> const& visitor) { visitor->Visit##Type(ForkRef<Type>()); }
-#define STMT(StmtType, Base) DEFAULT_ACCEPT_DEF(StmtType)
-#define EXPR(ExprType, Base)
-#include "Basic/StmtDef.h"

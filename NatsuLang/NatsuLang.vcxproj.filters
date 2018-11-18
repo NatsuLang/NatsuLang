@@ -251,9 +251,6 @@
     <ClCompile Include="src\AST\ASTConsumer.cpp">
       <Filter>AST\src</Filter>
     </ClCompile>
-    <ClCompile Include="src\AST\StmtVisitor.cpp">
-      <Filter>AST\src</Filter>
-    </ClCompile>
     <ClCompile Include="src\AST\ASTNode.cpp">
       <Filter>AST\src</Filter>
     </ClCompile>
@@ -263,13 +260,7 @@
     <ClCompile Include="src\Sema\DefaultActions.cpp">
       <Filter>Sema\src</Filter>
     </ClCompile>
-    <ClCompile Include="src\AST\TypeVisitor.cpp">
-      <Filter>AST\src</Filter>
-    </ClCompile>
     <ClCompile Include="src\AST\Metadata.cpp">
-      <Filter>AST\src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\AST\DeclVisitor.cpp">
       <Filter>AST\src</Filter>
     </ClCompile>
     <ClCompile Include="src\Basic\SerializationArchive.cpp">

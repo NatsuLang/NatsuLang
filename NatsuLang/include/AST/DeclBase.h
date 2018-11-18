@@ -8,11 +8,6 @@
 #include "ASTNode.h"
 #include "Basic/SourceLocation.h"
 
-namespace NatsuLang
-{
-	struct DeclVisitor;
-}
-
 namespace NatsuLang::Identifier
 {
 	class IdentifierInfo;
@@ -81,8 +76,6 @@ namespace NatsuLang::Declaration
 		}
 
 		~Decl();
-
-		virtual void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) = 0;
 
 		static DeclContext* CastToDeclContext(const Decl* decl);
 		static Decl* CastFromDeclContext(const DeclContext* declContext);

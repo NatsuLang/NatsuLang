@@ -2,11 +2,6 @@
 #include <natRefObj.h>
 #include "ASTNode.h"
 
-namespace NatsuLang
-{
-	struct TypeVisitor;
-}
-
 namespace NatsuLang::Lex
 {
 	enum class TokenType;
@@ -50,7 +45,6 @@ namespace NatsuLang::Type
 
 		virtual std::size_t GetHashCode() const noexcept = 0;
 		virtual nBool EqualTo(NatsuLib::natRefPointer<Type> const& other) const noexcept = 0;
-		virtual void Accept(NatsuLib::natRefPointer<TypeVisitor> const& visitor) = 0;
 
 		static TypePtr GetUnderlyingType(TypePtr const& type);
 

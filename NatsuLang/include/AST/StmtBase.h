@@ -4,11 +4,6 @@
 #include "ASTNode.h"
 #include "Basic/SourceLocation.h"
 
-namespace NatsuLang
-{
-	struct StmtVisitor;
-}
-
 namespace NatsuLang::Statement
 {
 	class Stmt;
@@ -52,7 +47,6 @@ namespace NatsuLang::Statement
 		virtual void SetStartLoc(SourceLocation loc) noexcept;
 		virtual SourceLocation GetEndLoc() const noexcept;
 		virtual void SetEndLoc(SourceLocation loc) noexcept;
-		virtual void Accept(NatsuLib::natRefPointer<StmtVisitor> const& visitor) = 0;
 
 	private:
 		StmtType m_Type;

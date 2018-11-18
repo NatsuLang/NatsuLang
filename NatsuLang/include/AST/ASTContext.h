@@ -64,6 +64,7 @@ namespace NatsuLang
 
 		NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> GetTranslationUnit() const noexcept;
 
+		///	@remark	由使用者保证 type 已经经过 Type::GetUnderlyingType
 		TypeInfo GetTypeInfo(Type::TypePtr const& type);
 
 		void UseDefaultClassLayoutBuilder();

@@ -310,15 +310,14 @@ natRefPointer<Declaration::TranslationUnitDecl> ASTContext::GetTranslationUnit()
 
 ASTContext::TypeInfo ASTContext::GetTypeInfo(Type::TypePtr const& type)
 {
-	auto underlyingType = Type::Type::GetUnderlyingType(type);
-	const auto iter = m_CachedTypeInfo.find(underlyingType);
+	const auto iter = m_CachedTypeInfo.find(type);
 	if (iter != m_CachedTypeInfo.cend())
 	{
 		return iter->second;
 	}
 
-	auto info = getTypeInfoImpl(underlyingType);
-	m_CachedTypeInfo.emplace(std::move(underlyingType), info);
+	auto info = getTypeInfoImpl(type);
+	m_CachedTypeInfo.emplace(type, info);
 	return info;
 }
 

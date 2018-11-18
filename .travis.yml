@@ -13,7 +13,7 @@ addons:
     packages:
       - gcc-8
       - g++-8
-      - llvm-6-dev
+      - llvm-7-dev
 compiler: gcc
 install:
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 --slave /usr/bin/g++ g++ /usr/bin/g++-8

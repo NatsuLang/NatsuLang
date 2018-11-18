@@ -3,7 +3,6 @@
 #include "Basic/Token.h"
 #include "Basic/Identifier.h"
 #include "AST/NestedNameSpecifier.h"
-#include "AST/TypeVisitor.h"
 
 using namespace NatsuLib;
 using namespace NatsuLang;
@@ -454,6 +453,3 @@ nBool UnresolvedType::EqualTo(TypePtr const& other) const noexcept
 
 	return false;
 }
-
-#define TYPE(Class, Base) void Class##Type::Accept(NatsuLib::natRefPointer<TypeVisitor> const& visitor) { visitor->Visit##Class##Type(ForkRef<Class##Type>()); }
-#include "Basic/TypeDef.h"

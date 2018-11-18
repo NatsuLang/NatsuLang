@@ -95,7 +95,7 @@ namespace NatsuLang::Serialization
 	};
 
 	class Serializer
-		: public NatsuLib::natRefObjImpl<Serializer>, public StmtVisitor, public DeclVisitor, public TypeVisitor
+		: public NatsuLib::natRefObjImpl<Serializer>, public StmtVisitor<Serializer>, public DeclVisitor<Serializer>, public TypeVisitor<Serializer>
 	{
 	public:
 		explicit Serializer(Semantic::Sema& sema,
@@ -107,83 +107,78 @@ namespace NatsuLang::Serialization
 		void StartSerialize(NatsuLib::natRefPointer<ISerializationArchiveWriter> archive, nBool isExporting = true);
 		void EndSerialize();
 
-		void VisitCatchStmt(NatsuLib::natRefPointer<Statement::CatchStmt> const& stmt) override;
-		void VisitTryStmt(NatsuLib::natRefPointer<Statement::TryStmt> const& stmt) override;
-		void VisitCompoundStmt(NatsuLib::natRefPointer<Statement::CompoundStmt> const& stmt) override;
-		void VisitDeclStmt(NatsuLib::natRefPointer<Statement::DeclStmt> const& stmt) override;
-		void VisitDoStmt(NatsuLib::natRefPointer<Statement::DoStmt> const& stmt) override;
-		void VisitExpr(NatsuLib::natRefPointer<Expression::Expr> const& expr) override;
-		void VisitConditionalOperator(NatsuLib::natRefPointer<Expression::ConditionalOperator> const& expr) override;
-		void VisitArraySubscriptExpr(NatsuLib::natRefPointer<Expression::ArraySubscriptExpr> const& expr) override;
-		void VisitBinaryOperator(NatsuLib::natRefPointer<Expression::BinaryOperator> const& expr) override;
-		void VisitBooleanLiteral(NatsuLib::natRefPointer<Expression::BooleanLiteral> const& expr) override;
-		void VisitConstructExpr(NatsuLib::natRefPointer<Expression::ConstructExpr> const& expr) override;
-		void VisitDeleteExpr(NatsuLib::natRefPointer<Expression::DeleteExpr> const& expr) override;
-		void VisitNewExpr(NatsuLib::natRefPointer<Expression::NewExpr> const& expr) override;
-		void VisitThisExpr(NatsuLib::natRefPointer<Expression::ThisExpr> const& expr) override;
-		void VisitThrowExpr(NatsuLib::natRefPointer<Expression::ThrowExpr> const& expr) override;
-		void VisitCallExpr(NatsuLib::natRefPointer<Expression::CallExpr> const& expr) override;
-		void VisitCastExpr(NatsuLib::natRefPointer<Expression::CastExpr> const& expr) override;
-		void VisitInitListExpr(NatsuLib::natRefPointer<Expression::InitListExpr> const& expr) override;
-		void VisitCharacterLiteral(NatsuLib::natRefPointer<Expression::CharacterLiteral> const& expr) override;
-		void VisitDeclRefExpr(NatsuLib::natRefPointer<Expression::DeclRefExpr> const& expr) override;
-		void VisitFloatingLiteral(NatsuLib::natRefPointer<Expression::FloatingLiteral> const& expr) override;
-		void VisitIntegerLiteral(NatsuLib::natRefPointer<Expression::IntegerLiteral> const& expr) override;
-		void VisitMemberExpr(NatsuLib::natRefPointer<Expression::MemberExpr> const& expr) override;
-		void VisitParenExpr(NatsuLib::natRefPointer<Expression::ParenExpr> const& expr) override;
-		void VisitStmtExpr(NatsuLib::natRefPointer<Expression::StmtExpr> const& expr) override;
-		void VisitStringLiteral(NatsuLib::natRefPointer<Expression::StringLiteral> const& expr) override;
-		void VisitUnaryOperator(NatsuLib::natRefPointer<Expression::UnaryOperator> const& expr) override;
-		void VisitForStmt(NatsuLib::natRefPointer<Statement::ForStmt> const& stmt) override;
-		void VisitGotoStmt(NatsuLib::natRefPointer<Statement::GotoStmt> const& stmt) override;
-		void VisitIfStmt(NatsuLib::natRefPointer<Statement::IfStmt> const& stmt) override;
-		void VisitLabelStmt(NatsuLib::natRefPointer<Statement::LabelStmt> const& stmt) override;
-		void VisitReturnStmt(NatsuLib::natRefPointer<Statement::ReturnStmt> const& stmt) override;
-		void VisitSwitchCase(NatsuLib::natRefPointer<Statement::SwitchCase> const& stmt) override;
-		void VisitCaseStmt(NatsuLib::natRefPointer<Statement::CaseStmt> const& stmt) override;
-		void VisitDefaultStmt(NatsuLib::natRefPointer<Statement::DefaultStmt> const& stmt) override;
-		void VisitSwitchStmt(NatsuLib::natRefPointer<Statement::SwitchStmt> const& stmt) override;
-		void VisitWhileStmt(NatsuLib::natRefPointer<Statement::WhileStmt> const& stmt) override;
-		void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt) override;
+		void VisitCatchStmt(NatsuLib::natRefPointer<Statement::CatchStmt> const& stmt);
+		void VisitTryStmt(NatsuLib::natRefPointer<Statement::TryStmt> const& stmt);
+		void VisitCompoundStmt(NatsuLib::natRefPointer<Statement::CompoundStmt> const& stmt);
+		void VisitDeclStmt(NatsuLib::natRefPointer<Statement::DeclStmt> const& stmt);
+		void VisitDoStmt(NatsuLib::natRefPointer<Statement::DoStmt> const& stmt);
+		void VisitExpr(NatsuLib::natRefPointer<Expression::Expr> const& expr);
+		void VisitConditionalOperator(NatsuLib::natRefPointer<Expression::ConditionalOperator> const& expr);
+		void VisitArraySubscriptExpr(NatsuLib::natRefPointer<Expression::ArraySubscriptExpr> const& expr);
+		void VisitBinaryOperator(NatsuLib::natRefPointer<Expression::BinaryOperator> const& expr);
+		void VisitBooleanLiteral(NatsuLib::natRefPointer<Expression::BooleanLiteral> const& expr);
+		void VisitConstructExpr(NatsuLib::natRefPointer<Expression::ConstructExpr> const& expr);
+		void VisitDeleteExpr(NatsuLib::natRefPointer<Expression::DeleteExpr> const& expr);
+		void VisitNewExpr(NatsuLib::natRefPointer<Expression::NewExpr> const& expr);
+		void VisitThisExpr(NatsuLib::natRefPointer<Expression::ThisExpr> const& expr);
+		void VisitThrowExpr(NatsuLib::natRefPointer<Expression::ThrowExpr> const& expr);
+		void VisitCallExpr(NatsuLib::natRefPointer<Expression::CallExpr> const& expr);
+		void VisitCastExpr(NatsuLib::natRefPointer<Expression::CastExpr> const& expr);
+		void VisitInitListExpr(NatsuLib::natRefPointer<Expression::InitListExpr> const& expr);
+		void VisitCharacterLiteral(NatsuLib::natRefPointer<Expression::CharacterLiteral> const& expr);
+		void VisitDeclRefExpr(NatsuLib::natRefPointer<Expression::DeclRefExpr> const& expr);
+		void VisitFloatingLiteral(NatsuLib::natRefPointer<Expression::FloatingLiteral> const& expr);
+		void VisitIntegerLiteral(NatsuLib::natRefPointer<Expression::IntegerLiteral> const& expr);
+		void VisitMemberExpr(NatsuLib::natRefPointer<Expression::MemberExpr> const& expr);
+		void VisitParenExpr(NatsuLib::natRefPointer<Expression::ParenExpr> const& expr);
+		void VisitStmtExpr(NatsuLib::natRefPointer<Expression::StmtExpr> const& expr);
+		void VisitStringLiteral(NatsuLib::natRefPointer<Expression::StringLiteral> const& expr);
+		void VisitUnaryOperator(NatsuLib::natRefPointer<Expression::UnaryOperator> const& expr);
+		void VisitForStmt(NatsuLib::natRefPointer<Statement::ForStmt> const& stmt);
+		void VisitGotoStmt(NatsuLib::natRefPointer<Statement::GotoStmt> const& stmt);
+		void VisitIfStmt(NatsuLib::natRefPointer<Statement::IfStmt> const& stmt);
+		void VisitLabelStmt(NatsuLib::natRefPointer<Statement::LabelStmt> const& stmt);
+		void VisitReturnStmt(NatsuLib::natRefPointer<Statement::ReturnStmt> const& stmt);
+		void VisitSwitchCase(NatsuLib::natRefPointer<Statement::SwitchCase> const& stmt);
+		void VisitCaseStmt(NatsuLib::natRefPointer<Statement::CaseStmt> const& stmt);
+		void VisitDefaultStmt(NatsuLib::natRefPointer<Statement::DefaultStmt> const& stmt);
+		void VisitSwitchStmt(NatsuLib::natRefPointer<Statement::SwitchStmt> const& stmt);
+		void VisitWhileStmt(NatsuLib::natRefPointer<Statement::WhileStmt> const& stmt);
+		void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt);
 
-		void Visit(Statement::StmtPtr const& stmt) override;
+		void Visit(Statement::StmtPtr const& stmt);
 
-		void VisitImportDecl(NatsuLib::natRefPointer<Declaration::ImportDecl> const& decl) override;
-		void VisitNamedDecl(NatsuLib::natRefPointer<Declaration::NamedDecl> const& decl) override;
-		void VisitAliasDecl(NatsuLib::natRefPointer<Declaration::AliasDecl> const& decl) override;
-		void VisitLabelDecl(NatsuLib::natRefPointer<Declaration::LabelDecl> const& decl) override;
-		void VisitModuleDecl(NatsuLib::natRefPointer<Declaration::ModuleDecl> const& decl) override;
-		void VisitTypeDecl(NatsuLib::natRefPointer<Declaration::TypeDecl> const& decl) override;
-		void VisitTagDecl(NatsuLib::natRefPointer<Declaration::TagDecl> const& decl) override;
-		void VisitEnumDecl(NatsuLib::natRefPointer<Declaration::EnumDecl> const& decl) override;
-		void VisitValueDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl) override;
-		void VisitFunctionDecl(NatsuLib::natRefPointer<Declaration::FunctionDecl> const& decl) override;
-		void VisitVarDecl(NatsuLib::natRefPointer<Declaration::VarDecl> const& decl) override;
-		void VisitImplicitParamDecl(NatsuLib::natRefPointer<Declaration::ImplicitParamDecl> const& decl) override;
-		void VisitEnumConstantDecl(NatsuLib::natRefPointer<Declaration::EnumConstantDecl> const& decl) override;
-		void VisitTranslationUnitDecl(NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> const& decl) override;
-		void VisitDecl(Declaration::DeclPtr const& decl) override;
+		void VisitImportDecl(NatsuLib::natRefPointer<Declaration::ImportDecl> const& decl);
+		void VisitNamedDecl(NatsuLib::natRefPointer<Declaration::NamedDecl> const& decl);
+		void VisitAliasDecl(NatsuLib::natRefPointer<Declaration::AliasDecl> const& decl);
+		void VisitLabelDecl(NatsuLib::natRefPointer<Declaration::LabelDecl> const& decl);
+		void VisitModuleDecl(NatsuLib::natRefPointer<Declaration::ModuleDecl> const& decl);
+		void VisitTypeDecl(NatsuLib::natRefPointer<Declaration::TypeDecl> const& decl);
+		void VisitTagDecl(NatsuLib::natRefPointer<Declaration::TagDecl> const& decl);
+		void VisitEnumDecl(NatsuLib::natRefPointer<Declaration::EnumDecl> const& decl);
+		void VisitValueDecl(NatsuLib::natRefPointer<Declaration::ValueDecl> const& decl);
+		void VisitFunctionDecl(NatsuLib::natRefPointer<Declaration::FunctionDecl> const& decl);
+		void VisitVarDecl(NatsuLib::natRefPointer<Declaration::VarDecl> const& decl);
+		void VisitImplicitParamDecl(NatsuLib::natRefPointer<Declaration::ImplicitParamDecl> const& decl);
+		void VisitEnumConstantDecl(NatsuLib::natRefPointer<Declaration::EnumConstantDecl> const& decl);
+		void VisitTranslationUnitDecl(NatsuLib::natRefPointer<Declaration::TranslationUnitDecl> const& decl);
+		void VisitDecl(Declaration::DeclPtr const& decl);
 
-		void Visit(Declaration::DeclPtr const& decl) override;
+		void Visit(Declaration::DeclPtr const& decl);
 
-		void VisitBuiltinType(NatsuLib::natRefPointer<Type::BuiltinType> const& type) override;
-		void VisitPointerType(NatsuLib::natRefPointer<Type::PointerType> const& type) override;
-		void VisitArrayType(NatsuLib::natRefPointer<Type::ArrayType> const& type) override;
-		void VisitFunctionType(NatsuLib::natRefPointer<Type::FunctionType> const& type) override;
-		void VisitParenType(NatsuLib::natRefPointer<Type::ParenType> const& type) override;
-		void VisitTagType(NatsuLib::natRefPointer<Type::TagType> const& type) override;
-		void VisitDeducedType(NatsuLib::natRefPointer<Type::DeducedType> const& type) override;
-		void VisitUnresolvedType(NatsuLib::natRefPointer<Type::UnresolvedType> const& type) override;
-		void VisitType(Type::TypePtr const& type) override;
+		void VisitBuiltinType(NatsuLib::natRefPointer<Type::BuiltinType> const& type);
+		void VisitPointerType(NatsuLib::natRefPointer<Type::PointerType> const& type);
+		void VisitArrayType(NatsuLib::natRefPointer<Type::ArrayType> const& type);
+		void VisitFunctionType(NatsuLib::natRefPointer<Type::FunctionType> const& type);
+		void VisitParenType(NatsuLib::natRefPointer<Type::ParenType> const& type);
+		void VisitTagType(NatsuLib::natRefPointer<Type::TagType> const& type);
+		void VisitDeducedType(NatsuLib::natRefPointer<Type::DeducedType> const& type);
+		void VisitUnresolvedType(NatsuLib::natRefPointer<Type::UnresolvedType> const& type);
+		void VisitType(Type::TypePtr const& type);
 
-		void Visit(Type::TypePtr const& type) override;
+		void Visit(Type::TypePtr const& type);
 
 		void SerializeCompilerAction(NatsuLib::natRefPointer<ICompilerAction> const& action);
-
-		std::size_t GetRefCount() const volatile noexcept override;
-		nBool TryIncRef() const volatile override;
-		void IncRef() const volatile override;
-		nBool DecRef() const volatile override;
 
 	private:
 		Semantic::Sema& m_Sema;

@@ -280,11 +280,11 @@ void Interpreter::InterpreterStmtVisitor::initVar(natRefPointer<Declaration::Var
 {
 	if (!initializer)
 	{
-		m_Interpreter.m_DeclStorage.GetOrAddDecl(var);
+		m_Interpreter.m_DeclStorage.GetOrAddDecl(var, Type::Type::GetUnderlyingType(var->GetValueType()));
 		return;
 	}
 
-	const auto varType = var->GetValueType();
+	const auto varType = Type::Type::GetUnderlyingType(var->GetValueType());
 
 	if (const auto initListExpr = initializer.Cast<Expression::InitListExpr>())
 	{

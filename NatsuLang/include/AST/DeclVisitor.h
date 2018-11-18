@@ -1,27 +1,47 @@
-#pragma once
-#include <natRefObj.h>
+﻿#pragma once
+#include "Declaration.h"
 
 namespace NatsuLang
 {
-	namespace Declaration
-	{
-		class Decl;
-		using DeclPtr = NatsuLib::natRefPointer<Decl>;
-
-#define DECL(Type, Base) class Type##Decl;
-#include "Basic/DeclDef.h"
-	}
-
+	template <typename T, typename ReturnType = void>
 	struct DeclVisitor
-		: NatsuLib::natRefObj
 	{
-		virtual ~DeclVisitor() = 0;
+		ReturnType Visit(Declaration::DeclPtr const& decl)
+		{
+			switch (decl->GetType())
+			{
+#define DECL(Type, Base) case Declaration::Decl::Type: return static_cast<T*>(this)->Visit##Type##Decl(decl.UnsafeCast<Declaration::Type##Decl>());
+#define ABSTRACT_DECL(Decl)
+#include "Basic/DeclDef.h"
+			default:
+				assert(!"Invalid StmtType.");
+				if constexpr (std::is_void_v<ReturnType>)
+				{
+					return;
+				}
+				else
+				{
+					return ReturnType{};
+				}
+			}
+		}
 
-		virtual void Visit(Declaration::DeclPtr const& decl);
-
-#define DECL(Type, Base) virtual void Visit##Type##Decl(NatsuLib::natRefPointer<Declaration::Type##Decl> const& decl);
+#define DECL(Type, Base) ReturnType Visit##Type##Decl(NatsuLib::natRefPointer<Declaration::Type##Decl> const& decl) { return static_cast<T*>(this)->Visit##Base(decl); }
 #include "Basic/DeclDef.h"
 
-		virtual void VisitDecl(Declaration::DeclPtr const& decl);
+		ReturnType VisitDecl(Declaration::DeclPtr const& decl)
+		{
+			if constexpr (std::is_void_v<ReturnType>)
+			{
+				return;
+			}
+			else
+			{
+				return ReturnType{};
+			}
+		}
+
+	protected:
+		~DeclVisitor() = default;
 	};
 }

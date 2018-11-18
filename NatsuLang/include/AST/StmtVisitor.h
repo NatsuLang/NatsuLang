@@ -1,36 +1,49 @@
 ﻿#pragma once
-#include <natRefObj.h>
+#include "Expression.h"
 
 namespace NatsuLang
 {
-	namespace Statement
-	{
-		class Stmt;
-		using StmtPtr = NatsuLib::natRefPointer<Stmt>;
-
-#define STMT(StmtType, Base) class StmtType;
-#define EXPR(ExprType, Base)
-#include "Basic/StmtDef.h"
-	}
-
-	namespace Expression
-	{
-#define STMT(StmtType, Base)
-#define EXPR(ExprType, Base) class ExprType;
-#include "Basic/StmtDef.h"
-	}
-
+	template <typename T, typename ReturnType = void>
 	struct StmtVisitor
-		: NatsuLib::natRefObj
 	{
-		virtual ~StmtVisitor() = 0;
+		ReturnType Visit(Statement::StmtPtr const& stmt)
+		{
+			switch (stmt->GetType())
+			{
+#define STMT(Type, Base) case Statement::Stmt::Type##Class: return static_cast<T*>(this)->Visit##Type(stmt.UnsafeCast<Statement::Type>());
+#define EXPR(Type, Base) case Statement::Stmt::Type##Class: return static_cast<T*>(this)->Visit##Type(stmt.UnsafeCast<Expression::Type>());
+#define ABSTRACT_STMT(Stmt)
+#include "Basic/StmtDef.h"
+			default:
+				assert(!"Invalid StmtType.");
+				if constexpr (std::is_void_v<ReturnType>)
+				{
+					return;
+				}
+				else
+				{
+					return ReturnType{};
+				}
+			}
+		}
 
-		virtual void Visit(Statement::StmtPtr const& stmt);
-
-#define STMT(Type, Base) virtual void Visit##Type(NatsuLib::natRefPointer<Statement::Type> const& stmt);
-#define EXPR(Type, Base) virtual void Visit##Type(NatsuLib::natRefPointer<Expression::Type> const& expr);
+#define STMT(Type, Base) ReturnType Visit##Type(NatsuLib::natRefPointer<Statement::Type> const& stmt) { return static_cast<T*>(this)->Visit##Base(stmt); }
+#define EXPR(Type, Base) ReturnType Visit##Type(NatsuLib::natRefPointer<Expression::Type> const& expr)  { return static_cast<T*>(this)->Visit##Base(expr); }
 #include "Basic/StmtDef.h"
 
-		virtual void VisitStmt(Statement::StmtPtr const& stmt);
+		ReturnType VisitStmt(Statement::StmtPtr const& stmt)
+		{
+			if constexpr (std::is_void_v<ReturnType>)
+			{
+				return;
+			}
+			else
+			{
+				return ReturnType{};
+			}
+		}
+
+	protected:
+		~StmtVisitor() = default;
 	};
 }

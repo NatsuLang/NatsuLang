@@ -46,8 +46,6 @@ namespace NatsuLang::Declaration
 
 		ASTContext& GetASTContext() const noexcept;
 
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
-
 	private:
 		ASTContext& m_Context;
 	};
@@ -81,8 +79,6 @@ namespace NatsuLang::Declaration
 			return true;
 		}
 
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
-
 	private:
 		Identifier::IdPtr m_IdentifierInfo;
 	};
@@ -107,8 +103,6 @@ namespace NatsuLang::Declaration
 		{
 			m_AliasAsAst = std::move(value);
 		}
-
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 
 	private:
 		ASTNodePtr m_AliasAsAst;
@@ -136,8 +130,6 @@ namespace NatsuLang::Declaration
 		{
 			m_Stmt = std::move(stmt);
 		}
-
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 
 	private:
 		LabelStmtPtr m_Stmt;
@@ -174,8 +166,6 @@ namespace NatsuLang::Declaration
 			m_End = value;
 		}
 
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
-
 	private:
 		SourceLocation m_Start, m_End;
 	};
@@ -202,8 +192,6 @@ namespace NatsuLang::Declaration
 			m_ValueType = std::move(value);
 		}
 
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
-
 	private:
 		Type::TypePtr m_ValueType;
 	};
@@ -224,8 +212,6 @@ namespace NatsuLang::Declaration
 		{
 			return m_IdLoc;
 		}
-
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 
 	private:
 		SourceLocation m_IdLoc;
@@ -256,8 +242,6 @@ namespace NatsuLang::Declaration
 			return m_DeclaratorPtr;
 		}
 
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
-
 	private:
 		// 在 resolve 时使用，resolve 完成后将会过期
 		NatsuLib::natWeakRefPointer<Declarator> m_DeclaratorPtr;
@@ -274,8 +258,6 @@ namespace NatsuLang::Declaration
 		}
 
 		~TemplateDecl();
-
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 	};
 
 	class VarDecl
@@ -311,8 +293,6 @@ namespace NatsuLang::Declaration
 			m_Initializer = std::move(value);
 		}
 
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
-
 	private:
 		Specifier::StorageClass m_StorageClass;
 		Expression::ExprPtr m_Initializer;
@@ -345,8 +325,6 @@ namespace NatsuLang::Declaration
 			return m_ParamType;
 		}
 
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
-
 	private:
 		ImplicitParamType m_ParamType;
 	};
@@ -364,8 +342,6 @@ namespace NatsuLang::Declaration
 		}
 
 		~ParmVarDecl();
-
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 	};
 
 	class FunctionDecl
@@ -399,8 +375,6 @@ namespace NatsuLang::Declaration
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ParmVarDecl>>> GetParams() const noexcept;
 		void SetParams(NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ParmVarDecl>>> value) noexcept;
 
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
-
 	private:
 		std::vector<NatsuLib::natRefPointer<ParmVarDecl>> m_Params;
 		Statement::StmtPtr m_Body;
@@ -417,8 +391,6 @@ namespace NatsuLang::Declaration
 		}
 
 		~MethodDecl();
-
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 	};
 
 	class FieldDecl
@@ -432,8 +404,6 @@ namespace NatsuLang::Declaration
 		}
 
 		~FieldDecl();
-
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 	};
 
 	// TODO: 延迟分析
@@ -469,8 +439,6 @@ namespace NatsuLang::Declaration
 		{
 			m_Value = value;
 		}
-
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 
 	private:
 		Expression::ExprPtr m_Init;
@@ -509,8 +477,6 @@ namespace NatsuLang::Declaration
 			m_StartLoc = value;
 		}
 
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
-
 	private:
 		Type::TypePtr m_Type;
 		SourceLocation m_StartLoc;
@@ -539,8 +505,6 @@ namespace NatsuLang::Declaration
 			m_TagTypeClass = value;
 		}
 
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
-
 	private:
 		Type::TagType::TagTypeClass m_TagTypeClass;
 	};
@@ -568,8 +532,6 @@ namespace NatsuLang::Declaration
 			m_UnderlyingType = std::move(value);
 		}
 
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
-
 	private:
 		Type::TypePtr m_UnderlyingType;
 	};
@@ -588,8 +550,6 @@ namespace NatsuLang::Declaration
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<FieldDecl>>> GetFields() const noexcept;
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<MethodDecl>>> GetMethods() const noexcept;
 		NatsuLib::Linq<NatsuLib::Valued<NatsuLib::natRefPointer<ClassDecl>>> GetBases() const noexcept;
-
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 	};
 
 	class ImportDecl
@@ -608,8 +568,6 @@ namespace NatsuLang::Declaration
 			return m_Module;
 		}
 
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
-
 	private:
 		NatsuLib::natRefPointer<ModuleDecl> m_Module;
 	};
@@ -624,8 +582,6 @@ namespace NatsuLang::Declaration
 		}
 
 		~EmptyDecl();
-
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 	};
 
 	class ConstructorDecl
@@ -642,8 +598,6 @@ namespace NatsuLang::Declaration
 		}
 
 		~ConstructorDecl();
-
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 	};
 
 	class DestructorDecl
@@ -660,7 +614,5 @@ namespace NatsuLang::Declaration
 		}
 
 		~DestructorDecl();
-
-		void Accept(NatsuLib::natRefPointer<DeclVisitor> const& visitor) override;
 	};
 }
