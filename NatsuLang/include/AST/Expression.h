@@ -561,8 +561,13 @@ namespace NatsuLang::Expression
 		: public Expr
 	{
 	public:
+		BinaryOperator(StmtType stmtType, ExprPtr leftOperand, ExprPtr rightOperand, BinaryOperationType opcode, Type::TypePtr type, SourceLocation loc, ValueCategory valueCategory)
+			: Expr{ stmtType, std::move(type), valueCategory, loc, loc }, m_LeftOperand{ std::move(leftOperand) }, m_RightOperand{ std::move(rightOperand) }, m_Opcode{ opcode }
+		{
+		}
+
 		BinaryOperator(ExprPtr leftOperand, ExprPtr rightOperand, BinaryOperationType opcode, Type::TypePtr type, SourceLocation loc, ValueCategory valueCategory)
-			: Expr{ BinaryOperatorClass, std::move(type), valueCategory, loc, loc }, m_LeftOperand{ std::move(leftOperand) }, m_RightOperand{ std::move(rightOperand) }, m_Opcode{ opcode }
+			: BinaryOperator{ BinaryOperatorClass, std::move(leftOperand), std::move(rightOperand), opcode, std::move(type), loc, valueCategory }
 		{
 		}
 
@@ -610,7 +615,7 @@ namespace NatsuLang::Expression
 	{
 	public:
 		CompoundAssignOperator(ExprPtr leftOperand, ExprPtr rightOperand, BinaryOperationType opcode, Type::TypePtr type, SourceLocation loc)
-			: BinaryOperator{ std::move(leftOperand), std::move(rightOperand), opcode, std::move(type), loc, ValueCategory::LValue }
+			: BinaryOperator{ CompoundAssignOperatorClass, std::move(leftOperand), std::move(rightOperand), opcode, std::move(type), loc, ValueCategory::LValue }
 		{
 		}
 
