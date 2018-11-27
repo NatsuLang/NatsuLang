@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(NatsuLang CXX)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMake/Modules")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/CMake/Modules")
 
 set(${PROJECT_NAME}_EXTERN_DIR "${${PROJECT_NAME}_SOURCE_DIR}/Extern")
 

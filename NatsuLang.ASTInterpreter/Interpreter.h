@@ -71,117 +71,37 @@ namespace NatsuLang
 			return false;
 		}
 
+#define BUILTIN_TYPE_MAP(OP) \
+	OP(Bool, nBool)\
+	OP(Char, nByte)\
+	OP(Byte, nByte)\
+	OP(UShort, nuShort)\
+	OP(UInt, nuInt)\
+	OP(ULong, nuLong)\
+	OP(ULongLong, nuLong)\
+	OP(ULong128, nuLong)\
+	OP(SByte, nSByte)\
+	OP(Short, nShort)\
+	OP(Int, nInt)\
+	OP(Long, nLong)\
+	OP(LongLong, nLong)\
+	OP(Long128, nLong)\
+	OP(Float, nFloat)\
+	OP(Double, nDouble)\
+	OP(LongDouble, nDouble)\
+	OP(Float128, nDouble)
+
 		template <Type::BuiltinType::BuiltinClass BuiltinClass>
 		struct BuiltinTypeMap;
 
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::Bool>
-		{
-			using type = nBool;
+#define BUILTIN_TYPE_MAP_OP(buildinType, mappedType) \
+		template <>\
+		struct BuiltinTypeMap<Type::BuiltinType::builtinType>\
+		{\
+			using type = mappedType;\
 		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::Char>
-		{
-			using type = nByte;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::Byte>
-		{
-			using type = nByte;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::UShort>
-		{
-			using type = nuShort;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::UInt>
-		{
-			using type = nuInt;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::ULong>
-		{
-			using type = nuLong;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::ULongLong>
-		{
-			using type = nuLong;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::UInt128>
-		{
-			using type = nuLong;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::SByte>
-		{
-			using type = nSByte;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::Short>
-		{
-			using type = nShort;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::Int>
-		{
-			using type = nInt;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::Long>
-		{
-			using type = nLong;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::LongLong>
-		{
-			using type = nLong;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::Int128>
-		{
-			using type = nLong;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::Float>
-		{
-			using type = nFloat;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::Double>
-		{
-			using type = nDouble;
-		};
-
-		// TODO: 需要修改
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::LongDouble>
-		{
-			using type = nDouble;
-		};
-
-		template <>
-		struct BuiltinTypeMap<Type::BuiltinType::Float128>
-		{
-			using type = nDouble;
-		};
+		BUILTIN_TYPE_MAP(BUILTIN_TYPE_MAP_OP);
+#undef BUILTIN_TYPE_MAP_OP
 	}
 
 	enum class DeclStorageLevelFlag
@@ -219,19 +139,19 @@ namespace NatsuLang
 
 			void HandleDiagnostic(Diag::DiagnosticsEngine::Level level, Diag::DiagnosticsEngine::Diagnostic const& diag) override;
 
-			nBool IsErrored() const noexcept
+			nBool HasError() const noexcept
 			{
-				return m_Errored;
+				return m_HasError;
 			}
 
 			void Reset() noexcept
 			{
-				m_Errored = false;
+				m_HasError = false;
 			}
 
 		private:
 			Interpreter& m_Interpreter;
-			nBool m_Errored;
+			nBool m_HasError;
 		};
 
 		class InterpreterASTConsumer
@@ -256,18 +176,16 @@ namespace NatsuLang
 		{
 			template <typename ValueVisitor, typename ExpectedOrExcepted>
 			class InterpreterExprEvaluator
-				: public StmtVisitor<InterpreterExprEvaluator<ValueVisitor, ExpectedOrExcepted>>
+				: public StmtVisitor<InterpreterExprEvaluator<ValueVisitor, ExpectedOrExcepted>, nBool>
 			{
 			public:
 				explicit InterpreterExprEvaluator(Interpreter& interpreter, ValueVisitor const& visitor)
-					: m_Interpreter{ interpreter }, m_Visitor{ visitor },
-					  m_LastEvaluationSucceed{ false }
+					: m_Interpreter{ interpreter }, m_Visitor{ visitor }
 				{
 				}
 
 				explicit InterpreterExprEvaluator(Interpreter& interpreter, ValueVisitor&& visitor)
-					: m_Interpreter{ interpreter }, m_Visitor{ std::move(visitor) },
-					  m_LastEvaluationSucceed{ false }
+					: m_Interpreter{ interpreter }, m_Visitor{ std::move(visitor) }
 				{
 				}
 
@@ -275,43 +193,37 @@ namespace NatsuLang
 				{
 				}
 
-				nBool IsLastEvaluationSucceed() const noexcept
-				{
-					return m_LastEvaluationSucceed;
-				}
-
-				void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& /*stmt*/)
+				nBool VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& /*stmt*/)
 				{
 					nat_Throw(InterpreterException, u8"语句无法求值"_nv);
 				}
 
-				void VisitExpr(NatsuLib::natRefPointer<Expression::Expr> const& /*expr*/)
+				nBool VisitExpr(NatsuLib::natRefPointer<Expression::Expr> const& /*expr*/)
 				{
 					nat_Throw(InterpreterException, u8"此表达式无法被求值"_nv);
 				}
 
-				void VisitBooleanLiteral(NatsuLib::natRefPointer<Expression::BooleanLiteral> const& expr)
+				nBool VisitBooleanLiteral(NatsuLib::natRefPointer<Expression::BooleanLiteral> const& expr)
 				{
-					m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
+					return Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
 				}
 
-				void VisitCharacterLiteral(NatsuLib::natRefPointer<Expression::CharacterLiteral> const& expr)
+				nBool VisitCharacterLiteral(NatsuLib::natRefPointer<Expression::CharacterLiteral> const& expr)
 				{
-					m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nByte>(expr->GetCodePoint()), ExpectedOrExcepted{});
+					return Detail::InvokeIfSatisfied(m_Visitor, static_cast<nByte>(expr->GetCodePoint()), ExpectedOrExcepted{});
 				}
 
-				void VisitDeclRefExpr(NatsuLib::natRefPointer<Expression::DeclRefExpr> const& expr)
+				nBool VisitDeclRefExpr(NatsuLib::natRefPointer<Expression::DeclRefExpr> const& expr)
 				{
 					const auto decl = expr->GetDecl();
 					if (const auto varDecl = decl.Cast<Declaration::VarDecl>(); varDecl && NatsuLib::HasAllFlags(varDecl->GetStorageClass(), Specifier::StorageClass::Const))
 					{
-						this->Visit(varDecl->GetInitializer());
-						return;
+						return this->Visit(varDecl->GetInitializer());
 					}
-					m_LastEvaluationSucceed = m_Interpreter.m_DeclStorage.VisitDeclStorage(expr->GetDecl(), m_Visitor, ExpectedOrExcepted{});
+					return m_Interpreter.m_DeclStorage.VisitDeclStorage(expr->GetDecl(), m_Visitor, ExpectedOrExcepted{});
 				}
 
-				void VisitFloatingLiteral(NatsuLib::natRefPointer<Expression::FloatingLiteral> const& expr)
+				nBool VisitFloatingLiteral(NatsuLib::natRefPointer<Expression::FloatingLiteral> const& expr)
 				{
 					const auto exprType = expr->GetExprType();
 
@@ -320,11 +232,9 @@ namespace NatsuLang
 						switch (builtinType->GetBuiltinClass())
 						{
 						case Type::BuiltinType::Float:
-							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nFloat>(expr->GetValue()), ExpectedOrExcepted{});
-							return;
+							return Detail::InvokeIfSatisfied(m_Visitor, static_cast<nFloat>(expr->GetValue()), ExpectedOrExcepted{});
 						case Type::BuiltinType::Double:
-							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
-							return;
+							return Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
 						case Type::BuiltinType::LongDouble:
 						case Type::BuiltinType::Float128:
 							break;
@@ -336,7 +246,7 @@ namespace NatsuLang
 					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				}
 
-				void VisitIntegerLiteral(NatsuLib::natRefPointer<Expression::IntegerLiteral> const& expr)
+				nBool VisitIntegerLiteral(NatsuLib::natRefPointer<Expression::IntegerLiteral> const& expr)
 				{
 					const auto exprType = expr->GetExprType();
 
@@ -345,27 +255,21 @@ namespace NatsuLang
 						switch (builtinType->GetBuiltinClass())
 						{
 						case Type::BuiltinType::UShort:
-							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nuShort>(expr->GetValue()), ExpectedOrExcepted{});
-							return;
+							return Detail::InvokeIfSatisfied(m_Visitor, static_cast<nuShort>(expr->GetValue()), ExpectedOrExcepted{});
 						case Type::BuiltinType::UInt:
-							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nuInt>(expr->GetValue()), ExpectedOrExcepted{});
-							return;
+							return Detail::InvokeIfSatisfied(m_Visitor, static_cast<nuInt>(expr->GetValue()), ExpectedOrExcepted{});
 						case Type::BuiltinType::ULong:
 						case Type::BuiltinType::ULongLong:
 						case Type::BuiltinType::UInt128:
-							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
-							return;
+							return Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
 						case Type::BuiltinType::Short:
-							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nShort>(expr->GetValue()), ExpectedOrExcepted{});
-							return;
+							return Detail::InvokeIfSatisfied(m_Visitor, static_cast<nShort>(expr->GetValue()), ExpectedOrExcepted{});
 						case Type::BuiltinType::Int:
-							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nInt>(expr->GetValue()), ExpectedOrExcepted{});
-							return;
+							return Detail::InvokeIfSatisfied(m_Visitor, static_cast<nInt>(expr->GetValue()), ExpectedOrExcepted{});
 						case Type::BuiltinType::Long:
 						case Type::BuiltinType::LongLong:
 						case Type::BuiltinType::Int128:
-							m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, static_cast<nLong>(expr->GetValue()), ExpectedOrExcepted{});
-							return;
+							return Detail::InvokeIfSatisfied(m_Visitor, static_cast<nLong>(expr->GetValue()), ExpectedOrExcepted{});
 						default:
 							nat_Throw(InterpreterException, u8"整数字面量不应具有此类型"_nv);
 						}
@@ -374,15 +278,14 @@ namespace NatsuLang
 					nat_Throw(InterpreterException, u8"此功能尚未实现"_nv);
 				}
 
-				void VisitStringLiteral(NatsuLib::natRefPointer<Expression::StringLiteral> const& expr)
+				nBool VisitStringLiteral(NatsuLib::natRefPointer<Expression::StringLiteral> const& expr)
 				{
-					m_LastEvaluationSucceed = Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
+					return Detail::InvokeIfSatisfied(m_Visitor, expr->GetValue(), ExpectedOrExcepted{});
 				}
 
 			private:
 				Interpreter& m_Interpreter;
 				ValueVisitor m_Visitor;
-				nBool m_LastEvaluationSucceed;
 			};
 
 		public:
@@ -492,8 +395,8 @@ namespace NatsuLang
 				: public Declaration::VarDecl
 			{
 			public:
-				MemoryLocationDecl(Type::TypePtr type, nData memoryLocation, Identifier::IdPtr name = nullptr)
-					: VarDecl{ Var, nullptr, {}, {}, std::move(name), std::move(type), Specifier::StorageClass::None }, m_MemoryLocation{ memoryLocation }
+				MemoryLocationDecl(Type::TypePtr type, nData memoryLocation, Identifier::IdPtr name = nullptr, Declaration::DeclPtr fromDecl = nullptr)
+					: VarDecl{ Var, nullptr, {}, {}, std::move(name), std::move(type), Specifier::StorageClass::None }, m_MemoryLocation{ memoryLocation }, m_FromDecl{ std::move(fromDecl) }
 				{
 				}
 
@@ -504,8 +407,14 @@ namespace NatsuLang
 					return m_MemoryLocation;
 				}
 
+				[[nodiscard]] Declaration::DeclPtr const& GetFromDecl() const noexcept
+				{
+					return m_FromDecl;
+				}
+
 			private:
 				nData m_MemoryLocation;
+				Declaration::DeclPtr m_FromDecl;
 			};
 
 			class ArrayElementAccessor
@@ -598,9 +507,18 @@ namespace NatsuLang
 					switch (builtinType->GetBuiltinClass())
 					{
 #define BUILTIN_TYPE(Id, Name)
-#define SIGNED_TYPE(Id, Name) case Type::BuiltinType::Id: return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<typename Detail::BuiltinTypeMap<Type::BuiltinType::Id>::type&>(storageRef), condition);
-#define UNSIGNED_TYPE(Id, Name) case Type::BuiltinType::Id: return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<typename Detail::BuiltinTypeMap<Type::BuiltinType::Id>::type&>(storageRef), condition);
-#define FLOATING_TYPE(Id, Name) case Type::BuiltinType::Id: return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor), reinterpret_cast<typename Detail::BuiltinTypeMap<Type::BuiltinType::Id>::type&>(storageRef), condition);
+#define SIGNED_TYPE(Id, Name) \
+					case Type::BuiltinType::Id:\
+						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor),\
+							reinterpret_cast<typename Detail::BuiltinTypeMap<Type::BuiltinType::Id>::type&>(storageRef), condition);
+#define UNSIGNED_TYPE(Id, Name) \
+					case Type::BuiltinType::Id:\
+						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor),\
+							reinterpret_cast<typename Detail::BuiltinTypeMap<Type::BuiltinType::Id>::type&>(storageRef), condition);
+#define FLOATING_TYPE(Id, Name) \
+					case Type::BuiltinType::Id:\
+						return Detail::InvokeIfSatisfied(std::forward<Callable>(visitor),\
+							reinterpret_cast<typename Detail::BuiltinTypeMap<Type::BuiltinType::Id>::type&>(storageRef), condition);
 #define PLACEHOLDER_TYPE(Id, Name)
 #include <Basic/BuiltinTypesDef.h>
 					default:

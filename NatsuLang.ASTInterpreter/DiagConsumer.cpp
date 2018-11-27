@@ -4,7 +4,7 @@ using namespace NatsuLib;
 using namespace NatsuLang;
 
 Interpreter::InterpreterDiagConsumer::InterpreterDiagConsumer(Interpreter& interpreter)
-	: m_Interpreter{ interpreter }, m_Errored{ false }
+	: m_Interpreter{ interpreter }, m_HasError{ false }
 {
 }
 
@@ -15,7 +15,7 @@ Interpreter::InterpreterDiagConsumer::~InterpreterDiagConsumer()
 void Interpreter::InterpreterDiagConsumer::HandleDiagnostic(Diag::DiagnosticsEngine::Level level,
 	Diag::DiagnosticsEngine::Diagnostic const& diag)
 {
-	m_Errored |= Diag::DiagnosticsEngine::IsUnrecoverableLevel(level);
+	m_HasError |= Diag::DiagnosticsEngine::IsUnrecoverableLevel(level);
 
 	nuInt levelId;
 

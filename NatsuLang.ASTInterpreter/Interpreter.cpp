@@ -42,7 +42,7 @@ void Interpreter::Run(nStrView content)
 	m_Preprocessor.SetLexer(make_ref<Lex::Lexer>(0, content, m_Preprocessor));
 	m_Parser.ConsumeToken();
 	const auto stmt = m_Parser.ParseStatement(Declaration::Context::Block, true);
-	if (!stmt || m_DiagConsumer->IsErrored())
+	if (!stmt || m_DiagConsumer->HasError())
 	{
 		m_DiagConsumer->Reset();
 		// 玄学问题，加上 u8 前缀会乱码
