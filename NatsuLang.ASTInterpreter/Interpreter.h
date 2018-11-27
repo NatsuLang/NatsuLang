@@ -79,13 +79,13 @@ namespace NatsuLang
 	OP(UInt, nuInt)\
 	OP(ULong, nuLong)\
 	OP(ULongLong, nuLong)\
-	OP(ULong128, nuLong)\
+	OP(UInt128, nuLong)\
 	OP(SByte, nSByte)\
 	OP(Short, nShort)\
 	OP(Int, nInt)\
 	OP(Long, nLong)\
 	OP(LongLong, nLong)\
-	OP(Long128, nLong)\
+	OP(Int128, nLong)\
 	OP(Float, nFloat)\
 	OP(Double, nDouble)\
 	OP(LongDouble, nDouble)\
@@ -94,7 +94,7 @@ namespace NatsuLang
 		template <Type::BuiltinType::BuiltinClass BuiltinClass>
 		struct BuiltinTypeMap;
 
-#define BUILTIN_TYPE_MAP_OP(buildinType, mappedType) \
+#define BUILTIN_TYPE_MAP_OP(builtinType, mappedType) \
 		template <>\
 		struct BuiltinTypeMap<Type::BuiltinType::builtinType>\
 		{\
@@ -306,8 +306,7 @@ namespace NatsuLang
 
 				Visit(expr);
 				InterpreterExprEvaluator<ValueVisitor, ExpectedOrExcepted> evaluator{ m_Interpreter, std::forward<ValueVisitor>(visitor) };
-				evaluator.Visit(m_LastVisitedExpr);
-				return evaluator.IsLastEvaluationSucceed();
+				return evaluator.Visit(m_LastVisitedExpr);
 			}
 
 			void VisitStmt(NatsuLib::natRefPointer<Statement::Stmt> const& stmt);

@@ -130,11 +130,13 @@ int main(int argc, char* argv[])
 		PrintException(logger, e);
 		logger.LogErr(u8"解释器由于未处理的不可恢复的异常而中止运行，请按 Enter 退出程序"_nv);
 		console.ReadLine();
+		return EXIT_FAILURE;
 	}
 	catch (std::exception& e)
 	{
 		PrintException(logger, e);
 		logger.LogErr(u8"解释器由于未处理的不可恢复的异常而中止运行，请按 Enter 退出程序"_nv);
 		console.ReadLine();
+		return EXIT_FAILURE;
 	}
 }
